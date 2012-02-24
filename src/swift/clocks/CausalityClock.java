@@ -33,9 +33,8 @@ public interface CausalityClock<V extends CausalityClock<V>> extends
 	 *            Event clock.
 	 * @return Returns true if the given event clock is included in this
 	 *         causality clock.
-	 * @throws IncompatibleTypeException
 	 */
-	boolean includes(Timestamp t) throws IncompatibleTypeException;
+	boolean includes(Timestamp t);
 
 	/**
 	 * Returns the most recent event for a given site. <br>

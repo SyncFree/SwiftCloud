@@ -2,7 +2,6 @@ package swift.crdt.interfaces;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.utils.Pair;
 
 /**
  * Basic interface for representing an operation in a CRDT
@@ -11,12 +10,14 @@ import swift.utils.Pair;
  */
 public interface CRDTOperation {
 
-	Pair<String, String> getTargetUID();
+	CRDTIdentifier getTargetUID();
 
 	/**
 	 * 
 	 */
 	Timestamp getTimestamp();
+
+	void setTimestamp(Timestamp ts);
 
 	/**
 	 * 

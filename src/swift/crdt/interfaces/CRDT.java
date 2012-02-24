@@ -2,16 +2,21 @@ package swift.crdt.interfaces;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.utils.Pair;
 
 public interface CRDT<V extends CRDT<V>> {
 	void merge(V other);
 
 	void execute(CRDTOperation op);
 
-	Pair<String, String> getUID();
+	void prune(CausalityClock c);
 
-	void setUID();
+	void rollback(Timestamp ts);
+
+	// only used by system
+
+	CRDTIdentifier getUID();
+
+	void setUID(CRDTIdentifier id);
 
 	CausalityClock getClock();
 
@@ -21,7 +26,4 @@ public interface CRDT<V extends CRDT<V>> {
 
 	void setTxnHandle(TxnHandle txn);
 
-	void prune(CausalityClock c);
-
-	void rollback(Timestamp ts);
 }

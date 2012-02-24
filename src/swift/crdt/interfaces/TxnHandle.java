@@ -13,7 +13,8 @@ public interface TxnHandle {
 
 	/**************/
 
-	CRDT<?> get(String table, String key);
+	<T extends CRDT<T>> CRDT<T> get(CRDTIdentifier id, boolean create,
+			Class<T> classOfT);
 
 	void commit();
 
