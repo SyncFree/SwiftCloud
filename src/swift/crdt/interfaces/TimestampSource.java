@@ -3,7 +3,7 @@ package swift.crdt.interfaces;
 import swift.clocks.CausalityClock;
 
 /**
- * Source for generating new timestamps
+ * Source for generating new timestamps.
  * 
  * @author nmp
  */
@@ -16,7 +16,8 @@ public interface TimestampSource<T> {
 	T generateNew();
 
 	/**
-	 * Generates a new timestamp given that current clock is c
+	 * Generates a new timestamp with respect to the causality clock given as
+	 * parameter.
 	 * 
 	 * @return
 	 */
