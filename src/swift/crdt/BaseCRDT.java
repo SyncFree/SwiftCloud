@@ -3,7 +3,6 @@ package swift.crdt;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTIdentifier;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.InvalidParameterException;
 

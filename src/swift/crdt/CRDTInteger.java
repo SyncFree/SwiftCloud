@@ -7,10 +7,13 @@ import java.util.Map.Entry;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.operations.IntegerAdd;
+import swift.exceptions.NotSupportedOperationException;
 
 public class CRDTInteger extends BaseCRDT<CRDTInteger> {
-	private static final long serialVersionUID = 1L;
+	// set of adds per site
 	private Map<String, Integer> adds;
+	// set of removes per site
 	private Map<String, Integer> rems;
 	private int val;
 
@@ -25,11 +28,19 @@ public class CRDTInteger extends BaseCRDT<CRDTInteger> {
 		return this.val;
 	}
 
-	private int add(int n, String siteId) {
+	public void add(int n) {
+		Timestamp ts = getTxnHandle().nextTimestamp();
+		CRDTOperation<CRDTInteger> op = new IntegerAdd(getUID(), ts,
+				getClock(), n);
+		getTxnHandle().registerOperation(op);
+	}
+
+	private int addU(int n, Timestamp ts) {
 		if (n < 0) {
-			return sub(-n, siteId);
+			return subU(-n, ts);
 		}
 
+		String siteId = ts.getIdentifier();
 		int v;
 		if (this.adds.containsKey(siteId)) {
 			v = this.adds.get(siteId) + n;
@@ -42,10 +53,11 @@ public class CRDTInteger extends BaseCRDT<CRDTInteger> {
 		return this.val;
 	}
 
-	private int sub(int n, String siteId) {
+	private int subU(int n, Timestamp ts) {
 		if (n < 0) {
-			return add(-n, siteId);
+			return addU(-n, ts);
 		}
+		String siteId = ts.getIdentifier();
 		int v;
 		if (this.rems.containsKey(siteId)) {
 			v = this.rems.get(siteId) + n;
@@ -60,7 +72,7 @@ public class CRDTInteger extends BaseCRDT<CRDTInteger> {
 
 	@Override
 	protected void mergePayload(CRDTInteger that) {
-
+		// TODO Iterate over the smaller set!
 		for (Entry<String, Integer> e : that.adds.entrySet()) {
 			if (!this.adds.containsKey(e.getKey())) {
 				int v = e.getValue();
@@ -101,9 +113,13 @@ public class CRDTInteger extends BaseCRDT<CRDTInteger> {
 	}
 
 	@Override
-	public void execute(CRDTOperation op) {
-		// TODO Auto-generated method stub
-
+	public void execute(CRDTOperation<CRDTInteger> op) {
+		if (op instanceof IntegerAdd) {
+			IntegerAdd addop = (IntegerAdd) op;
+			this.addU(addop.getVal(), addop.getTimestamp());
+		} else {
+			throw new NotSupportedOperationException();
+		}
 	}
 
 	@Override

@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.crdt.CRDTIdentifier;
 
 /**
  * Interface for Commutative Replicated Data Types (CRDTs).
@@ -30,7 +31,7 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
 	 * @param op
 	 *            operation to be executed
 	 */
-	void execute(CRDTOperation op);
+	void execute(CRDTOperation<V> op);
 
 	/**
 	 * Prune the object state to remove meta data from operations dating from

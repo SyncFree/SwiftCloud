@@ -2,13 +2,14 @@ package swift.crdt.interfaces;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.crdt.CRDTIdentifier;
 
 /**
  * Basic interface for representing an operation in a CRDT
  * 
  * @author nmp, annettebieniusa
  */
-public interface CRDTOperation {
+public interface CRDTOperation<V extends CRDT<V>> {
 
 	/**
 	 * Get the identifier of CRDT on which operation is to be executed.

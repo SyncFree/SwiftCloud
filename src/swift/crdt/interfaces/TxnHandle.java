@@ -2,6 +2,7 @@ package swift.crdt.interfaces;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.crdt.CRDTIdentifier;
 
 /**
  * Interface for transaction handles.

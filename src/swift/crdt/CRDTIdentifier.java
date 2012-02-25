@@ -1,4 +1,4 @@
-package swift.crdt.interfaces;
+package swift.crdt;
 
 /**
  * System-wide unique identifier for CRDT object. Identification via table to
