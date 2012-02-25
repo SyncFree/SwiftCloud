@@ -16,5 +16,5 @@ public interface Swift {
 	 *            must be set to true if new transaction is read-only
 	 * @return TxnHandle for the new transaction
 	 */
-	TxnHandle beginTxn(CachePolicy cp, boolean read_only);
+	TxnHandle<?> beginTxn(CachePolicy cp, boolean read_only);
 }

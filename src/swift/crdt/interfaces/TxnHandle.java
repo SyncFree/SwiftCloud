@@ -10,9 +10,9 @@ import swift.crdt.CRDTIdentifier;
  * @author annettebieniusa
  * 
  */
-public interface TxnHandle {
-	<T extends CRDT<T>> CRDT<T> get(CRDTIdentifier id, boolean create,
-			Class<T> classOfT);
+public interface TxnHandle<T extends Timestamp> {
+	<V extends CRDT<V, I, T>, I> CRDT<V, I, T> get(CRDTIdentifier id,
+			boolean create, Class<T> classOfT);
 
 	/**
 	 * Commits the transaction.
@@ -29,7 +29,7 @@ public interface TxnHandle {
 	 * 
 	 * @return next timestamp
 	 */
-	Timestamp nextTimestamp();
+	T nextTimestamp();
 
 	/**
 	 * Returns the causality clock associated to this transaction handle. Only
@@ -45,6 +45,6 @@ public interface TxnHandle {
 	 * 
 	 * @param op
 	 */
-	void registerOperation(CRDTOperation op);
+	void registerOperation(CRDTOperation<?, T> op);
 
 }

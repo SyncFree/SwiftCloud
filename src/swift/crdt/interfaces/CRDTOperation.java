@@ -9,7 +9,7 @@ import swift.crdt.CRDTIdentifier;
  * 
  * @author nmp, annettebieniusa
  */
-public interface CRDTOperation<V extends CRDT<V>> {
+public interface CRDTOperation<I, T extends Timestamp> {
 
 	/**
 	 * Get the identifier of CRDT on which operation is to be executed.
@@ -21,14 +21,14 @@ public interface CRDTOperation<V extends CRDT<V>> {
 	/**
 	 * Returns the timestamp associated to the operations.
 	 */
-	Timestamp getTimestamp();
+	T getTimestamp();
 
 	/**
 	 * Sets the timestamp for the operation.
 	 * 
 	 * @param ts
 	 */
-	void setTimestamp(Timestamp ts);
+	void setTimestamp(T ts);
 
 	/**
 	 * Returns the causality clock for the objects on which the operation is to

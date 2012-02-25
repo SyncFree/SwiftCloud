@@ -5,11 +5,11 @@ import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.ICRDTInteger;
 
-public class IntegerAdd<T extends Timestamp> extends
+public class IntegerSub<T extends Timestamp> extends
 		BaseOperation<ICRDTInteger, T> {
 	private int val;
 
-	public IntegerAdd(CRDTIdentifier target, T ts, CausalityClock c, int val) {
+	public IntegerSub(CRDTIdentifier target, T ts, CausalityClock c, int val) {
 		super(target, ts, c);
 		this.val = val;
 	}

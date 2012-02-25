@@ -7,14 +7,17 @@ import java.util.Map.Entry;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.ICRDTInteger;
 import swift.crdt.operations.IntegerAdd;
+import swift.crdt.operations.IntegerSub;
 import swift.exceptions.NotSupportedOperationException;
 
-public class CRDTInteger extends BaseCRDT<CRDTInteger> {
+public class CRDTInteger extends BaseCRDT<CRDTInteger, ICRDTInteger, Timestamp> {
 	// set of adds per site
 	private Map<String, Integer> adds;
 	// set of removes per site
 	private Map<String, Integer> rems;
+	// current value
 	private int val;
 
 	public CRDTInteger(int initial, CausalityClock c) {
@@ -30,8 +33,8 @@ public class CRDTInteger extends BaseCRDT<CRDTInteger> {
 
 	public void add(int n) {
 		Timestamp ts = getTxnHandle().nextTimestamp();
-		CRDTOperation<CRDTInteger> op = new IntegerAdd(getUID(), ts,
-				getClock(), n);
+		CRDTOperation<ICRDTInteger, Timestamp> op = new IntegerAdd(getUID(),
+				ts, getClock(), n);
 		getTxnHandle().registerOperation(op);
 	}
 
@@ -113,10 +116,13 @@ public class CRDTInteger extends BaseCRDT<CRDTInteger> {
 	}
 
 	@Override
-	public void execute(CRDTOperation<CRDTInteger> op) {
+	public void execute(CRDTOperation<ICRDTInteger, Timestamp> op) {
 		if (op instanceof IntegerAdd) {
-			IntegerAdd addop = (IntegerAdd) op;
+			IntegerAdd<Timestamp> addop = (IntegerAdd<Timestamp>) op;
 			this.addU(addop.getVal(), addop.getTimestamp());
+		} else if (op instanceof IntegerSub) {
+			IntegerSub<Timestamp> subop = (IntegerSub<Timestamp>) op;
+			this.subU(subop.getVal(), subop.getTimestamp());
 		} else {
 			throw new NotSupportedOperationException();
 		}
