@@ -10,15 +10,13 @@ import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.ICRDTInteger;
 import swift.crdt.operations.IntegerAdd;
 import swift.crdt.operations.IntegerSub;
 import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
-public class CRDTIntegerTxn extends
-		BaseCRDT<CRDTIntegerTxn, ICRDTInteger, TripleTimestamp> {
+public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
 	private Map<String, Set<Pair<Integer, TripleTimestamp>>> adds;
 	private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
 	private int val;
@@ -187,12 +185,12 @@ public class CRDTIntegerTxn extends
 	}
 
 	@Override
-	public void execute(CRDTOperation<ICRDTInteger, TripleTimestamp> op) {
+	public void execute(ICRDTInteger op) {
 		if (op instanceof IntegerAdd) {
-			IntegerAdd<TripleTimestamp> addop = (IntegerAdd<TripleTimestamp>) op;
+			IntegerAdd addop = (IntegerAdd) op;
 			this.addU(addop.getVal(), addop.getTimestamp());
 		} else if (op instanceof IntegerSub) {
-			IntegerSub<TripleTimestamp> subop = (IntegerSub<TripleTimestamp>) op;
+			IntegerSub subop = (IntegerSub) op;
 			this.subU(subop.getVal(), subop.getTimestamp());
 		} else {
 			throw new NotSupportedOperationException();

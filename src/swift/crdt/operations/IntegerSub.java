@@ -1,15 +1,14 @@
 package swift.crdt.operations;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.ICRDTInteger;
 
-public class IntegerSub<T extends Timestamp> extends
-		BaseOperation<ICRDTInteger, T> {
+public class IntegerSub extends BaseOperation {
 	private int val;
 
-	public IntegerSub(CRDTIdentifier target, T ts, CausalityClock c, int val) {
+	public IntegerSub(CRDTIdentifier target, TripleTimestamp ts,
+			CausalityClock c, int val) {
 		super(target, ts, c);
 		this.val = val;
 	}

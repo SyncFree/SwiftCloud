@@ -15,8 +15,7 @@ import swift.crdt.CRDTIdentifier;
  *            CvRDT type implementing the interface
  */
 
-public interface CRDT<V extends CRDT<V, I, T>, I, T extends Timestamp> extends
-		Serializable {
+public interface CRDT<V extends CRDT<V, I>, I> extends Serializable {
 	/**
 	 * Merges the object with other object state. Method is type-invariant such
 	 * that only objects of the same type can be merged.
@@ -32,7 +31,7 @@ public interface CRDT<V extends CRDT<V, I, T>, I, T extends Timestamp> extends
 	 * @param op
 	 *            operation to be executed
 	 */
-	void execute(CRDTOperation<I, T> op);
+	void execute(I op);
 
 	/**
 	 * Prune the object state to remove meta data from operations dating from

@@ -6,8 +6,8 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.InvalidParameterException;
 
-public abstract class BaseCRDT<V extends BaseCRDT<V, I, T>, I, T extends Timestamp>
-		implements CRDT<V, I, T> {
+public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I> implements
+		CRDT<V, I> {
 	private transient CausalityClock clock;
 	private transient CRDTIdentifier id;
 	private transient TxnHandle txn;

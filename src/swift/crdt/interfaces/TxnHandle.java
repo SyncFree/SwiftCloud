@@ -1,7 +1,7 @@
 package swift.crdt.interfaces;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 
 /**
@@ -10,9 +10,9 @@ import swift.crdt.CRDTIdentifier;
  * @author annettebieniusa
  * 
  */
-public interface TxnHandle<T extends Timestamp> {
-	<V extends CRDT<V, I, T>, I> CRDT<V, I, T> get(CRDTIdentifier id,
-			boolean create, Class<T> classOfT);
+public interface TxnHandle {
+	<V extends CRDT<V, I>, I> CRDT<V, I> get(CRDTIdentifier id, boolean create,
+			Class<V> classOfT);
 
 	/**
 	 * Commits the transaction.
@@ -29,7 +29,7 @@ public interface TxnHandle<T extends Timestamp> {
 	 * 
 	 * @return next timestamp
 	 */
-	T nextTimestamp();
+	TripleTimestamp nextTimestamp();
 
 	/**
 	 * Returns the causality clock associated to this transaction handle. Only
@@ -45,6 +45,6 @@ public interface TxnHandle<T extends Timestamp> {
 	 * 
 	 * @param op
 	 */
-	void registerOperation(CRDTOperation<?, T> op);
+	void registerOperation(CRDTOperation op);
 
 }
