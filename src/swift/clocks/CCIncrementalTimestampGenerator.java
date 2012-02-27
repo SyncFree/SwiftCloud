@@ -12,7 +12,7 @@ import swift.exceptions.InvalidParameterException;
 public class CCIncrementalTimestampGenerator implements TimestampSource<Timestamp> {
     private String siteid;
 
-    protected CCIncrementalTimestampGenerator(String siteid) {
+    public CCIncrementalTimestampGenerator(String siteid) {
         this.siteid = siteid;
     }
 

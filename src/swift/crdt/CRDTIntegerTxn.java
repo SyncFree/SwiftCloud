@@ -22,8 +22,8 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
     private int val;
 
-    public CRDTIntegerTxn(int initial) {
-        this.val = initial;
+    public CRDTIntegerTxn() {
+        this.val = 0;
         this.adds = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
         this.rems = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
     }

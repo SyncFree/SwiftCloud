@@ -3,8 +3,9 @@ package swift.crdt.operations;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.ICRDTInteger;
 
-public class IntegerSub extends BaseOperation {
+public class IntegerSub extends BaseOperation implements ICRDTInteger {
     private int val;
 
     public IntegerSub(CRDTIdentifier target, TripleTimestamp ts, CausalityClock c, int val) {
