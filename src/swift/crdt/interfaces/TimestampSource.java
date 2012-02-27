@@ -1,7 +1,5 @@
 package swift.crdt.interfaces;
 
-import swift.clocks.CausalityClock;
-import swift.exceptions.InvalidParameterException;
 
 /**
  * Source for generating new timestamps.
@@ -16,6 +14,6 @@ public interface TimestampSource<T> {
      * 
      * @return
      */
-    <V extends CausalityClock<V>> T generateNew();
+    T generateNew();
 
 }
