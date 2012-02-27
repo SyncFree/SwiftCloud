@@ -10,6 +10,7 @@ import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.ICRDTInteger;
 import swift.crdt.operations.IntegerAdd;
 import swift.crdt.operations.IntegerSub;
@@ -53,6 +54,18 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
         return retValue;
     }
 
+    public void add(int n) {
+        TripleTimestamp ts = getTxnHandle().nextTimestamp();
+        CRDTOperation op = new IntegerAdd(getUID(), ts, getClock(), n);
+        getTxnHandle().registerOperation(op);
+    }
+
+    public void sub(int n) {
+        TripleTimestamp ts = getTxnHandle().nextTimestamp();
+        CRDTOperation op = new IntegerAdd(getUID(), ts, getClock(), n);
+        getTxnHandle().registerOperation(op);
+    }
+
     public int addU(int n, TripleTimestamp ts) {
         if (n < 0) {
             return subU(-n, ts);
@@ -64,8 +77,6 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
             adds.put(siteId, v);
         }
 
-        // FIXME - Timestamp is not immutable, so it cannot be added into a
-        // HashSet safely.
         v.add(new Pair<Integer, TripleTimestamp>(n, ts));
         val += n;
         return val;
