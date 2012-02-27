@@ -14,7 +14,7 @@ public class IncrementalTripleTimestampGenerator implements TimestampSource<Trip
     private long counter;
     private long last;
 
-    protected IncrementalTripleTimestampGenerator(Timestamp ts) {
+    public IncrementalTripleTimestampGenerator(Timestamp ts) {
     	this.siteid = ts.getIdentifier();
     	this.counter = ts.getCounter();
     	this.last = Timestamp.MIN_VALUE;

@@ -8,16 +8,16 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
-import swift.crdt.interfaces.ICRDTInteger;
+import swift.crdt.operations.IntegerOperation;
 import swift.crdt.operations.IntegerAdd;
 import swift.crdt.operations.IntegerSub;
 import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
-public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
+public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, IntegerOperation> {
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> adds;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
     private int val;
@@ -29,13 +29,17 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     }
 
     public int value() {
-        return this.val;
-    }
-
-    public int value(CausalityClock clk) {
+        final CausalityClock snapshotClock = getTxnHandle().getSnapshotClock();
+        if (snapshotClock.compareTo(getClock()) != CMP_CLOCK.CMP_ISDOMINATED) {
+            // Since snapshot covers all updates making up this object, use value.
+            // TODO: if transaction asks for an object, would not it be better
+            // to instead provide it with a snapshot it requested,
+            // instead of computing it each time?
+            return val;
+        }
         int retValue = 0;
-        retValue += filterUpdates(clk, this.adds);
-        retValue -= filterUpdates(clk, this.rems);
+        retValue += filterUpdates(snapshotClock, this.adds);
+        retValue -= filterUpdates(snapshotClock, this.rems);
         return retValue;
     }
 
@@ -52,18 +56,16 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     }
 
     public void add(int n) {
-        TripleTimestamp ts = getTxnHandle().nextTimestamp();
-        CRDTOperation op = new IntegerAdd(getUID(), ts, getClock(), n);
-        getTxnHandle().registerOperation(op);
+        TripleTimestamp ts = nextTimestamp();
+        registerLocalOperation(new IntegerAdd(getUID(), ts, getClock(), n));
     }
 
     public void sub(int n) {
-        TripleTimestamp ts = getTxnHandle().nextTimestamp();
-        CRDTOperation op = new IntegerSub(getUID(), ts, getClock(), n);
-        getTxnHandle().registerOperation(op);
+        TripleTimestamp ts = nextTimestamp();
+        registerLocalOperation(new IntegerSub(getUID(), ts, getClock(), n));
     }
 
-    public int addU(int n, TripleTimestamp ts) {
+    private int addU(int n, TripleTimestamp ts) {
         if (n < 0) {
             return subU(-n, ts);
         }
@@ -72,7 +74,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
         return val;
     }
 
-    public int subU(int n, TripleTimestamp ts) {
+    private int subU(int n, TripleTimestamp ts) {
         if (n < 0) {
             return addU(-n, ts);
         }
@@ -104,7 +106,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
         }
     }
 
-    private int allUpdates(Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
+    private int getAggregateOfUpdates(Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
         int changes = 0;
         for (Set<Pair<Integer, TripleTimestamp>> v : updates.values()) {
             for (Pair<Integer, TripleTimestamp> vi : v) {
@@ -115,16 +117,17 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     }
 
     @Override
-    public void mergePayload(CRDTIntegerTxn other) {
+    protected void mergePayload(CRDTIntegerTxn other) {
         mergeUpdates(this.adds, other.adds);
         mergeUpdates(this.rems, other.rems);
 
-        this.val = allUpdates(this.adds);
-        this.val -= allUpdates(this.rems);
+        this.val = getAggregateOfUpdates(this.adds);
+        this.val -= getAggregateOfUpdates(this.rems);
     }
 
     @Override
     public boolean equals(Object other) {
+        // TODO do we need to compare objects? should it be oblivious to pruning?
         if (!(other instanceof CRDTIntegerTxn)) {
             return false;
         }
@@ -140,7 +143,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
             Iterator<Pair<Integer, TripleTimestamp>> addTSit = addForSite.getValue().iterator();
             while (addTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
-                if ((ts.getSecond()).equals(rollbackEvent)) {
+                if (rollbackEvent.includes(ts.getSecond())) {
                     addTSit.remove();
                     delta += ts.getFirst();
                 }
@@ -159,7 +162,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     }
 
     @Override
-    public void execute(ICRDTInteger op) {
+    protected void executeImpl(IntegerOperation op) {
         if (op instanceof IntegerAdd) {
             IntegerAdd addop = (IntegerAdd) op;
             this.addU(addop.getVal(), addop.getTimestamp());

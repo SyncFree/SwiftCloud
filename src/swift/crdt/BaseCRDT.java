@@ -1,12 +1,12 @@
 package swift.crdt;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
-import swift.exceptions.InvalidParameterException;
 
-public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I> implements CRDT<V, I> {
+public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I extends CRDTOperation> implements CRDT<V, I> {
     private transient CausalityClock clock;
     private transient CRDTIdentifier id;
     private transient TxnHandle txn;
@@ -25,11 +25,23 @@ public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I> implements CRDT<V, I
         getClock().merge(otherObject.getClock());
     }
 
-    protected void registerUpdate(Timestamp ts) throws InvalidParameterException {
-        getClock().record(ts);
+    protected abstract void mergePayload(V otherObject);
+
+    public void executeOperation(I op) {
+        executeImpl(op);
+        getClock().record(op.getTimestamp());
     }
 
-    protected abstract void mergePayload(V otherObject);
+    protected abstract void executeImpl(I op);
+
+    protected TripleTimestamp nextTimestamp() {
+        return getTxnHandle().nextTimestamp();
+    }
+
+    protected void registerLocalOperation(final I op) {
+        executeOperation(op);
+        getTxnHandle().registerOperation(op);
+    }
 
     @Override
     public CRDTIdentifier getUID() {
@@ -50,5 +62,4 @@ public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I> implements CRDT<V, I
     public void setTxnHandle(TxnHandle txn) {
         this.txn = txn;
     }
-
 }

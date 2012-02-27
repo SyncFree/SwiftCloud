@@ -11,7 +11,7 @@ import swift.crdt.CRDTIdentifier;
  * 
  */
 public interface TxnHandle {
-    <V extends CRDT<V, I>, I> V get(CRDTIdentifier id, boolean create, Class<V> classOfT);
+    <V extends CRDT<V, I>, I extends CRDTOperation> V get(CRDTIdentifier id, boolean create, Class<V> classOfT);
 
     /**
      * Commits the transaction.
@@ -36,7 +36,7 @@ public interface TxnHandle {
      * 
      * @return
      */
-    CausalityClock getClock();
+    CausalityClock getSnapshotClock();
 
     /**
      * Register a new CRDT operation with the transaction. Only called by

@@ -4,7 +4,6 @@ package swift.crdt.interfaces;
  * API for the Swift system.
  * 
  * @author annettebieniusa
- * 
  */
 public interface Swift {
     /**
@@ -12,9 +11,12 @@ public interface Swift {
      * 
      * @param cp
      *            cache policy to be used for the new transaction
-     * @param read_only
+     *            TODO(mzawirski): specify how it affects visibility of
+     *            concurrently committing transaction?
+     * @param readOnly
      *            must be set to true if new transaction is read-only
      * @return TxnHandle for the new transaction
+     * 
      */
-    TxnHandle beginTxn(CachePolicy cp, boolean read_only);
+    TxnHandle beginTxn(CachePolicy cp, boolean readOnly);
 }

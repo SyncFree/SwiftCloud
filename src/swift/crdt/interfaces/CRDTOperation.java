@@ -24,12 +24,12 @@ public interface CRDTOperation {
     TripleTimestamp getTimestamp();
 
     /**
-     * Sets the timestamp for the operation.
+     * Replaces OLD timestamp for the operation with the new one.
      * 
      * @param ts
      */
     void setTimestamp(TripleTimestamp ts);
-
+    
     /**
      * Returns the causality clock for the objects on which the operation is to
      * be executed.
