@@ -21,11 +21,7 @@ import swift.exceptions.InvalidParameterException;
 public class VersionVectorWithExceptions extends VersionVector {
 
     private static final long serialVersionUID = 1L;
-    // TODO: COnvert from Set<Long to Set<EventClock>
-    protected Map<String, Set<Timestamp>> excludedTimestamps;
-
-    // protected Timestamp identifier;
-    // protected long clientCounter;
+    protected TreeMap<String, Set<Timestamp>> excludedTimestamps;
 
     public VersionVectorWithExceptions() {
         super();
@@ -34,13 +30,13 @@ public class VersionVectorWithExceptions extends VersionVector {
 
     public VersionVectorWithExceptions(VersionVectorWithExceptions v) {
         super( v);
-        excludedTimestamps = new HashMap<String, Set<Timestamp>>(
+        excludedTimestamps = new TreeMap<String, Set<Timestamp>>(
                 v.excludedTimestamps);
     }
 
     public VersionVectorWithExceptions(VersionVector v) {
         super( v);
-        excludedTimestamps = new HashMap<String, Set<Timestamp>>();
+        excludedTimestamps = new TreeMap<String, Set<Timestamp>>();
     }
 
     /**
@@ -68,22 +64,21 @@ public class VersionVectorWithExceptions extends VersionVector {
      *            Timestamp to insert.
      * @throws InvalidParameterException
      */
-    public void record(Timestamp cc) throws InvalidParameterException {
+    public boolean record(Timestamp cc)  {
         Set<Timestamp> set = excludedTimestamps.get(cc.getIdentifier());
         if (set != null) {
             if (set.remove(cc)) {
-                return;
+                return true;
             }
         }
         Timestamp lastCC = super.getLatest(cc.getIdentifier());
-        if (lastCC.getCounter() >= cc.getCounter()) {
-            throw new InvalidParameterException();
+        if (! super.record(lastCC)) {
+        	return false;
         }
-        super.record(lastCC);
         long prev = lastCC.getCounter() + 1;
         long fol = cc.getCounter();
-        if (prev == fol) {
-            return;
+        if (prev <= fol) {
+            return true;
         }
         if (set == null) {
             set = new TreeSet<Timestamp>();
@@ -92,6 +87,7 @@ public class VersionVectorWithExceptions extends VersionVector {
         for ( ; prev < fol; prev++) {
             set.add(new Timestamp( cc.getIdentifier(), prev));
         }
+        return true;
     }
 
     /**
@@ -220,11 +216,7 @@ public class VersionVectorWithExceptions extends VersionVector {
     }
 
     @Override
-    public CMP_CLOCK compareTo(VersionVector c)
-            throws IncompatibleTypeException {
-        if (!(c instanceof VersionVectorWithExceptions)) {
-            throw new IncompatibleTypeException();
-        }
+    public CMP_CLOCK compareTo(VersionVector c) {
         return CMP_CLOCK.CMP_CONCURRENT;
 /*
         // TODO Autsch! Fix me!
@@ -385,64 +377,5 @@ public class VersionVectorWithExceptions extends VersionVector {
         return buf.toString();
     }
 
-    // Logic moved to TransactionsHandler
-    // @Override
-    // public void initTransaction(String serverId) {
-    // identifier = new Timestamp(serverId, TripleTimestamp.INIT_PRIMARY_VALUE);
-    //
-    // }
-    //
-    // @Override
-    // public TripleTimestamp recordNextAtClient() {
-    // TripleTimestamp ts = new TripleTimestamp(serverId, ++clientCounter);
-    // return ts;
-    //
-    // }
-    //
-    // @Override
-    // public void commit(Timestamp t) throws InvalidParameterException {
-    // identifier.getCounter() = t.getCounter();
-    // // TODO: a entidade que fez commit pode não ser a mesma que
-    // // devolveu o commit eventClock?
-    // identifier.getIdentifier() = t.getIdentifier();
-    // record(new Timestamp(identifier.getIdentifier(), t.getCounter()));
-    //
-    // }
-
-    // public void revertEvent(EventClock event) {
-    // Timestamp ts = (Timestamp) event;
-    // vv.put(ts.getSiteId(), ts.getCounter());
-    // }
-
-    public void clearExclusions(String siteId) {
-//        excludedTimestamps.put(siteId, new HashSet<Long>());
-    }
-
-    // TODO: consider if it is possible to make these methods to
-    // interface-level?
-
-    // TODO: Make this constant complexity
-    public Set<Timestamp> getExcludes(String siteid) {
-/*        Set<Timestamp> excludes = new HashSet<Timestamp>();
-        for (Long counter : excludedTimestamps.get(siteid)) {
-            excludes.add(new Timestamp(siteid, counter));
-        }
-        return excludes;
-*/    return null;
-        }
-
-    // TODO: Make this constant complexity
-    public Map<String, Set<Timestamp>> getExcludes() {
-/*        Map<String, Set<Timestamp>> excludes = new HashMap<String, Set<Timestamp>>();
-        for (Entry<String, Set<Long>> entry : excludedTimestamps.entrySet()) {
-            Set<Timestamp> clocks = new HashSet<Timestamp>();
-            for (Long counter : entry.getValue()) {
-                clocks.add(new Timestamp(entry.getKey(), counter));
-            }
-            excludes.put(entry.getKey(), clocks);
-        }
-        return excludes;
-*/      return null;
-        }
 
 }

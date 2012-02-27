@@ -9,9 +9,8 @@ import swift.exceptions.InvalidParameterException;
  * @author nmp
  * 
  */
-public class CCIncrementalTimestampGenerator implements
-		TimestampSource<Timestamp> {
-
+public class CCIncrementalTimestampGenerator implements TimestampSource<Timestamp>
+{
 	private String siteid;
 
 	protected CCIncrementalTimestampGenerator(String siteid) {
@@ -19,14 +18,12 @@ public class CCIncrementalTimestampGenerator implements
 	}
 
 	@Override
-	public synchronized Timestamp generateNew()
-			throws InvalidParameterException {
+	public synchronized Timestamp generateNew() throws InvalidParameterException {
 		throw new InvalidParameterException();
 	}
 
 	@Override
-	public <V extends CausalityClock<V>> Timestamp generateNew(
-			CausalityClock<V> c) {
+	public <V extends CausalityClock<V>> Timestamp generateNew(CausalityClock<V> c) {
 		long next = c.getLatestCounter(siteid);
 		Timestamp ts = new Timestamp(siteid, ++next);
 		c.record(ts);

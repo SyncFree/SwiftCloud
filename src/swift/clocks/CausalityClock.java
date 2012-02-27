@@ -18,19 +18,18 @@ public interface CausalityClock<V extends CausalityClock<V>> extends
 	};
 
 	/**
-	 * Records the next event.
+	 * Records the given event. 
+	 * Assume the timestamp can be recorded in the given version vector.
 	 * 
-	 * @param ec
-	 *            Event clock.
-	 * @throws IncompatibleTypeException
+	 * @param ec Event clock.
+	 * @return Returns false if the object was already recorded.
 	 */
-	void record(Timestamp ec) throws InvalidParameterException;
+	boolean record(Timestamp ec);
 
 	/**
 	 * Checks if a given event clock is reflected in this clock
 	 * 
-	 * @param t
-	 *            Event clock.
+	 * @param t Event clock.
 	 * @return Returns true if the given event clock is included in this
 	 *         causality clock.
 	 */
@@ -66,9 +65,8 @@ public interface CausalityClock<V extends CausalityClock<V>> extends
 	 *         clock; <br>
 	 *         CMP_CONCUREENT : if this clock and the given c clock are
 	 *         concurrent; <br>
-	 * @throws IncompatibleTypeException
 	 */
-	CMP_CLOCK compareTo(V c) throws IncompatibleTypeException;
+	CMP_CLOCK compareTo(V c);
 
 	/**
 	 * Merge this clock with the given c clock.
@@ -84,18 +82,11 @@ public interface CausalityClock<V extends CausalityClock<V>> extends
 	 *         CMP_CONCUREENT : if this clock and the given c clock were
 	 *         concurrent; <br>
 	 */
-	CMP_CLOCK merge(V c);
+	CMP_CLOCK merge(V c) ;
 
 	/**
 	 * Create a copy of this causality clock.
 	 */
 	CausalityClock<V> clone();
-
-	/**
-	 * Delivers an iterator of the most recent events for each site.
-	 * 
-	 * @return Returns the iterator containing the EventClocks for each site.
-	 * @throws IncompatibleTypeException
-	 */
 
 }

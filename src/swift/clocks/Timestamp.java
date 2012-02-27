@@ -6,18 +6,16 @@ import java.io.Serializable;
  * Common base class for timestamps using 1-2 dimensional site counters, with
  * default implementation for 1 dimension.
  * <p>
- * Instances of this class may not be immutable.
- * <p>
- * TODO: provide some sealing mechanism for eventual immutability.
- * <p>
- * TODO: describe the role of secondary dimension, events coalescing.
+ * Instances of this class are immutable.
  * 
  * @see TripleTimestamp
  */
 public class Timestamp implements Serializable, Comparable<Timestamp> {
-    private static final long serialVersionUID = 1L;
-    private final String siteid;
-    private long counter;
+	public static final long MIN_VALUE = 0L;
+
+	private static final long serialVersionUID = 1L;
+	private final String siteid;
+    private final long counter;
 
     public Timestamp(String siteid, long counter) {
         this.siteid = siteid;
@@ -29,11 +27,27 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
         return siteid.hashCode() ^ (int) counter;
     }
 
+    /**
+     * Returns true if objects represent the same timestamp
+     */
     public boolean equals(Object obj) {
         if (!(obj instanceof Timestamp)) {
             return false;
         }
         return compareTo((Timestamp) obj) == 0;
+    }
+
+    /**
+     * Returns true if this timestamp includes the given Timestamp.
+     * If the given object is a Timestamp, returns true if they are the same timestamp.
+     * If the given object is a TripleTimestamp, returns true if the given Timestamp has the same objects are
+     */
+    public boolean includes(Object obj) {
+        if (!(obj instanceof Timestamp)) {
+            return false;
+        }
+        Timestamp ot = (Timestamp)obj;
+        return getCounter() == ot.getCounter() && siteid.equals(ot.getIdentifier());
     }
 
     public String toString() {
@@ -80,27 +94,10 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
         return counter;
     }
 
-//    /**
-//     * @param value
-//     *            new primary counter value
-//     */
-//    @Deprecated
-//    public void setCounter(final long value) {
-//        this.counter = value;
-//    }
-
-//    /**
-//     * @return true if this timestamp contains secondary counter
-//     */
-//    protected boolean hasSecondaryCounter() {
-//        return false;
-//    }
-
     /**
-     * @return value of the secondary counter, meaningful if
-     *         {@link #hasSecondaryCounter()}
+     * @return value of the secondary counter
      */
     public long getSecondaryCounter() {
-        return -1;
+        return MIN_VALUE;
     }
 }
