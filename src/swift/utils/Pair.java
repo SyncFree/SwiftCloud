@@ -8,10 +8,6 @@ public class Pair<F, S> implements Serializable {
     private F first;
     private S second;
 
-    public Pair() {
-
-    }
-
     public Pair(Pair<F, S> op) {
         this.first = op.getFirst();
         this.second = op.getSecond();
@@ -42,7 +38,7 @@ public class Pair<F, S> implements Serializable {
     @Override
     public boolean equals(Object o) {
         if (o instanceof Pair) {
-            Pair<F, S> other = (Pair<F, S>) o;
+            Pair<?, ?> other = (Pair<?, ?>) o;
             if (first == null && other.first != null || other.first == null && first != null) {
                 return false;
             }
