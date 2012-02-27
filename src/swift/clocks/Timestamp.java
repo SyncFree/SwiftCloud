@@ -48,8 +48,7 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
             return false;
         }
         Timestamp ot = (Timestamp) obj;
-        return getCounter() == ot.getCounter()
-                && siteid.equals(ot.getIdentifier());
+        return getCounter() == ot.getCounter() && siteid.equals(ot.getIdentifier());
     }
 
     public String toString() {
@@ -69,8 +68,7 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
             return Long.signum(getCounter() - ot.getCounter());
         }
         if (getSecondaryCounter() != ot.getSecondaryCounter()) {
-            return Long
-                    .signum(getSecondaryCounter() - ot.getSecondaryCounter());
+            return Long.signum(getSecondaryCounter() - ot.getSecondaryCounter());
         }
         return siteid.compareTo(ot.siteid);
     }

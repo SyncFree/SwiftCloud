@@ -9,8 +9,7 @@ import swift.crdt.interfaces.TimestampSource;
  * @author nmp
  * 
  */
-public class IncrementalTimestampGenerator implements
-        TimestampSource<Timestamp> {
+public class IncrementalTimestampGenerator implements TimestampSource<Timestamp> {
 
     private String siteid;
     private long last;
@@ -30,8 +29,7 @@ public class IncrementalTimestampGenerator implements
     }
 
     @Override
-    public <V extends CausalityClock<V>> Timestamp generateNew(
-            CausalityClock<V> c) {
+    public <V extends CausalityClock<V>> Timestamp generateNew(CausalityClock<V> c) {
         last = Math.max(last, c.getLatestCounter(siteid));
         return new Timestamp(siteid, ++last);
     }

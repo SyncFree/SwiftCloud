@@ -15,8 +15,7 @@ public class TripleTimestamp extends Timestamp {
      * @param primaryCounter
      * @param secondaryCounter
      */
-    public TripleTimestamp(final String siteId, final long primaryCounter,
-            final long secondaryCounter) {
+    public TripleTimestamp(final String siteId, final long primaryCounter, final long secondaryCounter) {
         super(siteId, primaryCounter);
         this.secondaryCounter = secondaryCounter;
     }
@@ -51,12 +50,10 @@ public class TripleTimestamp extends Timestamp {
     }
 
     public String toString() {
-        return "(" + getIdentifier() + "," + getCounter() + ","
-                + secondaryCounter + ")";
+        return "(" + getIdentifier() + "," + getCounter() + "," + secondaryCounter + ")";
     }
 
     public Timestamp clone() {
-        return new TripleTimestamp(getIdentifier(), getCounter(),
-                secondaryCounter);
+        return new TripleTimestamp(getIdentifier(), getCounter(), secondaryCounter);
     }
 }

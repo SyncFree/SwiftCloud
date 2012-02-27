@@ -106,14 +106,11 @@ public class VersionVector implements CausalityClock<VersionVector> {
             if (!itThis.hasNext() && !itOther.hasNext()) {
                 return CMP_CLOCK.CMP_EQUALS;
             }
-            Entry<String, Long> itThisOne = itThis.hasNext() ? itThis.next()
-                    : null;
-            Entry<String, Long> itOtherOne = itOther.hasNext() ? itOther.next()
-                    : null;
+            Entry<String, Long> itThisOne = itThis.hasNext() ? itThis.next() : null;
+            Entry<String, Long> itOtherOne = itOther.hasNext() ? itOther.next() : null;
             int c = itThisOne.getKey().compareTo(itOtherOne.getKey());
             if (c == 0) {
-                int cv = Long.signum(itThisOne.getValue()
-                        - itOtherOne.getValue());
+                int cv = Long.signum(itThisOne.getValue() - itOtherOne.getValue());
                 if (cv < 0) {
                     return CMP_CLOCK.CMP_ISDOMINATED;
                 } else if (cv > 0) {

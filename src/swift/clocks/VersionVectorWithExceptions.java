@@ -30,8 +30,7 @@ public class VersionVectorWithExceptions extends VersionVector {
 
     public VersionVectorWithExceptions(VersionVectorWithExceptions v) {
         super(v);
-        excludedTimestamps = new TreeMap<String, Set<Timestamp>>(
-                v.excludedTimestamps);
+        excludedTimestamps = new TreeMap<String, Set<Timestamp>>(v.excludedTimestamps);
     }
 
     public VersionVectorWithExceptions(VersionVector v) {
@@ -53,8 +52,7 @@ public class VersionVectorWithExceptions extends VersionVector {
             return true;
         }
 
-        Set<Timestamp> siteExcludes = excludedTimestamps
-                .get(cc.getIdentifier());
+        Set<Timestamp> siteExcludes = excludedTimestamps.get(cc.getIdentifier());
         return siteExcludes == null || !siteExcludes.contains(cc);
     }
 
@@ -125,8 +123,7 @@ public class VersionVectorWithExceptions extends VersionVector {
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    public CMP_CLOCK merge(VersionVectorWithExceptions c)
-            throws IncompatibleTypeException {
+    public CMP_CLOCK merge(VersionVectorWithExceptions c) throws IncompatibleTypeException {
         VersionVectorWithExceptions cc = (VersionVectorWithExceptions) c;
         boolean lessThan = false; // this less than c
         boolean greaterThan = false;
@@ -138,8 +135,7 @@ public class VersionVectorWithExceptions extends VersionVector {
                 lessThan = true;
                 vv.put(e.getKey(), e.getValue());
                 if (cc.excludedTimestamps.containsKey(e.getKey())) {
-                    excludedTimestamps.put(e.getKey(), new TreeSet<Timestamp>(
-                            cc.excludedTimestamps.get(e.getKey())));
+                    excludedTimestamps.put(e.getKey(), new TreeSet<Timestamp>(cc.excludedTimestamps.get(e.getKey())));
                 }
 
             } else {
@@ -148,18 +144,14 @@ public class VersionVectorWithExceptions extends VersionVector {
                 if (iThis < iOther) {
                     lessThan = true;
                     vv.put(e.getKey(), iOther);
-                    excludedTimestamps.put(e.getKey(), new HashSet<Timestamp>(
-                            cc.excludedTimestamps.get(e.getKey())));
+                    excludedTimestamps.put(e.getKey(), new HashSet<Timestamp>(cc.excludedTimestamps.get(e.getKey())));
                 } else if (iThis > iOther) {
                     greaterThan = true;
                 } else {
                     Set<Timestamp> exc = excludedTimestamps.get(e.getKey());
-                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e
-                            .getKey());
-                    if (exc != null
-                            && exc.contains(iThis)
-                            && (otherExc == null || otherExc != null
-                                    && !otherExc.contains(iThis))) {
+                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e.getKey());
+                    if (exc != null && exc.contains(iThis)
+                            && (otherExc == null || otherExc != null && !otherExc.contains(iThis))) {
                         exc.remove(iThis);
                     }
                 }
@@ -177,18 +169,14 @@ public class VersionVectorWithExceptions extends VersionVector {
                 if (iThis < iOther) {
                     lessThan = true;
                     vv.put(e.getKey(), iOther);
-                    excludedTimestamps.put(e.getKey(), new HashSet<Timestamp>(
-                            cc.excludedTimestamps.get(e.getKey())));
+                    excludedTimestamps.put(e.getKey(), new HashSet<Timestamp>(cc.excludedTimestamps.get(e.getKey())));
                 } else if (iThis > iOther) {
                     greaterThan = true;
                 } else {
                     Set<Timestamp> exc = excludedTimestamps.get(e.getKey());
-                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e
-                            .getKey());
-                    if (exc != null
-                            && exc.contains(iThis)
-                            && (otherExc == null || otherExc != null
-                                    && !otherExc.contains(iThis))) {
+                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e.getKey());
+                    if (exc != null && exc.contains(iThis)
+                            && (otherExc == null || otherExc != null && !otherExc.contains(iThis))) {
                         exc.remove(iThis);
                     }
                 }

@@ -43,16 +43,13 @@ public class Pair<F, S> implements Serializable {
     public boolean equals(Object o) {
         if (o instanceof Pair) {
             Pair<F, S> other = (Pair<F, S>) o;
-            if (first == null && other.first != null || other.first == null
-                    && first != null) {
+            if (first == null && other.first != null || other.first == null && first != null) {
                 return false;
             }
-            if (second == null && other.second != null || other.second == null
-                    && second != null) {
+            if (second == null && other.second != null || other.second == null && second != null) {
                 return false;
             }
-            return first.equals(other.getFirst())
-                    && second.equals(other.getSecond());
+            return first.equals(other.getFirst()) && second.equals(other.getSecond());
         }
         return false;
     }

@@ -11,8 +11,7 @@ import swift.exceptions.InvalidParameterException;
  * 
  * @author nmp
  */
-public interface CausalityClock<V extends CausalityClock<V>> extends
-        Serializable {
+public interface CausalityClock<V extends CausalityClock<V>> extends Serializable {
     enum CMP_CLOCK {
         CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT
     };

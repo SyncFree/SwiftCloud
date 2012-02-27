@@ -63,8 +63,7 @@ public class DottedVersionVector extends VersionVector {
      * @param vv1
      * @return
      */
-    protected boolean isEqualOrDominatedLessSite(Map<String, Long> vv1,
-            Map<String, Long> vv2, String siteid) {
+    protected boolean isEqualOrDominatedLessSite(Map<String, Long> vv1, Map<String, Long> vv2, String siteid) {
         Iterator<Entry<String, Long>> it = vv1.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, Long> e = it.next();
@@ -106,12 +105,10 @@ public class DottedVersionVector extends VersionVector {
         }
 
         if (ts != null) {
-            thisIncludedInOther = cc.getLatestCounter(ts.getIdentifier()) >= ts
-                    .getCounter();
+            thisIncludedInOther = cc.getLatestCounter(ts.getIdentifier()) >= ts.getCounter();
         }
         if (cc.ts != null) {
-            otherIncludedInThis = getLatestCounter(cc.ts.getIdentifier()) >= cc.ts
-                    .getCounter();
+            otherIncludedInThis = getLatestCounter(cc.ts.getIdentifier()) >= cc.ts.getCounter();
         }
         if (ts == null || cc.ts == null) {
             CMP_CLOCK c = super.compareToVV(cc);
@@ -122,12 +119,10 @@ public class DottedVersionVector extends VersionVector {
                               // other VV or
                 // if is equal to the other VV, as the other.ts will makes the
                 // other dominate this
-                thisIncludedInOther = c == CMP_CLOCK.CMP_ISDOMINATED
-                        || c == CMP_CLOCK.CMP_EQUALS;
+                thisIncludedInOther = c == CMP_CLOCK.CMP_ISDOMINATED || c == CMP_CLOCK.CMP_EQUALS;
             }
             if (cc.ts == null) {
-                otherIncludedInThis = c == CMP_CLOCK.CMP_DOMINATES
-                        || c == CMP_CLOCK.CMP_EQUALS;
+                otherIncludedInThis = c == CMP_CLOCK.CMP_DOMINATES || c == CMP_CLOCK.CMP_EQUALS;
             }
 
         }

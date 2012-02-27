@@ -35,16 +35,14 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     public int value(CausalityClock clk) {
         // FIXME Check!
         int retValue = 0;
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : adds
-                .entrySet()) {
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : adds.entrySet()) {
             for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
                 if (clk.includes(set.getSecond())) {
                     retValue += set.getFirst();
                 }
             }
         }
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : rems
-                .entrySet()) {
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : rems.entrySet()) {
             for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
                 if (clk.includes(set.getSecond())) {
                     retValue -= set.getFirst();
@@ -99,30 +97,22 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
 
     @Override
     public void mergePayload(CRDTIntegerTxn other) {
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.adds
-                .entrySet()) {
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.adds.entrySet()) {
             Set<Pair<Integer, TripleTimestamp>> v = this.adds.get(e.getKey());
             if (v == null) {
                 v = e.getValue();
-                adds.put(
-                        e.getKey(),
-                        new HashSet<Pair<Integer, TripleTimestamp>>(e
-                                .getValue()));
+                adds.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
             } else {
                 v.addAll(e.getValue());
             }
 
         }
 
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.rems
-                .entrySet()) {
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.rems.entrySet()) {
             Set<Pair<Integer, TripleTimestamp>> v = rems.get(e.getKey());
             if (v == null) {
                 v = e.getValue();
-                rems.put(
-                        e.getKey(),
-                        new HashSet<Pair<Integer, TripleTimestamp>>(e
-                                .getValue()));
+                rems.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
             } else {
                 v.addAll(e.getValue());
             }
@@ -150,19 +140,15 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
             return false;
         }
         CRDTIntegerTxn that = (CRDTIntegerTxn) other;
-        return that.val == this.val && that.adds.equals(this.adds)
-                && that.rems.equals(this.rems);
+        return that.val == this.val && that.adds.equals(this.adds) && that.rems.equals(this.rems);
     }
 
     @Override
     public void rollback(Timestamp rollbackEvent) {
-        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> it = adds
-                .entrySet().iterator();
+        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> it = adds.entrySet().iterator();
         while (it.hasNext()) {
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> addForSite = it
-                    .next();
-            Iterator<Pair<Integer, TripleTimestamp>> addTSit = addForSite
-                    .getValue().iterator();
+            Entry<String, Set<Pair<Integer, TripleTimestamp>>> addForSite = it.next();
+            Iterator<Pair<Integer, TripleTimestamp>> addTSit = addForSite.getValue().iterator();
             while (addTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
                 if ((ts.getSecond()).equals(rollbackEvent)) {
@@ -177,10 +163,8 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
 
         it = rems.entrySet().iterator();
         while (it.hasNext()) {
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> remsForSite = it
-                    .next();
-            Iterator<Pair<Integer, TripleTimestamp>> remTSit = remsForSite
-                    .getValue().iterator();
+            Entry<String, Set<Pair<Integer, TripleTimestamp>>> remsForSite = it.next();
+            Iterator<Pair<Integer, TripleTimestamp>> remTSit = remsForSite.getValue().iterator();
             while (remTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = remTSit.next();
                 if (((TripleTimestamp) ts.getSecond()).equals(rollbackEvent)) {

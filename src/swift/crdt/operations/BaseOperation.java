@@ -10,8 +10,7 @@ public abstract class BaseOperation implements CRDTOperation {
     private TripleTimestamp ts;
     private CausalityClock c;
 
-    protected BaseOperation(CRDTIdentifier target, TripleTimestamp ts,
-            CausalityClock c) {
+    protected BaseOperation(CRDTIdentifier target, TripleTimestamp ts, CausalityClock c) {
         this.target = target;
         this.ts = ts;
         this.c = c;
