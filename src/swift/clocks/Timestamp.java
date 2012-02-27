@@ -11,10 +11,10 @@ import java.io.Serializable;
  * @see TripleTimestamp
  */
 public class Timestamp implements Serializable, Comparable<Timestamp> {
-	public static final long MIN_VALUE = 0L;
+    public static final long MIN_VALUE = 0L;
 
-	private static final long serialVersionUID = 1L;
-	private final String siteid;
+    private static final long serialVersionUID = 1L;
+    private final String siteid;
     private final long counter;
 
     public Timestamp(String siteid, long counter) {
@@ -38,16 +38,18 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     }
 
     /**
-     * Returns true if this timestamp includes the given Timestamp.
-     * If the given object is a Timestamp, returns true if they are the same timestamp.
-     * If the given object is a TripleTimestamp, returns true if the given Timestamp has the same objects are
+     * Returns true if this timestamp includes the given Timestamp. If the given
+     * object is a Timestamp, returns true if they are the same timestamp. If
+     * the given object is a TripleTimestamp, returns true if the given
+     * Timestamp has the same objects are
      */
     public boolean includes(Object obj) {
         if (!(obj instanceof Timestamp)) {
             return false;
         }
-        Timestamp ot = (Timestamp)obj;
-        return getCounter() == ot.getCounter() && siteid.equals(ot.getIdentifier());
+        Timestamp ot = (Timestamp) obj;
+        return getCounter() == ot.getCounter()
+                && siteid.equals(ot.getIdentifier());
     }
 
     public String toString() {
@@ -67,13 +69,15 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
             return Long.signum(getCounter() - ot.getCounter());
         }
         if (getSecondaryCounter() != ot.getSecondaryCounter()) {
-            return Long.signum(getSecondaryCounter() - ot.getSecondaryCounter());
+            return Long
+                    .signum(getSecondaryCounter() - ot.getSecondaryCounter());
         }
         return siteid.compareTo(ot.siteid);
     }
 
     /**
      * Returns the size of this object in bytes
+     * 
      * @return
      */
     public int size() {

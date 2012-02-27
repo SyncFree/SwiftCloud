@@ -17,5 +17,6 @@ public interface TransactionsCausalityClock<T extends Timestamp> {
 
     T recordNextAtClient();
 
-    void commitTransaction(T serverCommitEvent) throws InvalidParameterException;
+    void commitTransaction(T serverCommitEvent)
+            throws InvalidParameterException;
 }

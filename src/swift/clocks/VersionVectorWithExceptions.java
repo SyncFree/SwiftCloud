@@ -29,13 +29,13 @@ public class VersionVectorWithExceptions extends VersionVector {
     }
 
     public VersionVectorWithExceptions(VersionVectorWithExceptions v) {
-        super( v);
+        super(v);
         excludedTimestamps = new TreeMap<String, Set<Timestamp>>(
                 v.excludedTimestamps);
     }
 
     public VersionVectorWithExceptions(VersionVector v) {
-        super( v);
+        super(v);
         excludedTimestamps = new TreeMap<String, Set<Timestamp>>();
     }
 
@@ -49,12 +49,13 @@ public class VersionVectorWithExceptions extends VersionVector {
      */
     @Override
     public boolean includes(Timestamp cc) {
-        if (! super.includes(cc)) {
+        if (!super.includes(cc)) {
             return true;
         }
 
-        Set<Timestamp> siteExcludes = excludedTimestamps.get(cc.getIdentifier());
-        return siteExcludes == null || ! siteExcludes.contains(cc);
+        Set<Timestamp> siteExcludes = excludedTimestamps
+                .get(cc.getIdentifier());
+        return siteExcludes == null || !siteExcludes.contains(cc);
     }
 
     /**
@@ -64,7 +65,7 @@ public class VersionVectorWithExceptions extends VersionVector {
      *            Timestamp to insert.
      * @throws InvalidParameterException
      */
-    public boolean record(Timestamp cc)  {
+    public boolean record(Timestamp cc) {
         Set<Timestamp> set = excludedTimestamps.get(cc.getIdentifier());
         if (set != null) {
             if (set.remove(cc)) {
@@ -72,8 +73,8 @@ public class VersionVectorWithExceptions extends VersionVector {
             }
         }
         Timestamp lastCC = super.getLatest(cc.getIdentifier());
-        if (! super.record(lastCC)) {
-        	return false;
+        if (!super.record(lastCC)) {
+            return false;
         }
         long prev = lastCC.getCounter() + 1;
         long fol = cc.getCounter();
@@ -84,8 +85,8 @@ public class VersionVectorWithExceptions extends VersionVector {
             set = new TreeSet<Timestamp>();
             excludedTimestamps.put(cc.getIdentifier(), set);
         }
-        for ( ; prev < fol; prev++) {
-            set.add(new Timestamp( cc.getIdentifier(), prev));
+        for (; prev < fol; prev++) {
+            set.add(new Timestamp(cc.getIdentifier(), prev));
         }
         return true;
     }
@@ -93,11 +94,12 @@ public class VersionVectorWithExceptions extends VersionVector {
     /**
      * Excludes the given Timestamp from this version vector<br>
      * Is this used for anything?
+     * 
      * @param cc
      */
     public void exclude(Timestamp cc) {
         Timestamp lastCC = super.getLatest(cc.getIdentifier());
-        if( lastCC.getCounter() < cc.getCounter())
+        if (lastCC.getCounter() < cc.getCounter())
             return;
         Set<Timestamp> excludes = excludedTimestamps.get(cc.getIdentifier());
         if (excludes == null) {
@@ -152,7 +154,8 @@ public class VersionVectorWithExceptions extends VersionVector {
                     greaterThan = true;
                 } else {
                     Set<Timestamp> exc = excludedTimestamps.get(e.getKey());
-                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e.getKey());
+                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e
+                            .getKey());
                     if (exc != null
                             && exc.contains(iThis)
                             && (otherExc == null || otherExc != null
@@ -180,7 +183,8 @@ public class VersionVectorWithExceptions extends VersionVector {
                     greaterThan = true;
                 } else {
                     Set<Timestamp> exc = excludedTimestamps.get(e.getKey());
-                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e.getKey());
+                    Set<Timestamp> otherExc = cc.excludedTimestamps.get(e
+                            .getKey());
                     if (exc != null
                             && exc.contains(iThis)
                             && (otherExc == null || otherExc != null
@@ -218,132 +222,62 @@ public class VersionVectorWithExceptions extends VersionVector {
     @Override
     public CMP_CLOCK compareTo(VersionVector c) {
         return CMP_CLOCK.CMP_CONCURRENT;
-/*
-        // TODO Autsch! Fix me!
-        VersionVectorWithExceptions cc = (VersionVectorWithExceptions) c;
-        boolean lessThan = false; // this less than c
-        boolean greaterThan = false;
-        Iterator<Entry<String, Long>> it = cc.vv.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, Long> e = it.next();
-            Long i = vv.get(e.getKey());
-            if (i == null) {
-                lessThan = true;
-                if (greaterThan) {
-                    return CMP_CLOCK.CMP_CONCURRENT;
-                }
-            } else {
-                long iOther = e.getValue();
-                long iThis = i;
-                if (iThis < iOther) {
-                    lessThan = true;
-                    if (greaterThan) {
-                        return CMP_CLOCK.CMP_CONCURRENT;
-                    }
-                } else if (iThis > iOther) {
-                    greaterThan = true;
-
-                    if (lessThan) {
-                        return CMP_CLOCK.CMP_CONCURRENT;
-                    }
-                }
-            }
-        }
-        it = vv.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, Long> e = it.next();
-            Long i = cc.vv.get(e.getKey());
-            if (i == null) {
-                greaterThan = true;
-                if (lessThan) {
-                    return CMP_CLOCK.CMP_CONCURRENT;
-                }
-            } else {
-                long iThis = e.getValue();
-                long iOther = i;
-                if (iThis < iOther) {
-                    lessThan = true;
-                    if (greaterThan) {
-                        return CMP_CLOCK.CMP_CONCURRENT;
-                    }
-                } else if (iThis > iOther) {
-                    greaterThan = true;
-                    if (lessThan) {
-                        return CMP_CLOCK.CMP_CONCURRENT;
-                    }
-                }
-            }
-        }
-
-        for (Entry<String, Set<Long>> entry : excludedTimestamps.entrySet()) {
-            Set<Long> excluded = entry.getValue();
-            Long iOther = cc.vv.get(entry.getKey());
-            for (Long i : excluded) {
-                if (iOther != null && iOther >= i) {
-                    Set<Timestamp> otherExcluded = cc.excludedTimestamps.get(entry
-                            .getKey());
-                    if (otherExcluded == null
-                            || (otherExcluded != null && !otherExcluded
-                                    .contains(i)))
-                        lessThan = true;
-                }
-            }
-        }
-
-        for (Entry<String, Set<Timestamp>> entry : cc.excludedTimestamps.entrySet()) {
-            Set<Timestamp> otherExcluded = entry.getValue();
-            Long iThis = vv.get(entry.getKey());
-            for (Timestamp i : otherExcluded) {
-                if (iThis != null && iThis >= i) {
-                    Set<Long> myExcluded = excludedTimestamps.get(entry
-                            .getKey());
-                    if (myExcluded == null
-                            || (myExcluded != null && !myExcluded.contains(i)))
-                        greaterThan = true;
-                }
-            }
-        }
-
-        if (greaterThan && lessThan) {
-            return CMP_CLOCK.CMP_CONCURRENT;
-        }
-        if (greaterThan) {
-            return CMP_CLOCK.CMP_DOMINATES;
-        }
-        if (lessThan) {
-            return CMP_CLOCK.CMP_ISDOMINATED;
-        }
-
-        for (Entry<String, Set<Long>> entry : excludedTimestamps.entrySet()) {
-            Set<Long> excluded = entry.getValue();
-            Set<Long> otherExcluded = cc.excludedTimestamps.get(entry.getKey());
-            // TODO refactor
-            if (excluded.containsAll(otherExcluded)) {
-                if (otherExcluded.containsAll(excluded)) {
-                    if (excluded.size() < otherExcluded.size()) {
-                        greaterThan = true;
-                    }
-                }
-            }
-            if (excluded.containsAll(otherExcluded)) {
-                if (excluded.size() > otherExcluded.size()) {
-                    lessThan = true;
-                }
-            }
-
-        }
-
-        if (greaterThan && lessThan) {
-            return CMP_CLOCK.CMP_CONCURRENT;
-        }
-        if (greaterThan) {
-            return CMP_CLOCK.CMP_DOMINATES;
-        }
-        if (lessThan) {
-            return CMP_CLOCK.CMP_ISDOMINATED;
-        }
-        return CMP_CLOCK.CMP_EQUALS;
-        */
+        /*
+         * // TODO Autsch! Fix me! VersionVectorWithExceptions cc =
+         * (VersionVectorWithExceptions) c; boolean lessThan = false; // this
+         * less than c boolean greaterThan = false; Iterator<Entry<String,
+         * Long>> it = cc.vv.entrySet().iterator(); while (it.hasNext()) {
+         * Entry<String, Long> e = it.next(); Long i = vv.get(e.getKey()); if (i
+         * == null) { lessThan = true; if (greaterThan) { return
+         * CMP_CLOCK.CMP_CONCURRENT; } } else { long iOther = e.getValue(); long
+         * iThis = i; if (iThis < iOther) { lessThan = true; if (greaterThan) {
+         * return CMP_CLOCK.CMP_CONCURRENT; } } else if (iThis > iOther) {
+         * greaterThan = true;
+         * 
+         * if (lessThan) { return CMP_CLOCK.CMP_CONCURRENT; } } } } it =
+         * vv.entrySet().iterator(); while (it.hasNext()) { Entry<String, Long>
+         * e = it.next(); Long i = cc.vv.get(e.getKey()); if (i == null) {
+         * greaterThan = true; if (lessThan) { return CMP_CLOCK.CMP_CONCURRENT;
+         * } } else { long iThis = e.getValue(); long iOther = i; if (iThis <
+         * iOther) { lessThan = true; if (greaterThan) { return
+         * CMP_CLOCK.CMP_CONCURRENT; } } else if (iThis > iOther) { greaterThan
+         * = true; if (lessThan) { return CMP_CLOCK.CMP_CONCURRENT; } } } }
+         * 
+         * for (Entry<String, Set<Long>> entry : excludedTimestamps.entrySet())
+         * { Set<Long> excluded = entry.getValue(); Long iOther =
+         * cc.vv.get(entry.getKey()); for (Long i : excluded) { if (iOther !=
+         * null && iOther >= i) { Set<Timestamp> otherExcluded =
+         * cc.excludedTimestamps.get(entry .getKey()); if (otherExcluded == null
+         * || (otherExcluded != null && !otherExcluded .contains(i))) lessThan =
+         * true; } } }
+         * 
+         * for (Entry<String, Set<Timestamp>> entry :
+         * cc.excludedTimestamps.entrySet()) { Set<Timestamp> otherExcluded =
+         * entry.getValue(); Long iThis = vv.get(entry.getKey()); for (Timestamp
+         * i : otherExcluded) { if (iThis != null && iThis >= i) { Set<Long>
+         * myExcluded = excludedTimestamps.get(entry .getKey()); if (myExcluded
+         * == null || (myExcluded != null && !myExcluded.contains(i)))
+         * greaterThan = true; } } }
+         * 
+         * if (greaterThan && lessThan) { return CMP_CLOCK.CMP_CONCURRENT; } if
+         * (greaterThan) { return CMP_CLOCK.CMP_DOMINATES; } if (lessThan) {
+         * return CMP_CLOCK.CMP_ISDOMINATED; }
+         * 
+         * for (Entry<String, Set<Long>> entry : excludedTimestamps.entrySet())
+         * { Set<Long> excluded = entry.getValue(); Set<Long> otherExcluded =
+         * cc.excludedTimestamps.get(entry.getKey()); // TODO refactor if
+         * (excluded.containsAll(otherExcluded)) { if
+         * (otherExcluded.containsAll(excluded)) { if (excluded.size() <
+         * otherExcluded.size()) { greaterThan = true; } } } if
+         * (excluded.containsAll(otherExcluded)) { if (excluded.size() >
+         * otherExcluded.size()) { lessThan = true; } }
+         * 
+         * }
+         * 
+         * if (greaterThan && lessThan) { return CMP_CLOCK.CMP_CONCURRENT; } if
+         * (greaterThan) { return CMP_CLOCK.CMP_DOMINATES; } if (lessThan) {
+         * return CMP_CLOCK.CMP_ISDOMINATED; } return CMP_CLOCK.CMP_EQUALS;
+         */
     }
 
     /**
@@ -376,6 +310,5 @@ public class VersionVectorWithExceptions extends VersionVector {
         buf.append("X:[" + excludedTimestamps + "]");
         return buf.toString();
     }
-
 
 }

@@ -11,40 +11,40 @@ import swift.crdt.CRDTIdentifier;
  * 
  */
 public interface TxnHandle {
-	<V extends CRDT<V, I>, I> CRDT<V, I> get(CRDTIdentifier id, boolean create,
-			Class<V> classOfT);
+    <V extends CRDT<V, I>, I> CRDT<V, I> get(CRDTIdentifier id, boolean create,
+            Class<V> classOfT);
 
-	/**
-	 * Commits the transaction.
-	 */
-	void commit();
+    /**
+     * Commits the transaction.
+     */
+    void commit();
 
-	/**
-	 * Reverts the updates which were executed under this transaction.
-	 */
-	void rollback();
+    /**
+     * Reverts the updates which were executed under this transaction.
+     */
+    void rollback();
 
-	/**
-	 * Generates timestamps for operations. Only called by system.
-	 * 
-	 * @return next timestamp
-	 */
-	TripleTimestamp nextTimestamp();
+    /**
+     * Generates timestamps for operations. Only called by system.
+     * 
+     * @return next timestamp
+     */
+    TripleTimestamp nextTimestamp();
 
-	/**
-	 * Returns the causality clock associated to this transaction handle. Only
-	 * called by system.
-	 * 
-	 * @return
-	 */
-	CausalityClock getClock();
+    /**
+     * Returns the causality clock associated to this transaction handle. Only
+     * called by system.
+     * 
+     * @return
+     */
+    CausalityClock getClock();
 
-	/**
-	 * Register a new CRDT operation with the transaction. Only called by
-	 * system.
-	 * 
-	 * @param op
-	 */
-	void registerOperation(CRDTOperation op);
+    /**
+     * Register a new CRDT operation with the transaction. Only called by
+     * system.
+     * 
+     * @param op
+     */
+    void registerOperation(CRDTOperation op);
 
 }

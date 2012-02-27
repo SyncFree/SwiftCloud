@@ -192,10 +192,7 @@
     <property name="severity" value="ignore"/>
     <metadata name="net.sf.eclipsecs.core.lastEnabledSeverity" value="inherit"/>
   </module>
-  <module name="FileTabCharacter">
-    <property name="severity" value="ignore"/>
-    <metadata name="net.sf.eclipsecs.core.lastEnabledSeverity" value="inherit"/>
-  </module>
+  <module name="FileTabCharacter"/>
   <module name="StrictDuplicateCode"/>
   <module name="NewlineAtEndOfFile"/>
   <module name="Translation"/>

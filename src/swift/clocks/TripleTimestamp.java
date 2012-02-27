@@ -5,8 +5,8 @@ package swift.clocks;
  * triple together with siteId).
  */
 public class TripleTimestamp extends Timestamp {
-	private static final long serialVersionUID = 1L;
-	protected final long secondaryCounter;
+    private static final long serialVersionUID = 1L;
+    protected final long secondaryCounter;
 
     /**
      * Creates triple counter with default maximum value for primary counter.
@@ -23,6 +23,7 @@ public class TripleTimestamp extends Timestamp {
 
     /**
      * Returns the size of this object in bytes
+     * 
      * @return
      */
     public int size() {
@@ -35,16 +36,15 @@ public class TripleTimestamp extends Timestamp {
     }
 
     /**
-     * Returns true if this timestamp includes the given Timestamp.
-     * If the given object is a TripleTimestamp, returns true if they are the same timestamp.
+     * Returns true if this timestamp includes the given Timestamp. If the given
+     * object is a TripleTimestamp, returns true if they are the same timestamp.
      */
     public boolean includes(Object obj) {
         if (!(obj instanceof TripleTimestamp)) {
             return false;
         }
-        return compareTo( (Timestamp)obj) == 0;
+        return compareTo((Timestamp) obj) == 0;
     }
-
 
     public int hashCode() {
         return super.hashCode() ^ (int) secondaryCounter;

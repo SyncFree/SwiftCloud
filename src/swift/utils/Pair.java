@@ -1,6 +1,5 @@
 package swift.utils;
 
-
 import java.io.Serializable;
 
 public class Pair<F, S> implements Serializable {
