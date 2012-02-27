@@ -9,19 +9,13 @@ import swift.exceptions.InvalidParameterException;
  * @author nmp
  */
 public interface TimestampSource<T> {
-    /**
-     * Generates a new timestamp
-     * 
-     * @return
-     * @throws InvalidParameterException
-     */
-    T generateNew() throws InvalidParameterException;
+
 
     /**
-     * Generates a new timestamp with respect to the causality clock given as
-     * parameter.
+     * Generates a new timestamp.
      * 
      * @return
      */
-    <V extends CausalityClock<V>> T generateNew(CausalityClock<V> c);
+    <V extends CausalityClock<V>> T generateNew();
+
 }

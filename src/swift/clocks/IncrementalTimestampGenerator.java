@@ -28,10 +28,4 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
         return new Timestamp(siteid, ++last);
     }
 
-    @Override
-    public <V extends CausalityClock<V>> Timestamp generateNew(CausalityClock<V> c) {
-        last = Math.max(last, c.getLatestCounter(siteid));
-        return new Timestamp(siteid, ++last);
-    }
-
 }
