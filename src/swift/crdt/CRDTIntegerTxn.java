@@ -33,19 +33,18 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
     }
 
     public int value(CausalityClock clk) {
-        // FIXME Check!
         int retValue = 0;
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : adds.entrySet()) {
+        retValue += filterUpdates(clk, this.adds);
+        retValue -= filterUpdates(clk, this.rems);
+        return retValue;
+    }
+
+    private int filterUpdates(CausalityClock clk, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
+        int retValue = 0;
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : updates.entrySet()) {
             for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
                 if (clk.includes(set.getSecond())) {
                     retValue += set.getFirst();
-                }
-            }
-        }
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : rems.entrySet()) {
-            for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
-                if (clk.includes(set.getSecond())) {
-                    retValue -= set.getFirst();
                 }
             }
         }
@@ -60,7 +59,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
 
     public void sub(int n) {
         TripleTimestamp ts = getTxnHandle().nextTimestamp();
-        CRDTOperation op = new IntegerAdd(getUID(), ts, getClock(), n);
+        CRDTOperation op = new IntegerSub(getUID(), ts, getClock(), n);
         getTxnHandle().registerOperation(op);
     }
 
@@ -68,14 +67,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
         if (n < 0) {
             return subU(-n, ts);
         }
-        String siteId = ts.getIdentifier();
-        Set<Pair<Integer, TripleTimestamp>> v = adds.get(siteId);
-        if (v == null) {
-            v = new HashSet<Pair<Integer, TripleTimestamp>>();
-            adds.put(siteId, v);
-        }
-
-        v.add(new Pair<Integer, TripleTimestamp>(n, ts));
+        applyUpdate(n, ts, this.adds);
         val += n;
         return val;
     }
@@ -84,54 +76,51 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
         if (n < 0) {
             return addU(-n, ts);
         }
-        String siteId = ts.getIdentifier();
-        Set<Pair<Integer, TripleTimestamp>> v = rems.get(siteId);
-        if (v == null) {
-            v = new HashSet<Pair<Integer, TripleTimestamp>>();
-            rems.put(siteId, v);
-        }
-        v.add(new Pair<Integer, TripleTimestamp>(n, ts));
+        applyUpdate(n, ts, this.rems);
         val -= n;
         return val;
     }
 
+    private void applyUpdate(int n, TripleTimestamp ts, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
+        String siteId = ts.getIdentifier();
+        Set<Pair<Integer, TripleTimestamp>> v = updates.get(siteId);
+        if (v == null) {
+            v = new HashSet<Pair<Integer, TripleTimestamp>>();
+            updates.put(siteId, v);
+        }
+        v.add(new Pair<Integer, TripleTimestamp>(n, ts));
+    }
+
+    private void mergeUpdates(Map<String, Set<Pair<Integer, TripleTimestamp>>> mine,
+            Map<String, Set<Pair<Integer, TripleTimestamp>>> other) {
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.entrySet()) {
+            Set<Pair<Integer, TripleTimestamp>> v = mine.get(e.getKey());
+            if (v == null) {
+                v = e.getValue();
+                mine.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
+            } else {
+                v.addAll(e.getValue());
+            }
+        }
+    }
+
+    private int allUpdates(Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
+        int changes = 0;
+        for (Set<Pair<Integer, TripleTimestamp>> v : updates.values()) {
+            for (Pair<Integer, TripleTimestamp> vi : v) {
+                changes += vi.getFirst();
+            }
+        }
+        return changes;
+    }
+
     @Override
     public void mergePayload(CRDTIntegerTxn other) {
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.adds.entrySet()) {
-            Set<Pair<Integer, TripleTimestamp>> v = this.adds.get(e.getKey());
-            if (v == null) {
-                v = e.getValue();
-                adds.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
-            } else {
-                v.addAll(e.getValue());
-            }
+        mergeUpdates(this.adds, other.adds);
+        mergeUpdates(this.rems, other.rems);
 
-        }
-
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.rems.entrySet()) {
-            Set<Pair<Integer, TripleTimestamp>> v = rems.get(e.getKey());
-            if (v == null) {
-                v = e.getValue();
-                rems.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
-            } else {
-                v.addAll(e.getValue());
-            }
-
-        }
-
-        val = 0;
-        for (Set<Pair<Integer, TripleTimestamp>> v : adds.values()) {
-            for (Pair<Integer, TripleTimestamp> vi : v) {
-                val += vi.getFirst();
-            }
-        }
-
-        for (Set<Pair<Integer, TripleTimestamp>> v : rems.values()) {
-            for (Pair<Integer, TripleTimestamp> vi : v) {
-                val -= vi.getFirst();
-            }
-        }
-
+        this.val = allUpdates(this.adds);
+        this.val -= allUpdates(this.rems);
     }
 
     @Override
@@ -143,9 +132,9 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
         return that.val == this.val && that.adds.equals(this.adds) && that.rems.equals(this.rems);
     }
 
-    @Override
-    public void rollback(Timestamp rollbackEvent) {
-        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> it = adds.entrySet().iterator();
+    private int rollbackUpdates(Timestamp rollbackEvent, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
+        int delta = 0;
+        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> it = updates.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, Set<Pair<Integer, TripleTimestamp>>> addForSite = it.next();
             Iterator<Pair<Integer, TripleTimestamp>> addTSit = addForSite.getValue().iterator();
@@ -153,30 +142,20 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, ICRDTInteger> {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
                 if ((ts.getSecond()).equals(rollbackEvent)) {
                     addTSit.remove();
-                    val -= ts.getFirst();
+                    delta += ts.getFirst();
                 }
             }
             if (addForSite.getValue().isEmpty()) {
                 it.remove();
             }
         }
+        return delta;
+    }
 
-        it = rems.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> remsForSite = it.next();
-            Iterator<Pair<Integer, TripleTimestamp>> remTSit = remsForSite.getValue().iterator();
-            while (remTSit.hasNext()) {
-                Pair<Integer, TripleTimestamp> ts = remTSit.next();
-                if (((TripleTimestamp) ts.getSecond()).equals(rollbackEvent)) {
-                    remTSit.remove();
-                    val += ts.getFirst();
-                }
-            }
-            if (remsForSite.getValue().isEmpty()) {
-                it.remove();
-            }
-        }
-
+    @Override
+    public void rollback(Timestamp rollbackEvent) {
+        this.val -= rollbackUpdates(rollbackEvent, this.adds);
+        this.val += rollbackUpdates(rollbackEvent, this.rems);
     }
 
     @Override
