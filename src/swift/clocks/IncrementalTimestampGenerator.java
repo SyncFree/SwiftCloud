@@ -1,6 +1,5 @@
 package swift.clocks;
 
-import swift.crdt.interfaces.TimestampSource;
 
 /**
  * Timestamp generator for a given site. Always generates the consecutive
@@ -14,11 +13,11 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
     private String siteid;
     private long last;
 
-    protected IncrementalTimestampGenerator(String siteid) {
+    public IncrementalTimestampGenerator(String siteid) {
         this(siteid, 0);
     }
 
-    protected IncrementalTimestampGenerator(String siteid, long last) {
+    public IncrementalTimestampGenerator(String siteid, long last) {
         this.siteid = siteid;
         this.last = last;
     }

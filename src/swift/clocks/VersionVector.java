@@ -213,15 +213,7 @@ public class VersionVector implements CausalityClock<VersionVector> {
             Long i = cc.vv.get(e.getKey());
             if (i == null) {
                 greaterThan = true;
-            } else {
-                long iThis = e.getValue();
-                long iOther = i;
-                if (iThis < iOther) {
-                    lessThan = true;
-                    vv.put(e.getKey(), iOther);
-                } else if (iThis > iOther) {
-                    greaterThan = true;
-                }
+                break;
             }
         }
         if (greaterThan && lessThan) {

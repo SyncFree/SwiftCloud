@@ -1,6 +1,5 @@
 package swift.clocks;
 
-import swift.crdt.interfaces.TimestampSource;
 
 /**
  * TripleTimestamp generator based on an existing Timestamp.
