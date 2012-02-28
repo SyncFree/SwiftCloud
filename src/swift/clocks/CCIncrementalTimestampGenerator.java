@@ -22,7 +22,10 @@ public class CCIncrementalTimestampGenerator implements TimestampSource<Timestam
         this(siteid, clock, Timestamp.MIN_VALUE);
     }
 
-    public CCIncrementalTimestampGenerator(String siteid, CausalityClock clock, long last) {
+    public CCIncrementalTimestampGenerator(String siteid, CausalityClock clock, long last) throws NullPointerException {
+        if (siteid == null) {
+            throw new NullPointerException();
+        }
         this.siteid = siteid;
         this.clock = clock;
         this.last = last;

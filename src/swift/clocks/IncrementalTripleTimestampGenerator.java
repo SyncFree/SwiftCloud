@@ -14,11 +14,8 @@ public class IncrementalTripleTimestampGenerator implements TimestampSource<Trip
     private long counter;
     private long last;
 
-    public IncrementalTripleTimestampGenerator(Timestamp ts) throws InvalidParameterException {
+    public IncrementalTripleTimestampGenerator(Timestamp ts) {
         this.siteid = ts.getIdentifier();
-        if( siteid == null) {
-            throw new InvalidParameterException();
-        }
         this.counter = ts.getCounter();
         this.last = Timestamp.MIN_VALUE;
 

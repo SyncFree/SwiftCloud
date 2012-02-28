@@ -23,12 +23,8 @@ public class TxnHandleForTesting implements TxnHandle {
     public TxnHandleForTesting(String siteId, CausalityClock cc) {
         this.cache = new HashMap<CRDTIdentifier, CRDT<?, ?>>();
         this.cc = cc;
-        try {
-            this.timestampGenerator = new IncrementalTripleTimestampGenerator(
+        this.timestampGenerator = new IncrementalTripleTimestampGenerator(
                     new IncrementalTimestampGenerator("test-site", 0).generateNew());
-        } catch (InvalidParameterException e) { // will not happen
-            ; // do nothing
-        }
     }
 
     @Override

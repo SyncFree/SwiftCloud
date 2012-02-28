@@ -19,9 +19,9 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
         this(siteid, 0);
     }
 
-    public IncrementalTimestampGenerator(String siteid, long last) throws InvalidParameterException {
+    public IncrementalTimestampGenerator(String siteid, long last) throws NullPointerException {
         if (siteid == null) {
-            throw new InvalidParameterException();
+            throw new NullPointerException();
         }
         this.siteid = siteid;
         this.last = last;
