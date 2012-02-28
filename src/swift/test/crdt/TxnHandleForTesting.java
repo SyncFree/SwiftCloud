@@ -6,11 +6,11 @@ import java.util.Map;
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
-import swift.crdt.interfaces.TimestampSource;
 import swift.crdt.interfaces.TxnHandle;
 
 public class TxnHandleForTesting implements TxnHandle {
