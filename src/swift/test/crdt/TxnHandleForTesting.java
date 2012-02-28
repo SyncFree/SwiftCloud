@@ -6,14 +6,12 @@ import java.util.Map;
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
-import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
-import swift.exceptions.InvalidParameterException;
 
 public class TxnHandleForTesting implements TxnHandle {
     private Map<CRDTIdentifier, CRDT<?, ?>> cache;
@@ -24,7 +22,7 @@ public class TxnHandleForTesting implements TxnHandle {
         this.cache = new HashMap<CRDTIdentifier, CRDT<?, ?>>();
         this.cc = cc;
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(
-                    new IncrementalTimestampGenerator("test-site", 0).generateNew());
+                new IncrementalTimestampGenerator(siteId, 0).generateNew());
     }
 
     @Override
