@@ -4,13 +4,12 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
 
-
 /**
- * Timestamp generator for a given site. Always generates the max from the consecutive
- * counter for the given site and a given causality clock.
+ * Timestamp generator for a given site. Always generates the max from the
+ * consecutive counter for the given site and a given causality clock.
  * 
- * NOTE: if the given clock is updated outside of this class, the next clock will take
- * this into consideration.
+ * NOTE: if the given clock is updated outside of this class, the next clock
+ * will take this into consideration.
  * 
  * @author nmp
  * 
@@ -18,14 +17,14 @@ import swift.clocks.TimestampSource;
 public class CCIncrementalTimestampGenerator implements TimestampSource<Timestamp> {
 
     private String siteid;
-    private CausalityClock<?> clock;
+    private CausalityClock clock;
     private long last;
 
-    public CCIncrementalTimestampGenerator(String siteid, CausalityClock<?> clock) {
+    public CCIncrementalTimestampGenerator(String siteid, CausalityClock clock) {
         this(siteid, clock, Timestamp.MIN_VALUE);
     }
 
-    public CCIncrementalTimestampGenerator(String siteid, CausalityClock<?> clock, long last) {
+    public CCIncrementalTimestampGenerator(String siteid, CausalityClock clock, long last) {
         this.siteid = siteid;
         this.clock = clock;
         this.last = last;

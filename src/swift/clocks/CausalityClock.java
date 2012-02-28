@@ -8,7 +8,7 @@ import java.io.Serializable;
  * 
  * @author nmp
  */
-public interface CausalityClock<V extends CausalityClock<V>> extends Serializable {
+public interface CausalityClock extends Serializable {
     enum CMP_CLOCK {
         CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT
     };
@@ -64,7 +64,7 @@ public interface CausalityClock<V extends CausalityClock<V>> extends Serializabl
      *         CMP_CONCUREENT : if this clock and the given c clock are
      *         concurrent; <br>
      */
-    CMP_CLOCK compareTo(V c);
+    CMP_CLOCK compareTo(CausalityClock c);
 
     /**
      * Merge this clock with the given c clock.
@@ -80,11 +80,11 @@ public interface CausalityClock<V extends CausalityClock<V>> extends Serializabl
      *         CMP_CONCUREENT : if this clock and the given c clock were
      *         concurrent; <br>
      */
-    CMP_CLOCK merge(V c);
+    CMP_CLOCK merge(CausalityClock c);
 
     /**
      * Create a copy of this causality clock.
      */
-    CausalityClock<V> clone();
+    CausalityClock clone();
 
 }

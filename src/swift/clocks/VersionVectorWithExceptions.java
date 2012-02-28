@@ -13,23 +13,23 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
-public class VersionVectorWithExceptions implements CausalityClock<VersionVectorWithExceptions> {
+public class VersionVectorWithExceptions implements CausalityClock {
 
     private static final long serialVersionUID = 1L;
     protected TreeMap<String, Set<Long>> excludedTimestamps;
     protected TreeMap<String, Long> vv;
 
-    public VersionVectorWithExceptions() {
+    protected VersionVectorWithExceptions() {
         vv = new TreeMap<String, Long>();
         excludedTimestamps = new TreeMap<String, Set<Long>>();
     }
 
-    public VersionVectorWithExceptions(VersionVectorWithExceptions v) {
+    protected VersionVectorWithExceptions(VersionVectorWithExceptions v) {
         vv = new TreeMap<String, Long>(v.vv);
         excludedTimestamps = new TreeMap<String, Set<Long>>(v.excludedTimestamps);
     }
 
-    public VersionVectorWithExceptions(VersionVector v) {
+    protected VersionVectorWithExceptions(VersionVector v) {
         vv = new TreeMap<String, Long>(v.vv);
         excludedTimestamps = new TreeMap<String, Set<Long>>();
     }
@@ -45,7 +45,7 @@ public class VersionVectorWithExceptions implements CausalityClock<VersionVector
     @Override
     public boolean includes(Timestamp cc) {
         Long i = vv.get(cc.getIdentifier());
-        if( i == null || cc.getCounter() > i) {
+        if (i == null || cc.getCounter() > i) {
             return false;
         }
         Set<Long> siteExcludes = excludedTimestamps.get(cc.getIdentifier());
@@ -204,11 +204,11 @@ public class VersionVectorWithExceptions implements CausalityClock<VersionVector
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    public CMP_CLOCK merge(VersionVectorWithExceptions cc) {
+    public CMP_CLOCK merge(CausalityClock cc) {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
-        return mergeVV(cc);
+        return mergeVV((VersionVectorWithExceptions) cc);
     }
 
     protected CMP_CLOCK compareOneEntryVV(String siteid, long last, Set<Long> excluded) {
@@ -299,7 +299,7 @@ public class VersionVectorWithExceptions implements CausalityClock<VersionVector
 
     // TODO: fix parametric types
     @Override
-    public CMP_CLOCK compareTo(VersionVectorWithExceptions cc) {
+    public CMP_CLOCK compareTo(CausalityClock cc) {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
@@ -337,14 +337,13 @@ public class VersionVectorWithExceptions implements CausalityClock<VersionVector
             return i;
         }
     }
-    
+
     /**
      * Create a copy of this causality clock.
      */
-    public CausalityClock<VersionVectorWithExceptions> clone() {
-        return new VersionVectorWithExceptions( this);
+    public CausalityClock clone() {
+        return new VersionVectorWithExceptions(this);
     }
-
 
     public String toString() {
         StringBuffer buf = new StringBuffer();

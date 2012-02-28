@@ -11,16 +11,16 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
-public class VersionVector implements CausalityClock<VersionVector> {
+public class VersionVector implements CausalityClock {
 
     private static final long serialVersionUID = 1L;
     protected TreeMap<String, Long> vv;
 
-    public VersionVector() {
+    protected VersionVector() {
         vv = new TreeMap<String, Long>();
     }
 
-    public VersionVector(VersionVector v) {
+    protected VersionVector(VersionVector v) {
         vv = new TreeMap<String, Long>(v.vv);
     }
 
@@ -137,9 +137,9 @@ public class VersionVector implements CausalityClock<VersionVector> {
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    public CMP_CLOCK compareTo(VersionVector cc) {
+    public CMP_CLOCK compareTo(CausalityClock cc) {
         if (VersionVector.class.equals(cc.getClass())) {
-            return compareToVV(cc);
+            return compareToVV((VersionVector) cc);
         } else {
             CMP_CLOCK c = cc.compareTo(this);
             if (c == CMP_CLOCK.CMP_CONCURRENT) {
@@ -242,17 +242,17 @@ public class VersionVector implements CausalityClock<VersionVector> {
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    public CMP_CLOCK merge(VersionVector cc) {
+    public CMP_CLOCK merge(CausalityClock cc) {
         // if ( ! VersionVector.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
-        return mergeVV(cc);
+        return mergeVV((VersionVector) cc);
     }
 
     /**
      * Create a copy of this causality clock.
      */
-    public CausalityClock<VersionVector> clone() {
+    public CausalityClock clone() {
         return new VersionVector(this);
     }
 

@@ -2,10 +2,9 @@ package swift.clocks;
 
 import java.util.Iterator;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.TreeMap;
 
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -15,16 +14,16 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
-public class DottedVersionVector implements CausalityClock<DottedVersionVector> {
+public class DottedVersionVector implements CausalityClock {
     protected Timestamp ts;
     protected TreeMap<String, Long> vv;
 
-    public DottedVersionVector(Timestamp ts) {
+    protected DottedVersionVector(Timestamp ts) {
         this.ts = ts;
         vv = new TreeMap<String, Long>();
     }
 
-    public DottedVersionVector(DottedVersionVector v) {
+    protected DottedVersionVector(DottedVersionVector v) {
         vv = new TreeMap<String, Long>(v.vv);
         if (v.ts != null) {
             ts = v.ts.clone();
@@ -152,7 +151,8 @@ public class DottedVersionVector implements CausalityClock<DottedVersionVector> 
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    public CMP_CLOCK compareTo(DottedVersionVector cc) {
+    public CMP_CLOCK compareTo(CausalityClock dvv) {
+        DottedVersionVector cc = (DottedVersionVector) dvv;
         boolean thisIncludedInOther = false;
         boolean otherIncludedInThis = false;
         if (cc.ts.equals(ts)) {
@@ -283,7 +283,8 @@ public class DottedVersionVector implements CausalityClock<DottedVersionVector> 
      *         CMP_CONCUREENT : if this clock and the given c clock were
      *         concurrent; <br>
      */
-    public CMP_CLOCK merge(DottedVersionVector cc) {
+    public CMP_CLOCK merge(CausalityClock dvv) {
+        DottedVersionVector cc = (DottedVersionVector) dvv;
         CMP_CLOCK result = compareTo(cc);
         cc.normalize();
         this.normalize();
@@ -295,7 +296,7 @@ public class DottedVersionVector implements CausalityClock<DottedVersionVector> 
     /**
      * Create a copy of this causality clock.
      */
-    public CausalityClock<DottedVersionVector> clone() {
+    public CausalityClock clone() {
         return new DottedVersionVector(this);
     }
 
