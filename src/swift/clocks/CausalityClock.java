@@ -2,9 +2,6 @@ package swift.clocks;
 
 import java.io.Serializable;
 
-import swift.exceptions.IncompatibleTypeException;
-import swift.exceptions.InvalidParameterException;
-
 /**
  * Interface for clocks that allow to trace causality, such as version vector
  * and dotted version vectors
@@ -15,7 +12,7 @@ public interface CausalityClock<V extends CausalityClock<V>> extends Serializabl
     enum CMP_CLOCK {
         CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT
     };
-    
+
     /**
      * Records the given event. Assume the timestamp can be recorded in the
      * given version vector.

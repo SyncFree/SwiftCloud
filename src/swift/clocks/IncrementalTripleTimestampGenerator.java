@@ -1,6 +1,5 @@
 package swift.clocks;
 
-
 /**
  * TripleTimestamp generator based on an existing Timestamp.
  * 
@@ -14,15 +13,15 @@ public class IncrementalTripleTimestampGenerator implements TimestampSource<Trip
     private long last;
 
     public IncrementalTripleTimestampGenerator(Timestamp ts) {
-    	this.siteid = ts.getIdentifier();
-    	this.counter = ts.getCounter();
-    	this.last = Timestamp.MIN_VALUE;
-    	
+        this.siteid = ts.getIdentifier();
+        this.counter = ts.getCounter();
+        this.last = Timestamp.MIN_VALUE;
+
     }
 
     @Override
     public synchronized TripleTimestamp generateNew() {
-        return new TripleTimestamp( siteid, counter, ++last);
+        return new TripleTimestamp(siteid, counter, ++last);
     }
 
 }

@@ -35,8 +35,9 @@ public class TripleTimestamp extends Timestamp {
     }
 
     /**
-     * Returns true if this timestamp is equal to the given Timestamp. If the given
-     * object is a TripleTimestamp, returns true if they share the same base timestamp.
+     * Returns true if this timestamp is equal to the given Timestamp. If the
+     * given object is a TripleTimestamp, returns true if they share the same
+     * base timestamp.
      */
     public boolean includes(Object obj) {
         if (!(obj instanceof TripleTimestamp)) {

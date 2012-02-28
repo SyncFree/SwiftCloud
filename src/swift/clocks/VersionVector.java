@@ -1,15 +1,10 @@
 package swift.clocks;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.TreeMap;
 
 import swift.exceptions.IncompatibleTypeException;
-import swift.exceptions.InvalidParameterException;
 
 /**
  * Class to represent common version vectors.
@@ -38,8 +33,9 @@ public class VersionVector implements CausalityClock<VersionVector> {
      * @return Returns false if the object was already recorded.
      */
     public boolean record(Timestamp cc) {
-        if (cc.getCounter() == Timestamp.MIN_VALUE)
+        if (cc.getCounter() == Timestamp.MIN_VALUE) {
             return false;
+        }
         Long i = vv.get(cc.getIdentifier());
         vv.put(cc.getIdentifier(), cc.getCounter());
         return i == null || i < cc.getCounter();
@@ -146,14 +142,15 @@ public class VersionVector implements CausalityClock<VersionVector> {
             return compareToVV(cc);
         } else {
             CMP_CLOCK c = cc.compareTo(this);
-            if (c == CMP_CLOCK.CMP_CONCURRENT)
+            if (c == CMP_CLOCK.CMP_CONCURRENT) {
                 return c;
-            else if (c == CMP_CLOCK.CMP_EQUALS)
+            } else if (c == CMP_CLOCK.CMP_EQUALS) {
                 return c;
-            else if (c == CMP_CLOCK.CMP_DOMINATES)
+            } else if (c == CMP_CLOCK.CMP_DOMINATES) {
                 return CMP_CLOCK.CMP_ISDOMINATED;
-            else
+            } else {
                 return CMP_CLOCK.CMP_DOMINATES;
+            }
         }
     }
 

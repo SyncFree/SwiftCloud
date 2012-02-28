@@ -1,6 +1,5 @@
 package swift.clocks;
 
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -47,10 +46,12 @@ public class DottedVersionVector extends VersionVector {
      * @throws IncompatibleTypeException
      */
     public boolean record(Timestamp c) {
-        if (c.equals(this.ts))
+        if (c.equals(this.ts)) {
             return false;
-        if (super.getLatestCounter(c.getIdentifier()) >= c.getCounter())
+        }
+        if (super.getLatestCounter(c.getIdentifier()) >= c.getCounter()) {
             return false;
+        }
         normalize();
         ts = c;
         return true;
@@ -115,8 +116,8 @@ public class DottedVersionVector extends VersionVector {
             if (ts == null && cc.ts == null) {
                 return c;
             }
-            if (ts == null) { // this included in other if is dominated by the
-                              // other VV or
+            if (ts == null) {
+                // this included in other if is dominated by the other VV or
                 // if is equal to the other VV, as the other.ts will makes the
                 // other dominate this
                 thisIncludedInOther = c == CMP_CLOCK.CMP_ISDOMINATED || c == CMP_CLOCK.CMP_EQUALS;

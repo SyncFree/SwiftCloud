@@ -1,17 +1,12 @@
 package swift.clocks;
 
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
-import swift.exceptions.InvalidParameterException;
 
 /**
  * Class to represent common version vectors.
@@ -87,17 +82,17 @@ public class VersionVectorWithExceptions extends VersionVector {
         }
         return true;
     }
-    
-    protected CMP_CLOCK mergeOneEntryVV( String siteid, long last, Set<Long> excluded) {
-        Long i = vv.get( siteid);
+
+    protected CMP_CLOCK mergeOneEntryVV(String siteid, long last, Set<Long> excluded) {
+        Long i = vv.get(siteid);
         Set<Long> excludedThis = excludedTimestamps.get(siteid);
-        if( i == null) {
+        if (i == null) {
             vv.put(siteid, last);
             if (excludedThis == null) {
                 if (excluded != null) {
                     excludedTimestamps.put(siteid, new TreeSet<Long>(excluded));
                 }
-            } else {    // should not happen !!!
+            } else { // should not happen !!!
                 if (excluded != null) {
                     excludedThis.addAll(excluded);
                 }
@@ -105,27 +100,32 @@ public class VersionVectorWithExceptions extends VersionVector {
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
         long iL = i;
-        
+
         boolean lessThan = false;
         boolean greaterThan = false;
 
-        if( excludedThis != null) {                // remove from excluded elements those that are reflected in cc
+        if (excludedThis != null) {
+            // remove from excluded elements those that are reflected in cc
             Iterator<Long> itS = excludedThis.iterator();
-            while( itS.hasNext()) {
+            while (itS.hasNext()) {
                 long l = itS.next();
-                if( l <= last && excluded != null && ! excluded.contains( new Long(l))) {
+                if (l <= last && excluded != null && !excluded.contains(new Long(l))) {
                     itS.remove();
                     lessThan = true;
                 }
             }
         }
-        if( excluded != null && last > iL) {  // add excluded elements that are larger than local max value                     Iterator<Long> itS = sThis.iterator();
+        if (excluded != null && last > iL) {
+            // add excluded elements that are
+            // larger than local max value
+            // Iterator<Long> itS =
+            // sThis.iterator();
             Iterator<Long> itS = excluded.iterator();
-            while( itS.hasNext()) {
+            while (itS.hasNext()) {
                 long l = itS.next();
-                 if( l > iL) {
-                     excludedThis.add(l);
-                     greaterThan = true;
+                if (l > iL) {
+                    excludedThis.add(l);
+                    greaterThan = true;
                 }
             }
         }
@@ -134,7 +134,8 @@ public class VersionVectorWithExceptions extends VersionVector {
             vv.put(siteid, last);
         } else if (iL > last) {
             greaterThan = true;
-        }        
+        }
+
         if (greaterThan && lessThan) {
             return CMP_CLOCK.CMP_CONCURRENT;
         }
@@ -146,7 +147,7 @@ public class VersionVectorWithExceptions extends VersionVector {
         }
         return CMP_CLOCK.CMP_EQUALS;
     }
-    
+
     /**
      * Merge this clock with the given c clock.
      * 
@@ -168,7 +169,7 @@ public class VersionVectorWithExceptions extends VersionVector {
         Iterator<Entry<String, Long>> it = cc.vv.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, Long> e = it.next();
-            CMP_CLOCK partialResult = mergeOneEntryVV( e.getKey(), e.getValue(), cc.excludedTimestamps.get(e.getKey()));
+            CMP_CLOCK partialResult = mergeOneEntryVV(e.getKey(), e.getValue(), cc.excludedTimestamps.get(e.getKey()));
             result = ClockUtils.combineCmpClock(result, partialResult);
         }
         it = vv.entrySet().iterator();
@@ -182,7 +183,6 @@ public class VersionVectorWithExceptions extends VersionVector {
         }
         return result;
     }
-   
 
     /**
      * Merge this clock with the given c clock.
@@ -214,25 +214,29 @@ public class VersionVectorWithExceptions extends VersionVector {
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
         long iL = i;
-        
+
         boolean lessThan = false;
         boolean greaterThan = false;
 
-        if( excludedThis != null) {                // remove from excluded elements those that are reflected in cc
+        if (excludedThis != null) { // remove from excluded elements those that
+                                    // are reflected in cc
             Iterator<Long> itS = excludedThis.iterator();
-            while( itS.hasNext()) {
+            while (itS.hasNext()) {
                 long l = itS.next();
-                if( l <= last && excluded != null && ! excluded.contains( new Long(l))) {
+                if (l <= last && excluded != null && !excluded.contains(new Long(l))) {
                     lessThan = true;
                 }
             }
         }
-        if( excluded != null && last > iL) {  // add excluded elements that are larger than local max value                     Iterator<Long> itS = sThis.iterator();
+        if (excluded != null && last > iL) { // add excluded elements that are
+                                             // larger than local max value
+                                             // Iterator<Long> itS =
+                                             // sThis.iterator();
             Iterator<Long> itS = excluded.iterator();
-            while( itS.hasNext()) {
+            while (itS.hasNext()) {
                 long l = itS.next();
-                 if( l > iL) {
-                     greaterThan = true;
+                if (l > iL) {
+                    greaterThan = true;
                 }
             }
         }
@@ -240,7 +244,7 @@ public class VersionVectorWithExceptions extends VersionVector {
             lessThan = true;
         } else if (iL > last) {
             greaterThan = true;
-        }        
+        }
         if (greaterThan && lessThan) {
             return CMP_CLOCK.CMP_CONCURRENT;
         }
@@ -252,7 +256,7 @@ public class VersionVectorWithExceptions extends VersionVector {
         }
         return CMP_CLOCK.CMP_EQUALS;
     }
-    
+
     /**
      * compare this clock with the given c clock.
      * 
@@ -274,7 +278,7 @@ public class VersionVectorWithExceptions extends VersionVector {
         Iterator<Entry<String, Long>> it = cc.vv.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, Long> e = it.next();
-            CMP_CLOCK partialResult = compareOneEntryVV( e.getKey(), e.getValue(), cc.excludedTimestamps.get(e.getKey()));
+            CMP_CLOCK partialResult = compareOneEntryVV(e.getKey(), e.getValue(), cc.excludedTimestamps.get(e.getKey()));
             result = ClockUtils.combineCmpClock(result, partialResult);
         }
         it = vv.entrySet().iterator();
@@ -289,15 +293,14 @@ public class VersionVectorWithExceptions extends VersionVector {
         return result;
     }
 
-    //TODO: fix parametric types
+    // TODO: fix parametric types
     @Override
     public CMP_CLOCK compareTo(VersionVector cc) {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
-        return compareVV((VersionVectorWithExceptions)cc);
+        return compareVV((VersionVectorWithExceptions) cc);
     }
-
 
     public String toString() {
         StringBuffer buf = new StringBuffer();
