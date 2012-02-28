@@ -1,4 +1,8 @@
-package swift.clocks;
+package swift.clocks.generators;
+
+import swift.clocks.Timestamp;
+import swift.clocks.TimestampSource;
+import swift.clocks.TripleTimestamp;
 
 /**
  * TripleTimestamp generator based on an existing Timestamp.

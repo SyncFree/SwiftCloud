@@ -1,4 +1,7 @@
-package swift.clocks;
+package swift.clocks.generators;
+
+import swift.clocks.Timestamp;
+import swift.clocks.TimestampSource;
 
 
 /**

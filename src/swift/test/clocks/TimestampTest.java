@@ -4,8 +4,8 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
-import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
+import swift.clocks.generators.IncrementalTimestampGenerator;
 
 public class TimestampTest {
 
