@@ -1,8 +1,5 @@
-package swift.clocks.generators;
+package swift.clocks;
 
-import swift.clocks.Timestamp;
-import swift.clocks.TimestampSource;
-import swift.clocks.TripleTimestamp;
 import swift.exceptions.InvalidParameterException;
 
 /**

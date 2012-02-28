@@ -4,14 +4,15 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import swift.clocks.IncrementalTimestampGenerator;
+import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
-import swift.clocks.generators.IncrementalTimestampGenerator;
-import swift.clocks.generators.IncrementalTripleTimestampGenerator;
+import swift.exceptions.InvalidParameterException;
 
 public class TripleTimestampTest {
 
     @Test
-    public void simpleTest() {
+    public void simpleTest() throws InvalidParameterException {
         IncrementalTimestampGenerator gen1 = new IncrementalTimestampGenerator( "s1");
         Timestamp t1 = gen1.generateNew();
 
@@ -41,7 +42,7 @@ public class TripleTimestampTest {
     }
 
     @Test
-    public void dualTripleGenTest() {
+    public void dualTripleGenTest() throws InvalidParameterException {
         IncrementalTimestampGenerator gen1 = new IncrementalTimestampGenerator( "s1");
         Timestamp t1 = gen1.generateNew();
         Timestamp t2 = gen1.generateNew();

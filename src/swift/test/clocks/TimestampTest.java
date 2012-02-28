@@ -4,13 +4,14 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
-import swift.clocks.generators.IncrementalTimestampGenerator;
+import swift.exceptions.InvalidParameterException;
 
 public class TimestampTest {
 
     @Test
-    public void cloneTest() {
+    public void cloneTest() throws InvalidParameterException {
         IncrementalTimestampGenerator gen = new IncrementalTimestampGenerator( "s1");
         Timestamp t1 = gen.generateNew();
         Timestamp t2 = t1.clone();
@@ -20,7 +21,7 @@ public class TimestampTest {
     }
 
     @Test
-    public void diffIdsTest() {
+    public void diffIdsTest() throws InvalidParameterException {
         IncrementalTimestampGenerator gen1 = new IncrementalTimestampGenerator( "s1");
         Timestamp t1 = gen1.generateNew();
         IncrementalTimestampGenerator gen2 = new IncrementalTimestampGenerator( "s2");

@@ -15,7 +15,7 @@ public class TripleTimestamp extends Timestamp {
      * @param primaryCounter
      * @param secondaryCounter
      */
-    public TripleTimestamp(final String siteId, final long primaryCounter, final long secondaryCounter) {
+    TripleTimestamp(final String siteId, final long primaryCounter, final long secondaryCounter) {
         super(siteId, primaryCounter);
         this.secondaryCounter = secondaryCounter;
     }

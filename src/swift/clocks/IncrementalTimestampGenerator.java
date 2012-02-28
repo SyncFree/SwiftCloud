@@ -1,7 +1,5 @@
-package swift.clocks.generators;
+package swift.clocks;
 
-import swift.clocks.Timestamp;
-import swift.clocks.TimestampSource;
 import swift.exceptions.InvalidParameterException;
 
 
@@ -22,7 +20,7 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
     }
 
     public IncrementalTimestampGenerator(String siteid, long last) throws InvalidParameterException {
-        if( siteid == null) {
+        if (siteid == null) {
             throw new InvalidParameterException();
         }
         this.siteid = siteid;

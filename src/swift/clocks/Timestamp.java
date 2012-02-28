@@ -17,7 +17,7 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     private final String siteid;
     private final long counter;
 
-    public Timestamp(String siteid, long counter) {
+    Timestamp(String siteid, long counter) {
         this.siteid = siteid;
         this.counter = counter;
     }
