@@ -3,6 +3,7 @@ package swift.clocks.generators;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
+import swift.exceptions.InvalidParameterException;
 
 /**
  * Timestamp generator for a given site. Always generates the max from the
