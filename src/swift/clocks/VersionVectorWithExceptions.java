@@ -13,23 +13,24 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
-public class VersionVectorWithExceptions extends VersionVector {
+public class VersionVectorWithExceptions implements CausalityClock<VersionVectorWithExceptions> {
 
     private static final long serialVersionUID = 1L;
     protected TreeMap<String, Set<Long>> excludedTimestamps;
+    protected TreeMap<String, Long> vv;
 
     public VersionVectorWithExceptions() {
-        super();
+        vv = new TreeMap<String, Long>();
         excludedTimestamps = new TreeMap<String, Set<Long>>();
     }
 
     public VersionVectorWithExceptions(VersionVectorWithExceptions v) {
-        super(v);
+        vv = new TreeMap<String, Long>(v.vv);
         excludedTimestamps = new TreeMap<String, Set<Long>>(v.excludedTimestamps);
     }
 
     public VersionVectorWithExceptions(VersionVector v) {
-        super(v);
+        vv = new TreeMap<String, Long>(v.vv);
         excludedTimestamps = new TreeMap<String, Set<Long>>();
     }
 
@@ -43,10 +44,10 @@ public class VersionVectorWithExceptions extends VersionVector {
      */
     @Override
     public boolean includes(Timestamp cc) {
-        if (!super.includes(cc)) {
+        Long i = vv.get(cc.getIdentifier());
+        if( i == null || cc.getCounter() > i) {
             return false;
         }
-
         Set<Long> siteExcludes = excludedTimestamps.get(cc.getIdentifier());
         return siteExcludes == null || !siteExcludes.contains(cc.getCounter());
     }
@@ -65,8 +66,11 @@ public class VersionVectorWithExceptions extends VersionVector {
                 return true;
             }
         }
-        long prev = super.getLatestCounter(cc.getIdentifier()) + 1;
-        if (!super.record(cc)) {
+        Long i = vv.get(cc.getIdentifier());
+        long prev = i == null ? Timestamp.MIN_VALUE + 1 : i + 1;
+        if (prev <= cc.getCounter()) {
+            vv.put(cc.getIdentifier(), cc.getCounter());
+        } else {
             return false;
         }
         long fol = cc.getCounter();
@@ -295,12 +299,52 @@ public class VersionVectorWithExceptions extends VersionVector {
 
     // TODO: fix parametric types
     @Override
-    public CMP_CLOCK compareTo(VersionVector cc) {
+    public CMP_CLOCK compareTo(VersionVectorWithExceptions cc) {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
         return compareVV((VersionVectorWithExceptions) cc);
     }
+
+    /**
+     * Returns the most recent event for a given site. <br>
+     * 
+     * @param siteid
+     *            Site identifier.
+     * @return Returns an event clock.
+     */
+    public Timestamp getLatest(String siteid) {
+        Long i = vv.get(siteid);
+        if (i == null) {
+            return new Timestamp(siteid, Timestamp.MIN_VALUE);
+        } else {
+            return new Timestamp(siteid, i);
+        }
+    }
+
+    /**
+     * Returns the most recent event for a given site. <br>
+     * 
+     * @param siteid
+     *            Site identifier.
+     * @return Returns an event clock.
+     */
+    public long getLatestCounter(String siteid) {
+        Long i = vv.get(siteid);
+        if (i == null) {
+            return Timestamp.MIN_VALUE;
+        } else {
+            return i;
+        }
+    }
+    
+    /**
+     * Create a copy of this causality clock.
+     */
+    public CausalityClock<VersionVectorWithExceptions> clone() {
+        return new VersionVectorWithExceptions( this);
+    }
+
 
     public String toString() {
         StringBuffer buf = new StringBuffer();

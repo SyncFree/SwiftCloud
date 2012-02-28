@@ -2,8 +2,10 @@ package swift.clocks;
 
 import java.util.Iterator;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.Map.Entry;
 
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -13,15 +15,17 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
-public class DottedVersionVector extends VersionVector {
+public class DottedVersionVector implements CausalityClock<DottedVersionVector> {
     protected Timestamp ts;
+    protected TreeMap<String, Long> vv;
 
     public DottedVersionVector(Timestamp ts) {
         this.ts = ts;
+        vv = new TreeMap<String, Long>();
     }
 
     public DottedVersionVector(DottedVersionVector v) {
-        super(v);
+        vv = new TreeMap<String, Long>(v.vv);
         if (v.ts != null) {
             ts = v.ts.clone();
         }
@@ -49,7 +53,8 @@ public class DottedVersionVector extends VersionVector {
         if (c.equals(this.ts)) {
             return false;
         }
-        if (super.getLatestCounter(c.getIdentifier()) >= c.getCounter()) {
+        Long i = vv.get(c.getIdentifier());
+        if (i != null && i >= c.getCounter()) {
             return false;
         }
         normalize();
@@ -84,6 +89,55 @@ public class DottedVersionVector extends VersionVector {
     }
 
     /**
+     * Compares the elements in the version vector.
+     * 
+     * @param c
+     *            Clock to compare to
+     * @return Returns one of the following:<br>
+     *         CMP_EQUALS : if clocks are equal; <br>
+     *         CMP_DOMINATES : if this clock dominates the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock is dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock are
+     *         concurrent; <br>
+     * @throws IncompatibleTypeException
+     *             Case comparison cannot be made
+     */
+    protected CMP_CLOCK compareToVV(DottedVersionVector cc) {
+        Iterator<Entry<String, Long>> itThis = vv.entrySet().iterator();
+        Iterator<Entry<String, Long>> itOther = cc.vv.entrySet().iterator();
+
+        for (;;) {
+            if (itThis.hasNext() && !itOther.hasNext()) {
+                return CMP_CLOCK.CMP_DOMINATES;
+            }
+            if (!itThis.hasNext() && itOther.hasNext()) {
+                return CMP_CLOCK.CMP_ISDOMINATED;
+            }
+            if (!itThis.hasNext() && !itOther.hasNext()) {
+                return CMP_CLOCK.CMP_EQUALS;
+            }
+            Entry<String, Long> itThisOne = itThis.hasNext() ? itThis.next() : null;
+            Entry<String, Long> itOtherOne = itOther.hasNext() ? itOther.next() : null;
+            int c = itThisOne.getKey().compareTo(itOtherOne.getKey());
+            if (c == 0) {
+                int cv = Long.signum(itThisOne.getValue() - itOtherOne.getValue());
+                if (cv < 0) {
+                    return CMP_CLOCK.CMP_ISDOMINATED;
+                } else if (cv > 0) {
+                    return CMP_CLOCK.CMP_DOMINATES;
+                }
+                continue;
+            }
+            if (c < 0) {
+                return CMP_CLOCK.CMP_ISDOMINATED;
+            } else {
+                return CMP_CLOCK.CMP_DOMINATES;
+            }
+        }
+    }
+
+    /**
      * Compares two causality clock.
      * 
      * @param c
@@ -112,7 +166,7 @@ public class DottedVersionVector extends VersionVector {
             otherIncludedInThis = getLatestCounter(cc.ts.getIdentifier()) >= cc.ts.getCounter();
         }
         if (ts == null || cc.ts == null) {
-            CMP_CLOCK c = super.compareToVV(cc);
+            CMP_CLOCK c = compareToVV(cc);
             if (ts == null && cc.ts == null) {
                 return c;
             }
@@ -159,6 +213,63 @@ public class DottedVersionVector extends VersionVector {
     }
 
     /**
+     * Merge this clock with the given c clock. TODO: This is inefficient.
+     * 
+     * @param c
+     *            Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
+     */
+    protected CMP_CLOCK mergeVV(DottedVersionVector cc) {
+        boolean lessThan = false;
+        boolean greaterThan = false;
+        Iterator<Entry<String, Long>> it = cc.vv.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String, Long> e = it.next();
+            Long i = vv.get(e.getKey());
+            if (i == null) {
+                lessThan = true;
+                vv.put(e.getKey(), e.getValue());
+            } else {
+                long iOther = e.getValue();
+                long iThis = i;
+                if (iThis < iOther) {
+                    lessThan = true;
+                    vv.put(e.getKey(), iOther);
+                } else if (iThis > iOther) {
+                    greaterThan = true;
+                }
+            }
+        }
+        it = vv.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String, Long> e = it.next();
+            Long i = cc.vv.get(e.getKey());
+            if (i == null) {
+                greaterThan = true;
+                break;
+            }
+        }
+        if (greaterThan && lessThan) {
+            return CMP_CLOCK.CMP_CONCURRENT;
+        }
+        if (greaterThan) {
+            return CMP_CLOCK.CMP_DOMINATES;
+        }
+        if (lessThan) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        return CMP_CLOCK.CMP_EQUALS;
+
+    }
+
+    /**
      * Merge this clock with the given c clock.
      * 
      * @param c
@@ -176,7 +287,7 @@ public class DottedVersionVector extends VersionVector {
         CMP_CLOCK result = compareTo(cc);
         cc.normalize();
         this.normalize();
-        super.mergeVV(cc);
+        mergeVV(cc);
         ts = null;
         return result;
     }
@@ -184,7 +295,7 @@ public class DottedVersionVector extends VersionVector {
     /**
      * Create a copy of this causality clock.
      */
-    public CausalityClock<VersionVector> clone() {
+    public CausalityClock<DottedVersionVector> clone() {
         return new DottedVersionVector(this);
     }
 
@@ -193,7 +304,12 @@ public class DottedVersionVector extends VersionVector {
         if (ts != null && ts.getIdentifier().equals(siteid)) {
             return ts;
         }
-        return super.getLatest(siteid);
+        Long i = vv.get(siteid);
+        if (i == null) {
+            return new Timestamp(siteid, Timestamp.MIN_VALUE);
+        } else {
+            return new Timestamp(siteid, i);
+        }
     }
 
     @Override
@@ -201,7 +317,12 @@ public class DottedVersionVector extends VersionVector {
         if (ts != null && ts.getIdentifier().equals(siteid)) {
             return ts.getCounter();
         }
-        return super.getLatestCounter(siteid);
+        Long i = vv.get(siteid);
+        if (i == null) {
+            return Timestamp.MIN_VALUE;
+        } else {
+            return i;
+        }
     }
 
 }
