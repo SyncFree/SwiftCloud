@@ -2,7 +2,6 @@ package swift.clocks;
 
 import swift.exceptions.InvalidParameterException;
 
-
 /**
  * Timestamp generator for a given site. Always generates the consecutive
  * counter for the given site.
@@ -19,7 +18,7 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
         this(siteid, 0);
     }
 
-    public IncrementalTimestampGenerator(String siteid, long last) throws NullPointerException {
+    public IncrementalTimestampGenerator(String siteid, long last) {
         if (siteid == null) {
             throw new NullPointerException();
         }

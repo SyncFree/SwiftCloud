@@ -1,6 +1,5 @@
 package swift.clocks;
 
-import swift.exceptions.InvalidParameterException;
 
 /**
  * Timestamp generator for a given site. Always generates the max from the
@@ -22,7 +21,7 @@ public class CCIncrementalTimestampGenerator implements TimestampSource<Timestam
         this(siteid, clock, Timestamp.MIN_VALUE);
     }
 
-    public CCIncrementalTimestampGenerator(String siteid, CausalityClock clock, long last) throws NullPointerException {
+    public CCIncrementalTimestampGenerator(String siteid, CausalityClock clock, long last) {
         if (siteid == null) {
             throw new NullPointerException();
         }
