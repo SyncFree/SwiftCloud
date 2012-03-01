@@ -1,6 +1,7 @@
 package swift.clocks;
 
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
@@ -14,7 +15,7 @@ import swift.exceptions.IncompatibleTypeException;
 public class VersionVector implements CausalityClock {
 
     private static final long serialVersionUID = 1L;
-    protected TreeMap<String, Long> vv;
+    protected Map<String, Long> vv;
 
     protected VersionVector() {
         vv = new TreeMap<String, Long>();

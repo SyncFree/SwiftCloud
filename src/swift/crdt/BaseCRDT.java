@@ -7,6 +7,7 @@ import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 
 public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I extends CRDTOperation> implements CRDT<V, I> {
+    private static final long serialVersionUID = 1L;
     private transient CausalityClock clock;
     private transient CRDTIdentifier id;
     private transient TxnHandle txn;

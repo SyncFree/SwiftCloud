@@ -16,7 +16,7 @@ import swift.exceptions.IncompatibleTypeException;
  */
 public class DottedVersionVector implements CausalityClock {
     protected Timestamp ts;
-    protected TreeMap<String, Long> vv;
+    protected Map<String, Long> vv;
 
     protected DottedVersionVector(Timestamp ts) {
         this.ts = ts;

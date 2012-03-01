@@ -1,6 +1,7 @@
 package swift.clocks;
 
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
@@ -16,8 +17,8 @@ import swift.exceptions.IncompatibleTypeException;
 public class VersionVectorWithExceptions implements CausalityClock {
 
     private static final long serialVersionUID = 1L;
-    protected TreeMap<String, Set<Long>> excludedTimestamps;
-    protected TreeMap<String, Long> vv;
+    protected Map<String, Set<Long>> excludedTimestamps;
+    protected Map<String, Long> vv;
 
     protected VersionVectorWithExceptions() {
         vv = new TreeMap<String, Long>();
@@ -222,8 +223,8 @@ public class VersionVectorWithExceptions implements CausalityClock {
         boolean lessThan = false;
         boolean greaterThan = false;
 
-        if (excludedThis != null) { // remove from excluded elements those that
-                                    // are reflected in cc
+        if (excludedThis != null) {
+            // remove from excluded elements those that are reflected in cc
             Iterator<Long> itS = excludedThis.iterator();
             while (itS.hasNext()) {
                 long l = itS.next();
@@ -232,10 +233,9 @@ public class VersionVectorWithExceptions implements CausalityClock {
                 }
             }
         }
-        if (excluded != null && last > iL) { // add excluded elements that are
-                                             // larger than local max value
-                                             // Iterator<Long> itS =
-                                             // sThis.iterator();
+        if (excluded != null && last > iL) {
+            // add excluded elements that are larger than local max value
+            // Iterator<Long> itS = sThis.iterator();
             Iterator<Long> itS = excluded.iterator();
             while (itS.hasNext()) {
                 long l = itS.next();

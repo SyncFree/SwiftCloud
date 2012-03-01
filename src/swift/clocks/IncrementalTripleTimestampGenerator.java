@@ -1,7 +1,5 @@
 package swift.clocks;
 
-import swift.exceptions.InvalidParameterException;
-
 /**
  * TripleTimestamp generator based on an existing Timestamp.
  * 
