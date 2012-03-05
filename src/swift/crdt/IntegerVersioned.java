@@ -17,13 +17,13 @@ import swift.crdt.operations.IntegerSub;
 import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
-public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, IntegerOperation> {
+public class IntegerVersioned extends BaseCRDT<IntegerVersioned, IntegerOperation> {
     private static final long serialVersionUID = 1L;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> adds;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
     private int val;
 
-    public CRDTIntegerTxn() {
+    public IntegerVersioned() {
         this.val = 0;
         this.adds = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
         this.rems = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
@@ -119,7 +119,7 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, IntegerOperation> {
     }
 
     @Override
-    protected void mergePayload(CRDTIntegerTxn other) {
+    protected void mergePayload(IntegerVersioned other) {
         mergeUpdates(this.adds, other.adds);
         mergeUpdates(this.rems, other.rems);
 
@@ -131,19 +131,19 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, IntegerOperation> {
     public boolean equals(Object other) {
         // TODO do we need to compare objects? should it be oblivious to
         // pruning?
-        if (!(other instanceof CRDTIntegerTxn)) {
+        if (!(other instanceof IntegerVersioned)) {
             return false;
         }
-        CRDTIntegerTxn that = (CRDTIntegerTxn) other;
+        IntegerVersioned that = (IntegerVersioned) other;
         return that.val == this.val && that.adds.equals(this.adds) && that.rems.equals(this.rems);
     }
 
     private int rollbackUpdates(Timestamp rollbackEvent, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
         int delta = 0;
-        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> it = updates.entrySet().iterator();
-        while (it.hasNext()) {
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> addForSite = it.next();
-            Iterator<Pair<Integer, TripleTimestamp>> addTSit = addForSite.getValue().iterator();
+        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = updates.entrySet().iterator();
+        while (itSites.hasNext()) {
+            Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
+            Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
             while (addTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
                 if (rollbackEvent.includes(ts.getSecond())) {
@@ -151,8 +151,8 @@ public class CRDTIntegerTxn extends BaseCRDT<CRDTIntegerTxn, IntegerOperation> {
                     delta += ts.getFirst();
                 }
             }
-            if (addForSite.getValue().isEmpty()) {
-                it.remove();
+            if (updatesPerSite.getValue().isEmpty()) {
+                itSites.remove();
             }
         }
         return delta;

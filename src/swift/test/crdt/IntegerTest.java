@@ -7,17 +7,17 @@ import org.junit.Test;
 
 import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.CRDTIntegerTxn;
+import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.TxnHandle;
 
-public class CRDTIntegerTxnTest {
+public class IntegerTest {
     TxnHandle txn;
-    CRDTIntegerTxn i;
+    IntegerVersioned i;
 
     @Before
     public void setUp() {
         txn = new TxnHandleForTesting("client1", ClockFactory.newClock());
-        i = txn.get(new CRDTIdentifier("A", "Int"), true, CRDTIntegerTxn.class);
+        i = txn.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
     }
 
     @Test
@@ -71,11 +71,11 @@ public class CRDTIntegerTxnTest {
     @Test
     public void mergeTest() {
         TxnHandle txn1 = new TxnHandleForTesting("client1", ClockFactory.newClock());
-        CRDTIntegerTxn i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, CRDTIntegerTxn.class);
+        IntegerVersioned i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
         i1.add(5);
 
         TxnHandle txn2 = new TxnHandleForTesting("client2", ClockFactory.newClock());
-        CRDTIntegerTxn i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, CRDTIntegerTxn.class);
+        IntegerVersioned i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
 
         i2.add(10);
         i1.merge(i2);
