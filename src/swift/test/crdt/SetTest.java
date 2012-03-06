@@ -7,17 +7,20 @@ import org.junit.Test;
 
 import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.SetVersioned;
+import swift.crdt.SetIntegers;
 import swift.crdt.interfaces.TxnHandle;
 
 public class SetTest {
     TxnHandle txn;
-    SetVersioned<Integer> i;
+    SetIntegers i;
 
     @Before
     public void setUp() {
         txn = new TxnHandleForTesting("client1", ClockFactory.newClock());
-        i = txn.get(new CRDTIdentifier("A", "Int"), true, SetVersioned.class);
+        // Unchecked casts like the following seem to be unavoidable in Java 1.6
+        // unless we apply some rather complex scheme as given in
+        // http://gafter.blogspot.com/search?q=super+type+token
+        i = txn.get(new CRDTIdentifier("A", "Int"), true, SetIntegers.class);
     }
 
     @Test
@@ -26,13 +29,20 @@ public class SetTest {
     }
 
     @Test
+    public void lookupTest() {
+        i.insert(5);
+        assertTrue(i.lookup(5));
+        assertTrue(!i.lookup(7));
+    }
+
+    @Test
     public void mergeTest() {
         TxnHandle txn1 = new TxnHandleForTesting("client1", ClockFactory.newClock());
-        SetVersioned<Integer> i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, SetVersioned.class);
+        SetIntegers i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, SetIntegers.class);
         i1.insert(5);
 
         TxnHandle txn2 = new TxnHandleForTesting("client2", ClockFactory.newClock());
-        SetVersioned<Integer> i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, SetVersioned.class);
+        SetIntegers i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, SetIntegers.class);
 
         i2.insert(10);
         i1.merge(i2);

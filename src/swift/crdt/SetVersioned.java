@@ -31,7 +31,7 @@ import swift.utils.Pair;
  * 
  * @param <V>
  */
-public class SetVersioned<V> extends BaseCRDT<SetVersioned<V>, SetOperation<V>> {
+public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T, SetOperation<V>> {
 
     private static final long serialVersionUID = 1L;
     private Map<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> elems;
@@ -42,6 +42,10 @@ public class SetVersioned<V> extends BaseCRDT<SetVersioned<V>, SetOperation<V>> 
 
     public boolean lookup(V e) {
         Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> value = elems.get(e);
+        if (value == null) {
+            return false;
+        }
+
         boolean anyVisible = false;
         for (Pair<TripleTimestamp, Set<TripleTimestamp>> valueTS : value) {
             if (getClock().includes(valueTS.getFirst())) {
@@ -135,7 +139,7 @@ public class SetVersioned<V> extends BaseCRDT<SetVersioned<V>, SetOperation<V>> 
     }
 
     @Override
-    protected void mergePayload(SetVersioned<V> other) {
+    protected void mergePayload(T other) {
         Iterator<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> it = other.elems.entrySet().iterator();
         while (it.hasNext()) {
             Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e = it.next();
@@ -172,7 +176,7 @@ public class SetVersioned<V> extends BaseCRDT<SetVersioned<V>, SetOperation<V>> 
         if (!(o instanceof SetVersioned)) {
             return false;
         }
-        SetVersioned<?> that = (SetVersioned<?>) o;
+        SetVersioned<?, ?> that = (SetVersioned<?, ?>) o;
         return that.elems.equals(this.elems);
     }
 
