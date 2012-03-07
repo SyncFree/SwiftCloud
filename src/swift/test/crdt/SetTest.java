@@ -29,24 +29,44 @@ public class SetTest {
     }
 
     @Test
-    public void lookupTest() {
-        i.insert(5);
-        assertTrue(i.lookup(5));
-        assertTrue(!i.lookup(7));
+    public void emptyTest() {
+        // lookup on empty set
+        assertTrue(!i.lookup(0));
+        assertTrue(i.getValue().isEmpty());
     }
 
     @Test
-    public void mergeTest() {
-        TxnHandle txn1 = new TxnHandleForTesting("client1", ClockFactory.newClock());
-        SetIntegers i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, SetIntegers.class);
-        i1.insert(5);
+    public void insertTest() {
+        int v = 5;
+        int w = 7;
+        // insert one element
+        i.insert(v);
+        assertTrue(i.lookup(v));
+        assertTrue(!i.lookup(w));
 
-        TxnHandle txn2 = new TxnHandleForTesting("client2", ClockFactory.newClock());
-        SetIntegers i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, SetIntegers.class);
-
-        i2.insert(10);
-        i1.merge(i2);
-
+        // insertion should be idempotent
+        i.insert(v);
+        assertTrue(i.lookup(v));
     }
 
+    @Test
+    public void deleteTest() {
+        int v = 5;
+        int w = 7;
+        i.insert(v);
+        i.insert(w);
+
+        i.remove(v);
+        assertTrue(!i.lookup(v));
+        assertTrue(i.lookup(w));
+
+        // remove should be idempotent
+        i.remove(v);
+        assertTrue(!i.lookup(v));
+        assertTrue(i.lookup(w));
+
+        i.remove(w);
+        assertTrue(!i.lookup(v));
+        assertTrue(!i.lookup(w));
+    }
 }

@@ -52,8 +52,8 @@ public class Pair<F, S> implements Serializable {
 
     @Override
     public String toString() {
-        return "{" + ((first != null) ? first.toString() : "NULL") + ","
-                + ((second != null) ? second.toString() : "NULL") + "}";
+        return "(" + ((first != null) ? first.toString() : "NULL") + ";"
+                + ((second != null) ? second.toString() : "NULL") + ")";
     }
 
     @Override

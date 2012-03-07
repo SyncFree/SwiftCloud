@@ -1,5 +1,10 @@
 package swift.crdt;
 
-public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
+public final class SetIntegers extends SetVersioned<Integer, SetIntegers> {
+    private static final long serialVersionUID = 1L;
+
+    public SetIntegers() {
+        super();
+    }
 
 }
