@@ -67,23 +67,4 @@ public class IntegerTest {
             assertTrue(0 == i.value());
         }
     }
-
-    @Test
-    public void mergeTest() {
-        TxnHandle txn1 = new TxnHandleForTesting("client1", ClockFactory.newClock());
-        IntegerVersioned i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
-        i1.add(5);
-
-        TxnHandle txn2 = new TxnHandleForTesting("client2", ClockFactory.newClock());
-        IntegerVersioned i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
-
-        i2.add(10);
-        i1.merge(i2);
-        assertTrue(15 == i1.value());
-
-        i2.sub(1);
-        i1.merge(i2);
-        assertTrue(14 == i1.value());
-    }
-
 }
