@@ -18,13 +18,7 @@ import swift.utils.Pair;
 import swift.utils.PrettyPrint;
 
 /**
- * CRDT SET with Versioning support
- * 
- * TODO: This implementation makes a copy of every object, to improve
- * performance it should use references instead (see merge)
- * 
- * Implementation was using GlobalCRDTRuntime, must check if it is necessary, or
- * was just an error
+ * CRDT SET with versioning support
  * 
  * @author vb, annettebieniusa
  * 
@@ -52,6 +46,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                 for (TripleTimestamp remTS : valueTS.getSecond()) {
                     if (getClock().includes(remTS)) {
                         notRemoved = false;
+                        break;
                     }
                 }
                 if (notRemoved) {
@@ -70,9 +65,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         for (Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e : entrySet) {
             boolean add = false;
             for (Pair<TripleTimestamp, Set<TripleTimestamp>> p : e.getValue()) {
-                if (getClock() == null && p.getSecond().isEmpty()) {
-                    add = true;
-                } else if (getClock() != null && getClock().includes(p.getFirst())) {
+                if (getClock().includes(p.getFirst())) {
                     if (p.getSecond().isEmpty()) {
                         add = true;
                     } else {
@@ -80,6 +73,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                         for (TripleTimestamp remTs : p.getSecond()) {
                             if (getClock().includes(remTs)) {
                                 add = false;
+                                break;
                             }
                         }
                     }
@@ -109,11 +103,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
             entry = new HashSet<Pair<TripleTimestamp, Set<TripleTimestamp>>>();
             elems.put(e, entry);
         }
-
-        /*
-         * for (Pair<TripleTimestamp, Set<TripleTimestamp>> valueTS : entry) {
-         * valueTS.getSecond().add(uid); }
-         */
         Pair<TripleTimestamp, Set<TripleTimestamp>> newValue = new Pair<TripleTimestamp, Set<TripleTimestamp>>(uid,
                 new HashSet<TripleTimestamp>());
         entry.add(newValue);
@@ -147,12 +136,8 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
             Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e = it.next();
             Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> s = elems.get(e.getKey());
             if (s == null) {
-                Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> newSet = new HashSet<Pair<TripleTimestamp, Set<TripleTimestamp>>>();
-                for (Pair<TripleTimestamp, Set<TripleTimestamp>> op : e.getValue()) {
-                    Pair<TripleTimestamp, Set<TripleTimestamp>> newPair = new Pair<TripleTimestamp, Set<TripleTimestamp>>(
-                            op.getFirst(), new HashSet<TripleTimestamp>(op.getSecond()));
-                    newSet.add(newPair);
-                }
+                Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> newSet = new HashSet<Pair<TripleTimestamp, Set<TripleTimestamp>>>(
+                        e.getValue());
                 elems.put(e.getKey(), newSet);
             } else {
                 for (Pair<TripleTimestamp, Set<TripleTimestamp>> otherE : e.getValue()) {
