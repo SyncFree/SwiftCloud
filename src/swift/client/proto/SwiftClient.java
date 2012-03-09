@@ -1,10 +1,14 @@
 package swift.client.proto;
 
+import swift.crdt.CRDTIdentifier;
+
 /**
  * Rewrite in SwiftServer manner.
  * 
  * @author mzawirski
  */
 public interface SwiftClient {
-    boolean notifyNewUpdates(CRDTDelta delta);
+    /**
+     */
+    UpdatesNotificationReply notifyNewUpdates(UpdatesNotification notification);
 }

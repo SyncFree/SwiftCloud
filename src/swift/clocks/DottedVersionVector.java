@@ -14,6 +14,7 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
+// TODO: provide custom serializer or Kryo-lize the class
 public class DottedVersionVector implements CausalityClock {
     protected Timestamp ts;
     protected Map<String, Long> vv;

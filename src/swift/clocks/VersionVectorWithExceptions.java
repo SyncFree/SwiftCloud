@@ -14,6 +14,7 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
+// TODO: provide custom serializer or Kryo-lize the class
 public class VersionVectorWithExceptions implements CausalityClock {
 
     private static final long serialVersionUID = 1L;

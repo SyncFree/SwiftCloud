@@ -4,6 +4,7 @@ package swift.clocks;
  * Timestamp implementation with two-dimensional counter (which accounts for
  * triple together with siteId).
  */
+// TODO: provide custom serializer or Kryo-lize the class
 public class TripleTimestamp extends Timestamp {
     private static final long serialVersionUID = 1L;
     protected final long secondaryCounter;

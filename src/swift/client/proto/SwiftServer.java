@@ -8,13 +8,13 @@ package swift.client.proto;
 public interface SwiftServer {
     FetchObjectDeltaReply fetchObjectDelta(FetchObjectDeltaRequest request);
 
-    FetchObjectVersionReply fetchObjectVersion(FetchObjectVersionRequest request);
+    CRDTState fetchObjectVersion(FetchObjectVersionRequest request);
 
     GenerateTimestampRequest generateTimestamp(GenerateTimestampRequest request);
 
     KeepaliveRequest keepalive(KeepaliveRequest request);
 
-    void unsubscribeRequest(UnsubscribeRequest request);
+    void unsubscribeNotifications(UnsubscribeNotificationsRequest request);
 
     BlockingCommitReply blockingTranslateAndCommit(BlockingCommitRequest request);
 

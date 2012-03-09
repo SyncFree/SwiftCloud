@@ -3,6 +3,10 @@ package swift.client.proto;
 import swift.clocks.Timestamp;
 
 public class GenerateTimestampReply {
-    private Timestamp timestamp;
-    private long validUntil;
+    protected Timestamp timestamp;
+    /**
+     * When the timestamp becomes invalid (approximate). Milliseconds since the
+     * UNIX epoch.
+     */
+    protected long validityMillis;
 }

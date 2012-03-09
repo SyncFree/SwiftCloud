@@ -7,10 +7,11 @@ package swift.crdt;
  * @author annettebieniusa
  * 
  */
+// TODO: provide custom serializer or Kryo-lize the class
 public class CRDTIdentifier {
     private final String table;
     private final String key;
-
+    
     public CRDTIdentifier(String table, String key) {
         this.table = table;
         this.key = key;

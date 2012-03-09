@@ -1,8 +1,12 @@
 package swift.client.proto;
 
-import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.CRDT;
-
 public class FetchObjectDeltaReply {
+    public enum Status {
+        OK, NOT_EXIST
+    }
+
+    // Strictly speaking, not everything from CRDTDelta may be necessary, so we
+    // can try to use a specialized
+    protected CRDTDelta delta;
+    protected Status status;
 }
