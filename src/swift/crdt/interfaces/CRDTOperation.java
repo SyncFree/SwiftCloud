@@ -1,6 +1,7 @@
 package swift.crdt.interfaces;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 
@@ -24,11 +25,11 @@ public interface CRDTOperation {
     TripleTimestamp getTimestamp();
 
     /**
-     * Replaces OLD timestamp for the operation with the new one.
+     * Replaces old base timestamp for the operation with the new one.
      * 
      * @param ts
      */
-    void setTimestamp(TripleTimestamp ts);
+    void replaceBaseTimestamp(Timestamp ts);
     
     /**
      * Returns the causality clock for the objects on which the operation is to

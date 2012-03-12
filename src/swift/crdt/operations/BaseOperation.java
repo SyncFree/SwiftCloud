@@ -1,6 +1,7 @@
 package swift.crdt.operations;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDTOperation;
@@ -27,8 +28,8 @@ public abstract class BaseOperation implements CRDTOperation {
     }
 
     @Override
-    public void setTimestamp(TripleTimestamp ts) {
-        this.ts = ts;
+    public void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
+        ts = ts.withBaseTimestamp(newBaseTimestamp);
     }
 
     @Override
