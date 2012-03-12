@@ -10,6 +10,7 @@ import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetOperation;
 import swift.crdt.operations.SetRemove;
@@ -24,7 +25,7 @@ import swift.utils.PrettyPrint;
  * 
  * @param <V>
  */
-public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T, SetOperation<V>> {
+public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T> {
 
     private static final long serialVersionUID = 1L;
     private Map<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> elems;
@@ -205,7 +206,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    protected void executeImpl(SetOperation<V> op) {
+    protected void executeImpl(CRDTOperation op) {
         if (op instanceof SetInsert) {
             SetInsert<V> addop = (SetInsert<V>) op;
             this.insertU(addop.getVal(), addop.getTimestamp());

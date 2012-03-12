@@ -15,19 +15,19 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnStatus;
 
 public class TxnHandleForTesting implements TxnHandle {
-    private Map<CRDTIdentifier, CRDT<?, ?>> cache;
+    private Map<CRDTIdentifier, CRDT<?>> cache;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
 
     public TxnHandleForTesting(String siteId, CausalityClock cc) {
-        this.cache = new HashMap<CRDTIdentifier, CRDT<?, ?>>();
+        this.cache = new HashMap<CRDTIdentifier, CRDT<?>>();
         this.cc = cc;
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(
                 new IncrementalTimestampGenerator(siteId, 0).generateNew());
     }
 
     @Override
-    public <V extends CRDT<V, I>, I extends CRDTOperation> V get(CRDTIdentifier id, boolean create, Class<V> classOfT) {
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfT) {
 
         if (create) {
             try {
@@ -72,7 +72,7 @@ public class TxnHandleForTesting implements TxnHandle {
     }
 
     @Override
-    public <I extends CRDTOperation> void registerOperation(I op) {
+    public void registerOperation(CRDTOperation op) {
         // NOP
     }
 

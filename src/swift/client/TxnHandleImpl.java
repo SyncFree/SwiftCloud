@@ -27,7 +27,7 @@ class TxnHandleImpl implements TxnHandle {
     private final SwiftImpl swift;
     private final CausalityClock snapshotClock;
     private final IncrementalTripleTimestampGenerator timestampSource;
-    private Map<CRDTIdentifier, CRDT<?, ?>> objectsInUse;
+    private Map<CRDTIdentifier, CRDT<?>> objectsInUse;
     private final List<CRDTOperation> operations;
     private TxnStatus status;
 
@@ -37,18 +37,17 @@ class TxnHandleImpl implements TxnHandle {
         this.snapshotClock = snapshotClock;
         this.timestampSource = timestampSource;
         this.operations = new LinkedList<CRDTOperation>();
-        this.objectsInUse = new HashMap<CRDTIdentifier, CRDT<?, ?>>();
+        this.objectsInUse = new HashMap<CRDTIdentifier, CRDT<?>>();
         this.status = TxnStatus.PENDING;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public synchronized <V extends CRDT<V, I>, I extends CRDTOperation> V get(CRDTIdentifier id, boolean create,
-            Class<V> classOfT) {
-        assertAcceptsOperations();
-        // TODO: if we want to supportconcurrent get()s, the impl. needs to be
+    public synchronized <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfT) {
+        assertPending();
+        // TODO: if we want to support concurrent get()s, the impl. needs to be
         // more fancy.
-        CRDT<?, ?> crdt = objectsInUse.get(id);
+        CRDT<?> crdt = objectsInUse.get(id);
         if (crdt == null) {
             crdt = swift.getObjectVersion(this, id, getSnapshotClock(), create);
             // TODO deal with errors once they are specified
@@ -97,8 +96,8 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     @Override
-    public synchronized <I extends CRDTOperation> void registerOperation(I op) {
-        assertAcceptsOperations();
+    public synchronized void registerOperation(CRDTOperation op) {
+        assertPending();
         operations.add(op);
     }
 

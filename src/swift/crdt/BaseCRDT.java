@@ -6,7 +6,7 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 
-public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I extends CRDTOperation> implements CRDT<V, I> {
+public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
     private transient CausalityClock clock;
     private transient CRDTIdentifier id;
@@ -28,18 +28,18 @@ public abstract class BaseCRDT<V extends BaseCRDT<V, I>, I extends CRDTOperation
 
     protected abstract void mergePayload(V otherObject);
 
-    public void executeOperation(I op) {
+    public void executeOperation(CRDTOperation op) {
         executeImpl(op);
         getClock().record(op.getTimestamp());
     }
 
-    protected abstract void executeImpl(I op);
+    protected abstract void executeImpl(CRDTOperation op);
 
     protected TripleTimestamp nextTimestamp() {
         return getTxnHandle().nextTimestamp();
     }
 
-    protected void registerLocalOperation(final I op) {
+    protected void registerLocalOperation(final CRDTOperation op) {
         executeOperation(op);
         getTxnHandle().registerOperation(op);
     }

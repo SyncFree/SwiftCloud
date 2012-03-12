@@ -53,7 +53,7 @@ class SwiftImpl implements Swift {
         return pendingTxn;
     }
 
-    public CRDT<?, ?> getObjectVersion(TxnHandleImpl txnHandleImpl, CRDTIdentifier id, CausalityClock version,
+    public synchronized CRDT<?> getObjectVersion(TxnHandleImpl txn, CRDTIdentifier id, CausalityClock version,
             boolean create) {
         assertPendingTransaction(txn);
 

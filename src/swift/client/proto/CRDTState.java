@@ -5,7 +5,7 @@ import swift.crdt.interfaces.CRDT;
 
 public class CRDTState {
     // TODO: shalln't we use CRDT class simply and allow leaving certain fields null?
-    protected CRDT<?, ?> crdt;
+    protected CRDT<?> crdt;
     protected CausalityClock version;
 
     // Fake constructor for Kryo serialization. Do NOT use.

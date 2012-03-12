@@ -3,8 +3,9 @@ package swift.crdt.operations;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.CRDTOperation;
 
-public class IntegerAdd extends BaseOperation implements IntegerOperation {
+public class IntegerAdd extends BaseOperation {
     private int val;
 
     public IntegerAdd(CRDTIdentifier target, TripleTimestamp ts, CausalityClock c, int val) {

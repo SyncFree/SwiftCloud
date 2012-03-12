@@ -11,7 +11,7 @@ import swift.crdt.CRDTIdentifier;
  * 
  */
 public interface TxnHandle {
-    <V extends CRDT<V, I>, I extends CRDTOperation> V get(CRDTIdentifier id, boolean create, Class<V> classOfT);
+    <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfT);
 
     /**
      * Commits the transaction.
@@ -50,5 +50,5 @@ public interface TxnHandle {
      * 
      * @param op
      */
-    <I extends CRDTOperation> void registerOperation(I op);
+    void registerOperation(CRDTOperation op);
 }

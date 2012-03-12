@@ -11,13 +11,13 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.operations.IntegerAdd;
-import swift.crdt.operations.IntegerOperation;
 import swift.crdt.operations.IntegerSub;
 import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
-public class IntegerVersioned extends BaseCRDT<IntegerVersioned, IntegerOperation> {
+public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private static final long serialVersionUID = 1L;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> adds;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
@@ -165,7 +165,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned, IntegerOperatio
     }
 
     @Override
-    protected void executeImpl(IntegerOperation op) {
+    protected void executeImpl(CRDTOperation op) {
         if (op instanceof IntegerAdd) {
             IntegerAdd addop = (IntegerAdd) op;
             this.addU(addop.getVal(), addop.getTimestamp());
