@@ -1,5 +1,6 @@
 package swift.test.clocks;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -7,6 +8,7 @@ import org.junit.Test;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.exceptions.InvalidParameterException;
 
 public class TripleTimestampTest {
@@ -93,5 +95,20 @@ public class TripleTimestampTest {
         assertTrue(t21.equals(t21));
     }
 
+    @Test
+    public void testWithBaseTimestamp() throws InvalidParameterException {
+        final Timestamp origTimestamp = new IncrementalTimestampGenerator("client").generateNew();
+        final IncrementalTripleTimestampGenerator gen = new IncrementalTripleTimestampGenerator(origTimestamp);
+        final TripleTimestamp tt = gen.generateNew();
 
+        final Timestamp newTimestamp = new IncrementalTimestampGenerator("server").generateNew();
+        final TripleTimestamp ttWithNew = tt.withBaseTimestamp(newTimestamp);
+
+        assertEquals(tt.getSecondaryCounter(), ttWithNew.getSecondaryCounter());
+        assertEquals(newTimestamp.getIdentifier(), ttWithNew.getIdentifier());
+        assertEquals(newTimestamp.getCounter(), ttWithNew.getCounter());
+        // Old instance is unaffected.
+        assertEquals(origTimestamp.getIdentifier(), tt.getIdentifier());
+        assertEquals(origTimestamp.getCounter(), tt.getCounter());
+    }
 }

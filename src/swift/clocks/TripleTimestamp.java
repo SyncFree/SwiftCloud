@@ -1,5 +1,6 @@
 package swift.clocks;
 
+
 /**
  * Timestamp implementation with two-dimensional counter (which accounts for
  * triple together with siteId).
@@ -57,5 +58,17 @@ public class TripleTimestamp extends Timestamp {
 
     public Timestamp clone() {
         return new TripleTimestamp(getIdentifier(), getCounter(), secondaryCounter);
+    }
+
+    /**
+     * Creates a copy of this timestamp using a different base timestamp
+     * (identifiers and counter).
+     * 
+     * @param baseTimestamp
+     *            base timestamp - source of identifier and counter
+     * @return a copy of this timestamp with the provided base
+     */
+    public TripleTimestamp withBaseTimestamp(final Timestamp baseTimestamp) {
+        return new TripleTimestamp(baseTimestamp.getIdentifier(), baseTimestamp.getCounter(), getSecondaryCounter());
     }
 }
