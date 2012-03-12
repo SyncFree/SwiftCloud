@@ -1,5 +1,8 @@
 package swift.client.proto;
 
+import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
+
 /**
  * TODO: complete, adapt to RPC library (error handling etc.), document.
  * 
@@ -10,7 +13,7 @@ public interface SwiftServer {
 
     CRDTState fetchObjectVersion(FetchObjectVersionRequest request);
 
-    GenerateTimestampRequest generateTimestamp(GenerateTimestampRequest request);
+    Timestamp generateTimestamp(GenerateTimestampRequest request);
 
     KeepaliveRequest keepalive(KeepaliveRequest request);
 
@@ -19,4 +22,6 @@ public interface SwiftServer {
     BlockingCommitReply blockingTranslateAndCommit(BlockingCommitRequest request);
 
     SubmitUpdatesReply submitUpdates(SubmitUpdatesRequest request);
+
+    CausalityClock getLatestClock();
 }

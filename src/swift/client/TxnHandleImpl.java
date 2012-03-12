@@ -62,13 +62,13 @@ class TxnHandleImpl implements TxnHandle {
     // TODO specify fail mode/timeout for get() - if we support disconnected
     // operations, it cannot be that a synchronous call fits everything.
 
-    // TODO Additionaly, more control over cache may be necessary at Swift API
+    // TODO Additionally, more control over cache may be necessary at Swift API
     // level.
 
     @Override
     public synchronized void commit() {
-        assertAcceptsOperations();
-        swift.commitTxn(this, operations);
+        assertPending();
+        swift.commitTxn(this);
         // TODO: Support starting another transaction while the previous one is
         // currently committing at store. (COMMITTED_LOCAL)
         status = TxnStatus.COMMITTED_STORE;
@@ -76,7 +76,7 @@ class TxnHandleImpl implements TxnHandle {
 
     @Override
     public synchronized void rollback() {
-        assertAcceptsOperations();
+        assertPending();
         swift.discardTxn(this);
         status = TxnStatus.CANCELLED;
     }
@@ -87,7 +87,7 @@ class TxnHandleImpl implements TxnHandle {
 
     @Override
     public synchronized TripleTimestamp nextTimestamp() {
-        assertAcceptsOperations();
+        assertPending();
         return timestampSource.generateNew();
     }
 
@@ -102,8 +102,19 @@ class TxnHandleImpl implements TxnHandle {
         operations.add(op);
     }
 
-    private void assertAcceptsOperations() {
-        if (!status.isAcceptingOperations()) {
+    synchronized void notifyLocallyCommitted() {
+        assertPending();
+        status = TxnStatus.COMMITTED_LOCAL;
+    }
+
+    synchronized List<CRDTOperation> getOperations() {
+        // TODO: Hmmm, perhaps COMMITTING state would be better?
+        assertPending();
+        return operations;
+    }
+
+    private void assertPending() {
+        if (status != TxnStatus.PENDING) {
             throw new IllegalStateException("Transaction has already terminated");
         }
     }

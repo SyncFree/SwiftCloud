@@ -19,4 +19,8 @@ public interface Swift {
      * 
      */
     TxnHandle beginTxn(CachePolicy cp, boolean readOnly);
+    // TODO: in order to support disconnected operations w/client partial
+    // replication, extend API to start transaction and prefetch/update some
+    // objects.
+    // TODO: extend Swift or TxnHandle API with observer for object updates.
 }
