@@ -1,6 +1,5 @@
 package swift.clocks;
 
-import swift.exceptions.InvalidParameterException;
 
 /**
  * Timestamp generator for a given site. Always generates the consecutive
@@ -14,7 +13,7 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
     private String siteid;
     private long last;
 
-    public IncrementalTimestampGenerator(String siteid) throws InvalidParameterException {
+    public IncrementalTimestampGenerator(String siteid) {
         this(siteid, 0);
     }
 

@@ -9,12 +9,11 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.exceptions.InvalidParameterException;
 
 public class TripleTimestampTest {
 
     @Test
-    public void simpleTest() throws InvalidParameterException {
+    public void simpleTest() {
         IncrementalTimestampGenerator gen1 = new IncrementalTimestampGenerator( "s1");
         Timestamp t1 = gen1.generateNew();
 
@@ -44,7 +43,7 @@ public class TripleTimestampTest {
     }
 
     @Test
-    public void dualTripleGenTest() throws InvalidParameterException {
+    public void dualTripleGenTest() {
         IncrementalTimestampGenerator gen1 = new IncrementalTimestampGenerator( "s1");
         Timestamp t1 = gen1.generateNew();
         Timestamp t2 = gen1.generateNew();
@@ -96,7 +95,7 @@ public class TripleTimestampTest {
     }
 
     @Test
-    public void testWithBaseTimestamp() throws InvalidParameterException {
+    public void testWithBaseTimestamp() {
         final Timestamp origTimestamp = new IncrementalTimestampGenerator("client").generateNew();
         final IncrementalTripleTimestampGenerator gen = new IncrementalTripleTimestampGenerator(origTimestamp);
         final TripleTimestamp tt = gen.generateNew();

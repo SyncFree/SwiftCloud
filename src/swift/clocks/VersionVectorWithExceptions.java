@@ -59,7 +59,6 @@ public class VersionVectorWithExceptions implements CausalityClock {
      * 
      * @param cc
      *            Timestamp to insert.
-     * @throws InvalidParameterException
      */
     public boolean record(Timestamp cc) {
         Set<Long> set = excludedTimestamps.get(cc.getIdentifier());
