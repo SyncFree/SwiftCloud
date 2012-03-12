@@ -19,9 +19,15 @@ public interface TxnHandle {
     void commit();
 
     /**
-     * Reverts the updates which were executed under this transaction.
+     * Abandons the transaction and reverts any updates that were executed under
+     * this transaction.
      */
     void rollback();
+
+    /**
+     * @return transaction status
+     */
+    TxnStatus getStatus();
 
     /**
      * Generates timestamps for operations. Only called by system.
@@ -45,5 +51,4 @@ public interface TxnHandle {
      * @param op
      */
     <I extends CRDTOperation> void registerOperation(I op);
-
 }

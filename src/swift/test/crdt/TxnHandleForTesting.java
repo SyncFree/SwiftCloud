@@ -12,6 +12,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnStatus;
 
 public class TxnHandleForTesting implements TxnHandle {
     private Map<CRDTIdentifier, CRDT<?, ?>> cache;
@@ -73,6 +74,11 @@ public class TxnHandleForTesting implements TxnHandle {
     @Override
     public <I extends CRDTOperation> void registerOperation(I op) {
         // NOP
+    }
+
+    @Override
+    public TxnStatus getStatus() {
+        return null;
     }
 
 }
