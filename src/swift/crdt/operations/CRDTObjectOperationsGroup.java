@@ -18,6 +18,11 @@ import swift.crdt.interfaces.CRDTOperation;
  * @author mzawirski
  */
 public class CRDTObjectOperationsGroup {
+
+    public CRDTObjectOperationsGroup(CRDTIdentifier id, CausalityClock snapshotClock, Timestamp baseTimestamp) {
+        // TODO Auto-generated constructor stub
+    }
+
     /**
      * @return CRDT identifier on which operations are executed
      */
@@ -56,9 +61,14 @@ public class CRDTObjectOperationsGroup {
     }
 
     /**
-     * @return all operations on an object, in order they should be applied
+     * @return all operations on an object, in order they should be applied 
      */
     public List<CRDTOperation> getOperations() {
         return null; // TODO
+    }
+
+    public void addOperation(CRDTOperation op) {
+        // TODO Auto-generated method stub
+        
     }
 }

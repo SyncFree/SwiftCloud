@@ -5,14 +5,20 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.management.OperationsException;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTripleTimestampGenerator;
+import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnStatus;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.WrongTypeException;
 
 /**
  * Implementation of SwiftCloud transaction, keeps track of its state and
@@ -26,40 +32,39 @@ import swift.crdt.interfaces.TxnStatus;
 class TxnHandleImpl implements TxnHandle {
     private final SwiftImpl swift;
     private final CausalityClock snapshotClock;
+    private final Timestamp baseTimestamp;
     private final IncrementalTripleTimestampGenerator timestampSource;
-    private Map<CRDTIdentifier, CRDT<?>> objectsInUse;
-    private final List<CRDTOperation> operations;
+    private final Map<CRDTIdentifier, CRDT<?>> objectsInUse;
+    private final Map<CRDTIdentifier, CRDTObjectOperationsGroup> objectOperations;
     private TxnStatus status;
 
-    TxnHandleImpl(final SwiftImpl swift, final CausalityClock snapshotClock,
-            final IncrementalTripleTimestampGenerator timestampSource) {
+    TxnHandleImpl(final SwiftImpl swift, final CausalityClock snapshotClock, final Timestamp baseTimestamp) {
         this.swift = swift;
         this.snapshotClock = snapshotClock;
-        this.timestampSource = timestampSource;
-        this.operations = new LinkedList<CRDTOperation>();
+        this.baseTimestamp = baseTimestamp;
+        this.timestampSource = new IncrementalTripleTimestampGenerator(baseTimestamp);
+        this.objectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup>();
         this.objectsInUse = new HashMap<CRDTIdentifier, CRDT<?>>();
         this.status = TxnStatus.PENDING;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public synchronized <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfT) {
+    public synchronized <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException {
         assertPending();
-        // TODO: if we want to support concurrent get()s, the impl. needs to be
-        // more fancy.
-        CRDT<?> crdt = objectsInUse.get(id);
-        if (crdt == null) {
-            crdt = swift.getObjectVersion(this, id, getSnapshotClock(), create, classOfT);
-            // TODO deal with errors once they are specified
-            objectsInUse.put(id, crdt);
+
+        try {
+            CRDT<V> crdt = (CRDT<V>) objectsInUse.get(id);
+            if (crdt == null) {
+                crdt = swift.getObjectVersion(this, id, getSnapshotClock(), create, classOfV);
+                objectsInUse.put(id, crdt);
+            }
+            return (V) crdt;
+        } catch (ClassCastException x) {
+            throw new WrongTypeException(x.getMessage());
         }
-        return (V) crdt;
     }
-
-    // TODO add getOrCreate() throws NoSuchObjectException?
-
-    // TODO specify fail mode/timeout for get() - if we support disconnected
-    // operations, it cannot be that a synchronous call fits everything.
 
     // TODO Additionally, more control over cache may be necessary at Swift API
     // level.
@@ -69,7 +74,10 @@ class TxnHandleImpl implements TxnHandle {
         assertPending();
         swift.commitTxn(this);
         // TODO: Support starting another transaction while the previous one is
-        // currently committing at store. (COMMITTED_LOCAL)
+        // currently committing at store. (COMMITTED_LOCAL) That requires some
+        // serious rework on how we deal with mapping tentative timestamps to
+        // server
+        // timestamps.
         status = TxnStatus.COMMITTED_STORE;
     }
 
@@ -94,11 +102,20 @@ class TxnHandleImpl implements TxnHandle {
     public CausalityClock getSnapshotClock() {
         return snapshotClock;
     }
+    
+    Timestamp getBaseTimestamp() {
+        return baseTimestamp;
+    }
 
     @Override
-    public synchronized void registerOperation(CRDTOperation op) {
+    public synchronized void registerOperation(CRDTIdentifier id, CRDTOperation op) {
         assertPending();
-        operations.add(op);
+
+        CRDTObjectOperationsGroup operationsGroup = objectOperations.get(id);
+        if (operationsGroup == null) {
+            operationsGroup = new CRDTObjectOperationsGroup(id, getSnapshotClock(), getBaseTimestamp());
+        }
+        operationsGroup.addOperation(op);
     }
 
     synchronized void notifyLocallyCommitted() {
@@ -106,10 +123,10 @@ class TxnHandleImpl implements TxnHandle {
         status = TxnStatus.COMMITTED_LOCAL;
     }
 
-    synchronized List<CRDTOperation> getOperations() {
+    synchronized List<CRDTObjectOperationsGroup> getOperations() {
         // TODO: Hmmm, perhaps COMMITTING state would be better?
         assertPending();
-        return operations;
+        return objectOperations.values();
     }
 
     private void assertPending() {

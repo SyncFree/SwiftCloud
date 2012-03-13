@@ -4,13 +4,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import swift.client.proto.FetchObjectVersionReply;
-import swift.client.proto.FetchObjectDeltaReply;
 import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.GenerateTimestampRequest;
+import swift.client.proto.LatestKnownClockRequest;
 import swift.client.proto.SwiftServer;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
+import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
@@ -21,12 +22,11 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NoSuchObjectException;
-import swift.exceptions.SwiftException;
 import swift.exceptions.WrongTypeException;
 
 class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
-    // TODO: decide on load balancing, FT...
+    // TODO: declare more servers for fault tolerance.
     private final SwiftServer server;
     // TODO: implement LRU-alike eviction
     private final Map<CRDTIdentifier, CRDT<?>> objectsCache;
@@ -38,7 +38,7 @@ class SwiftImpl implements Swift {
     SwiftImpl(final SwiftServer server) {
         this.server = server;
         this.objectsCache = new HashMap<CRDTIdentifier, CRDT<?>>();
-        this.latestVersion = server.getLatestKnownClock();
+        this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
     }
 
@@ -49,12 +49,10 @@ class SwiftImpl implements Swift {
         assertNoPendingTransaction();
         if (cp == CachePolicy.MOST_RECENT || cp == CachePolicy.STRICTLY_MOST_RECENT) {
             // FIXME: deal with communication errors
-            final CausalityClock serverLatestClock = server.getLatestKnownClock();
+            final CausalityClock serverLatestClock = server.getLatestKnownClock(new LatestKnownClockRequest());
             latestVersion.merge(serverLatestClock);
         }
-        final IncrementalTripleTimestampGenerator tentativeTimestampGenerator = new IncrementalTripleTimestampGenerator(
-                clientTimestampGenerator.generateNew());
-        pendingTxn = new TxnHandleImpl(this, latestVersion, tentativeTimestampGenerator);
+        pendingTxn = new TxnHandleImpl(this, latestVersion, clientTimestampGenerator.generateNew());
         return pendingTxn;
     }
 
@@ -89,7 +87,8 @@ class SwiftImpl implements Swift {
         V crdt;
         // TODO: Support notification subscription.
         // FIXME: deal with communication errors
-        final FetchObjectVersionReply state = server.fetchObjectVersion(new FetchObjectVersionRequest(id, version, false));
+        final FetchObjectVersionReply state = server.fetchObjectVersion(new FetchObjectVersionRequest(id, version,
+                false));
         if (state.isFound()) {
             if (!create) {
                 throw new NoSuchObjectException("object " + id.toString() + " not found");
@@ -107,8 +106,9 @@ class SwiftImpl implements Swift {
         crdt.setUID(id);
         return crdt;
     }
-    
-    private <V extends CRDT<V>> V refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV) throws NoSuchObjectException, WrongTypeException {
+
+    private <V extends CRDT<V>> V refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV)
+            throws NoSuchObjectException, WrongTypeException {
         // FIXME: deal with communication errors
         final FetchObjectDeltaReply deltaReply = server.fetchObjectDelta(new FetchObjectDeltaRequest(id, crdt
                 .getClock(), version, false));

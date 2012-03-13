@@ -72,7 +72,7 @@ public class TxnHandleForTesting implements TxnHandle {
     }
 
     @Override
-    public void registerOperation(CRDTOperation op) {
+    public void registerOperation(CRDTIdentifier id, CRDTOperation op) {
         // NOP
     }
 

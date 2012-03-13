@@ -33,7 +33,8 @@ public class FetchObjectVersionRequest {
     }
 
     /**
-     * @return minimum version requested
+     * @return minimum version requested; null if client requests the most
+     *         recent version
      */
     public CausalityClock getVersion() {
         return version;

@@ -9,13 +9,15 @@ import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.TxnHandle;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.WrongTypeException;
 
 public class IntegerTest {
     TxnHandle txn;
     IntegerVersioned i;
 
     @Before
-    public void setUp() {
+    public void setUp() throws WrongTypeException, NoSuchObjectException {
         txn = new TxnHandleForTesting("client1", ClockFactory.newClock());
         i = txn.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
     }

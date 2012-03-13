@@ -9,13 +9,15 @@ import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.TxnHandle;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.WrongTypeException;
 
 public class IntegerMergeTest {
     TxnHandle txn1, txn2;
     IntegerVersioned i1, i2;
 
     @Before
-    public void setUp() {
+    public void setUp() throws WrongTypeException, NoSuchObjectException {
         txn1 = new TxnHandleForTesting("client1", ClockFactory.newClock());
         i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
 

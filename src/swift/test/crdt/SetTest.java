@@ -9,13 +9,15 @@ import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.SetIntegers;
 import swift.crdt.interfaces.TxnHandle;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.WrongTypeException;
 
 public class SetTest {
     TxnHandle txn;
     SetIntegers i;
 
     @Before
-    public void setUp() {
+    public void setUp() throws WrongTypeException, NoSuchObjectException {
         txn = new TxnHandleForTesting("client1", ClockFactory.newClock());
         // Unchecked casts like the following seem to be unavoidable in Java 1.6
         // unless we apply some rather complex scheme as given in
