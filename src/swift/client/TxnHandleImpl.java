@@ -49,7 +49,7 @@ class TxnHandleImpl implements TxnHandle {
         // more fancy.
         CRDT<?> crdt = objectsInUse.get(id);
         if (crdt == null) {
-            crdt = swift.getObjectVersion(this, id, getSnapshotClock(), create);
+            crdt = swift.getObjectVersion(this, id, getSnapshotClock(), create, classOfT);
             // TODO deal with errors once they are specified
             objectsInUse.put(id, crdt);
         }
