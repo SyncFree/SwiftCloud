@@ -59,11 +59,13 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     public void add(int n) {
         TripleTimestamp ts = nextTimestamp();
+        // FIXME: shouldn't we clone clock?
         registerLocalOperation(new IntegerAdd(getUID(), ts, getClock(), n));
     }
 
     public void sub(int n) {
         TripleTimestamp ts = nextTimestamp();
+     // FIXME: shouldn't we clone clock?
         registerLocalOperation(new IntegerSub(getUID(), ts, getClock(), n));
     }
 
