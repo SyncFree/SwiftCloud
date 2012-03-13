@@ -1,8 +1,10 @@
 package swift.client.proto;
 
-import swift.crdt.CRDTIdentifier;
+import java.util.List;
 
+import swift.crdt.operations.CRDTObjectOperationsGroup;
+
+// TODO this probably requires some rework 
 public class UpdatesNotification {
-    protected CRDTIdentifier uid;
-    protected CRDTDelta delta;
+    protected List<CRDTObjectOperationsGroup> objectUpdateGroups;
 }

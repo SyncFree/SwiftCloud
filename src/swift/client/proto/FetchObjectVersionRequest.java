@@ -3,39 +3,46 @@ package swift.client.proto;
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 
+/**
+ * Client request to fetch a particular version of an object.
+ * 
+ * @author mzawirski
+ */
 public class FetchObjectVersionRequest {
     protected CRDTIdentifier uid;
     protected CausalityClock version;
-    protected boolean create;
-    protected boolean subscribeUpdates;
+    protected boolean subscribeUpdatesRequest;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
     public FetchObjectVersionRequest() {
     }
-    
-    public FetchObjectVersionRequest(CRDTIdentifier uid, CausalityClock version, boolean create,
-            boolean subscribeUpdates) {
+
+    public FetchObjectVersionRequest(CRDTIdentifier uid, CausalityClock version, boolean subscribeUpdates) {
         this.uid = uid;
         this.version = version;
-        this.create = create;
-        this.subscribeUpdates = subscribeUpdates;
+        this.subscribeUpdatesRequest = subscribeUpdates;
     }
 
+    /**
+     * @return id of the requested object
+     */
     public CRDTIdentifier getUid() {
         return uid;
     }
 
+    /**
+     * @return minimum version requested
+     */
     public CausalityClock getVersion() {
         return version;
     }
 
-    public boolean isCreate() {
-        return create;
-    }
-
-    public boolean isSubscribeUpdates() {
-        return subscribeUpdates;
+    /**
+     * @return true if client requests to subscribe updates for this object
+     */
+    public boolean isSubscribeUpdatesRequest() {
+        return subscribeUpdatesRequest;
     }
 }
