@@ -14,7 +14,7 @@ import swift.crdt.interfaces.CRDTOperation;
  * transaction.
  * <p>
  * The sequence of operations shares a base Timestamp (two dimensional
- * timestamp). Each individual operations has a unique TripleTimestamp based on
+ * timestamp). Each individual operation has a unique TripleTimestamp based on
  * the common timestamp.
  * <p>
  * Thread-hostile.
@@ -28,7 +28,9 @@ public class CRDTObjectOperationsGroup {
     protected Timestamp baseTimestamp;
     protected List<CRDTOperation> operations;
 
-    // Fake constructor for Kryo serialization. Do NOT use.
+    /**
+     * Fake constructor for Kryo serialization. Do NOT use.
+     */
     public CRDTObjectOperationsGroup() {
     }
 
@@ -109,7 +111,7 @@ public class CRDTObjectOperationsGroup {
      * @param op
      *            next operation to be applied within the transaction
      */
-    public synchronized void addOperation(CRDTOperation op) {
+    public synchronized void append(CRDTOperation op) {
         operations.add(op);
     }
 }

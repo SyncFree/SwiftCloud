@@ -108,7 +108,7 @@ class TxnHandleImpl implements TxnHandle {
         if (operationsGroup == null) {
             operationsGroup = new CRDTObjectOperationsGroup(id, getSnapshotClock(), getBaseTimestamp());
         }
-        operationsGroup.addOperation(op);
+        operationsGroup.append(op);
     }
 
     synchronized void notifyLocallyCommitted() {
