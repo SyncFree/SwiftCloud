@@ -1,14 +1,12 @@
 package swift.crdt.operations;
 
-import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.CRDTIdentifier;
 
 public class SetRemove<V> extends BaseOperation implements SetOperation<V> {
     private V val;
 
-    public SetRemove(CRDTIdentifier target, TripleTimestamp ts, CausalityClock c, V val) {
-        super(target, ts, c);
+    public SetRemove(TripleTimestamp ts, V val) {
+        super(ts);
         this.val = val;
     }
 

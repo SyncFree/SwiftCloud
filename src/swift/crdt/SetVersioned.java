@@ -95,7 +95,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     public void insert(V e) {
         TripleTimestamp ts = nextTimestamp();
         // FIXME: shouldn't we clone the clock?
-        registerLocalOperation(new SetInsert<V>(getUID(), ts, getClock(), e));
+        registerLocalOperation(new SetInsert<V>(ts, e));
     }
 
     private void insertU(V e, TripleTimestamp uid) {
@@ -118,7 +118,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     public void remove(V e) {
         TripleTimestamp ts = nextTimestamp();
         // FIXME: shouldn't we clone the clock?
-        registerLocalOperation(new SetRemove<V>(getUID(), ts, getClock(), e));
+        registerLocalOperation(new SetRemove<V>(ts, e));
     }
 
     private void removeU(V e, TripleTimestamp uid) {
