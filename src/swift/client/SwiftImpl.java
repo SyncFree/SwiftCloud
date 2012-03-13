@@ -1,11 +1,16 @@
 package swift.client;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Map;
 
+import swift.client.proto.CommitUpdatesReply;
+import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionRequest;
+import swift.client.proto.GenerateTimestampReply;
 import swift.client.proto.GenerateTimestampRequest;
 import swift.client.proto.LatestKnownClockRequest;
 import swift.client.proto.SwiftServer;
@@ -13,14 +18,13 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
-import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -42,8 +46,6 @@ class SwiftImpl implements Swift {
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
     }
 
-    // TODO offer API to prefetch/update a defined set of objects (e.g.
-    // recently used), for sake of disconnected operation
     @Override
     public synchronized TxnHandle beginTxn(CachePolicy cp, boolean readOnly) {
         assertNoPendingTransaction();
@@ -125,26 +127,38 @@ class SwiftImpl implements Swift {
         assertPendingTransaction(txn);
 
         // Get a new timestamp.
-        final Timestamp timestamp = server.generateTimestamp(new GenerateTimestampRequest(txn.getSnapshotClock()));
-        // Replace tentative timestamps.
-        for (final CRDTOperation op : txn.getOperations()) {
-            op.replaceBaseTimestamp(timestamp);
+        // FIXME: deal with communication errors
+        final GenerateTimestampReply timestampReply = server.generateTimestamp(new GenerateTimestampRequest(txn
+                .getSnapshotClock()));
+        final Timestamp timestamp = timestampReply.getTimestamp();
+
+        // And process the operations.
+        final LinkedList<CRDTObjectOperationsGroup> operationsGroups = new LinkedList<CRDTObjectOperationsGroup>(
+                txn.getOperations());
+        for (final CRDTObjectOperationsGroup opsGroup : operationsGroups) {
+            opsGroup.replaceBaseTimestamp(timestamp);
 
             // Try to apply changes in a cached copy of an object.
-            final CRDT<?> crdt = objectsCache.get(op.getTargetUID());
+            final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
             // TODO: deal with the case when object is not in the cache
-            final CMP_CLOCK clockCompare = crdt.getClock().compareTo(op.getDependency());
+            final CMP_CLOCK clockCompare = crdt.getClock().compareTo(opsGroup.getDependency());
             if (clockCompare == CMP_CLOCK.CMP_ISDOMINATED || clockCompare == CMP_CLOCK.CMP_CONCURRENT) {
                 throw new IllegalStateException("Cached object is older/concurrent with transaction copy");
             }
-            crdt.executeOperation(op);
+            // FIXME: crdt.executeOperationGroup(opsGroup); ?
         }
 
         txn.notifyLocallyCommitted();
         // TODO: Support starting another transaction while the previous one is
         // currently committing at store.
 
-        // FIXME: send updates to the server :-)
+        // FIXME: deal with communication errors.
+        final CommitUpdatesReply commitReply = server.commitUpdates(new CommitUpdatesRequest(timestamp,
+                operationsGroups));
+        if (commitReply.isSuccess()) {
+            // FIXME: do we assume it can ever fail? Treat in the same way as
+            // communication error?
+        }
         pendingTxn = null;
     }
 
