@@ -4,7 +4,6 @@ import java.io.Serializable;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 
 /**
@@ -123,4 +122,23 @@ public interface CRDT<V> extends Serializable {
      */
     void setTxnHandle(TxnHandle txn);
 
+    /**
+     * Creates a copy of an object with optionally restricted state according to
+     * pruneClock and versionClock.
+     * <p>
+     * pruneClock and versionClock parameters are optional (can be null), but if
+     * both specified versionClock must dominate pruneClock.
+     * 
+     * @param pruneClock
+     *            when not null, the returned state does not contains versioning
+     *            information until pruneClock, i.e. the state is summarized
+     *            until pruneClock but versioning behind pruneCLock is
+     *            unavailable.
+     * @param versionClock
+     *            when not null, the returned state is restricted to the
+     *            specified version
+     * @return a copy of an object, including clocks, uid and txnHandle.
+     */
+    // TODO: discuss with Annette a "clientCopy" option?
+    V copy(CausalityClock pruneClock, CausalityClock versionClock);
 }

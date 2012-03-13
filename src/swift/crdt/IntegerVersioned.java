@@ -183,4 +183,10 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         // TODO Auto-generated method stub
 
     }
+
+    @Override
+    public IntegerVersioned copy(CausalityClock pruneClock, CausalityClock versionClock) {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

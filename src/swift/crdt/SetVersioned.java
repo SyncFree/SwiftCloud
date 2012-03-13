@@ -206,6 +206,12 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
+    public T copy(CausalityClock pruneClock, CausalityClock versionClock) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
     protected void executeImpl(CRDTOperation op) {
         if (op instanceof SetInsert) {
             SetInsert<V> addop = (SetInsert<V>) op;
