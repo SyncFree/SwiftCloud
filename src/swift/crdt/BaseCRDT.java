@@ -41,7 +41,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     protected void registerLocalOperation(final CRDTOperation op) {
         executeOperation(op);
-        getTxnHandle().registerOperation(op);
+        getTxnHandle().registerOperation(id, op);
     }
 
     @Override
