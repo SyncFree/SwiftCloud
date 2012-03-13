@@ -1,6 +1,5 @@
 package swift.client;
 
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -69,14 +68,15 @@ class SwiftImpl implements Swift {
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }
+
         if (crdt == null) {
             crdt = retrieveObject(id, version, create, classOfV);
         } else {
             final CMP_CLOCK clockCmp = crdt.getClock().compareTo(version);
             if (clockCmp == CMP_CLOCK.CMP_DOMINATES || clockCmp == CMP_CLOCK.CMP_EQUALS) {
-                refreshObject(id, version, create, classOfV, crdt);
+                refreshObject(id, version, classOfV, crdt);
             } else {
-                throw new IllegalStateException("Client and transaction cache contain incompatible object versions");
+                // TODO LRU-eviction policy could try to avoid this happening
             }
         }
         final V crdtCopy = crdt.copy(version, version);
@@ -84,14 +84,15 @@ class SwiftImpl implements Swift {
         return crdtCopy;
     }
 
+    @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> V retrieveObject(CRDTIdentifier id, CausalityClock version, boolean create,
             Class<V> classOfV) throws NoSuchObjectException, WrongTypeException {
         V crdt;
         // TODO: Support notification subscription.
         // FIXME: deal with communication errors
-        final FetchObjectVersionReply state = server.fetchObjectVersion(new FetchObjectVersionRequest(id, version,
-                false));
-        if (state.isFound()) {
+        final FetchObjectVersionReply versionReply = server.fetchObjectVersion(new FetchObjectVersionRequest(id,
+                version, false));
+        if (versionReply.isFound()) {
             if (!create) {
                 throw new NoSuchObjectException("object " + id.toString() + " not found");
             }
@@ -101,26 +102,37 @@ class SwiftImpl implements Swift {
                 throw new WrongTypeException(e.getMessage());
             }
         } else {
-            crdt = (V) state.getCrdt();
+            try {
+                crdt = (V) versionReply.getCrdt();
+            } catch (Exception e) {
+                throw new WrongTypeException(e.getMessage());
+            }
         }
-        latestVersion.merge(state.getVersion());
-        crdt.setClock(state.getVersion());
+        crdt.setClock(versionReply.getVersion());
         crdt.setUID(id);
+        objectsCache.put(id, crdt);
+        latestVersion.merge(versionReply.getVersion());
         return crdt;
     }
 
-    private <V extends CRDT<V>> V refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV)
+    @SuppressWarnings("unchecked")
+    private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV, V crdt)
             throws NoSuchObjectException, WrongTypeException {
         // FIXME: deal with communication errors
-        final FetchObjectDeltaReply deltaReply = server.fetchObjectDelta(new FetchObjectDeltaRequest(id, crdt
+        // TODO: in future, we should replace it with deltas or operations list
+        final FetchObjectVersionReply versionReply = server.fetchObjectDelta(new FetchObjectDeltaRequest(id, crdt
                 .getClock(), version, false));
-        final FetchObjectVersionReply state = deltaReply.getObjectVersion();
-        if (!state.isFound()) {
-            crdt = (V) state.getCrdt();
+        if (!versionReply.isFound()) {
+            try {
+                final V newState = (V) versionReply.getCrdt();
+                crdt.merge(newState);
+            } catch (Exception e) {
+                throw new WrongTypeException(e.getMessage());
+            }
+        } else {
+            crdt.getClock().merge(versionReply.getVersion());
         }
-        latestVersion.merge(deltaReply.getVersion());
-        deltaReply.crdt.merge((V) state.getCrdt());
-        return crdt;
+        latestVersion.merge(versionReply.getVersion());
     }
 
     public synchronized void commitTxn(TxnHandleImpl txn) {
