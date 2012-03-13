@@ -10,6 +10,8 @@ import swift.crdt.CRDTIdentifier;
  * 
  * @author nmp, annettebieniusa
  */
+// TODO: in presence of CRDTObjectOperationsGroup, we may need to rethink
+// (simplify?) this interface and interaction with CRDT definition and TxnHandle
 public interface CRDTOperation {
 
     /**
@@ -30,7 +32,7 @@ public interface CRDTOperation {
      * @param ts
      */
     void replaceBaseTimestamp(Timestamp ts);
-    
+
     /**
      * Returns the causality clock for the objects on which the operation is to
      * be executed.
