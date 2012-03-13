@@ -8,6 +8,9 @@ public class NoSuchObjectException extends SwiftException {
 
     public NoSuchObjectException(Exception exception) {
         super(exception);
-        // TODO Auto-generated constructor stub
+    }
+
+    public NoSuchObjectException(String string) {
+        super(string);
     }
 }
