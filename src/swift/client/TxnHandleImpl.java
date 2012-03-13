@@ -1,11 +1,8 @@
 package swift.client;
 
+import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-
-import javax.management.OperationsException;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTripleTimestampGenerator;
@@ -66,18 +63,14 @@ class TxnHandleImpl implements TxnHandle {
         }
     }
 
-    // TODO Additionally, more control over cache may be necessary at Swift API
-    // level.
-
     @Override
     public synchronized void commit() {
         assertPending();
         swift.commitTxn(this);
         // TODO: Support starting another transaction while the previous one is
-        // currently committing at store. (COMMITTED_LOCAL) That requires some
+        // currently committing at store. (COMMITTED_LOCAL). That requires some
         // serious rework on how we deal with mapping tentative timestamps to
-        // server
-        // timestamps.
+        // server timestamps.
         status = TxnStatus.COMMITTED_STORE;
     }
 
@@ -102,7 +95,7 @@ class TxnHandleImpl implements TxnHandle {
     public CausalityClock getSnapshotClock() {
         return snapshotClock;
     }
-    
+
     Timestamp getBaseTimestamp() {
         return baseTimestamp;
     }
@@ -123,8 +116,8 @@ class TxnHandleImpl implements TxnHandle {
         status = TxnStatus.COMMITTED_LOCAL;
     }
 
-    synchronized List<CRDTObjectOperationsGroup> getOperations() {
-        // TODO: Hmmm, perhaps COMMITTING state would be better?
+    synchronized Collection<CRDTObjectOperationsGroup> getOperations() {
+        // TODO: Hmmm, perhaps COMMITTING state would be a better fit?
         assertPending();
         return objectOperations.values();
     }
