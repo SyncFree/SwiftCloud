@@ -10,12 +10,12 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDTOperation;
 
 /**
- * Representation of a sequence of operations on an object that are considered
- * atomic.
+ * Representation of a sequence of operations on an object belonging to the same
+ * transaction.
  * <p>
- * The sequence of operations share the same state when they were issued, and a
- * base timestamp (two dimensional timestamp). Individual operations may have
- * unique TripleTimestamp based on this timestamp
+ * The sequence of operations shares a base Timestamp (two dimensional
+ * timestamp). Each individual operations has a unique TripleTimestamp based on
+ * the common timestamp.
  * <p>
  * Thread-hostile.
  * 
@@ -40,14 +40,15 @@ public class CRDTObjectOperationsGroup {
     }
 
     /**
-     * @return CRDT identifier on which operations are executed
+     * @return CRDT identifier for the object on which the operations are
+     *         executed
      */
     public CRDTIdentifier getTargetUID() {
         return id;
     }
 
     /**
-     * @return the base timestamp of all operations in the group
+     * @return base timestamp of all operations in the sequence
      */
     public Timestamp getBaseTimestamp() {
         return baseTimestamp;
@@ -58,7 +59,7 @@ public class CRDTObjectOperationsGroup {
      * operations in the group.
      * 
      * @param ts
-     *            new base timestamp to use by all operations
+     *            new base timestamp to be used by all operations
      */
     public void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
         baseTimestamp = newBaseTimestamp;
@@ -68,10 +69,10 @@ public class CRDTObjectOperationsGroup {
     }
 
     /**
-     * Returns the causality clock for the objects on which the operation is to
+     * Returns the causality clock for the object on which the operations are to
      * be executed.
      * 
-     * @return causality clock of object state when operations have been issued.
+     * @return causality clock of object state when operations have been issued
      */
     public CausalityClock getDependency() {
         return dependencyClock;
@@ -90,10 +91,10 @@ public class CRDTObjectOperationsGroup {
     }
 
     /**
-     * Adds an operation to the sequence.
+     * Appends a new operation to the sequence of operations.
      * 
      * @param op
-     *            operation to add
+     *            next operation to be applied within the transaction
      */
     public void addOperation(CRDTOperation op) {
         operations.add(op);
