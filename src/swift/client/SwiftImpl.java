@@ -152,12 +152,12 @@ class SwiftImpl implements Swift {
 
             // Try to apply changes in a cached copy of an object.
             final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
-            // TODO: deal with the case when object is not in the cache
             final CMP_CLOCK clockCompare = crdt.getClock().compareTo(opsGroup.getDependency());
             if (clockCompare == CMP_CLOCK.CMP_ISDOMINATED || clockCompare == CMP_CLOCK.CMP_CONCURRENT) {
+                // TODO: ensure this won't happen?
                 throw new IllegalStateException("Cached object is older/concurrent with transaction copy");
             }
-            // FIXME: crdt.executeOperationGroup(opsGroup); ?
+            opsGroup.executeOn(crdt);
         }
 
         txn.notifyLocallyCommitted();

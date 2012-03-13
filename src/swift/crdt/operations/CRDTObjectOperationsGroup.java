@@ -1,12 +1,12 @@
 package swift.crdt.operations;
 
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 
 /**
@@ -55,11 +55,11 @@ public class CRDTObjectOperationsGroup {
     }
 
     /**
-     * Replaces old base timestamp with the new base timestamp for all
+     * Replaces old base timestamp with the final base timestamp for all
      * operations in the group.
      * 
      * @param ts
-     *            new base timestamp to be used by all operations
+     *            final base timestamp to be used by all operations
      */
     public void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
         baseTimestamp = newBaseTimestamp;
@@ -79,16 +79,29 @@ public class CRDTObjectOperationsGroup {
     }
 
     /**
-     * Returns all operations in the group. Note that the returned list a
-     * reference to the internal structure and should be retrieved only when all
-     * {@link #addOperation(CRDTOperation)} have been performed.
+     * Executes all operations from this group on a CRDT object.
      * 
-     * @return all operations on an object, in order they were recorded and
-     *         should be applied
+     * @param crdt
+     *            object to execute operations on.
      */
-    public List<CRDTOperation> getOperations() {
-        return Collections.unmodifiableList(operations);
+    public synchronized void executeOn(CRDT<?> crdt) {
+        for (final CRDTOperation op : operations) {
+            crdt.executeOperation(op);
+        }
     }
+
+    // /**
+    // * Returns all operations in the group. Note that the returned list a
+    // * reference to the internal structure and should be retrieved only when
+    // all
+    // * {@link #addOperation(CRDTOperation)} have been performed.
+    // *
+    // * @return all operations on an object, in order they were recorded and
+    // * should be applied
+    // */
+    // public List<CRDTOperation> getOperations() {
+    // return Collections.unmodifiableList(operations);
+    // }
 
     /**
      * Appends a new operation to the sequence of operations.
@@ -96,7 +109,7 @@ public class CRDTObjectOperationsGroup {
      * @param op
      *            next operation to be applied within the transaction
      */
-    public void addOperation(CRDTOperation op) {
+    public synchronized void addOperation(CRDTOperation op) {
         operations.add(op);
     }
 }
