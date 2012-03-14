@@ -65,8 +65,10 @@ public class CRDTObjectOperationsGroup {
      */
     public void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
         baseTimestamp = newBaseTimestamp;
-        for (CRDTOperation op : operations) {
-            op.replaceBaseTimestamp(newBaseTimestamp);
+        synchronized (operations) {
+            for (CRDTOperation op : operations) {
+                op.replaceBaseTimestamp(newBaseTimestamp);
+            }
         }
     }
 
@@ -86,9 +88,11 @@ public class CRDTObjectOperationsGroup {
      * @param crdt
      *            object to execute operations on.
      */
-    public synchronized void executeOn(CRDT<?> crdt) {
-        for (final CRDTOperation op : operations) {
-            crdt.executeOperation(op);
+    public void executeOn(CRDT<?> crdt) {
+        synchronized (operations) {
+            for (final CRDTOperation op : operations) {
+                crdt.executeOperation(op);
+            }
         }
     }
 
@@ -111,7 +115,9 @@ public class CRDTObjectOperationsGroup {
      * @param op
      *            next operation to be applied within the transaction
      */
-    public synchronized void append(CRDTOperation op) {
-        operations.add(op);
+    public void append(CRDTOperation op) {
+        synchronized (operations) {
+            operations.add(op);
+        }
     }
 }
