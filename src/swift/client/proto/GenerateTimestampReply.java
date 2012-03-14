@@ -1,13 +1,16 @@
 package swift.client.proto;
 
 import swift.clocks.Timestamp;
+import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * Timestamp given by the server to the client.
  * 
  * @author mzawirski
  */
-public class GenerateTimestampReply {
+public class GenerateTimestampReply implements RpcMessage {
     protected Timestamp timestamp;
     protected long validityMillis;
 
@@ -30,9 +33,16 @@ public class GenerateTimestampReply {
 
     /**
      * @return until what time the timestamp stays valid unless extended using
-     *         keepalive; specified in milliseconds since the UNIX epoch
+     *         keepalive; specified in milliseconds since the UNIX epoch; after
+     *         that time client committing updates using this timestamp might be
+     *         rejected to commit
      */
     public long getValidityMillis() {
         return validityMillis;
+    }
+
+    @Override
+    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+        ((GenerateTimestampReplyHandler) handler).onReceive(conn, this);
     }
 }

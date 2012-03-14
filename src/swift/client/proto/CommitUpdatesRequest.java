@@ -4,6 +4,9 @@ import java.util.List;
 
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
+import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to commit set of updates to the store.
@@ -16,12 +19,12 @@ import swift.crdt.operations.CRDTObjectOperationsGroup;
 // TODO: We can consider more space-efficient representation of this message
 // that require a bit of extra processing at the server (e.g. baseTimestamp and
 // dependency CausalityClock is shared by all updates).
-public class CommitUpdatesRequest {
+public class CommitUpdatesRequest implements RpcMessage {
     protected List<CRDTObjectOperationsGroup> objectUpdateGroups;
     protected Timestamp baseTimestamp;
 
     /**
-     * Constructor for Kryo serialization.
+     * Fake constructor for Kryo serialization. Do NOT use.
      */
     public CommitUpdatesRequest() {
     }
@@ -32,7 +35,8 @@ public class CommitUpdatesRequest {
     }
 
     /**
-     * @return base timestamp for all updates in the request; all individual
+     * @return valid base timestamp for all updates in the request, previously
+     *         obtained using {@link GenerateTimestampRequest}; all individual
      *         updates use TripleTimestamps with this base Timestamp
      */
     public Timestamp getBaseTimestamp() {
@@ -46,5 +50,10 @@ public class CommitUpdatesRequest {
      */
     public List<CRDTObjectOperationsGroup> getObjectUpdateGroups() {
         return objectUpdateGroups;
+    }
+
+    @Override
+    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+        ((SwiftServer) handler).onReceive(conn, this);
     }
 }

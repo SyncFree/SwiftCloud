@@ -1,13 +1,11 @@
 package swift.client.proto;
 
-
 /**
- * Rewrite in SwiftServer manner.
+ * Swift Client RPC interface for server -> client interaction.
+ * <p>
+ * For details, see messages definition.
  * 
  * @author mzawirski
  */
-public interface SwiftClient {
-    /**
-     */
-    UpdatesNotificationReply notifyNewUpdates(UpdatesNotification notification);
+public interface SwiftClient extends UpdatesNotificationHandler {
 }

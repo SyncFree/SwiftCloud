@@ -1,11 +1,15 @@
 package swift.client.proto;
 
+import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
+
 /**
  * Server reply to client keepalive message.
  * 
  * @author mzawirski
  */
-public class KeepaliveReply {
+public class KeepaliveReply implements RpcMessage {
     protected boolean timestampRenewed;
     protected boolean versionAvailable;
     protected long validityMillis;
@@ -42,5 +46,10 @@ public class KeepaliveReply {
      */
     public long getValidityMillis() {
         return validityMillis;
+    }
+
+    @Override
+    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+        ((KeepaliveReplyHandler) handler).onReceive(conn, this);
     }
 }

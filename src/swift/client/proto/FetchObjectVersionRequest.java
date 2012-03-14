@@ -2,13 +2,16 @@ package swift.client.proto;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
+import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to fetch a particular version of an object.
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionRequest {
+public class FetchObjectVersionRequest implements RpcMessage {
     protected CRDTIdentifier uid;
     protected CausalityClock version;
     protected boolean subscribeUpdatesRequest;
@@ -45,5 +48,10 @@ public class FetchObjectVersionRequest {
      */
     public boolean isSubscribeUpdatesRequest() {
         return subscribeUpdatesRequest;
+    }
+
+    @Override
+    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+        ((SwiftServer) handler).onReceive(conn, this);
     }
 }

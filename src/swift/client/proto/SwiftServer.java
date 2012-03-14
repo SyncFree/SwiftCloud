@@ -1,6 +1,7 @@
 package swift.client.proto;
 
-import swift.clocks.CausalityClock;
+import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandler;
 
 /**
  * Server interface for client-server interaction.
@@ -10,25 +11,66 @@ import swift.clocks.CausalityClock;
  * Catadupa/RPC primitives available in messages. For documentation of
  * particular requests, see message definitions.
  * 
- * TODO: adapt to RPC library (specify error handling, blocking/nonblocking
- * etc.)
- * 
  * @author mzawirski
  */
-public interface SwiftServer {
-    FetchObjectVersionReply fetchObjectVersion(FetchObjectVersionRequest request);
+public interface SwiftServer extends RpcHandler {
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link FetchObjectVersionReplyHandler} and expects
+     *            {@link FetchObjectVersionReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, FetchObjectVersionRequest request);
 
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link FetchObjectVersionReplyHandler} and expects
+     *            {@link FetchObjectVersionReply}
+     * @param request
+     *            request to serve
+     */
     // TODO: FetchObjectVersionReply is temporary. Eventually, we shall replace
     // it with deltas or list of operations.
-    FetchObjectVersionReply fetchObjectDelta(FetchObjectDeltaRequest request);
+    void onReceive(RpcConnection conn, FetchObjectDeltaRequest request);
 
-    GenerateTimestampReply generateTimestamp(GenerateTimestampRequest request);
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link KeepaliveReplyHandler} and expects
+     *            {@link KeepaliveReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, KeepaliveRequest request);
 
-    KeepaliveRequest keepalive(KeepaliveRequest request);
+    /**
+     * @param conn
+     *            connection that does not expect any message
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, UnsubscribeNotificationsRequest request);
 
-    void unsubscribeNotifications(UnsubscribeNotificationsRequest request);
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link CommitUpdatesReplyHandler} and expects
+     *            {@link CommitUpdatesReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, CommitUpdatesRequest request);
 
-    CommitUpdatesReply commitUpdates(CommitUpdatesRequest request);
-
-    CausalityClock getLatestKnownClock(LatestKnownClockRequest request);
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link LatestKnownClockReplyHandler} and expects
+     *            {@link LatestKnownClockReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, LatestKnownClockRequest request);
 }
