@@ -3,14 +3,22 @@ package swift.client;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import swift.client.proto.CommitUpdatesReply;
+import swift.client.proto.CommitUpdatesReply.CommitStatus;
+import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectDeltaRequest;
+import swift.client.proto.FetchObjectVersionReplyHandler;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.GenerateTimestampReply;
+import swift.client.proto.GenerateTimestampReplyHandler;
 import swift.client.proto.GenerateTimestampRequest;
+import swift.client.proto.LatestKnownClockReply;
+import swift.client.proto.LatestKnownClockReplyHandler;
 import swift.client.proto.LatestKnownClockRequest;
 import swift.client.proto.SwiftServer;
 import swift.clocks.CausalityClock;
@@ -26,11 +34,15 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
+import sys.net.api.Endpoint;
+import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcMessage;
 
 class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
-    // TODO: declare more servers for fault tolerance.
-    private final SwiftServer server;
+    private final RpcEndpoint localEndpoint;
+    private final Endpoint serverEndpoint;
     // TODO: implement LRU-alike eviction
     private final Map<CRDTIdentifier, CRDT<?>> objectsCache;
     private final CausalityClock latestVersion;
@@ -38,8 +50,9 @@ class SwiftImpl implements Swift {
     private TxnHandleImpl pendingTxn;
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
-    SwiftImpl(final SwiftServer server) {
-        this.server = server;
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
+        this.localEndpoint = localEndpoint;
+        this.serverEndpoint = serverEndpoint;
         this.objectsCache = new HashMap<CRDTIdentifier, CRDT<?>>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
@@ -49,9 +62,18 @@ class SwiftImpl implements Swift {
     public synchronized TxnHandle beginTxn(CachePolicy cp, boolean readOnly) {
         assertNoPendingTransaction();
         if (cp == CachePolicy.MOST_RECENT || cp == CachePolicy.STRICTLY_MOST_RECENT) {
-            // FIXME: deal with communication errors
-            final CausalityClock serverLatestClock = server.getLatestKnownClock(new LatestKnownClockRequest());
-            latestVersion.merge(serverLatestClock);
+            final AtomicBoolean doneFlag = new AtomicBoolean(false);
+            do {
+                localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(), new LatestKnownClockReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
+                        latestVersion.merge(reply.getClock());
+                        doneFlag.set(true);
+                    }
+                });
+                // TODO: FOR ALL REQUESTS: implement generic exponential backoff
+                // retry manager+server failover?
+            } while (cp == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
         }
         pendingTxn = new TxnHandleImpl(this, latestVersion, clientTimestampGenerator.generateNew());
         return pendingTxn;
@@ -89,10 +111,20 @@ class SwiftImpl implements Swift {
             Class<V> classOfV) throws NoSuchObjectException, WrongTypeException {
         V crdt;
         // TODO: Support notification subscription.
-        // FIXME: deal with communication errors
-        final FetchObjectVersionReply versionReply = server.fetchObjectVersion(new FetchObjectVersionRequest(id,
-                version, false));
-        if (versionReply.isFound()) {
+
+        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
+        do {
+            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(id, version, false),
+                    new FetchObjectVersionReplyHandler() {
+                        @Override
+                        public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                            replyRef.set(reply);
+                        }
+                    });
+        } while (replyRef.get() == null);
+
+        final FetchObjectVersionReply fetchReply = replyRef.get();
+        if (fetchReply.isFound()) {
             if (!create) {
                 throw new NoSuchObjectException("object " + id.toString() + " not found");
             }
@@ -103,25 +135,34 @@ class SwiftImpl implements Swift {
             }
         } else {
             try {
-                crdt = (V) versionReply.getCrdt();
+                crdt = (V) fetchReply.getCrdt();
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
         }
-        crdt.setClock(versionReply.getVersion());
+        crdt.setClock(fetchReply.getVersion());
         crdt.setUID(id);
         objectsCache.put(id, crdt);
-        latestVersion.merge(versionReply.getVersion());
+        latestVersion.merge(fetchReply.getVersion());
         return crdt;
     }
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV, V crdt)
             throws NoSuchObjectException, WrongTypeException {
-        // FIXME: deal with communication errors
-        // TODO: in future, we should replace it with deltas or operations list
-        final FetchObjectVersionReply versionReply = server.fetchObjectDelta(new FetchObjectDeltaRequest(id, crdt
-                .getClock(), version, false));
+        // WISHME: we should replace it with deltas or operations list
+        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
+        do {
+            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(id, crdt.getClock(), version, false),
+                    new FetchObjectVersionReplyHandler() {
+                        @Override
+                        public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                            replyRef.set(reply);
+                        }
+                    });
+        } while (replyRef.get() == null);
+
+        final FetchObjectVersionReply versionReply = replyRef.get();
         if (!versionReply.isFound()) {
             try {
                 final V newState = (V) versionReply.getCrdt();
@@ -138,40 +179,64 @@ class SwiftImpl implements Swift {
     public synchronized void commitTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
 
-        // Get a new timestamp.
-        // FIXME: deal with communication errors
-        final GenerateTimestampReply timestampReply = server.generateTimestamp(new GenerateTimestampRequest(txn
-                .getSnapshotClock()));
-        final Timestamp timestamp = timestampReply.getTimestamp();
+        // TODO: write disk log?
+        txn.notifyLocallyCommitted();
+        // BIG TODO: Support starting another transaction while the previous one
+        // is currently committing at store. Requires some changes in core CRDT
+        // classes.
 
-        // And process the operations.
-        final LinkedList<CRDTObjectOperationsGroup> operationsGroups = new LinkedList<CRDTObjectOperationsGroup>(
-                txn.getOperations());
-        for (final CRDTObjectOperationsGroup opsGroup : operationsGroups) {
-            opsGroup.replaceBaseTimestamp(timestamp);
+        CommitStatus status;
+        do {
+            status = commitAtServer(txn);
+        } while (status == CommitStatus.INVALID_TIMESTAMP);
+        // FIXME: how about ALREADY_COMMITTED?
 
+        for (final CRDTObjectOperationsGroup opsGroup : txn.getOperations()) {
             // Try to apply changes in a cached copy of an object.
             final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
             final CMP_CLOCK clockCompare = crdt.getClock().compareTo(opsGroup.getDependency());
             if (clockCompare == CMP_CLOCK.CMP_ISDOMINATED || clockCompare == CMP_CLOCK.CMP_CONCURRENT) {
-                // TODO: ensure this won't happen?
+                // TODO: LRU eviction: ensure this won't happen?
                 throw new IllegalStateException("Cached object is older/concurrent with transaction copy");
             }
             opsGroup.executeOn(crdt);
         }
-
-        txn.notifyLocallyCommitted();
-        // TODO: Support starting another transaction while the previous one is
-        // currently committing at store.
-
-        // FIXME: deal with communication errors.
-        final CommitUpdatesReply commitReply = server.commitUpdates(new CommitUpdatesRequest(timestamp,
-                operationsGroups));
-        if (commitReply.isSuccess()) {
-            // FIXME: do we assume it can ever fail? Treat in the same way as
-            // communication error?
-        }
         pendingTxn = null;
+    }
+
+    private CommitStatus commitAtServer(TxnHandleImpl txn) {
+        // Get a timestamp from server.
+        final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
+        do {
+            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(txn.getSnapshotClock()),
+                    new GenerateTimestampReplyHandler() {
+                        @Override
+                        public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
+                            timestampReplyRef.set(reply);
+                        }
+                    });
+        } while (timestampReplyRef.get() == null);
+
+        // And replace old timestamp in operations with timestamp from server.
+        final Timestamp timestamp = timestampReplyRef.get().getTimestamp();
+        final LinkedList<CRDTObjectOperationsGroup> operationsGroups = new LinkedList<CRDTObjectOperationsGroup>(
+                txn.getOperations());
+        for (final CRDTObjectOperationsGroup opsGroup : operationsGroups) {
+            opsGroup.replaceBaseTimestamp(timestamp);
+        }
+
+        // Commit at server.
+        final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
+        do {
+            localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(timestamp, operationsGroups),
+                    new CommitUpdatesReplyHandler() {
+                        @Override
+                        public void onReceive(RpcConnection conn, CommitUpdatesReply reply) {
+                            commitReplyRef.set(reply);
+                        }
+                    });
+        } while (commitReplyRef.get() == null);
+        return commitReplyRef.get().getStatus();
     }
 
     public synchronized void discardTxn(TxnHandleImpl txn) {
