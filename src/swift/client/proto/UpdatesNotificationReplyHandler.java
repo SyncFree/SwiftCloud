@@ -1,13 +1,13 @@
 package swift.client.proto;
 
+import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcConnection;
-import sys.net.api.rpc.RpcHandler;
 
 /**
  * RPC handler for {@link UpdatesNotificationReply}.
  * 
  * @author mzawirski
  */
-public interface UpdatesNotificationReplyHandler extends RpcHandler {
-    void onReceive(RpcConnection conn, UpdatesNotificationReply reply);
+public abstract class UpdatesNotificationReplyHandler extends AbstractRpcHandler {
+    public abstract void onReceive(RpcConnection conn, UpdatesNotificationReply reply);
 }

@@ -13,6 +13,6 @@ public class UpdatesNotification implements RpcMessage {
 
     @Override
     public void deliverTo(RpcConnection conn, RpcHandler handler) {
-        ((UpdatesNotificationHandler) handler).onReceive(conn, this);
+        ((SwiftClient) handler).onReceive(conn, this);
     }
 }

@@ -39,6 +39,16 @@ public interface SwiftServer extends RpcHandler {
     /**
      * @param conn
      *            connection such that the remote end implements
+     *            {@link GenerateTimestampReplyHandler} and expects
+     *            {@link GenerateTimestampReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, GenerateTimestampRequest request);
+
+    /**
+     * @param conn
+     *            connection such that the remote end implements
      *            {@link KeepaliveReplyHandler} and expects
      *            {@link KeepaliveReply}
      * @param request
