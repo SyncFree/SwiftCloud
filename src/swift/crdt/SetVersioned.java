@@ -12,7 +12,6 @@ import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.operations.SetInsert;
-import swift.crdt.operations.SetOperation;
 import swift.crdt.operations.SetRemove;
 import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;

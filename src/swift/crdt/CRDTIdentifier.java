@@ -11,23 +11,25 @@ package swift.crdt;
 public class CRDTIdentifier {
     private final String table;
     private final String key;
-    
+
     public CRDTIdentifier(String table, String key) {
-        if (table == null || key == null)
-            throw new NullPointerException("uid cannot have null table or key");
+        if (table == null || table == "" | key == null | key == "") {
+            throw new NullPointerException("CRDTIdentifier cannot have empty table or key");
+        }
+
         this.table = table;
         this.key = key;
     }
 
     /**
-     * @return table for an object; never null
+     * @return table for an object to which the object is associated
      */
     public String getTable() {
         return this.table;
     }
 
     /**
-     * @return key for an object; never null
+     * @return key for an object under which the object is saved
      */
     public String getKey() {
         return this.key;
