@@ -26,7 +26,7 @@ public interface TxnHandle {
      * @throws WrongTypeException
      * @throws NoSuchObjectException
      */
-    <T extends TxnLocalCRDT<V>, V extends CRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
+    <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfT)
             throws WrongTypeException, NoSuchObjectException;
 
     /**

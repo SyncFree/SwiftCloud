@@ -175,11 +175,11 @@ public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
     }
 
     @Override
-    public <X extends TxnLocalCRDT<SetVersioned<V>>> X getTxnLocalCopy(CausalityClock pruneClock,
-            CausalityClock versionClock, TxnHandle txn) {
+    public TxnLocalCRDT<SetVersioned<V>> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock,
+            TxnHandle txn) {
 
         SetTxnLocal<V> localView = new SetTxnLocal<V>(id, txn, versionClock, getValue(versionClock));
-        return (X) localView;
+        return localView;
     }
 
 }

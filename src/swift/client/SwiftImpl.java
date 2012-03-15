@@ -79,9 +79,8 @@ class SwiftImpl implements Swift {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized <T extends TxnLocalCRDT<V>, V extends CRDT<V>> T getLocalVersion(TxnHandleImpl txn,
-            CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException,
-            NoSuchObjectException {
+    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getLocalVersion(TxnHandleImpl txn, CRDTIdentifier id,
+            CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException {
         assertPendingTransaction(txn);
 
         V crdt;
@@ -101,7 +100,7 @@ class SwiftImpl implements Swift {
                 // TODO LRU-eviction policy could try to avoid this happening
             }
         }
-        final T crdtCopy = crdt.getTxnLocalCopy(version, version, txn);
+        final TxnLocalCRDT<V> crdtCopy = crdt.getTxnLocalCopy(version, version, txn);
         return crdtCopy;
     }
 

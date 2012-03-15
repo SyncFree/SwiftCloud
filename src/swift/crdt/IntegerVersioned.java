@@ -169,10 +169,10 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         // TODO Auto-generated method stub
     }
 
-    public <T extends TxnLocalCRDT<IntegerVersioned>> T getTxnLocalCopy(CausalityClock pruneClock,
-            CausalityClock versionClock, TxnHandle txn) {
+    public TxnLocalCRDT<IntegerVersioned> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock,
+            TxnHandle txn) {
 
         IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, versionClock, value(versionClock));
-        return (T) localView;
+        return localView;
     }
 }

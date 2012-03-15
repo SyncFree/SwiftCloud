@@ -48,14 +48,14 @@ class TxnHandleImpl implements TxnHandle {
 
     @SuppressWarnings("unchecked")
     @Override
-    public synchronized <T extends TxnLocalCRDT<V>, V extends CRDT<V>> T get(CRDTIdentifier id, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException {
+    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException {
         assertPending();
 
         try {
-            T localView = (T) objectsInUse.get(id);
+            TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectsInUse.get(id);
             if (localView == null) {
-                localView = (T) swift.getLocalVersion(this, id, getSnapshotClock(), create, classOfV);
+                localView = swift.getLocalVersion(this, id, getSnapshotClock(), create, classOfV);
                 objectsInUse.put(id, localView);
             }
             return localView;
