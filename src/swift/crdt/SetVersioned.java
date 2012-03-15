@@ -207,7 +207,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    public T copy(CausalityClock pruneClock, CausalityClock versionClock) {
+    public T getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock) {
         // TODO Auto-generated method stub
         return null;
     }

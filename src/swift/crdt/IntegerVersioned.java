@@ -12,6 +12,8 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.IntegerAdd;
 import swift.crdt.operations.IntegerSub;
 import swift.exceptions.NotSupportedOperationException;
@@ -24,13 +26,11 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private int val;
 
     public IntegerVersioned() {
-        this.val = 0;
         this.adds = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
         this.rems = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
     }
 
-    public int value() {
-        final CausalityClock snapshotClock = getTxnHandle().getSnapshotClock();
+    public int value(CausalityClock snapshotClock) {
         if (snapshotClock.compareTo(getClock()) != CMP_CLOCK.CMP_ISDOMINATED) {
             // Since snapshot covers all updates making up this object, use
             // value.
@@ -57,34 +57,18 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         return retValue;
     }
 
-    public void add(int n) {
-        TripleTimestamp ts = nextTimestamp();
-        // FIXME: shouldn't we clone clock?
-        registerLocalOperation(new IntegerAdd(ts, n));
-    }
-
-    public void sub(int n) {
-        TripleTimestamp ts = nextTimestamp();
-     // FIXME: shouldn't we clone clock?
-        registerLocalOperation(new IntegerSub(ts, n));
-    }
-
-    private int addU(int n, TripleTimestamp ts) {
+    private void addU(int n, TripleTimestamp ts) {
         if (n < 0) {
-            return subU(-n, ts);
+            subU(-n, ts);
         }
         applyUpdate(n, ts, this.adds);
-        val += n;
-        return val;
     }
 
-    private int subU(int n, TripleTimestamp ts) {
+    private void subU(int n, TripleTimestamp ts) {
         if (n < 0) {
-            return addU(-n, ts);
+            addU(-n, ts);
         }
         applyUpdate(n, ts, this.rems);
-        val -= n;
-        return val;
     }
 
     private void applyUpdate(int n, TripleTimestamp ts, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
@@ -183,12 +167,13 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     @Override
     public void prune(CausalityClock c) {
         // TODO Auto-generated method stub
-
     }
 
     @Override
-    public IntegerVersioned copy(CausalityClock pruneClock, CausalityClock versionClock) {
-        // TODO Auto-generated method stub
-        return null;
+    public <T extends TxnLocalCRDT<IntegerVersioned>> T getTxnLocalCopy(CausalityClock pruneClock,
+            CausalityClock versionClock, TxnHandle txn) {
+
+        IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, versionClock, value(versionClock));
+        return (T) localView;
     }
 }

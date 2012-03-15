@@ -12,6 +12,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.NoSuchObjectException;
@@ -31,7 +32,7 @@ class TxnHandleImpl implements TxnHandle {
     private final CausalityClock snapshotClock;
     private final Timestamp baseTimestamp;
     private final IncrementalTripleTimestampGenerator timestampSource;
-    private final Map<CRDTIdentifier, CRDT<?>> objectsInUse;
+    private final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectsInUse;
     private final Map<CRDTIdentifier, CRDTObjectOperationsGroup> objectOperations;
     private TxnStatus status;
 
@@ -41,23 +42,23 @@ class TxnHandleImpl implements TxnHandle {
         this.baseTimestamp = baseTimestamp;
         this.timestampSource = new IncrementalTripleTimestampGenerator(baseTimestamp);
         this.objectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup>();
-        this.objectsInUse = new HashMap<CRDTIdentifier, CRDT<?>>();
+        this.objectsInUse = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         this.status = TxnStatus.PENDING;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public synchronized <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException {
+    public synchronized <T extends TxnLocalCRDT<V>, V extends CRDT<V>> T get(CRDTIdentifier id, boolean create,
+            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException {
         assertPending();
 
         try {
-            CRDT<V> crdt = (CRDT<V>) objectsInUse.get(id);
-            if (crdt == null) {
-                crdt = swift.getObjectVersion(this, id, getSnapshotClock(), create, classOfV);
-                objectsInUse.put(id, crdt);
+            T localView = (T) objectsInUse.get(id);
+            if (localView == null) {
+                localView = (T) swift.getLocalVersion(this, id, getSnapshotClock(), create, classOfV);
+                objectsInUse.put(id, localView);
             }
-            return (V) crdt;
+            return localView;
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }

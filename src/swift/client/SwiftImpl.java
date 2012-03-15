@@ -10,8 +10,8 @@ import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
-import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectDeltaRequest;
+import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectVersionReplyHandler;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.GenerateTimestampReply;
@@ -20,7 +20,6 @@ import swift.client.proto.GenerateTimestampRequest;
 import swift.client.proto.LatestKnownClockReply;
 import swift.client.proto.LatestKnownClockReplyHandler;
 import swift.client.proto.LatestKnownClockRequest;
-import swift.client.proto.SwiftServer;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
@@ -31,13 +30,13 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.api.rpc.RpcMessage;
 
 class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
@@ -80,8 +79,9 @@ class SwiftImpl implements Swift {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized <V extends CRDT<V>> V getObjectVersion(TxnHandleImpl txn, CRDTIdentifier id,
-            CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException {
+    public synchronized <T extends TxnLocalCRDT<V>, V extends CRDT<V>> T getLocalVersion(TxnHandleImpl txn,
+            CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException,
+            NoSuchObjectException {
         assertPendingTransaction(txn);
 
         V crdt;
@@ -101,8 +101,7 @@ class SwiftImpl implements Swift {
                 // TODO LRU-eviction policy could try to avoid this happening
             }
         }
-        final V crdtCopy = crdt.copy(version, version);
-        crdtCopy.setTxnHandle(txn);
+        final T crdtCopy = crdt.getTxnLocalCopy(version, version, txn);
         return crdtCopy;
     }
 

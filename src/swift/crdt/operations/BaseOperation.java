@@ -20,4 +20,5 @@ public abstract class BaseOperation implements CRDTOperation {
     public void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
         ts = ts.withBaseTimestamp(newBaseTimestamp);
     }
+
 }

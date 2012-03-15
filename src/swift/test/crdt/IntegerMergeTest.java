@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NoSuchObjectException;
@@ -14,7 +15,7 @@ import swift.exceptions.WrongTypeException;
 
 public class IntegerMergeTest {
     TxnHandle txn1, txn2;
-    IntegerVersioned i1, i2;
+    IntegerTxnLocal i1, i2;
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException {

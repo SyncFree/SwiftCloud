@@ -7,6 +7,7 @@ import org.junit.Test;
 
 import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NoSuchObjectException;
@@ -14,7 +15,7 @@ import swift.exceptions.WrongTypeException;
 
 public class IntegerTest {
     TxnHandle txn;
-    IntegerVersioned i;
+    IntegerTxnLocal i;
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException {
@@ -31,6 +32,7 @@ public class IntegerTest {
     public void addTest() {
         final int incr = 10;
         i.add(incr);
+        System.out.println(i.value() + " should be 10");
         assertTrue(incr == i.value());
     }
 

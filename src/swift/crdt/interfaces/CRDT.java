@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 
 /**
@@ -30,7 +31,7 @@ import swift.crdt.CRDTIdentifier;
  *            CvRDT type implementing the interface
  */
 
-public interface CRDT<V> extends Serializable {
+public interface CRDT<V extends CRDT<V>> extends Serializable {
     /**
      * Merges the object with other object state of the same type.
      * <p>
@@ -105,24 +106,6 @@ public interface CRDT<V> extends Serializable {
     void setClock(CausalityClock c);
 
     /**
-     * Returns the TxnHandle to which the CRDT is currently associated.
-     * <p>
-     * Returned transaction handler offers snapshot point clock and allows to
-     * generate new update operations.
-     * 
-     * @return
-     */
-    TxnHandle getTxnHandle();
-
-    /**
-     * Associates the CRDT object to a TxnHandle. <b>INVOKED ONLY BY SWIFT
-     * SYSTEM.</b>
-     * 
-     * @param txn
-     */
-    void setTxnHandle(TxnHandle txn);
-
-    /**
      * Creates a copy of an object with optionally restricted state according to
      * pruneClock and versionClock.
      * <p>
@@ -137,8 +120,10 @@ public interface CRDT<V> extends Serializable {
      * @param versionClock
      *            when not null, the returned state is restricted to the
      *            specified version
+     * @param txn
      * @return a copy of an object, including clocks, uid and txnHandle.
      */
     // TODO: discuss with Annette a "clientCopy" option?
-    V copy(CausalityClock pruneClock, CausalityClock versionClock);
+    <T extends TxnLocalCRDT<V>> T getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock, TxnHandle txn);
+
 }

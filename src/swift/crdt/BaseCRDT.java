@@ -1,16 +1,13 @@
 package swift.crdt;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
-import swift.crdt.interfaces.TxnHandle;
 
 public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
     private transient CausalityClock clock;
-    private transient CRDTIdentifier id;
-    private transient TxnHandle txn;
+    protected transient CRDTIdentifier id;
 
     public CausalityClock getClock() {
         return clock;
@@ -35,15 +32,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     protected abstract void executeImpl(CRDTOperation op);
 
-    protected TripleTimestamp nextTimestamp() {
-        return getTxnHandle().nextTimestamp();
-    }
-
-    protected void registerLocalOperation(final CRDTOperation op) {
-        executeOperation(op);
-        getTxnHandle().registerOperation(id, op);
-    }
-
     @Override
     public CRDTIdentifier getUID() {
         return this.id;
@@ -52,15 +40,5 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @Override
     public void setUID(CRDTIdentifier id) {
         this.id = id;
-    }
-
-    @Override
-    public TxnHandle getTxnHandle() {
-        return this.txn;
-    }
-
-    @Override
-    public void setTxnHandle(TxnHandle txn) {
-        this.txn = txn;
     }
 }
