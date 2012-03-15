@@ -12,8 +12,6 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class CommitUpdatesReply implements RpcMessage {
     public enum CommitStatus {
-        // TODO: discuss fault-tolerance, this is not really trivial if we do
-        // not want to pay high price for the implementation
         COMMITTED,
         /**
          * The transaction has been already committed using another timestamp.
