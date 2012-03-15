@@ -1,10 +1,17 @@
 package swift.crdt;
 
-public final class SetStrings extends SetVersioned<String> {
-    private static final long serialVersionUID = 1L;
+import swift.clocks.CausalityClock;
+import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 
-    public SetStrings() {
-        super();
+public class SetStrings extends SetVersioned<String, SetStrings> {
+
+    @Override
+    public TxnLocalCRDT<SetStrings> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock,
+            TxnHandle txn) {
+
+        SetTxnLocalString localView = new SetTxnLocalString(id, txn, versionClock, getValue(versionClock));
+        return (TxnLocalCRDT<SetStrings>) localView;
     }
 
 }

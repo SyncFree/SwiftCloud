@@ -49,8 +49,9 @@ class TxnHandleImpl implements TxnHandle {
 
     @SuppressWarnings("unchecked")
     @Override
-    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
+            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
+            ConsistentSnapshotVersionNotFoundException {
         assertPending();
 
         try {
@@ -59,7 +60,7 @@ class TxnHandleImpl implements TxnHandle {
                 localView = swift.getLocalVersion(this, id, getSnapshotClock(), create, classOfV);
                 objectsInUse.put(id, localView);
             }
-            return localView;
+            return (T) localView;
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }

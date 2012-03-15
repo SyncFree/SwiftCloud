@@ -11,8 +11,6 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
 import swift.exceptions.NotSupportedOperationException;
@@ -26,7 +24,7 @@ import swift.utils.PrettyPrint;
  * 
  * @param <V>
  */
-public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
+public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T> {
 
     private static final long serialVersionUID = 1L;
     private Map<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> elems;
@@ -87,7 +85,7 @@ public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
     }
 
     @Override
-    protected void mergePayload(SetVersioned<V> other) {
+    protected void mergePayload(T other) {
         Iterator<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> it = other.elems.entrySet().iterator();
         while (it.hasNext()) {
             Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e = it.next();
@@ -120,7 +118,7 @@ public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
         if (!(o instanceof SetVersioned)) {
             return false;
         }
-        SetVersioned<?> that = (SetVersioned<?>) o;
+        SetVersioned<?, ?> that = (SetVersioned<?, ?>) o;
         return that.elems.equals(this.elems);
     }
 
@@ -171,14 +169,6 @@ public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
         } else {
             throw new NotSupportedOperationException();
         }
-    }
-
-    @Override
-    public TxnLocalCRDT<SetVersioned<V>> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock,
-            TxnHandle txn) {
-
-        SetTxnLocal<V> localView = new SetTxnLocal<V>(id, txn, versionClock, getValue(versionClock));
-        return localView;
     }
 
 }

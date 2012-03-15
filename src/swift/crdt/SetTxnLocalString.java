@@ -8,22 +8,23 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
 
-public class SetTxnLocal<V> extends BaseCRDTTxnLocal<SetVersioned<V>> {
-    private Set<V> elems;
+public class SetTxnLocalString extends BaseCRDTTxnLocal<SetStrings> {
+    private Set<String> elems;
 
-    public SetTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, Set<V> elems) {
+    public SetTxnLocalString(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, Set<String> elems) {
         super(id, txn, snapshotClock);
         this.elems = elems;
     }
 
     /**
-     * Insert element V in the set, using the given unique identifier.
+     * Insert element e in the set, using the given unique identifier.
      * 
      * @param e
      */
-    public void insert(V e) {
+    public void insert(String e) {
+        elems.add(e);
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new SetInsert<V>(ts, e));
+        registerLocalOperation(new SetInsert<String>(ts, e));
     }
 
     /**
@@ -31,16 +32,17 @@ public class SetTxnLocal<V> extends BaseCRDTTxnLocal<SetVersioned<V>> {
      * 
      * @param e
      */
-    public void remove(V e) {
+    public void remove(String e) {
+        elems.remove(e);
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new SetRemove<V>(ts, e));
+        registerLocalOperation(new SetRemove<String>(ts, e));
     }
 
-    public boolean lookup(V e) {
+    public boolean lookup(int e) {
         return elems.contains(e);
     }
 
-    public Set<V> getValue() {
+    public Set<String> getValue() {
         return elems;
     }
 

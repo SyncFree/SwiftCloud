@@ -31,7 +31,7 @@ public class TxnHandleForTesting implements TxnHandle {
 
     @SuppressWarnings("unchecked")
     @Override
-    public <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
             throws WrongTypeException, NoSuchObjectException {
 
         if (create) {
@@ -42,7 +42,7 @@ public class TxnHandleForTesting implements TxnHandle {
                 TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getSnapshotClock(), getSnapshotClock(), this);
                 cache.put(id, localView);
 
-                return localView;
+                return (T) localView;
             } catch (ClassCastException x) {
                 throw new WrongTypeException(x.getMessage());
             } catch (InstantiationException e) {

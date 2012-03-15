@@ -27,7 +27,7 @@ public interface TxnHandle {
      * @throws WrongTypeException
      * @throws NoSuchObjectException
      */
-    <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfT)
+    <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
             throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
 
     /**

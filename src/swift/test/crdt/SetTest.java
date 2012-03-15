@@ -8,7 +8,7 @@ import org.junit.Test;
 import swift.clocks.ClockFactory;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.SetIntegers;
-import swift.crdt.SetTxnLocal;
+import swift.crdt.SetTxnLocalInteger;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
@@ -16,7 +16,7 @@ import swift.exceptions.WrongTypeException;
 
 public class SetTest {
     TxnHandle txn;
-    SetTxnLocal<Integer> i;
+    SetTxnLocalInteger i;
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
