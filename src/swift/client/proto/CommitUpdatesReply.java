@@ -1,5 +1,6 @@
 package swift.client.proto;
 
+import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -15,7 +16,6 @@ public class CommitUpdatesReply implements RpcMessage {
         COMMITTED,
         /**
          * The transaction has been already committed using another timestamp.
-         * TODO specify this timestamp?
          */
         ALREADY_COMMITTED,
         /**
@@ -26,6 +26,7 @@ public class CommitUpdatesReply implements RpcMessage {
     }
 
     protected CommitStatus status;
+    protected Timestamp commitTimestamp;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -33,9 +34,9 @@ public class CommitUpdatesReply implements RpcMessage {
     public CommitUpdatesReply() {
     }
 
-    public CommitUpdatesReply(CommitStatus status) {
-        super();
+    public CommitUpdatesReply(CommitStatus status, Timestamp commitTimestamp) {
         this.status = status;
+        this.commitTimestamp = commitTimestamp;
     }
 
     /**
@@ -43,6 +44,14 @@ public class CommitUpdatesReply implements RpcMessage {
      */
     public CommitStatus getStatus() {
         return status;
+    }
+
+    /**
+     * @return timestamp using which the transaction has been committed; null if
+     *         {@link #getStatus()} is {@link CommitStatus#INVALID_TIMESTAMP}
+     */
+    public Timestamp getCommitTimestamp() {
+        return commitTimestamp;
     }
 
     @Override
