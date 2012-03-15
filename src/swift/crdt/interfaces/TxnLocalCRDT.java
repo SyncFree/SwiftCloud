@@ -1,6 +1,6 @@
 package swift.crdt.interfaces;
 
-public interface TxnLocalCRDT<V extends CRDT<V>> {
+public interface TxnLocalCRDT<V> {
     /**
      * Returns the TxnHandle to which the CRDT is currently associated.
      * <p>

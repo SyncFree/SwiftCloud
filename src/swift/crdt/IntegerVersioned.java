@@ -30,7 +30,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         this.rems = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
     }
 
-    public int value(CausalityClock snapshotClock) {
+    private int value(CausalityClock snapshotClock) {
         if (snapshotClock.compareTo(getClock()) != CMP_CLOCK.CMP_ISDOMINATED) {
             // Since snapshot covers all updates making up this object, use
             // value.
@@ -169,7 +169,6 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         // TODO Auto-generated method stub
     }
 
-    @Override
     public <T extends TxnLocalCRDT<IntegerVersioned>> T getTxnLocalCopy(CausalityClock pruneClock,
             CausalityClock versionClock, TxnHandle txn) {
 

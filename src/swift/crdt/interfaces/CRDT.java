@@ -31,7 +31,7 @@ import swift.crdt.CRDTIdentifier;
  *            CvRDT type implementing the interface
  */
 
-public interface CRDT<V extends CRDT<V>> extends Serializable {
+public interface CRDT<V> extends Serializable {
     /**
      * Merges the object with other object state of the same type.
      * <p>

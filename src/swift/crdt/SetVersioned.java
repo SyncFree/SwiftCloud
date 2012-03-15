@@ -11,6 +11,8 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
 import swift.exceptions.NotSupportedOperationException;
@@ -24,7 +26,7 @@ import swift.utils.PrettyPrint;
  * 
  * @param <V>
  */
-public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T> {
+public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
 
     private static final long serialVersionUID = 1L;
     private Map<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> elems;
@@ -33,45 +35,20 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         elems = new HashMap<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>();
     }
 
-    public boolean lookup(V e) {
-        Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> entry = elems.get(e);
-        if (entry == null) {
-            return false;
-        }
-
-        boolean visible = false;
-        for (Pair<TripleTimestamp, Set<TripleTimestamp>> valueTS : entry) {
-            if (getClock().includes(valueTS.getFirst())) {
-                boolean notRemoved = true;
-                for (TripleTimestamp remTS : valueTS.getSecond()) {
-                    if (getClock().includes(remTS)) {
-                        notRemoved = false;
-                        break;
-                    }
-                }
-                if (notRemoved) {
-                    visible = true;
-                    break;
-                }
-            }
-        }
-        return visible;
-    }
-
-    public Set<V> getValue() {
+    public Set<V> getValue(CausalityClock snapshotClock) {
         Set<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> entrySet = elems.entrySet();
         Set<V> retValues = new HashSet<V>();
 
         for (Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e : entrySet) {
             boolean add = false;
             for (Pair<TripleTimestamp, Set<TripleTimestamp>> p : e.getValue()) {
-                if (getClock().includes(p.getFirst())) {
+                if (snapshotClock.includes(p.getFirst())) {
                     if (p.getSecond().isEmpty()) {
                         add = true;
                     } else {
                         add = true;
                         for (TripleTimestamp remTs : p.getSecond()) {
-                            if (getClock().includes(remTs)) {
+                            if (snapshotClock.includes(remTs)) {
                                 add = false;
                                 break;
                             }
@@ -86,17 +63,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         return retValues;
     }
 
-    /**
-     * Insert element V in the set, using the given unique identifier.
-     * 
-     * @param e
-     */
-    public void insert(V e) {
-        TripleTimestamp ts = nextTimestamp();
-        // FIXME: shouldn't we clone the clock?
-        registerLocalOperation(new SetInsert<V>(ts, e));
-    }
-
     private void insertU(V e, TripleTimestamp uid) {
         Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> entry = elems.get(e);
         // if element not present in the set, add entry for it in payload
@@ -107,17 +73,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         Pair<TripleTimestamp, Set<TripleTimestamp>> newValue = new Pair<TripleTimestamp, Set<TripleTimestamp>>(uid,
                 new HashSet<TripleTimestamp>());
         entry.add(newValue);
-    }
-
-    /**
-     * Remove element e from the set.
-     * 
-     * @param e
-     */
-    public void remove(V e) {
-        TripleTimestamp ts = nextTimestamp();
-        // FIXME: shouldn't we clone the clock?
-        registerLocalOperation(new SetRemove<V>(ts, e));
     }
 
     private void removeU(V e, TripleTimestamp uid) {
@@ -132,7 +87,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    protected void mergePayload(T other) {
+    protected void mergePayload(SetVersioned<V> other) {
         Iterator<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> it = other.elems.entrySet().iterator();
         while (it.hasNext()) {
             Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e = it.next();
@@ -165,7 +120,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         if (!(o instanceof SetVersioned)) {
             return false;
         }
-        SetVersioned<?, ?> that = (SetVersioned<?, ?>) o;
+        SetVersioned<?> that = (SetVersioned<?>) o;
         return that.elems.equals(this.elems);
     }
 
@@ -207,12 +162,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    public T getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock) {
-        // TODO Auto-generated method stub
-        return null;
-    }
-
-    @Override
     protected void executeImpl(CRDTOperation op) {
         if (op instanceof SetInsert) {
             SetInsert<V> addop = (SetInsert<V>) op;
@@ -224,4 +173,13 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
             throw new NotSupportedOperationException();
         }
     }
+
+    @Override
+    public <X extends TxnLocalCRDT<SetVersioned<V>>> X getTxnLocalCopy(CausalityClock pruneClock,
+            CausalityClock versionClock, TxnHandle txn) {
+
+        SetTxnLocal<V> localView = new SetTxnLocal<V>(id, txn, versionClock, getValue(versionClock));
+        return (X) localView;
+    }
+
 }
