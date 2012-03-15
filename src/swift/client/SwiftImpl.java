@@ -12,6 +12,7 @@ import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionReply;
+import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.client.proto.FetchObjectVersionReplyHandler;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.GenerateTimestampReply;
@@ -32,6 +33,7 @@ import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
@@ -80,7 +82,8 @@ class SwiftImpl implements Swift {
 
     @SuppressWarnings("unchecked")
     public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getLocalVersion(TxnHandleImpl txn, CRDTIdentifier id,
-            CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException {
+            CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException,
+            NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         assertPendingTransaction(txn);
 
         V crdt;
@@ -100,14 +103,20 @@ class SwiftImpl implements Swift {
                 // TODO LRU-eviction policy could try to avoid this happening
             }
         }
+        final CMP_CLOCK clockCmp = version.compareTo(crdt.getPruneClock());
+        if (clockCmp == CMP_CLOCK.CMP_ISDOMINATED || clockCmp == CMP_CLOCK.CMP_CONCURRENT) {
+            throw new ConsistentSnapshotVersionNotFoundException(
+                    "version consistent with current snapshot is not available in the store");
+        }
         final TxnLocalCRDT<V> crdtCopy = crdt.getTxnLocalCopy(version, version, txn);
         return crdtCopy;
     }
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> V retrieveObject(CRDTIdentifier id, CausalityClock version, boolean create,
-            Class<V> classOfV) throws NoSuchObjectException, WrongTypeException {
-        V crdt;
+            Class<V> classOfV) throws NoSuchObjectException, WrongTypeException,
+            ConsistentSnapshotVersionNotFoundException {
+        V crdt = null;
         // TODO: Support notification subscription.
 
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
@@ -122,7 +131,8 @@ class SwiftImpl implements Swift {
         } while (replyRef.get() == null);
 
         final FetchObjectVersionReply fetchReply = replyRef.get();
-        if (fetchReply.isFound()) {
+        switch (fetchReply.getStatus()) {
+        case OBJECT_NOT_FOUND:
             if (!create) {
                 throw new NoSuchObjectException("object " + id.toString() + " not found");
             }
@@ -131,23 +141,35 @@ class SwiftImpl implements Swift {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-        } else {
+            break;
+        case VERSION_NOT_FOUND:
+            // Even though we cannot satisfy application's request, save the
+            // object for sake of restarted transaction.
+        case OK:
             try {
                 crdt = (V) fetchReply.getCrdt();
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
+            break;
+        default:
+            throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
         }
         crdt.setClock(fetchReply.getVersion());
+        crdt.setPruneClock(fetchReply.getPruneClock());
         crdt.setUID(id);
         objectsCache.put(id, crdt);
         latestVersion.merge(fetchReply.getVersion());
+        if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
+            throw new ConsistentSnapshotVersionNotFoundException(
+                    "version consistent with current snapshot is not available in the store");
+        }
         return crdt;
     }
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV, V crdt)
-            throws NoSuchObjectException, WrongTypeException {
+            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException {
         // WISHME: we should replace it with deltas or operations list
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
@@ -161,15 +183,27 @@ class SwiftImpl implements Swift {
         } while (replyRef.get() == null);
 
         final FetchObjectVersionReply versionReply = replyRef.get();
-        if (!versionReply.isFound()) {
+        switch (versionReply.getStatus()) {
+        case OBJECT_NOT_FOUND:
+            // Just update the clock of local version.
+            crdt.getClock().merge(versionReply.getVersion());
+            break;
+        case VERSION_NOT_FOUND:
+            // Do not merge, since we would lost some versioning information
+            // that client relies on.
+            throw new ConsistentSnapshotVersionNotFoundException("consistent version is not available in the store");
+        case OK:
+            // Merge it with the local version.
+            V receivedCrdt;
             try {
-                final V newState = (V) versionReply.getCrdt();
-                crdt.merge(newState);
+                receivedCrdt = (V) versionReply.getCrdt();
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-        } else {
-            crdt.getClock().merge(versionReply.getVersion());
+            crdt.merge(receivedCrdt);
+            break;
+        default:
+            throw new IllegalStateException("Unexpected status code" + versionReply.getStatus());
         }
         latestVersion.merge(versionReply.getVersion());
     }
@@ -183,11 +217,14 @@ class SwiftImpl implements Swift {
         // is currently committing at store. Requires some changes in core CRDT
         // classes.
 
-        CommitStatus status;
+        CommitUpdatesReply commitReply = null;
         do {
-            status = commitAtServer(txn);
-        } while (status == CommitStatus.INVALID_TIMESTAMP);
-        // FIXME: how about ALREADY_COMMITTED?
+            commitReply = commitAtServer(txn, commitReply == null ? null : commitReply.getCommitTimestamp());
+        } while (commitReply.getStatus() == CommitStatus.INVALID_TIMESTAMP);
+
+        if (commitReply.getStatus() == CommitStatus.ALREADY_COMMITTED) {
+            // FIXME: replace timestamps to getPreviousTimestamp()
+        }
 
         for (final CRDTObjectOperationsGroup opsGroup : txn.getOperations()) {
             // Try to apply changes in a cached copy of an object.
@@ -202,11 +239,11 @@ class SwiftImpl implements Swift {
         pendingTxn = null;
     }
 
-    private CommitStatus commitAtServer(TxnHandleImpl txn) {
+    private CommitUpdatesReply commitAtServer(TxnHandleImpl txn, final Timestamp previousTimestamp) {
         // Get a timestamp from server.
         final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
         do {
-            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(txn.getSnapshotClock()),
+            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(txn.getSnapshotClock(), previousTimestamp),
                     new GenerateTimestampReplyHandler() {
                         @Override
                         public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
@@ -234,7 +271,9 @@ class SwiftImpl implements Swift {
                         }
                     });
         } while (commitReplyRef.get() == null);
-        return commitReplyRef.get().getStatus();
+
+        // FIXME: look for getCommitTImestamp()
+        return commitReplyRef.get();
     }
 
     public synchronized void discardTxn(TxnHandleImpl txn) {

@@ -165,7 +165,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    public void prune(CausalityClock c) {
+    protected void pruneImpl(CausalityClock c) {
         // TODO Auto-generated method stub
     }
 

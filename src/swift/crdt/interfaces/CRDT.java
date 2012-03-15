@@ -38,6 +38,8 @@ public interface CRDT<V> extends Serializable {
      * In the outcome, updates and clock of provided object are reflected in
      * this object.
      * 
+     * TODO: specify pruneClock behavior
+     * 
      * @param other
      *            object state to merge with
      */
@@ -104,6 +106,23 @@ public interface CRDT<V> extends Serializable {
      * @param c
      */
     void setClock(CausalityClock c);
+
+    /**
+     * Returns the causality clock representing the minimum clock for which
+     * versioning of an object is available. Should always be greater or equal
+     * {@link #getClock()}.
+     * 
+     * @return pruned causality clock associated with the object
+     */
+    CausalityClock getPruneClock();
+
+    /**
+     * Sets the prune causality clock that is associated to the current object
+     * state. <b>INVOKED ONLY BY SWIFT SYSTEM.</b>
+     * 
+     * @param c
+     */
+    void setPruneClock(CausalityClock c);
 
     /**
      * Creates a copy of an object with optionally restricted state according to

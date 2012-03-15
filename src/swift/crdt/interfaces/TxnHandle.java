@@ -3,6 +3,7 @@ package swift.crdt.interfaces;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
+import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -27,7 +28,7 @@ public interface TxnHandle {
      * @throws NoSuchObjectException
      */
     <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfT)
-            throws WrongTypeException, NoSuchObjectException;
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
 
     /**
      * Commits the transaction.

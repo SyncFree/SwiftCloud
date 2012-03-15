@@ -156,9 +156,8 @@ public abstract class SetVersioned<V> extends BaseCRDT<SetVersioned<V>> {
     }
 
     @Override
-    public void prune(CausalityClock pruningPoint) {
+    protected void pruneImpl(CausalityClock pruningPoint) {
         // TODO Auto-generated method stub
-
     }
 
     @Override

@@ -15,6 +15,7 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -49,7 +50,7 @@ class TxnHandleImpl implements TxnHandle {
     @SuppressWarnings("unchecked")
     @Override
     public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException {
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         assertPending();
 
         try {

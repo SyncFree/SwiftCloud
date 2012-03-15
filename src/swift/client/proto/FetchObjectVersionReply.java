@@ -66,8 +66,9 @@ public class FetchObjectVersionReply implements RpcMessage {
 
     /**
      * @return version of an object returned, possibly higher than the version
-     *         requested by the client; null if {@link #getStatus()} is
-     *         {@link FetchStatus#OBJECT_NOT_FOUND}
+     *         requested by the client; if {@link #getStatus()} is
+     *         {@link FetchStatus#OBJECT_NOT_FOUND} then it is the latest clock
+     *         known when object does not exist
      */
     public CausalityClock getVersion() {
         return version;
