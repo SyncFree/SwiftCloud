@@ -158,17 +158,22 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         // TODO Auto-generated method stub
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     protected void executeImpl(CRDTOperation op) {
-        if (op instanceof SetInsert) {
-            SetInsert<V> addop = (SetInsert<V>) op;
-            this.insertU(addop.getVal(), addop.getTimestamp());
-        } else if (op instanceof SetRemove) {
-            SetRemove<V> subop = (SetRemove<V>) op;
-            this.removeU(subop.getVal(), subop.getTimestamp());
-        } else {
-            throw new NotSupportedOperationException();
+        try {
+            if (op instanceof SetInsert) {
+                SetInsert<?> addop = (SetInsert<?>) op;
+                this.insertU((V) addop.getVal(), addop.getTimestamp());
+            } else if (op instanceof SetRemove) {
+                SetRemove<?> subop = (SetRemove<?>) op;
+                this.removeU((V) subop.getVal(), subop.getTimestamp());
+            } else {
+                throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id);
+            }
+        } catch (ClassCastException e) {
+            throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id
+                    + ": Wrong type of elements");
         }
     }
-
 }

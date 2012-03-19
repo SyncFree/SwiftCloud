@@ -159,9 +159,8 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
             IntegerSub subop = (IntegerSub) op;
             this.subU(subop.getVal(), subop.getTimestamp());
         } else {
-            throw new NotSupportedOperationException();
+            throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id);
         }
-
     }
 
     @Override

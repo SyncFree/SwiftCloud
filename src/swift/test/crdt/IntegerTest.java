@@ -33,7 +33,6 @@ public class IntegerTest {
     public void addTest() {
         final int incr = 10;
         i.add(incr);
-        System.out.println(i.value() + " should be 10");
         assertTrue(incr == i.value());
     }
 
