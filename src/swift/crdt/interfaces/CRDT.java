@@ -142,7 +142,5 @@ public interface CRDT<V> extends Serializable {
      * @param txn
      * @return a copy of an object, including clocks, uid and txnHandle.
      */
-    // TODO: discuss with Annette a "clientCopy" option?
     TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock, TxnHandle txn);
-
 }

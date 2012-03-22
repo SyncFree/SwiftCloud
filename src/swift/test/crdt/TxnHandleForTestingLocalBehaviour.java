@@ -17,12 +17,12 @@ import swift.crdt.interfaces.TxnStatus;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
-public class TxnHandleForTesting implements TxnHandle {
+public class TxnHandleForTestingLocalBehaviour implements TxnHandle {
     private Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
 
-    public TxnHandleForTesting(String siteId, CausalityClock cc) {
+    public TxnHandleForTestingLocalBehaviour(String siteId, CausalityClock cc) {
         this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         this.cc = cc;
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(
@@ -41,7 +41,6 @@ public class TxnHandleForTesting implements TxnHandle {
                 crdt.setClock(cc);
                 TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getSnapshotClock(), getSnapshotClock(), this);
                 cache.put(id, localView);
-
                 return (T) localView;
             } catch (ClassCastException x) {
                 throw new WrongTypeException(x.getMessage());

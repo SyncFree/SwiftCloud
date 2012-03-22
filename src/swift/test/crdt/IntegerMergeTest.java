@@ -20,10 +20,10 @@ public class IntegerMergeTest {
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
-        txn1 = new TxnHandleForTesting("client1", ClockFactory.newClock());
+        txn1 = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
         i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
 
-        txn2 = new TxnHandleForTesting("client2", ClockFactory.newClock());
+        txn2 = new TxnHandleForTestingLocalBehaviour("client2", ClockFactory.newClock());
         i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
     }
 

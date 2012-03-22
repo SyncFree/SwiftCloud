@@ -23,7 +23,10 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private static final long serialVersionUID = 1L;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> adds;
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
-    private int val;
+    // Current value with respect to the updatesClock
+    private int currentValue;
+    // Value with respect to the pruneClock
+    private int pruneValue;
 
     public IntegerVersioned() {
         this.adds = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
@@ -32,14 +35,11 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     private int value(CausalityClock snapshotClock) {
         if (snapshotClock.compareTo(getClock()) != CMP_CLOCK.CMP_ISDOMINATED) {
-            // Since snapshot covers all updates making up this object, use
-            // value.
-            // TODO: if transaction asks for an object, would not it be better
-            // to instead provide it with a snapshot it requested,
-            // instead of computing it each time?
-            return val;
+            // Since snapshot covers all updates making up this object, use the
+            // current value.
+            return currentValue;
         }
-        int retValue = 0;
+        int retValue = pruneValue;
         retValue += filterUpdates(snapshotClock, this.adds);
         retValue -= filterUpdates(snapshotClock, this.rems);
         return retValue;
@@ -109,8 +109,8 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         mergeUpdates(this.adds, other.adds);
         mergeUpdates(this.rems, other.rems);
 
-        this.val = getAggregateOfUpdates(this.adds);
-        this.val -= getAggregateOfUpdates(this.rems);
+        this.currentValue = getAggregateOfUpdates(this.adds);
+        this.currentValue -= getAggregateOfUpdates(this.rems);
     }
 
     @Override
@@ -121,7 +121,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
             return false;
         }
         IntegerVersioned that = (IntegerVersioned) other;
-        return that.val == this.val && that.adds.equals(this.adds) && that.rems.equals(this.rems);
+        return that.currentValue == this.currentValue && that.adds.equals(this.adds) && that.rems.equals(this.rems);
     }
 
     private int rollbackUpdates(Timestamp rollbackEvent, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
@@ -146,8 +146,8 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     @Override
     public void rollback(Timestamp rollbackEvent) {
-        this.val -= rollbackUpdates(rollbackEvent, this.adds);
-        this.val += rollbackUpdates(rollbackEvent, this.rems);
+        this.currentValue -= rollbackUpdates(rollbackEvent, this.adds);
+        this.currentValue += rollbackUpdates(rollbackEvent, this.rems);
     }
 
     @Override

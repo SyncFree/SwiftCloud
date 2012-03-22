@@ -7,17 +7,17 @@ import swift.crdt.interfaces.CRDTOperation;
 
 public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
-    private transient CausalityClock clock;
+    private transient CausalityClock updatesClock;
     private transient CausalityClock pruneClock;
     protected transient CRDTIdentifier id;
 
     public CausalityClock getClock() {
-        return clock;
+        return updatesClock;
     }
 
     @Override
     public void setClock(CausalityClock c) {
-        this.clock = c;
+        this.updatesClock = c;
     }
 
     public CausalityClock getPruneClock() {
@@ -56,6 +56,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         getClock().record(op.getTimestamp());
     }
 
+    // TODO Use Visitor pattern to dispatch on operation in the respective
+    // classes!
     protected abstract void executeImpl(CRDTOperation op);
 
     @Override
