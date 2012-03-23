@@ -3,8 +3,7 @@ package swift.crdt;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.operations.IntegerAdd;
-import swift.crdt.operations.IntegerSub;
+import swift.crdt.operations.IntegerUpdate;
 
 public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
     private int val;
@@ -21,13 +20,11 @@ public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
     public void add(int n) {
         val += n;
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new IntegerAdd(ts, n));
+        registerLocalOperation(new IntegerUpdate(ts, n));
     }
 
     public void sub(int n) {
-        val -= n;
-        TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new IntegerSub(ts, n));
+        add(-n);
     }
 
 }

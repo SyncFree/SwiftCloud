@@ -14,8 +14,7 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.operations.IntegerAdd;
-import swift.crdt.operations.IntegerSub;
+import swift.crdt.operations.IntegerUpdate;
 import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
@@ -133,12 +132,9 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     @Override
     protected void executeImpl(CRDTOperation op) {
-        if (op instanceof IntegerAdd) {
-            IntegerAdd addop = (IntegerAdd) op;
+        if (op instanceof IntegerUpdate) {
+            IntegerUpdate addop = (IntegerUpdate) op;
             this.applyUpdate(addop.getVal(), addop.getTimestamp());
-        } else if (op instanceof IntegerSub) {
-            IntegerSub subop = (IntegerSub) op;
-            this.applyUpdate(-subop.getVal(), subop.getTimestamp());
         } else {
             throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id);
         }
