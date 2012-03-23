@@ -106,6 +106,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         return changes;
     }
 
+    // FIXME Merge pruning part!
     @Override
     protected void mergePayload(IntegerVersioned other) {
         mergeUpdates(this.adds, other.adds);

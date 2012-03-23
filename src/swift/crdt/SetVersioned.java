@@ -14,7 +14,6 @@ import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
 import swift.exceptions.NotSupportedOperationException;
-import swift.utils.Pair;
 import swift.utils.PrettyPrint;
 
 /**
@@ -27,29 +26,29 @@ import swift.utils.PrettyPrint;
 public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T> {
 
     private static final long serialVersionUID = 1L;
-    private Map<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> elems;
+    private Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> elems;
 
     public SetVersioned() {
-        elems = new HashMap<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>();
+        elems = new HashMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>>();
     }
 
     public Map<V, Set<TripleTimestamp>> getValue(CausalityClock snapshotClock) {
         Map<V, Set<TripleTimestamp>> retValues = new HashMap<V, Set<TripleTimestamp>>();
 
-        Set<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> entrySet = elems.entrySet();
-        for (Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e : entrySet) {
+        Set<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entrySet = elems.entrySet();
+        for (Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e : entrySet) {
             Set<TripleTimestamp> present = new HashSet<TripleTimestamp>();
-            for (Pair<TripleTimestamp, Set<TripleTimestamp>> p : e.getValue()) {
-                if (snapshotClock.includes(p.getFirst())) {
+            for (Entry<TripleTimestamp, Set<TripleTimestamp>> p : e.getValue().entrySet()) {
+                if (snapshotClock.includes(p.getKey())) {
                     boolean add = true;
-                    for (TripleTimestamp remTs : p.getSecond()) {
+                    for (TripleTimestamp remTs : p.getValue()) {
                         if (snapshotClock.includes(remTs)) {
                             add = false;
                             break;
                         }
                     }
                     if (add) {
-                        present.add(p.getFirst());
+                        present.add(p.getKey());
                     }
                 }
             }
@@ -62,51 +61,57 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     private void insertU(V e, TripleTimestamp uid) {
-        Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> entry = elems.get(e);
+        Map<TripleTimestamp, Set<TripleTimestamp>> entry = elems.get(e);
         // if element not present in the set, add entry for it in payload
         if (entry == null) {
-            entry = new HashSet<Pair<TripleTimestamp, Set<TripleTimestamp>>>();
+            entry = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
             elems.put(e, entry);
         }
-        Pair<TripleTimestamp, Set<TripleTimestamp>> newValue = new Pair<TripleTimestamp, Set<TripleTimestamp>>(uid,
-                new HashSet<TripleTimestamp>());
-        entry.add(newValue);
+        entry.put(uid, new HashSet<TripleTimestamp>());
     }
 
-    private void removeU(V e, TripleTimestamp uid) {
-        Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> s = elems.get(e);
+    private void removeU(V e, TripleTimestamp uid, Set<TripleTimestamp> set) {
+        Map<TripleTimestamp, Set<TripleTimestamp>> s = elems.get(e);
         if (s == null) {
-            return;
-        }
-        for (Pair<TripleTimestamp, Set<TripleTimestamp>> p : s) {
-            p.getSecond().add(uid);
+            s = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
+            elems.put(e, s);
         }
 
+        for (TripleTimestamp ts : set) {
+            Set<TripleTimestamp> removals = s.get(ts);
+            if (removals == null) {
+                removals = new HashSet<TripleTimestamp>();
+                removals.add(uid);
+                s.put(ts, removals);
+
+            } else {
+                removals.add(uid);
+            }
+        }
     }
 
+    // FIXME Merge pruning part!
     @Override
     protected void mergePayload(T other) {
-        Iterator<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> it = other.elems.entrySet().iterator();
+        Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> it = other.elems.entrySet().iterator();
         while (it.hasNext()) {
-            Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e = it.next();
-            Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> s = elems.get(e.getKey());
+            Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = it.next();
+            Map<TripleTimestamp, Set<TripleTimestamp>> s = elems.get(e.getKey());
             if (s == null) {
-                Set<Pair<TripleTimestamp, Set<TripleTimestamp>>> newSet = new HashSet<Pair<TripleTimestamp, Set<TripleTimestamp>>>(
+                Map<TripleTimestamp, Set<TripleTimestamp>> newSet = new HashMap<TripleTimestamp, Set<TripleTimestamp>>(
                         e.getValue());
                 elems.put(e.getKey(), newSet);
             } else {
-                for (Pair<TripleTimestamp, Set<TripleTimestamp>> otherE : e.getValue()) {
+                for (Entry<TripleTimestamp, Set<TripleTimestamp>> otherE : e.getValue().entrySet()) {
                     boolean exists = false;
-                    for (Pair<TripleTimestamp, Set<TripleTimestamp>> localE : s) {
-                        if (localE.getFirst().equals(otherE.getFirst())) {
-                            localE.getSecond().addAll(otherE.getSecond());
+                    for (Entry<TripleTimestamp, Set<TripleTimestamp>> localE : s.entrySet()) {
+                        if (localE.getKey().equals(otherE.getKey())) {
+                            localE.getValue().addAll(otherE.getValue());
                             exists = true;
                         }
                     }
                     if (!exists) {
-                        Pair<TripleTimestamp, Set<TripleTimestamp>> newPair = new Pair<TripleTimestamp, Set<TripleTimestamp>>(
-                                otherE.getFirst(), otherE.getSecond());
-                        s.add(newPair);
+                        s.put(otherE.getKey(), otherE.getValue());
                     }
                 }
             }
@@ -130,16 +135,16 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     public void rollback(Timestamp rollbackEvent) {
-        Iterator<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> entries = elems.entrySet().iterator();
+        Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entries = elems.entrySet().iterator();
         while (entries.hasNext()) {
-            Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e = entries.next();
-            Iterator<Pair<TripleTimestamp, Set<TripleTimestamp>>> perClient = e.getValue().iterator();
+            Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = entries.next();
+            Iterator<Map.Entry<TripleTimestamp, Set<TripleTimestamp>>> perClient = e.getValue().entrySet().iterator();
             while (perClient.hasNext()) {
-                Pair<TripleTimestamp, Set<TripleTimestamp>> valueTS = perClient.next();
-                if (valueTS.getFirst().equals(rollbackEvent)) {
+                Entry<TripleTimestamp, Set<TripleTimestamp>> valueTS = perClient.next();
+                if (valueTS.getKey().equals(rollbackEvent)) {
                     perClient.remove();
                 } else {
-                    Iterator<TripleTimestamp> remTS = valueTS.getSecond().iterator();
+                    Iterator<TripleTimestamp> remTS = valueTS.getValue().iterator();
                     while (remTS.hasNext()) {
                         if (remTS.next().equals(rollbackEvent)) {
                             remTS.remove();
@@ -155,7 +160,25 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        // TODO
+        Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entries = elems.entrySet().iterator();
+        while (entries.hasNext()) {
+            Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = entries.next();
+            Iterator<Map.Entry<TripleTimestamp, Set<TripleTimestamp>>> perClient = e.getValue().entrySet().iterator();
+            while (perClient.hasNext()) {
+                Map.Entry<TripleTimestamp, Set<TripleTimestamp>> current = perClient.next();
+                Iterator<TripleTimestamp> removals = current.getValue().iterator();
+                while (removals.hasNext()) {
+                    TripleTimestamp ts = removals.next();
+                    if (pruningPoint.includes(ts)) {
+                        perClient.remove();
+                        break;
+                    }
+                }
+            }
+            if (e.getValue().isEmpty()) {
+                entries.remove();
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -167,7 +190,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                 this.insertU((V) addop.getVal(), addop.getTimestamp());
             } else if (op instanceof SetRemove) {
                 SetRemove<?> subop = (SetRemove<?>) op;
-                this.removeU((V) subop.getVal(), subop.getTimestamp());
+                this.removeU((V) subop.getVal(), subop.getTimestamp(), subop.getIds());
             } else {
                 throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id);
             }

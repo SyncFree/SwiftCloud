@@ -42,9 +42,9 @@ public class SetTxnLocalString extends BaseCRDTTxnLocal<SetStrings> {
      * @param e
      */
     public void remove(String e) {
-        elems.remove(e);
+        Set<TripleTimestamp> ids = elems.remove(e);
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new SetRemove<String>(ts, e));
+        registerLocalOperation(new SetRemove<String>(ts, e, ids));
     }
 
     public boolean lookup(int e) {
