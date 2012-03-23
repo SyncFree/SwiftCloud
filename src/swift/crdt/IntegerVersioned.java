@@ -25,11 +25,12 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private int currentValue;
 
     // Value with respect to the pruneClock
-    private Map<String, Integer> pruneVector;
+    private Map<String, Pair<Integer, TripleTimestamp>> pruneVector;
     private int pruneValue;
 
     public IntegerVersioned() {
         this.updates = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
+        this.pruneVector = new HashMap<String, Pair<Integer, TripleTimestamp>>();
     }
 
     private int value(CausalityClock snapshotClock) {
@@ -65,18 +66,6 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         v.add(new Pair<Integer, TripleTimestamp>(n, ts));
     }
 
-    private void mergeUpdates(Map<String, Set<Pair<Integer, TripleTimestamp>>> other) {
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.entrySet()) {
-            Set<Pair<Integer, TripleTimestamp>> v = updates.get(e.getKey());
-            if (v == null) {
-                v = e.getValue();
-                updates.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
-            } else {
-                v.addAll(e.getValue());
-            }
-        }
-    }
-
     private int getAggregateOfUpdates() {
         int changes = 0;
         for (Set<Pair<Integer, TripleTimestamp>> v : updates.values()) {
@@ -87,11 +76,67 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         return changes;
     }
 
-    // FIXME Merge pruning part!
+    private int getAggregateOfPrune() {
+        int changes = 0;
+        for (Pair<Integer, TripleTimestamp> v : pruneVector.values()) {
+            changes += v.getFirst();
+        }
+        return changes;
+    }
+
     @Override
     protected void mergePayload(IntegerVersioned other) {
-        mergeUpdates(other.updates);
-        this.currentValue = getAggregateOfUpdates();
+        Map<String, Pair<Integer, TripleTimestamp>> newPruneVector = new HashMap<String, Pair<Integer, TripleTimestamp>>();
+        for (Entry<String, Pair<Integer, TripleTimestamp>> e : pruneVector.entrySet()) {
+            Pair<Integer, TripleTimestamp> v = other.pruneVector.get(e.getKey());
+            if (v == null) {
+                newPruneVector.put(e.getKey(), e.getValue());
+            } else {
+                if (e.getValue().getSecond().compareTo(v.getSecond()) < 0) {
+                    newPruneVector.put(e.getKey(), v);
+                } else {
+                    newPruneVector.put(e.getKey(), e.getValue());
+                }
+                other.pruneVector.remove(e.getKey());
+            }
+        }
+        newPruneVector.putAll(other.pruneVector);
+        pruneVector = newPruneVector;
+        pruneValue = getAggregateOfPrune();
+
+        cleanUpdatesFromPruned(updates);
+        cleanUpdatesFromPruned(other.updates);
+
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.updates.entrySet()) {
+            Set<Pair<Integer, TripleTimestamp>> v = updates.get(e.getKey());
+            if (v == null) {
+                v = e.getValue();
+                updates.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
+            } else {
+                v.addAll(e.getValue());
+            }
+        }
+
+        currentValue = pruneValue + getAggregateOfUpdates();
+    }
+
+    private void cleanUpdatesFromPruned(Map<String, Set<Pair<Integer, TripleTimestamp>>> up) {
+
+        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = up.entrySet().iterator();
+        while (itSites.hasNext()) {
+            Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
+            Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
+            while (addTSit.hasNext()) {
+                Pair<Integer, TripleTimestamp> ts = addTSit.next();
+                if (this.getPruneClock().includes(ts.getSecond())) {
+                    addTSit.remove();
+                }
+            }
+            if (updatesPerSite.getValue().isEmpty()) {
+                itSites.remove();
+            }
+        }
+
     }
 
     @Override
@@ -146,6 +191,8 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = updates.entrySet().iterator();
         while (itSites.hasNext()) {
             int delta = 0;
+            TripleTimestamp pruneMax = null;
+
             Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
             Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
             while (addTSit.hasNext()) {
@@ -153,17 +200,21 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
                 if (c.includes(ts.getSecond())) {
                     addTSit.remove();
                     delta += ts.getFirst();
+                    if (pruneMax == null || pruneMax.compareTo(ts.getSecond()) < 0)
+                        pruneMax = ts.getSecond();
                 }
             }
+
             if (updatesPerSite.getValue().isEmpty()) {
                 itSites.remove();
             }
+
             String siteId = updatesPerSite.getKey();
-            Integer priorPruneValue = pruneVector.get(siteId);
+            Integer priorPruneValue = pruneVector.get(siteId).getFirst();
             if (priorPruneValue == null) {
-                pruneVector.put(siteId, delta);
+                pruneVector.put(siteId, new Pair<Integer, TripleTimestamp>(delta, pruneMax));
             } else {
-                pruneVector.put(siteId, priorPruneValue + delta);
+                pruneVector.put(siteId, new Pair<Integer, TripleTimestamp>(priorPruneValue + delta, pruneMax));
             }
             sumOfDeltas += delta;
         }

@@ -90,17 +90,21 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         }
     }
 
-    // FIXME Merge pruning part!
     @Override
     protected void mergePayload(T other) {
+        pruneImpl(getPruneClock());
+        other.pruneImpl(getPruneClock());
+
         Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> it = other.elems.entrySet().iterator();
         while (it.hasNext()) {
             Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = it.next();
+
             Map<TripleTimestamp, Set<TripleTimestamp>> s = elems.get(e.getKey());
             if (s == null) {
                 Map<TripleTimestamp, Set<TripleTimestamp>> newSet = new HashMap<TripleTimestamp, Set<TripleTimestamp>>(
                         e.getValue());
                 elems.put(e.getKey(), newSet);
+
             } else {
                 for (Entry<TripleTimestamp, Set<TripleTimestamp>> otherE : e.getValue().entrySet()) {
                     boolean exists = false;

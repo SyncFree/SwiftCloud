@@ -35,8 +35,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         if (clockCmp == CMP_CLOCK.CMP_EQUALS || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
             throw new IllegalArgumentException("pruning point does not dominate existing prune clock");
         }
-        pruneImpl(pruningPoint);
         pruneClock.merge(pruningPoint);
+        pruneImpl(pruningPoint);
     }
 
     protected abstract void pruneImpl(CausalityClock pruningPoint);
