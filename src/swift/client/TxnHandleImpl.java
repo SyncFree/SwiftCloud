@@ -39,7 +39,7 @@ class TxnHandleImpl implements TxnHandle {
 
     TxnHandleImpl(final SwiftImpl swift, final CausalityClock snapshotClock, final Timestamp baseTimestamp) {
         this.swift = swift;
-        this.snapshotClock = snapshotClock;
+        this.snapshotClock = snapshotClock.clone();
         this.baseTimestamp = baseTimestamp;
         this.timestampSource = new IncrementalTripleTimestampGenerator(baseTimestamp);
         this.objectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup>();
