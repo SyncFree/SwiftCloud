@@ -39,7 +39,7 @@ public class TxnHandleForTestingLocalBehaviour implements TxnHandle {
                 V crdt = classOfV.newInstance();
                 crdt.setUID(id);
                 crdt.setClock(cc);
-                TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getSnapshotClock(), getSnapshotClock(), this);
+                TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getSnapshotClock(), this);
                 cache.put(id, localView);
                 return (T) localView;
             } catch (ClassCastException x) {

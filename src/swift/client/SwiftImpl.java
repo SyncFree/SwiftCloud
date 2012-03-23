@@ -108,7 +108,7 @@ class SwiftImpl implements Swift {
             throw new ConsistentSnapshotVersionNotFoundException(
                     "version consistent with current snapshot is not available in the store");
         }
-        final TxnLocalCRDT<V> crdtCopy = crdt.getTxnLocalCopy(version, version, txn);
+        final TxnLocalCRDT<V> crdtCopy = crdt.getTxnLocalCopy(version, txn);
         return crdtCopy;
     }
 

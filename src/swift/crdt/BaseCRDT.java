@@ -4,6 +4,8 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 
 public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
@@ -31,10 +33,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     @Override
     public void prune(CausalityClock pruningPoint) {
-        final CMP_CLOCK clockCmp = getPruneClock().compareTo(pruningPoint);
-        if (clockCmp == CMP_CLOCK.CMP_EQUALS || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
-            throw new IllegalArgumentException("pruning point does not dominate existing prune clock");
-        }
+        assertGreaterEqualsPruneClock(pruningPoint);
         pruneClock.merge(pruningPoint);
         pruneImpl(pruningPoint);
     }
@@ -68,5 +67,22 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @Override
     public void setUID(CRDTIdentifier id) {
         this.id = id;
+    }
+
+    public TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn) {
+        assertGreaterEqualsPruneClock(versionClock);
+        return getTxnLocalCopyImpl(versionClock, txn);
+    }
+
+    protected abstract TxnLocalCRDT<V> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn);
+
+    protected void assertGreaterEqualsPruneClock(CausalityClock clock) {
+        if (getPruneClock() == null) {
+            return;
+        }
+        final CMP_CLOCK clockCmp = getPruneClock().compareTo(clock);
+        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
+            throw new IllegalArgumentException("provided clock is not higher or equal to the prune clock");
+        }
     }
 }

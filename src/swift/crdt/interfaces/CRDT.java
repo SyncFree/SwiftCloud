@@ -122,26 +122,22 @@ public interface CRDT<V> extends Serializable {
      * state. <b>INVOKED ONLY BY SWIFT SYSTEM.</b>
      * 
      * @param c
+     * @throws IllegalArgumentException
+     *             when the provided clock is not greater or equal than existing
+     *             prune clock
      */
     void setPruneClock(CausalityClock c);
 
     /**
      * Creates a copy of an object with optionally restricted state according to
-     * pruneClock and versionClock.
-     * <p>
-     * pruneClock and versionClock parameters are optional (can be null), but if
-     * both specified versionClock must dominate pruneClock.
+     * versionClock.
      * 
-     * @param pruneClock
-     *            when not null, the returned state does not contains versioning
-     *            information until pruneClock, i.e. the state is summarized
-     *            until pruneClock but versioning behind pruneCLock is
-     *            unavailable.
      * @param versionClock
-     *            when not null, the returned state is restricted to the
-     *            specified version
+     *            the returned state is restricted to the specified version
      * @param txn
      * @return a copy of an object, including clocks, uid and txnHandle.
+     * @throws IllegalArgumentException
+     *             when versionClock is not >= {@link #getPruneClock()}
      */
-    TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock, TxnHandle txn);
+    TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn);
 }

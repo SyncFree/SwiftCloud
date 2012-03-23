@@ -221,9 +221,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         pruneValue += sumOfDeltas;
     }
 
-    public TxnLocalCRDT<IntegerVersioned> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock,
-            TxnHandle txn) {
-
+    protected TxnLocalCRDT<IntegerVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, versionClock, value(versionClock));
         return localView;
     }
