@@ -33,29 +33,29 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         elems = new HashMap<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>();
     }
 
-    public Set<V> getValue(CausalityClock snapshotClock) {
-        Set<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> entrySet = elems.entrySet();
-        Set<V> retValues = new HashSet<V>();
+    public Map<V, Set<TripleTimestamp>> getValue(CausalityClock snapshotClock) {
+        Map<V, Set<TripleTimestamp>> retValues = new HashMap<V, Set<TripleTimestamp>>();
 
+        Set<Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>>> entrySet = elems.entrySet();
         for (Entry<V, Set<Pair<TripleTimestamp, Set<TripleTimestamp>>>> e : entrySet) {
-            boolean add = false;
+            Set<TripleTimestamp> present = new HashSet<TripleTimestamp>();
             for (Pair<TripleTimestamp, Set<TripleTimestamp>> p : e.getValue()) {
                 if (snapshotClock.includes(p.getFirst())) {
-                    if (p.getSecond().isEmpty()) {
-                        add = true;
-                    } else {
-                        add = true;
-                        for (TripleTimestamp remTs : p.getSecond()) {
-                            if (snapshotClock.includes(remTs)) {
-                                add = false;
-                                break;
-                            }
+                    boolean add = true;
+                    for (TripleTimestamp remTs : p.getSecond()) {
+                        if (snapshotClock.includes(remTs)) {
+                            add = false;
+                            break;
                         }
+                    }
+                    if (add) {
+                        present.add(p.getFirst());
                     }
                 }
             }
-            if (add) {
-                retValues.add(e.getKey());
+
+            if (present != null) {
+                retValues.put(e.getKey(), present);
             }
         }
         return retValues;
@@ -155,7 +155,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        // TODO Auto-generated method stub
+        // TODO
     }
 
     @SuppressWarnings("unchecked")

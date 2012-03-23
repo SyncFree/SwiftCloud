@@ -25,7 +25,9 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private Map<String, Set<Pair<Integer, TripleTimestamp>>> rems;
     // Current value with respect to the updatesClock
     private int currentValue;
+
     // Value with respect to the pruneClock
+    private Map<String, Integer> pruneVector;
     private int pruneValue;
 
     public IntegerVersioned() {
@@ -163,9 +165,39 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         }
     }
 
+    private int pruneUpdates(CausalityClock clck, Map<String, Set<Pair<Integer, TripleTimestamp>>> updates) {
+        int sumOfDeltas = 0;
+        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = updates.entrySet().iterator();
+        while (itSites.hasNext()) {
+            int delta = 0;
+            Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
+            Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
+            while (addTSit.hasNext()) {
+                Pair<Integer, TripleTimestamp> ts = addTSit.next();
+                if (clck.includes(ts.getSecond())) {
+                    addTSit.remove();
+                    delta += ts.getFirst();
+                }
+            }
+            if (updatesPerSite.getValue().isEmpty()) {
+                itSites.remove();
+            }
+            String siteId = updatesPerSite.getKey();
+            Integer priorPruneValue = pruneVector.get(siteId);
+            if (priorPruneValue == null) {
+                pruneVector.put(siteId, delta);
+            } else {
+                pruneVector.put(siteId, priorPruneValue + delta);
+            }
+            sumOfDeltas += delta;
+        }
+        return sumOfDeltas;
+    }
+
     @Override
     protected void pruneImpl(CausalityClock c) {
-        // TODO Auto-generated method stub
+        pruneValue += pruneUpdates(c, adds);
+        pruneValue -= pruneUpdates(c, rems);
     }
 
     public TxnLocalCRDT<IntegerVersioned> getTxnLocalCopy(CausalityClock pruneClock, CausalityClock versionClock,

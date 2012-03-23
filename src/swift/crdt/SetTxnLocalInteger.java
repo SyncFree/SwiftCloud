@@ -1,5 +1,7 @@
 package swift.crdt;
 
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
@@ -9,9 +11,10 @@ import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
 
 public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
-    private Set<Integer> elems;
+    private Map<Integer, Set<TripleTimestamp>> elems;
 
-    public SetTxnLocalInteger(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, Set<Integer> elems) {
+    public SetTxnLocalInteger(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock,
+            Map<Integer, Set<TripleTimestamp>> elems) {
         super(id, txn, snapshotClock);
         this.elems = elems;
     }
@@ -22,8 +25,14 @@ public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
      * @param e
      */
     public void insert(int e) {
-        elems.add(e);
+        Set<TripleTimestamp> adds = elems.get(e);
+        if (adds == null) {
+            adds = new HashSet<TripleTimestamp>();
+            elems.put(e, adds);
+        }
+
         TripleTimestamp ts = nextTimestamp();
+        adds.add(ts);
         registerLocalOperation(new SetInsert<Integer>(ts, e));
     }
 
@@ -39,11 +48,11 @@ public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
     }
 
     public boolean lookup(int e) {
-        return elems.contains(e);
+        return elems.containsKey(e);
     }
 
     public Set<Integer> getValue() {
-        return elems;
+        return elems.keySet();
     }
 
 }
