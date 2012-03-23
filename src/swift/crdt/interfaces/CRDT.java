@@ -140,4 +140,7 @@ public interface CRDT<V> extends Serializable {
      *             when versionClock is not >= {@link #getPruneClock()}
      */
     TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn);
+
+    // TODO: add clone() or replaceTimestamp(oldTs, newTs) method, for sake of
+    // cascading locally committed transactions
 }

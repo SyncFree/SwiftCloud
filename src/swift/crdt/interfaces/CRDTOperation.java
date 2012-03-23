@@ -22,4 +22,14 @@ public interface CRDTOperation {
      */
     void replaceBaseTimestamp(Timestamp ts);
 
+    /**
+     * Replaces base timestamp of depending operation(s) of this operation with
+     * the new one.
+     * 
+     * @param oldTs
+     *            old base timestamp of a dependent operation
+     * @param newTs
+     *            new base timestamp of a dependent operation
+     */
+    void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs);
 }

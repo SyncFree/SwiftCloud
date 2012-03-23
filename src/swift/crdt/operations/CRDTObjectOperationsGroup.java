@@ -17,7 +17,7 @@ import swift.crdt.interfaces.CRDTOperation;
  * timestamp). Each individual operation has a unique TripleTimestamp based on
  * the common timestamp.
  * <p>
- * Thread-hostile.
+ * Thread-safe.
  * 
  * @author mzawirski
  */
@@ -52,7 +52,7 @@ public class CRDTObjectOperationsGroup {
     /**
      * @return base timestamp of all operations in the sequence
      */
-    public Timestamp getBaseTimestamp() {
+    public synchronized Timestamp getBaseTimestamp() {
         return baseTimestamp;
     }
 
@@ -62,23 +62,42 @@ public class CRDTObjectOperationsGroup {
      * 
      * @param ts
      *            final base timestamp to be used by all operations
+     * @return
      */
-    public void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
+    public synchronized void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
         baseTimestamp = newBaseTimestamp;
-        synchronized (operations) {
-            for (CRDTOperation op : operations) {
-                op.replaceBaseTimestamp(newBaseTimestamp);
-            }
+        for (CRDTOperation op : operations) {
+            op.replaceBaseTimestamp(newBaseTimestamp);
         }
     }
 
     /**
-     * Returns the causality clock for the object on which the operations are to
-     * be executed.
+     * Replaces base timestamp of depending operation(s) with the new one for
+     * all operations in the group.
+     * 
+     * @param oldTs
+     *            old base timestamp of a dependent operation
+     * @param newTs
+     *            new base timestamp of a dependent operation
+     */
+    public synchronized void replaceDependentTimestamp(Timestamp oldTs, Timestamp newTs) {
+        dependencyClock.record(newTs);
+        // FIXME: remove (or replace) oldTs from the dependencyClock
+        for (CRDTOperation op : operations) {
+            op.replaceDependentOpTimestamp(oldTs, newTs);
+        }
+    }
+
+    /**
+     * Returns the minimum causality clock for the object on which the
+     * operations are to be executed, representing causal dependencies of this
+     * group of operations. Affected by
+     * {@link #replaceDependentTimestamp(Timestamp, Timestamp)}.
      * 
      * @return causality clock of object state when operations have been issued
+     * 
      */
-    public CausalityClock getDependency() {
+    public synchronized CausalityClock getDependency() {
         return dependencyClock;
     }
 
@@ -88,11 +107,9 @@ public class CRDTObjectOperationsGroup {
      * @param crdt
      *            object to execute operations on.
      */
-    public void executeOn(CRDT<?> crdt) {
-        synchronized (operations) {
-            for (final CRDTOperation op : operations) {
-                crdt.executeOperation(op);
-            }
+    public synchronized void executeOn(CRDT<?> crdt) {
+        for (final CRDTOperation op : operations) {
+            crdt.executeOperation(op);
         }
     }
 
@@ -115,9 +132,7 @@ public class CRDTObjectOperationsGroup {
      * @param op
      *            next operation to be applied within the transaction
      */
-    public void append(CRDTOperation op) {
-        synchronized (operations) {
-            operations.add(op);
-        }
+    public synchronized void append(CRDTOperation op) {
+        operations.add(op);
     }
 }

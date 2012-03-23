@@ -1,5 +1,6 @@
 package swift.crdt.operations;
 
+import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 
 public class SetInsert<V> extends BaseOperation implements SetOperation<V> {
@@ -12,6 +13,11 @@ public class SetInsert<V> extends BaseOperation implements SetOperation<V> {
 
     public V getVal() {
         return this.val;
+    }
+
+    @Override
+    public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
+        // Insert does not rely on any timestamp dependency.
     }
 
 }

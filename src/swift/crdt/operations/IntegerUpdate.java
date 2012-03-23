@@ -1,5 +1,6 @@
 package swift.crdt.operations;
 
+import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 
 public class IntegerUpdate extends BaseOperation {
@@ -12,6 +13,11 @@ public class IntegerUpdate extends BaseOperation {
 
     public int getVal() {
         return this.val;
+    }
+
+    @Override
+    public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
+        // Integer operation does not rely on any timestamp dependency.
     }
 
 }
