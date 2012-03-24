@@ -76,7 +76,7 @@ public class TxnHandleForTestingLocalBehaviour implements TxnHandle {
 
     @Override
     public CausalityClock getSnapshotClock() {
-        return this.cc;
+        throw new RuntimeException("Not supported for testing!");
     }
 
     @Override
@@ -84,9 +84,22 @@ public class TxnHandleForTestingLocalBehaviour implements TxnHandle {
         // NOP
     }
 
+    // Short-cut for testing purpose
+    public void registerOperation(CRDT<?> obj, CRDTOperation op) {
+        obj.executeOperation(op);
+        cc.record(op.getTimestamp());
+    }
+
     @Override
     public TxnStatus getStatus() {
         return null;
     }
 
+    public void updateClock(CausalityClock c) {
+        cc.merge(c);
+    }
+
+    public CausalityClock getClock() {
+        return this.cc;
+    }
 }

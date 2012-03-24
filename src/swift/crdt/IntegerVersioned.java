@@ -64,6 +64,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
             updates.put(siteId, v);
         }
         v.add(new Pair<Integer, TripleTimestamp>(n, ts));
+        currentValue += n;
     }
 
     private int getAggregateOfUpdates() {

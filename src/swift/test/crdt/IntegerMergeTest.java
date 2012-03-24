@@ -6,92 +6,100 @@ import org.junit.Before;
 import org.junit.Test;
 
 import swift.clocks.ClockFactory;
-import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.operations.IntegerUpdate;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
 public class IntegerMergeTest {
-    TxnHandle txn1, txn2;
-    IntegerTxnLocal i1, i2;
+    IntegerVersioned i1, i2;
+    TxnHandleForTestingLocalBehaviour txn1, txn2;
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
-        txn1 = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
-        i1 = txn1.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
+        i1 = new IntegerVersioned();
+        i1.setClock(ClockFactory.newClock());
+        i1.setPruneClock(ClockFactory.newClock());
 
+        i2 = new IntegerVersioned();
+        i2.setClock(ClockFactory.newClock());
+        i2.setPruneClock(ClockFactory.newClock());
+        txn1 = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
         txn2 = new TxnHandleForTestingLocalBehaviour("client2", ClockFactory.newClock());
-        i2 = txn2.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
     }
 
     // Merge with empty set
     @Test
     public void mergeEmpty1() {
-        i1.add(5);
+        i1.executeOperation(new IntegerUpdate(txn1.nextTimestamp(), 5));
         i1.merge(i2);
-        assertTrue(i1.value() == 5);
+
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == 5);
     }
 
     // Merge with empty set
     @Test
     public void mergeEmpty2() {
-        i2.add(5);
+        i2.executeOperation(new IntegerUpdate(txn2.nextTimestamp(), 5));
         i1.merge(i2);
-        assertTrue(i1.value() == 5);
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == 5);
     }
 
     @Test
     public void mergeNonEmpty() {
-        i1.add(5);
-        i2.add(6);
+        i1.executeOperation(new IntegerUpdate(txn1.nextTimestamp(), 5));
+        i2.executeOperation(new IntegerUpdate(txn2.nextTimestamp(), 6));
         i1.merge(i2);
-        assertTrue(i1.value() == 11);
-        assertTrue(i2.value() == 6);
-    }
-
-    @Test
-    public void mergeConcurrentRemove() {
-        i1.sub(5);
-        i2.sub(5);
-        i1.merge(i2);
-        assertTrue(i1.value() == -10);
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == 11);
     }
 
     @Test
     public void mergeConcurrentAddRem() {
-        i1.add(5);
-        i2.sub(5);
+        txn1.registerOperation(i1, new IntegerUpdate(txn1.nextTimestamp(), 5));
+        txn2.registerOperation(i2, new IntegerUpdate(txn2.nextTimestamp(), -5));
         i1.merge(i2);
-        assertTrue(i1.value() == 0);
+        txn1.updateClock(txn2.getClock());
 
-        i1.sub(5);
-        assertTrue(i1.value() == -5);
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == 0);
+
+        txn1.registerOperation(i1, new IntegerUpdate(txn1.nextTimestamp(), -5));
+        System.out.println(i1.getClock());
+        System.out.println(txn1.getClock());
+        System.out.println(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value());
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == -5);
     }
 
     @Test
     public void mergeConcurrentCausal() {
-        i1.add(5);
-        i1.sub(5);
-        i2.add(5);
+        txn1.registerOperation(i1, new IntegerUpdate(txn1.nextTimestamp(), 5));
+        txn1.registerOperation(i1, new IntegerUpdate(txn1.nextTimestamp(), -5));
+        txn2.registerOperation(i2, new IntegerUpdate(txn1.nextTimestamp(), 5));
+
         i1.merge(i2);
-        assertTrue(i1.value() == 5);
+        txn1.updateClock(txn2.getClock());
+
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == 5);
     }
 
     @Test
     public void mergeConcurrentCausal2() {
-        i1.add(5);
-        i1.sub(5);
-        i2.add(5);
-        i2.sub(5);
+        txn1.registerOperation(i1, new IntegerUpdate(txn1.nextTimestamp(), 5));
+        txn1.registerOperation(i1, new IntegerUpdate(txn1.nextTimestamp(), -5));
+        txn2.registerOperation(i2, new IntegerUpdate(txn1.nextTimestamp(), 5));
+        txn2.registerOperation(i2, new IntegerUpdate(txn1.nextTimestamp(), -5));
         i1.merge(i2);
-        assertTrue(i1.value() == 0);
+        txn1.updateClock(txn2.getClock());
 
-        i2.sub(5);
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == 0);
+
+        txn2.registerOperation(i2, new IntegerUpdate(txn1.nextTimestamp(), -5));
         i1.merge(i2);
-        assertTrue(i1.value() == -5);
+        txn1.updateClock(txn2.getClock());
 
+        assertTrue(((IntegerTxnLocal) i1.getTxnLocalCopy(i1.getClock(), txn1)).value() == -5);
     }
+
+    // TODO Tests for prune
 }
