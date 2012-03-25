@@ -53,7 +53,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                 }
             }
 
-            if (present != null) {
+            if (!present.isEmpty()) {
                 retValues.put(e.getKey(), present);
             }
         }
