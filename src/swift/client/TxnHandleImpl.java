@@ -110,6 +110,7 @@ class TxnHandleImpl implements TxnHandle {
         CRDTObjectOperationsGroup operationsGroup = objectOperations.get(id);
         if (operationsGroup == null) {
             operationsGroup = new CRDTObjectOperationsGroup(id, getSnapshotClock(), getBaseTimestamp());
+            objectOperations.put(id, operationsGroup);
         }
         operationsGroup.append(op);
     }
@@ -121,13 +122,11 @@ class TxnHandleImpl implements TxnHandle {
 
     synchronized Collection<CRDTObjectOperationsGroup> getOperations() {
         // TODO: Hmmm, perhaps COMMITTING state would be a better fit?
-        assertPending();
         return objectOperations.values();
     }
 
     private void assertPending() {
-        //TODO: marek check this: without second part, get operation would fail on commit
-        if (status != TxnStatus.PENDING && status != TxnStatus.COMMITTED_LOCAL) {
+        if (status != TxnStatus.PENDING) {
             throw new IllegalStateException("Transaction has already terminated");
         }
     }
