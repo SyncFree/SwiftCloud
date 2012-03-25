@@ -33,7 +33,7 @@ public class FetchObjectVersionReply implements RpcMessage {
     // null?
     protected CRDT<?> crdt;
     protected CausalityClock version;
-    protected CausalityClock pruneClock;;
+    protected CausalityClock pruneClock;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     public FetchObjectVersionReply() {

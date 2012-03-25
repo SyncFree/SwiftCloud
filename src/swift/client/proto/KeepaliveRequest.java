@@ -48,6 +48,6 @@ public class KeepaliveRequest implements RpcMessage {
 
     @Override
     public void deliverTo(RpcConnection conn, RpcHandler handler) {
-        ((SwiftServer) handler).onReceive(conn, this);
+        ((SequencerServer) handler).onReceive(conn, this);
     }
 }

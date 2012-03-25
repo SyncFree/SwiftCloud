@@ -40,7 +40,7 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
 
-class SwiftImpl implements Swift {
+public class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
@@ -51,7 +51,7 @@ class SwiftImpl implements Swift {
     private TxnHandleImpl pendingTxn;
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
+    public SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = new HashMap<CRDTIdentifier, CRDT<?>>();

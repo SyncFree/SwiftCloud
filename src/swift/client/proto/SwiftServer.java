@@ -13,7 +13,7 @@ import sys.net.api.rpc.RpcHandler;
  * 
  * @author mzawirski
  */
-public interface SwiftServer extends RpcHandler {
+public interface SwiftServer extends SequencerServer {
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -36,25 +36,6 @@ public interface SwiftServer extends RpcHandler {
     // it with deltas or list of operations.
     void onReceive(RpcConnection conn, FetchObjectDeltaRequest request);
 
-    /**
-     * @param conn
-     *            connection such that the remote end implements
-     *            {@link GenerateTimestampReplyHandler} and expects
-     *            {@link GenerateTimestampReply}
-     * @param request
-     *            request to serve
-     */
-    void onReceive(RpcConnection conn, GenerateTimestampRequest request);
-
-    /**
-     * @param conn
-     *            connection such that the remote end implements
-     *            {@link KeepaliveReplyHandler} and expects
-     *            {@link KeepaliveReply}
-     * @param request
-     *            request to serve
-     */
-    void onReceive(RpcConnection conn, KeepaliveRequest request);
 
     /**
      * @param conn
@@ -74,13 +55,4 @@ public interface SwiftServer extends RpcHandler {
      */
     void onReceive(RpcConnection conn, CommitUpdatesRequest request);
 
-    /**
-     * @param conn
-     *            connection such that the remote end implements
-     *            {@link LatestKnownClockReplyHandler} and expects
-     *            {@link LatestKnownClockReply}
-     * @param request
-     *            request to serve
-     */
-    void onReceive(RpcConnection conn, LatestKnownClockRequest request);
 }

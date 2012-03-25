@@ -126,7 +126,8 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     private void assertPending() {
-        if (status != TxnStatus.PENDING) {
+        //TODO: marek check this: without second part, get operation would fail on commit
+        if (status != TxnStatus.PENDING && status != TxnStatus.COMMITTED_LOCAL) {
             throw new IllegalStateException("Transaction has already terminated");
         }
     }
