@@ -97,10 +97,8 @@ public class SwiftImpl implements Swift {
             crdt = retrieveObject(id, version, create, classOfV);
         } else {
             final CMP_CLOCK clockCmp = crdt.getClock().compareTo(version);
-            if (clockCmp == CMP_CLOCK.CMP_DOMINATES || clockCmp == CMP_CLOCK.CMP_EQUALS) {
+            if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
                 refreshObject(id, version, classOfV, crdt);
-            } else {
-                // TODO LRU-eviction policy could try to avoid this happening
             }
         }
         final CMP_CLOCK clockCmp = version.compareTo(crdt.getPruneClock());
