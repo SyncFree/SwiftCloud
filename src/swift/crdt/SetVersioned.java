@@ -17,7 +17,9 @@ import swift.exceptions.NotSupportedOperationException;
 import swift.utils.PrettyPrint;
 
 /**
- * CRDT SET with versioning support
+ * CRDT set with versioning support. WARNING: When constructing txn-local
+ * versions of sets, make sure that the elements in the set are either immutable
+ * or that they are cloned!
  * 
  * @author vb, annettebieniusa
  * 
