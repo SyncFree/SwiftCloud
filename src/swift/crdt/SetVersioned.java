@@ -10,7 +10,6 @@ import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
 import swift.utils.PrettyPrint;
 
 /**
@@ -182,12 +181,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                 entries.remove();
             }
         }
-    }
-
-    @Override
-    protected void executeImpl(CRDTOperation op) {
-        op.applyTo(this);
-
     }
 
 }

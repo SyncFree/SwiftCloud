@@ -175,7 +175,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    protected void executeImpl(CRDTOperation op) {
+    protected void executeImpl(CRDTOperation<IntegerVersioned> op) {
         op.applyTo(this);
     }
 

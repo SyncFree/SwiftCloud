@@ -51,7 +51,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     }
 
     @Override
-    protected void executeImpl(CRDTOperation op) {
+    protected void executeImpl(CRDTOperation<RegisterVersioned<V>> op) {
         op.applyTo(this);
     }
 
