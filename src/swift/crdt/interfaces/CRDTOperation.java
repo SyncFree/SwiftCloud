@@ -34,4 +34,15 @@ public interface CRDTOperation<V extends CRDT<V>> {
     void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs);
 
     void applyTo(V crdt);
+
+    /**
+     * @return true if this is a create operations containing initial state
+     */
+    boolean hasCreationState();
+
+    /**
+     * @return initial state of an object; null if {@link #hasCreationState()}
+     *         is false
+     */
+    V getCreationState();
 }

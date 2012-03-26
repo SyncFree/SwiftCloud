@@ -13,9 +13,9 @@ import swift.crdt.operations.SetRemove;
 public class SetTxnLocalString extends BaseCRDTTxnLocal<SetStrings> {
     private Map<String, Set<TripleTimestamp>> elems;
 
-    public SetTxnLocalString(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, boolean registeredInStore,
+    public SetTxnLocalString(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, SetStrings creationState,
             Map<String, Set<TripleTimestamp>> elems) {
-        super(id, txn, snapshotClock, registeredInStore);
+        super(id, txn, snapshotClock, creationState);
         this.elems = elems;
     }
 

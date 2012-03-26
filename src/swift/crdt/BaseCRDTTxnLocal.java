@@ -13,12 +13,12 @@ public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRD
     private final CausalityClock snapshotClock;
     private final CRDTIdentifier id;
 
-    public BaseCRDTTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, boolean registeredInStore) {
+    public BaseCRDTTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock, V creationState) {
         this.txn = txn;
         this.snapshotClock = snapshotClock;
         this.id = id;
-        if (!registeredInStore) {
-            registerLocalOperation(new CreateObjectOperation<V>(nextTimestamp()));
+        if (creationState != null) {
+            registerLocalOperation(new CreateObjectOperation<V>(nextTimestamp(), creationState));
         }
     }
 

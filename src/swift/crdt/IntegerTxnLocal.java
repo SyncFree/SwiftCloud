@@ -8,8 +8,9 @@ import swift.crdt.operations.IntegerUpdate;
 public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
     private int val;
 
-    public IntegerTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, boolean registeredInStore, int val) {
-        super(id, txn, clock, registeredInStore);
+    public IntegerTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, IntegerVersioned creationState,
+            int val) {
+        super(id, txn, clock, creationState);
         this.val = val;
     }
 

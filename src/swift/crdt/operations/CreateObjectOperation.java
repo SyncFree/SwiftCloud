@@ -10,13 +10,15 @@ import swift.crdt.interfaces.CRDT;
  * @author mzawirski
  */
 public class CreateObjectOperation<V extends CRDT<V>> extends BaseOperation<V> {
+    protected V creationState;
 
     // needed for kryo
     public CreateObjectOperation() {
     }
-    
-    public CreateObjectOperation(TripleTimestamp ts) {
+
+    public CreateObjectOperation(TripleTimestamp ts, final V creationState) {
         super(ts);
+        this.creationState = creationState;
     }
 
     @Override
@@ -26,5 +28,15 @@ public class CreateObjectOperation<V extends CRDT<V>> extends BaseOperation<V> {
     @Override
     public void applyTo(V crdt) {
         crdt.setRegisteredInStore(true);
+    }
+
+    @Override
+    public boolean hasCreationState() {
+        return true;
+    }
+
+    @Override
+    public V getCreationState() {
+        return creationState;
     }
 }
