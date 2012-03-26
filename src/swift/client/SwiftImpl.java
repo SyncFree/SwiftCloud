@@ -1,8 +1,6 @@
 package swift.client;
 
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,7 +43,7 @@ public class SwiftImpl implements Swift {
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
     // TODO: implement LRU-alike eviction
-    private final Map<CRDTIdentifier, CRDT<?>> objectsCache;
+    private final ObjectsCache objectsCache;
     private final CausalityClock latestVersion;
     // Invariant: there is at most one pending transaction.
     private TxnHandleImpl pendingTxn;
@@ -54,7 +52,7 @@ public class SwiftImpl implements Swift {
     public SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
-        this.objectsCache = new HashMap<CRDTIdentifier, CRDT<?>>();
+        this.objectsCache = new ObjectsCache();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
     }
@@ -156,7 +154,7 @@ public class SwiftImpl implements Swift {
         crdt.setClock(fetchReply.getVersion());
         crdt.setPruneClock(fetchReply.getPruneClock());
         crdt.setUID(id);
-        objectsCache.put(id, crdt);
+        objectsCache.add(crdt);
         latestVersion.merge(fetchReply.getVersion());
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
             throw new ConsistentSnapshotVersionNotFoundException(
