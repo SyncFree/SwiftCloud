@@ -35,13 +35,13 @@ public class SetMergeTest {
 
     private TripleTimestamp registerInsert(int value, SetIntegers i, TxnHandleForTestingLocalBehaviour txn) {
         TripleTimestamp ts = txn.nextTimestamp();
-        txn1.registerOperation(i, new SetInsert(ts, value));
+        txn1.registerOperation(i, new SetInsert<Integer, SetIntegers>(ts, value));
         return ts;
     }
 
     private void registerRemove(int value, Set<TripleTimestamp> rems, SetIntegers i,
             TxnHandleForTestingLocalBehaviour txn) {
-        txn1.registerOperation(i, new SetRemove(txn.nextTimestamp(), value, rems));
+        txn1.registerOperation(i, new SetRemove<Integer, SetIntegers>(txn.nextTimestamp(), value, rems));
     }
 
     private SetTxnLocalInteger getTxnLocal(SetIntegers i, TxnHandleForTestingLocalBehaviour txn) {
@@ -65,7 +65,10 @@ public class SetMergeTest {
     @Test
     public void mergeEmpty1() {
         registerInsert(5, i1, txn1);
+        printInformtion(i1, txn1);
+
         merge();
+        printInformtion(i1, txn1);
         assertTrue(getTxnLocal(i1, txn1).lookup(5));
     }
 

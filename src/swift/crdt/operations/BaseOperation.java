@@ -2,9 +2,10 @@ package swift.crdt.operations;
 
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 
-public abstract class BaseOperation implements CRDTOperation {
+public abstract class BaseOperation<V extends CRDT<V>> implements CRDTOperation<V> {
     private TripleTimestamp ts;
 
     protected BaseOperation(TripleTimestamp ts) {

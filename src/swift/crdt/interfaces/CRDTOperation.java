@@ -8,7 +8,7 @@ import swift.clocks.TripleTimestamp;
  * 
  * @author nmp, annettebieniusa
  */
-public interface CRDTOperation {
+public interface CRDTOperation<V extends CRDT<V>> {
 
     /**
      * Returns the timestamp associated to the operations.
@@ -32,4 +32,6 @@ public interface CRDTOperation {
      *            new base timestamp of a dependent operation
      */
     void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs);
+
+    void applyTo(V crdt);
 }

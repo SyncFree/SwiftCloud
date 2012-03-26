@@ -31,7 +31,7 @@ import swift.crdt.CRDTIdentifier;
  *            CvRDT type implementing the interface
  */
 
-public interface CRDT<V> extends Serializable {
+public interface CRDT<V extends CRDT<V>> extends Serializable {
     /**
      * Merges the object with other object state of the same type.
      * <p>
@@ -54,7 +54,7 @@ public interface CRDT<V> extends Serializable {
      * @param op
      *            operation to be executed
      */
-    void executeOperation(CRDTOperation op);
+    void executeOperation(CRDTOperation<V> op);
 
     /**
      * Prunes the object state to remove versioning meta data from operations

@@ -53,7 +53,10 @@ public class IntegerMergeTest {
     @Test
     public void mergeEmpty1() {
         i1.executeOperation(new IntegerUpdate(txn1.nextTimestamp(), 5));
+        printInformtion(i1, txn1);
         i1.merge(i2);
+        printInformtion(i1, txn1);
+
         assertTrue(getTxnLocal(i1, txn1).value() == 5);
     }
 

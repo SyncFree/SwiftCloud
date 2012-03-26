@@ -11,5 +11,4 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
         SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, versionClock, getValue(versionClock));
         return (TxnLocalCRDT<SetIntegers>) localView;
     }
-
 }

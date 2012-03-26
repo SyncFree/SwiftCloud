@@ -50,14 +50,15 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     protected abstract void mergePayload(V otherObject);
 
-    public void executeOperation(CRDTOperation op) {
+    @Override
+    public void executeOperation(CRDTOperation<V> op) {
         executeImpl(op);
         getClock().record(op.getTimestamp());
     }
 
     // TODO Use Visitor pattern to dispatch on operation in the respective
     // classes!
-    protected abstract void executeImpl(CRDTOperation op);
+    protected abstract void executeImpl(CRDTOperation<V> op);
 
     @Override
     public CRDTIdentifier getUID() {
@@ -85,4 +86,5 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             throw new IllegalArgumentException("provided clock is not higher or equal to the prune clock");
         }
     }
+
 }

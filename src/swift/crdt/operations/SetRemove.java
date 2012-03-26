@@ -7,8 +7,9 @@ import java.util.Set;
 
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.SetVersioned;
 
-public class SetRemove<V> extends BaseOperation implements SetOperation<V> {
+public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseOperation<T> {
     private V val;
     private Set<TripleTimestamp> ids;
 
@@ -38,5 +39,10 @@ public class SetRemove<V> extends BaseOperation implements SetOperation<V> {
             }
         }
         ids.addAll(newIds);
+    }
+
+    @Override
+    public void applyTo(T crdt) {
+        crdt.removeU(val, getTimestamp(), ids);
     }
 }

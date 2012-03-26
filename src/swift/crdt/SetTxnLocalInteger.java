@@ -33,7 +33,7 @@ public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
 
         TripleTimestamp ts = nextTimestamp();
         adds.add(ts);
-        registerLocalOperation(new SetInsert<Integer>(ts, e));
+        registerLocalOperation(new SetInsert<Integer, SetIntegers>(ts, e));
     }
 
     /**
@@ -44,7 +44,7 @@ public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
     public void remove(int e) {
         Set<TripleTimestamp> ids = elems.remove(e);
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new SetRemove<Integer>(ts, e, ids));
+        registerLocalOperation(new SetRemove<Integer, SetIntegers>(ts, e, ids));
     }
 
     public boolean lookup(int e) {

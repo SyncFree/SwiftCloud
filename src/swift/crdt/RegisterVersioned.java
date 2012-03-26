@@ -52,8 +52,11 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     @Override
     protected void executeImpl(CRDTOperation op) {
-        // TODO Auto-generated method stub
+        op.applyTo(this);
+    }
 
+    public void update(V val, TripleTimestamp ts) {
+        // TODO
     }
 
     @Override

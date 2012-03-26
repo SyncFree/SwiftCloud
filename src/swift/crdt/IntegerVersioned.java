@@ -14,8 +14,6 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.operations.IntegerUpdate;
-import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
 public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
@@ -56,7 +54,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         return retValue;
     }
 
-    private void applyUpdate(int n, TripleTimestamp ts) {
+    public void applyUpdate(int n, TripleTimestamp ts) {
         String siteId = ts.getIdentifier();
         Set<Pair<Integer, TripleTimestamp>> v = updates.get(siteId);
         if (v == null) {
@@ -178,12 +176,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     @Override
     protected void executeImpl(CRDTOperation op) {
-        if (op instanceof IntegerUpdate) {
-            IntegerUpdate addop = (IntegerUpdate) op;
-            this.applyUpdate(addop.getVal(), addop.getTimestamp());
-        } else {
-            throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id);
-        }
+        op.applyTo(this);
     }
 
     @Override
@@ -201,8 +194,9 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
                 if (c.includes(ts.getSecond())) {
                     addTSit.remove();
                     delta += ts.getFirst();
-                    if (pruneMax == null || pruneMax.compareTo(ts.getSecond()) < 0)
+                    if (pruneMax == null || pruneMax.compareTo(ts.getSecond()) < 0) {
                         pruneMax = ts.getSecond();
+                    }
                 }
             }
 

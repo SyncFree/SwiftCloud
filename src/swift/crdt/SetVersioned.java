@@ -11,9 +11,6 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
-import swift.crdt.operations.SetInsert;
-import swift.crdt.operations.SetRemove;
-import swift.exceptions.NotSupportedOperationException;
 import swift.utils.PrettyPrint;
 
 /**
@@ -62,7 +59,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         return retValues;
     }
 
-    private void insertU(V e, TripleTimestamp uid) {
+    public void insertU(V e, TripleTimestamp uid) {
         Map<TripleTimestamp, Set<TripleTimestamp>> entry = elems.get(e);
         // if element not present in the set, add entry for it in payload
         if (entry == null) {
@@ -72,7 +69,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         entry.put(uid, new HashSet<TripleTimestamp>());
     }
 
-    private void removeU(V e, TripleTimestamp uid, Set<TripleTimestamp> set) {
+    public void removeU(V e, TripleTimestamp uid, Set<TripleTimestamp> set) {
         Map<TripleTimestamp, Set<TripleTimestamp>> s = elems.get(e);
         if (s == null) {
             s = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
@@ -187,22 +184,10 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         }
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     protected void executeImpl(CRDTOperation op) {
-        try {
-            if (op instanceof SetInsert) {
-                SetInsert<?> addop = (SetInsert<?>) op;
-                this.insertU((V) addop.getVal(), addop.getTimestamp());
-            } else if (op instanceof SetRemove) {
-                SetRemove<?> subop = (SetRemove<?>) op;
-                this.removeU((V) subop.getVal(), subop.getTimestamp(), subop.getIds());
-            } else {
-                throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id);
-            }
-        } catch (ClassCastException e) {
-            throw new NotSupportedOperationException("Operation " + op + " is not supported for CRDT " + this.id
-                    + ": Wrong type of elements");
-        }
+        op.applyTo(this);
+
     }
+
 }
