@@ -11,6 +11,12 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class LatestKnownClockRequest implements RpcMessage {
 
+    /**
+     * Constructor for Kryo serialization.
+     */
+    public LatestKnownClockRequest() {
+    }
+
     @Override
     public void deliverTo(RpcConnection conn, RpcHandler handler) {
         ((SequencerServer) handler).onReceive(conn, this);

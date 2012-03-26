@@ -10,8 +10,6 @@ import sys.net.api.rpc.RpcMessage;
  * Client request to keepalive certain state at the server/storage-side.
  * Currently used to renew validity of a timestamp and/or keep version of
  * objects alive (not pruned).
- * <p>
- * TODO: keepalive updates notification subscription here too?
  * 
  * @author mzawirski
  */

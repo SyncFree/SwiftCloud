@@ -40,7 +40,7 @@ public class KeepaliveReply implements RpcMessage {
     }
 
     /**
-     * @return until what time the timestamp & objectsstay available unless
+     * @return until what time the timestamp & objects stay available unless
      *         extended using keepalive; specified in milliseconds since the
      *         UNIX epoch
      */

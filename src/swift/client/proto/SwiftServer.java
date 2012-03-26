@@ -1,7 +1,6 @@
 package swift.client.proto;
 
 import sys.net.api.rpc.RpcConnection;
-import sys.net.api.rpc.RpcHandler;
 
 /**
  * Server interface for client-server interaction.
@@ -36,14 +35,23 @@ public interface SwiftServer extends SequencerServer {
     // it with deltas or list of operations.
     void onReceive(RpcConnection conn, FetchObjectDeltaRequest request);
 
-
     /**
      * @param conn
      *            connection that does not expect any message
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, UnsubscribeNotificationsRequest request);
+    void onReceive(RpcConnection conn, UnsubscribeUpdatesRequest request);
+
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link RecentUpdatesReplyHandler} and expects
+     *            {@link RecentUpdatesReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, RecentUpdatesRequest request);
 
     /**
      * @param conn

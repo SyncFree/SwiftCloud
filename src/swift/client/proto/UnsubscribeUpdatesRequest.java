@@ -6,20 +6,20 @@ import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
 /**
- * Client request to unsubscribe notifications for an object.
+ * Client request to unsubscribe update notifications for an object.
  * 
  * @author mzawirski
  */
-public class UnsubscribeNotificationsRequest implements RpcMessage {
+public class UnsubscribeUpdatesRequest implements RpcMessage {
     protected CRDTIdentifier uid;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public UnsubscribeNotificationsRequest() {
+    public UnsubscribeUpdatesRequest() {
     }
 
-    public UnsubscribeNotificationsRequest(CRDTIdentifier uid) {
+    public UnsubscribeUpdatesRequest(CRDTIdentifier uid) {
         this.uid = uid;
     }
 
