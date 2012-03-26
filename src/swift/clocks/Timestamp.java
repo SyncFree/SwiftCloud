@@ -15,9 +15,12 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     public static final long MIN_VALUE = 0L;
 
     private static final long serialVersionUID = 1L;
-    private final String siteid;
-    private final long counter;
+    private String siteid;
+    private long counter;
 
+    public Timestamp() {
+    }
+    
     Timestamp(String siteid, long counter) {
         this.siteid = siteid;
         this.counter = counter;

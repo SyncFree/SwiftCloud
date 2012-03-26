@@ -8,6 +8,10 @@ import swift.crdt.interfaces.CRDTOperation;
 public abstract class BaseOperation<V extends CRDT<V>> implements CRDTOperation<V> {
     private TripleTimestamp ts;
 
+    //required by kryo
+    protected BaseOperation() {
+    }
+
     protected BaseOperation(TripleTimestamp ts) {
         this.ts = ts;
     }

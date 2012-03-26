@@ -193,6 +193,9 @@ public class SwiftImpl implements Swift {
             V receivedCrdt;
             try {
                 receivedCrdt = (V) versionReply.getCrdt();
+                //MAREK: check if this is correct
+                receivedCrdt.setClock(versionReply.getVersion());
+                receivedCrdt.setPruneClock(versionReply.getPruneClock());
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }

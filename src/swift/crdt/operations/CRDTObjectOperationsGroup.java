@@ -26,7 +26,7 @@ public class CRDTObjectOperationsGroup {
     protected CRDTIdentifier id;
     protected CausalityClock dependencyClock;
     protected Timestamp baseTimestamp;
-    protected List<CRDTOperation> operations;
+    public List<CRDTOperation> operations;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.

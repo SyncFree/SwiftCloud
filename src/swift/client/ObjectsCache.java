@@ -1,6 +1,6 @@
 package swift.client;
 
-import java.util.Map;
+import java.util.*;
 
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
@@ -14,6 +14,10 @@ import swift.crdt.interfaces.CRDT;
  */
 class ObjectsCache {
     private Map<CRDTIdentifier, Entry> entries;
+    
+    ObjectsCache() {
+        entries = new HashMap<CRDTIdentifier,Entry>();
+    }
 
     void add(final CRDT<?> object) {
         final Entry entry = new Entry(object);

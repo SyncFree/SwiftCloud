@@ -9,9 +9,12 @@ package swift.crdt;
  */
 // TODO: provide custom serializer or Kryo-lize the class
 public class CRDTIdentifier {
-    private final String table;
-    private final String key;
+    private String table;
+    private String key;
 
+    public CRDTIdentifier() {
+    }
+    
     public CRDTIdentifier(String table, String key) {
         if (table == null || table == "" | key == null | key == "") {
             throw new NullPointerException("CRDTIdentifier cannot have empty table or key");

@@ -22,7 +22,11 @@ public class CommitUpdatesReply implements RpcMessage {
          * The transaction cannot be committed, because provided timestamp is
          * invalid. Client can retry to commit using another timestamp.
          */
-        INVALID_TIMESTAMP
+        INVALID_TIMESTAMP,
+        /**
+         * The transaction cannot be committed, because a given operation
+         * is invalid         */
+        INVALID_OPERATION
     }
 
     protected CommitStatus status;

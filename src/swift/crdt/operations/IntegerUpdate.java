@@ -6,6 +6,10 @@ import swift.crdt.IntegerVersioned;
 
 public class IntegerUpdate extends BaseOperation<IntegerVersioned> {
     private int val;
+    
+    //required for kryo
+    public IntegerUpdate() {
+    }
 
     public IntegerUpdate(TripleTimestamp ts, int val) {
         super(ts);

@@ -79,7 +79,7 @@ public class FetchObjectVersionReply implements RpcMessage {
      *         {@link FetchStatus#OBJECT_NOT_FOUND}
      */
     public CausalityClock getPruneClock() {
-        return version;
+        return pruneClock;
     }
 
     @Override

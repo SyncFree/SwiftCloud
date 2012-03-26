@@ -11,6 +11,10 @@ import swift.crdt.interfaces.CRDT;
  */
 public class CreateObjectOperation<V extends CRDT<V>> extends BaseOperation<V> {
 
+    // needed for kryo
+    public CreateObjectOperation() {
+    }
+    
     public CreateObjectOperation(TripleTimestamp ts) {
         super(ts);
     }
