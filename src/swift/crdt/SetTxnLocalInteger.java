@@ -14,8 +14,8 @@ public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
     private Map<Integer, Set<TripleTimestamp>> elems;
 
     public SetTxnLocalInteger(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock,
-            Map<Integer, Set<TripleTimestamp>> elems) {
-        super(id, txn, snapshotClock);
+            boolean registeredInStore, Map<Integer, Set<TripleTimestamp>> elems) {
+        super(id, txn, snapshotClock, registeredInStore);
         this.elems = elems;
     }
 

@@ -12,6 +12,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private transient CausalityClock updatesClock;
     private transient CausalityClock pruneClock;
     protected transient CRDTIdentifier id;
+    protected transient boolean registeredInStore;
 
     public CausalityClock getClock() {
         return updatesClock;
@@ -87,4 +88,13 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
     }
 
+    @Override
+    public boolean isRegisteredInStore() {
+        return registeredInStore;
+    }
+
+    @Override
+    public void setRegisteredInStore(boolean createdInStore) {
+        this.registeredInStore = createdInStore;
+    }
 }

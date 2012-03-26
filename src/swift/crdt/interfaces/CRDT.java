@@ -30,7 +30,8 @@ import swift.crdt.CRDTIdentifier;
  * @param <V>
  *            CvRDT type implementing the interface
  */
-
+// TODO(mzawirski): once we know the exact usage of the class, transform all
+// set*() into a single init(...) to avoid bugs introduced by partial init.
 public interface CRDT<V extends CRDT<V>> extends Serializable {
     /**
      * Merges the object with other object state of the same type.
@@ -140,6 +141,19 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
      *             when versionClock is not >= {@link #getPruneClock()}
      */
     TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn);
+
+    /**
+     * Returns object registration status in the store.
+     * 
+     * @return true if object with this identifier has been already registered
+     *         in the store; false if the object might not be yet registered.
+     */
+    boolean isRegisteredInStore();
+
+    /**
+     * @see #isRegisteredInStore()
+     */
+    void setRegisteredInStore(boolean registeredInStore);
 
     // TODO: add clone() or replaceTimestamp(oldTs, newTs) method, for sake of
     // cascading locally committed transactions

@@ -13,7 +13,8 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
 
     @Override
     protected TxnLocalCRDT<SetIntegers> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, versionClock, getValue(versionClock));
+        SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, versionClock, registeredInStore,
+                getValue(versionClock));
         return (TxnLocalCRDT<SetIntegers>) localView;
     }
 

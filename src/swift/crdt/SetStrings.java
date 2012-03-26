@@ -15,7 +15,8 @@ public class SetStrings extends SetVersioned<String, SetStrings> {
     @Override
     protected TxnLocalCRDT<SetStrings> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
 
-        SetTxnLocalString localView = new SetTxnLocalString(id, txn, versionClock, getValue(versionClock));
+        SetTxnLocalString localView = new SetTxnLocalString(id, txn, versionClock, registeredInStore,
+                getValue(versionClock));
         return (TxnLocalCRDT<SetStrings>) localView;
     }
 
