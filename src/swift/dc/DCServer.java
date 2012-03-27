@@ -30,9 +30,11 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class DCServer {
     DCSurrogate server;
+    String sequencerHost;
     
 
-    protected DCServer() {
+    protected DCServer( String sequencerHost) {
+        this.sequencerHost = sequencerHost;
         init();
     }
     
@@ -45,11 +47,11 @@ public class DCServer {
         
         server = new DCSurrogate( Networking.Networking.rpcBind(DCConstants.SURROGATE_PORT, null),
                 Networking.rpcBind(0, null),
-                Networking.resolve("localhost",DCConstants.SEQUENCER_PORT));
+                Networking.resolve(sequencerHost,DCConstants.SEQUENCER_PORT));
     }
     
     public static void main( String []args) {
-        new DCServer().startSurrogServer();
+        new DCServer( args.length == 0? "localhost" : args[0]).startSurrogServer();
     }
 }
 
