@@ -57,8 +57,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         getClock().record(op.getTimestamp());
     }
 
-    // TODO Use Visitor pattern to dispatch on operation in the respective
-    // classes!
     protected abstract void executeImpl(CRDTOperation<V> op);
 
     @Override

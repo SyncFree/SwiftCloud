@@ -29,7 +29,11 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
             switch (result) {
             case CMP_CONCURRENT:
             case CMP_EQUALS:
-                return this.ts.compareTo(other.ts);
+                if (other.ts == null) {
+                    return 1;
+                } else {
+                    return this.ts.compareTo(other.ts);
+                }
             case CMP_ISDOMINATED:
                 return -1;
             case CMP_DOMINATES:
@@ -64,8 +68,8 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        // TODO Auto-generated method stub
-
+        QueueEntry<V> dummy = new QueueEntry<V>(null, pruningPoint, null);
+        values.tailSet(dummy);
     }
 
     @Override
@@ -79,8 +83,15 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     @Override
     protected void mergePayload(RegisterVersioned<V> otherObject) {
-        // TODO Auto-generated method stub
-
+        CMP_CLOCK cmpClock = otherObject.getPruneClock().compareTo(getPruneClock());
+        if (cmpClock == CMP_CLOCK.CMP_DOMINATES) {
+            pruneImpl(otherObject.getPruneClock());
+        } else {
+            if (cmpClock == CMP_CLOCK.CMP_ISDOMINATED) {
+                otherObject.pruneImpl(getPruneClock());
+            }
+        }
+        values.addAll(otherObject.values);
     }
 
     @Override
