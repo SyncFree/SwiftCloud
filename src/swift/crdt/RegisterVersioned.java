@@ -33,7 +33,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
                 if (other.ts == null) {
                     return -1;
                 } else {
-                    return this.ts.compareTo(other.ts);
+                    return other.ts.compareTo(this.ts);
                 }
             case CMP_ISDOMINATED:
                 return 1;
@@ -41,6 +41,11 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
                 return -1;
             }
             return 0;
+        }
+
+        @Override
+        public String toString() {
+            return value + " -> " + ts + "," + c;
         }
 
     }
@@ -79,7 +84,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     }
 
     public void update(V val, TripleTimestamp ts) {
-        values.add(new QueueEntry<V>(ts, this.getClock(), val));
+        values.add(new QueueEntry<V>(ts, this.getClock().clone(), val));
     }
 
     @Override
@@ -105,10 +110,15 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     private V value(CausalityClock versionClock) {
         for (QueueEntry<V> e : values) {
-            if (versionClock.includes(e.ts)) {
+            if (versionClock.getLatest(e.ts.getIdentifier()).includes(e.ts)) {
                 return e.value;
             }
         }
         return null;
+    }
+
+    @Override
+    public String toString() {
+        return values.toString();
     }
 }
