@@ -80,7 +80,7 @@ public class TxnHandleForTestingLocalBehaviour implements TxnHandle {
     }
 
     @Override
-    public void registerOperation(CRDTIdentifier id, CRDTOperation op) {
+    public void registerOperation(CRDTIdentifier id, CRDTOperation<?> op) {
         // NOP
     }
 

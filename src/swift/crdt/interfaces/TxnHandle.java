@@ -70,5 +70,5 @@ public interface TxnHandle {
      * @param op
      *            operation
      */
-    void registerOperation(final CRDTIdentifier id, CRDTOperation op);
+    void registerOperation(final CRDTIdentifier id, CRDTOperation<?> op);
 }

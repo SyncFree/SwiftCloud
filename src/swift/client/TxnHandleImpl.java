@@ -104,7 +104,7 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     @Override
-    public synchronized void registerOperation(CRDTIdentifier id, CRDTOperation op) {
+    public synchronized void registerOperation(CRDTIdentifier id, CRDTOperation<?> op) {
         assertPending();
 
         CRDTObjectOperationsGroup operationsGroup = objectOperations.get(id);

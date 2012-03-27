@@ -14,12 +14,11 @@ public class CRDTIdentifier {
 
     public CRDTIdentifier() {
     }
-    
+
     public CRDTIdentifier(String table, String key) {
-        if (table == null || table == "" | key == null | key == "") {
+        if (table == null || "".equals(table) | key == null | "".equals(key)) {
             throw new NullPointerException("CRDTIdentifier cannot have empty table or key");
         }
-
         this.table = table;
         this.key = key;
     }
