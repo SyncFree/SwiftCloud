@@ -33,7 +33,7 @@ public class IntegerMergeTest {
     }
 
     private void registerUpdate(int value, IntegerVersioned i, TxnTester txn) {
-        txn1.registerOperation(i, new IntegerUpdate(txn.nextTimestamp(), value));
+        txn.registerOperation(i, new IntegerUpdate(txn.nextTimestamp(), value));
     }
 
     @Before
