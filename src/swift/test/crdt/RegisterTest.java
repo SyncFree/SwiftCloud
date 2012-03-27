@@ -18,6 +18,7 @@ public class RegisterTest {
     TxnHandle txn;
     RegisterTxnLocal<Integer> i;
 
+    @SuppressWarnings("unchecked")
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         txn = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
