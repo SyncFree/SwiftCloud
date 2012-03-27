@@ -1,6 +1,7 @@
 package swift.crdt;
 
-import java.util.PriorityQueue;
+import java.util.Iterator;
+import java.util.TreeSet;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
@@ -15,6 +16,12 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
         TripleTimestamp ts;
         CausalityClock c;
         V value;
+
+        public QueueEntry(TripleTimestamp ts, CausalityClock c, V value) {
+            this.ts = ts;
+            this.c = c;
+            this.value = value;
+        }
 
         @Override
         public int compareTo(QueueEntry<V> other) {
@@ -33,15 +40,26 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     }
 
-    private PriorityQueue<QueueEntry<V>> values;
+    // queue holding the versioning information, ordering is compatible with
+    // causal dependency, newest entries coming first
+    private TreeSet<QueueEntry<V>> values;
 
     public RegisterVersioned() {
-        this.values = new PriorityQueue<QueueEntry<V>>();
+        this.values = new TreeSet<QueueEntry<V>>();
     }
 
     @Override
     public void rollback(Timestamp ts) {
-        // TODO Auto-generated method stub
+        Iterator<QueueEntry<V>> it = values.descendingIterator();
+        while (it.hasNext()) {
+            QueueEntry<V> entry = it.next();
+            if (!entry.c.includes(ts)) {
+                break;
+            }
+            if (entry.ts.equals(ts)) {
+                it.remove();
+            }
+        }
     }
 
     @Override
@@ -56,7 +74,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     }
 
     public void update(V val, TripleTimestamp ts) {
-        // TODO
+        values.add(new QueueEntry<V>(ts, this.getClock(), val));
     }
 
     @Override

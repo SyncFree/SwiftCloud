@@ -16,7 +16,7 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
         final SetIntegers creationState = isRegisteredInStore() ? null : new SetIntegers();
         SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, versionClock, creationState,
                 getValue(versionClock));
-        return (TxnLocalCRDT<SetIntegers>) localView;
+        return localView;
     }
 
     @Override

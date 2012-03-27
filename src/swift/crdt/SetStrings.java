@@ -17,7 +17,7 @@ public class SetStrings extends SetVersioned<String, SetStrings> {
         final SetStrings creationState = isRegisteredInStore() ? null : new SetStrings();
         SetTxnLocalString localView = new SetTxnLocalString(id, txn, versionClock, creationState,
                 getValue(versionClock));
-        return (TxnLocalCRDT<SetStrings>) localView;
+        return localView;
     }
 
     @Override
