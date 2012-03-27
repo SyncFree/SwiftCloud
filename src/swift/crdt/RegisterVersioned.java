@@ -1,6 +1,7 @@
 package swift.crdt;
 
 import java.util.Iterator;
+import java.util.SortedSet;
 import java.util.TreeSet;
 
 import swift.clocks.CausalityClock;
@@ -30,14 +31,14 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
             case CMP_CONCURRENT:
             case CMP_EQUALS:
                 if (other.ts == null) {
-                    return 1;
+                    return -1;
                 } else {
                     return this.ts.compareTo(other.ts);
                 }
             case CMP_ISDOMINATED:
-                return -1;
-            case CMP_DOMINATES:
                 return 1;
+            case CMP_DOMINATES:
+                return -1;
             }
             return 0;
         }
@@ -46,7 +47,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     // queue holding the versioning information, ordering is compatible with
     // causal dependency, newest entries coming first
-    private TreeSet<QueueEntry<V>> values;
+    private SortedSet<QueueEntry<V>> values;
 
     public RegisterVersioned() {
         this.values = new TreeSet<QueueEntry<V>>();
@@ -54,7 +55,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     @Override
     public void rollback(Timestamp ts) {
-        Iterator<QueueEntry<V>> it = values.descendingIterator();
+        Iterator<QueueEntry<V>> it = values.iterator();
         while (it.hasNext()) {
             QueueEntry<V> entry = it.next();
             if (!entry.c.includes(ts)) {
@@ -69,7 +70,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
         QueueEntry<V> dummy = new QueueEntry<V>(null, pruningPoint, null);
-        values.tailSet(dummy);
+        values = values.headSet(dummy);
     }
 
     @Override
@@ -96,8 +97,18 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     @Override
     protected TxnLocalCRDT<RegisterVersioned<V>> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        // TODO Auto-generated method stub
-        return null;
+        final RegisterVersioned<V> creationState = isRegisteredInStore() ? null : new RegisterVersioned<V>();
+        RegisterTxnLocal<V> localview = new RegisterTxnLocal<V>(id, txn, versionClock, creationState,
+                value(versionClock));
+        return localview;
     }
 
+    private V value(CausalityClock versionClock) {
+        for (QueueEntry<V> e : values) {
+            if (versionClock.includes(e.ts)) {
+                return e.value;
+            }
+        }
+        return null;
+    }
 }
