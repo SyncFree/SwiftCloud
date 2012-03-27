@@ -15,13 +15,13 @@ import swift.exceptions.WrongTypeException;
 
 public class RegisterMergeTest {
     RegisterVersioned<Integer> i1, i2;
-    TxnHandleForTestingLocalBehaviour txn1, txn2;
+    TxnTester txn1, txn2;
 
-    private <V> RegisterTxnLocal<V> getTxnLocal(RegisterVersioned<V> i, TxnHandleForTestingLocalBehaviour txn) {
+    private <V> RegisterTxnLocal<V> getTxnLocal(RegisterVersioned<V> i, TxnTester txn) {
         return (RegisterTxnLocal<V>) i.getTxnLocalCopy(i.getClock(), txn);
     }
 
-    private void printInformtion(RegisterVersioned<?> i, TxnHandleForTestingLocalBehaviour txn) {
+    private void printInformtion(RegisterVersioned<?> i, TxnTester txn) {
         System.out.println(getTxnLocal(i, txn).get());
         System.out.println(i.getClock());
         System.out.println(txn.getClock());
@@ -33,7 +33,7 @@ public class RegisterMergeTest {
         txn1.updateClock(txn2.getClock());
     }
 
-    private <V> void registerUpdate(V value, RegisterVersioned<V> i, TxnHandleForTestingLocalBehaviour txn) {
+    private <V> void registerUpdate(V value, RegisterVersioned<V> i, TxnTester txn) {
         txn1.registerOperation(i, new RegisterUpdate<V>(txn.nextTimestamp(), value));
     }
 
@@ -46,17 +46,15 @@ public class RegisterMergeTest {
         i2 = new RegisterVersioned<Integer>();
         i2.setClock(ClockFactory.newClock());
         i2.setPruneClock(ClockFactory.newClock());
-        txn1 = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
-        txn2 = new TxnHandleForTestingLocalBehaviour("client2", ClockFactory.newClock());
+        txn1 = new TxnTester("client1", ClockFactory.newClock());
+        txn2 = new TxnTester("client2", ClockFactory.newClock());
     }
 
     // Merge with empty set
     @Test
     public void mergeEmpty1() {
         i1.executeOperation(new RegisterUpdate<Integer>(txn1.nextTimestamp(), 5));
-        printInformtion(i1, txn1);
         i1.merge(i2);
-        printInformtion(i1, txn1);
 
         assertTrue(getTxnLocal(i1, txn1).get() == 5);
     }
@@ -102,7 +100,6 @@ public class RegisterMergeTest {
         registerUpdate(-1, i1, txn1);
         registerUpdate(2, i2, txn2);
         merge();
-        printInformtion(i1, txn1);
         assertTrue(getTxnLocal(i1, txn1).get() == 2 || getTxnLocal(i1, txn1).get() == -1);
     }
 

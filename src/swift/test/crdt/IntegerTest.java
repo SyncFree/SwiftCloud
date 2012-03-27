@@ -20,7 +20,7 @@ public class IntegerTest {
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
-        txn = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
+        txn = new TxnTester("client1", ClockFactory.newClock());
         i = txn.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
     }
 

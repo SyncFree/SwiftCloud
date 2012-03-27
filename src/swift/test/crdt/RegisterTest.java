@@ -21,7 +21,7 @@ public class RegisterTest {
     @SuppressWarnings("unchecked")
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
-        txn = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
+        txn = new TxnTester("client1", ClockFactory.newClock());
         i = (RegisterTxnLocal<Integer>) txn.get(new CRDTIdentifier("A", "Int"), true, RegisterVersioned.class);
     }
 

@@ -15,13 +15,13 @@ import swift.exceptions.WrongTypeException;
 
 public class IntegerMergeTest {
     IntegerVersioned i1, i2;
-    TxnHandleForTestingLocalBehaviour txn1, txn2;
+    TxnTester txn1, txn2;
 
-    private IntegerTxnLocal getTxnLocal(IntegerVersioned i, TxnHandleForTestingLocalBehaviour txn) {
+    private IntegerTxnLocal getTxnLocal(IntegerVersioned i, TxnTester txn) {
         return (IntegerTxnLocal) i.getTxnLocalCopy(i.getClock(), txn);
     }
 
-    private void printInformtion(IntegerVersioned i, TxnHandleForTestingLocalBehaviour txn) {
+    private void printInformtion(IntegerVersioned i, TxnTester txn) {
         System.out.println(i.getClock());
         System.out.println(txn.getClock());
         System.out.println(getTxnLocal(i, txn).value());
@@ -32,7 +32,7 @@ public class IntegerMergeTest {
         txn1.updateClock(txn2.getClock());
     }
 
-    private void registerUpdate(int value, IntegerVersioned i, TxnHandleForTestingLocalBehaviour txn) {
+    private void registerUpdate(int value, IntegerVersioned i, TxnTester txn) {
         txn1.registerOperation(i, new IntegerUpdate(txn.nextTimestamp(), value));
     }
 
@@ -45,8 +45,8 @@ public class IntegerMergeTest {
         i2 = new IntegerVersioned();
         i2.setClock(ClockFactory.newClock());
         i2.setPruneClock(ClockFactory.newClock());
-        txn1 = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
-        txn2 = new TxnHandleForTestingLocalBehaviour("client2", ClockFactory.newClock());
+        txn1 = new TxnTester("client1", ClockFactory.newClock());
+        txn2 = new TxnTester("client2", ClockFactory.newClock());
     }
 
     // Merge with empty set

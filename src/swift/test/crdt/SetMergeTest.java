@@ -19,7 +19,7 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
 public class SetMergeTest {
-    TxnHandleForTestingLocalBehaviour txn1, txn2;
+    TxnTester txn1, txn2;
     SetIntegers i1, i2;
 
     private void merge() {
@@ -27,24 +27,24 @@ public class SetMergeTest {
         txn1.updateClock(txn2.getClock());
     }
 
-    private void printInformtion(SetIntegers i, TxnHandleForTestingLocalBehaviour txn) {
+    private void printInformtion(SetIntegers i, TxnTester txn) {
         System.out.println(i.getClock());
         System.out.println(txn.getClock());
         System.out.println(getTxnLocal(i, txn).getValue());
     }
 
-    private TripleTimestamp registerInsert(int value, SetIntegers i, TxnHandleForTestingLocalBehaviour txn) {
+    private TripleTimestamp registerInsert(int value, SetIntegers i, TxnTester txn) {
         TripleTimestamp ts = txn.nextTimestamp();
         txn1.registerOperation(i, new SetInsert<Integer, SetIntegers>(ts, value));
         return ts;
     }
 
     private void registerRemove(int value, Set<TripleTimestamp> rems, SetIntegers i,
-            TxnHandleForTestingLocalBehaviour txn) {
+            TxnTester txn) {
         txn1.registerOperation(i, new SetRemove<Integer, SetIntegers>(txn.nextTimestamp(), value, rems));
     }
 
-    private SetTxnLocalInteger getTxnLocal(SetIntegers i, TxnHandleForTestingLocalBehaviour txn) {
+    private SetTxnLocalInteger getTxnLocal(SetIntegers i, TxnTester txn) {
         return (SetTxnLocalInteger) i.getTxnLocalCopy(i.getClock(), txn);
     }
 
@@ -57,8 +57,8 @@ public class SetMergeTest {
         i2 = new SetIntegers();
         i2.setClock(ClockFactory.newClock());
         i2.setPruneClock(ClockFactory.newClock());
-        txn1 = new TxnHandleForTestingLocalBehaviour("client1", ClockFactory.newClock());
-        txn2 = new TxnHandleForTestingLocalBehaviour("client2", ClockFactory.newClock());
+        txn1 = new TxnTester("client1", ClockFactory.newClock());
+        txn2 = new TxnTester("client2", ClockFactory.newClock());
     }
 
     // Merge with empty set

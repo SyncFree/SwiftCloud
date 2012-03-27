@@ -6,6 +6,7 @@ import java.util.Map;
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
+import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
@@ -17,16 +18,19 @@ import swift.crdt.interfaces.TxnStatus;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
-public class TxnHandleForTestingLocalBehaviour implements TxnHandle {
+public class TxnTester implements TxnHandle {
     private Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
 
-    public TxnHandleForTestingLocalBehaviour(String siteId, CausalityClock cc) {
+    public TxnTester(String siteId, CausalityClock cc) {
+        this(siteId, cc, new IncrementalTimestampGenerator(siteId, 0).generateNew());
+    }
+
+    public TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts) {
         this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
-        this.cc = cc;
-        this.timestampGenerator = new IncrementalTripleTimestampGenerator(
-                new IncrementalTimestampGenerator(siteId, 0).generateNew());
+        this.cc = latestVersion;
+        this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
     }
 
     @SuppressWarnings("unchecked")
