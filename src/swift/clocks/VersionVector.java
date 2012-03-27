@@ -274,4 +274,9 @@ public class VersionVector implements CausalityClock {
         return buf.toString();
     }
 
+    @Override
+    public boolean hasExceptions() {
+        return false;
+    }
+
 }

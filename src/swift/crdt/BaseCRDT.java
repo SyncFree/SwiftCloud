@@ -86,6 +86,12 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
     }
 
+    protected void assertPruneClockWithoutExpceptions(CausalityClock clock) {
+        if (clock.hasExceptions()) {
+            throw new IllegalArgumentException("provided clock has exceptions and cannot be used as prune clock");
+        }
+    }
+
     @Override
     public boolean isRegisteredInStore() {
         return registeredInStore;

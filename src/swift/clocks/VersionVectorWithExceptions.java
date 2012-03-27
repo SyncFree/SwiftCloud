@@ -361,4 +361,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         return buf.toString();
     }
 
+    public boolean hasExceptions() {
+        return excludedTimestamps.isEmpty();
+    }
 }

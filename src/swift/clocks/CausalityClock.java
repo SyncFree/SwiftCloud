@@ -87,4 +87,11 @@ public interface CausalityClock extends Serializable {
      */
     CausalityClock clone();
 
+    /**
+     * Test if version vector has exceptions or holes.
+     * 
+     * @return true if there are exceptions
+     */
+    boolean hasExceptions();
+
 }
