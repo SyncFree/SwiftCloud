@@ -9,6 +9,5 @@ public interface TxnLocalCRDT<V extends CRDT<V>> {
      * 
      * @return
      */
-    public TxnHandle getTxnHandle();
-
+    TxnHandle getTxnHandle();
 }

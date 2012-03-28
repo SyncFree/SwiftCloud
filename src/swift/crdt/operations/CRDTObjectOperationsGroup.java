@@ -21,12 +21,12 @@ import swift.crdt.interfaces.CRDTOperation;
  * 
  * @author mzawirski
  */
-public class CRDTObjectOperationsGroup {
+public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
 
     protected CRDTIdentifier id;
     protected CausalityClock dependencyClock;
     protected Timestamp baseTimestamp;
-    public List<CRDTOperation> operations;
+    public List<CRDTOperation<V>> operations;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -38,7 +38,7 @@ public class CRDTObjectOperationsGroup {
         this.id = id;
         this.dependencyClock = dependencyClock;
         this.baseTimestamp = baseTimestamp;
-        this.operations = new LinkedList<CRDTOperation>();
+        this.operations = new LinkedList<CRDTOperation<V>>();
     }
 
     /**
@@ -66,7 +66,7 @@ public class CRDTObjectOperationsGroup {
      */
     public synchronized void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
         baseTimestamp = newBaseTimestamp;
-        for (CRDTOperation op : operations) {
+        for (CRDTOperation<V> op : operations) {
             op.replaceBaseTimestamp(newBaseTimestamp);
         }
     }
@@ -83,7 +83,7 @@ public class CRDTObjectOperationsGroup {
     public synchronized void replaceDependentTimestamp(Timestamp oldTs, Timestamp newTs) {
         dependencyClock.record(newTs);
         // FIXME: remove (or replace) oldTs from the dependencyClock
-        for (CRDTOperation op : operations) {
+        for (CRDTOperation<V> op : operations) {
             op.replaceDependentOpTimestamp(oldTs, newTs);
         }
     }
@@ -107,8 +107,8 @@ public class CRDTObjectOperationsGroup {
      * @param crdt
      *            object to execute operations on.
      */
-    public synchronized void executeOn(CRDT<?> crdt) {
-        for (final CRDTOperation op : operations) {
+    public synchronized void executeOn(CRDT<V> crdt) {
+        for (final CRDTOperation<V> op : operations) {
             crdt.executeOperation(op);
         }
     }
@@ -132,7 +132,7 @@ public class CRDTObjectOperationsGroup {
      * @param op
      *            next operation to be applied within the transaction
      */
-    public synchronized void append(CRDTOperation op) {
+    public synchronized void append(CRDTOperation<V> op) {
         operations.add(op);
     }
 }

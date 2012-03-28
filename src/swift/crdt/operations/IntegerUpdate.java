@@ -6,8 +6,8 @@ import swift.crdt.IntegerVersioned;
 
 public class IntegerUpdate extends BaseOperation<IntegerVersioned> {
     private int val;
-    
-    //required for kryo
+
+    // required for kryo
     public IntegerUpdate() {
     }
 

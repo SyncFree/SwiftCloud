@@ -41,8 +41,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     protected abstract void pruneImpl(CausalityClock pruningPoint);
 
-    public void merge(V otherObject) {
-        mergePayload(otherObject);
+    public void merge(CRDT<V> otherObject) {
+        mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
         // pruneClock is preserved
         // FIXME: if otherObject has non-versioned updates that we do not have

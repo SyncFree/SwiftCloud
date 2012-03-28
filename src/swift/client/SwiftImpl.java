@@ -193,7 +193,7 @@ public class SwiftImpl implements Swift {
             V receivedCrdt;
             try {
                 receivedCrdt = (V) versionReply.getCrdt();
-                //MAREK: check if this is correct
+                // MAREK: check if this is correct
                 receivedCrdt.setClock(versionReply.getVersion());
                 receivedCrdt.setPruneClock(versionReply.getPruneClock());
             } catch (Exception e) {
@@ -253,9 +253,9 @@ public class SwiftImpl implements Swift {
 
         // And replace old timestamp in operations with timestamp from server.
         final Timestamp timestamp = timestampReplyRef.get().getTimestamp();
-        final LinkedList<CRDTObjectOperationsGroup> operationsGroups = new LinkedList<CRDTObjectOperationsGroup>(
+        final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
                 txn.getOperations());
-        for (final CRDTObjectOperationsGroup opsGroup : operationsGroups) {
+        for (final CRDTObjectOperationsGroup<?> opsGroup : operationsGroups) {
             opsGroup.replaceBaseTimestamp(timestamp);
         }
 

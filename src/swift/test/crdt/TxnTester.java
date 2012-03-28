@@ -84,7 +84,7 @@ public class TxnTester implements TxnHandle {
     }
 
     @Override
-    public void registerOperation(CRDTIdentifier id, CRDTOperation<?> op) {
+    public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTOperation<V> op) {
         // NOP
     }
 
@@ -106,4 +106,5 @@ public class TxnTester implements TxnHandle {
     public CausalityClock getClock() {
         return this.cc;
     }
+
 }

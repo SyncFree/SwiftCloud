@@ -20,7 +20,7 @@ import sys.net.api.rpc.RpcMessage;
 // that require a bit of extra processing at the server (e.g. baseTimestamp and
 // dependency CausalityClock is shared by all updates).
 public class CommitUpdatesRequest implements RpcMessage {
-    protected List<CRDTObjectOperationsGroup> objectUpdateGroups;
+    protected List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
     protected Timestamp baseTimestamp;
 
     /**
@@ -29,7 +29,7 @@ public class CommitUpdatesRequest implements RpcMessage {
     public CommitUpdatesRequest() {
     }
 
-    public CommitUpdatesRequest(final Timestamp baseTimestamp, List<CRDTObjectOperationsGroup> objectUpdateGroups) {
+    public CommitUpdatesRequest(final Timestamp baseTimestamp, List<CRDTObjectOperationsGroup<?>> objectUpdateGroups) {
         this.baseTimestamp = baseTimestamp;
         this.objectUpdateGroups = objectUpdateGroups;
     }
@@ -48,7 +48,7 @@ public class CommitUpdatesRequest implements RpcMessage {
      *         per object and they all share the same base timestamp
      *         {@link #getBaseTimestamp()}
      */
-    public List<CRDTObjectOperationsGroup> getObjectUpdateGroups() {
+    public List<CRDTObjectOperationsGroup<?>> getObjectUpdateGroups() {
         return objectUpdateGroups;
     }
 

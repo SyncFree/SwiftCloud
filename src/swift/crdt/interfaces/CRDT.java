@@ -41,10 +41,10 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
      * 
      * TODO: specify pruneClock behavior
      * 
-     * @param other
+     * @param crdt
      *            object state to merge with
      */
-    void merge(V other);
+    void merge(CRDT<V> crdt);
 
     /**
      * Executes an update operation on this object.

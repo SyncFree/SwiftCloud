@@ -34,7 +34,7 @@ class TxnHandleImpl implements TxnHandle {
     private final Timestamp baseTimestamp;
     private final IncrementalTripleTimestampGenerator timestampSource;
     private final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectsInUse;
-    private final Map<CRDTIdentifier, CRDTObjectOperationsGroup> objectOperations;
+    private final Map<CRDTIdentifier, CRDTObjectOperationsGroup<?>> objectOperations;
     private TxnStatus status;
 
     TxnHandleImpl(final SwiftImpl swift, final CausalityClock snapshotClock, final Timestamp baseTimestamp) {
@@ -42,7 +42,7 @@ class TxnHandleImpl implements TxnHandle {
         this.snapshotClock = snapshotClock.clone();
         this.baseTimestamp = baseTimestamp;
         this.timestampSource = new IncrementalTripleTimestampGenerator(baseTimestamp);
-        this.objectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup>();
+        this.objectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup<?>>();
         this.objectsInUse = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         this.status = TxnStatus.PENDING;
     }
@@ -104,12 +104,13 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     @Override
-    public synchronized void registerOperation(CRDTIdentifier id, CRDTOperation<?> op) {
+    public synchronized <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTOperation<V> op) {
         assertPending();
 
-        CRDTObjectOperationsGroup operationsGroup = objectOperations.get(id);
+        @SuppressWarnings("unchecked")
+        CRDTObjectOperationsGroup<V> operationsGroup = (CRDTObjectOperationsGroup<V>) objectOperations.get(id);
         if (operationsGroup == null) {
-            operationsGroup = new CRDTObjectOperationsGroup(id, getSnapshotClock(), getBaseTimestamp());
+            operationsGroup = new CRDTObjectOperationsGroup<V>(id, getSnapshotClock(), getBaseTimestamp());
             objectOperations.put(id, operationsGroup);
         }
         operationsGroup.append(op);
@@ -120,7 +121,7 @@ class TxnHandleImpl implements TxnHandle {
         status = TxnStatus.COMMITTED_LOCAL;
     }
 
-    synchronized Collection<CRDTObjectOperationsGroup> getOperations() {
+    synchronized Collection<CRDTObjectOperationsGroup<?>> getOperations() {
         // TODO: Hmmm, perhaps COMMITTING state would be a better fit?
         return objectOperations.values();
     }
