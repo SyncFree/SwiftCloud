@@ -74,8 +74,18 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
+        // at least one value should remain after pruning
+        if (values.size() == 1) {
+            return;
+        }
+        // remove all versions older than the pruningPoint
         QueueEntry<V> dummy = new QueueEntry<V>(null, pruningPoint, null);
-        values = values.headSet(dummy);
+        SortedSet<QueueEntry<V>> pruned = values.headSet(dummy);
+        if (pruned.isEmpty()) {
+            pruned = new TreeSet<QueueEntry<V>>();
+            pruned.add(values.first());
+        }
+        values = pruned;
     }
 
     @Override

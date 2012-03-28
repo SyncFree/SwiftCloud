@@ -32,4 +32,8 @@ public class SwiftTester implements Swift {
         local.merge(other);
         latestVersion.merge(otherSwift.latestVersion);
     }
+
+    public <V extends CRDT<V>> void prune(V local, CausalityClock c) {
+        local.prune(c);
+    }
 }

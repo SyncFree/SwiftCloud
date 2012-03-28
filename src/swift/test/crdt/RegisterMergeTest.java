@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.RegisterTxnLocal;
 import swift.crdt.RegisterVersioned;
@@ -113,6 +114,41 @@ public class RegisterMergeTest {
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == -5);
     }
 
-    // TODO Tests for prune
+    @Test
+    public void prune1() {
+        registerUpdate(1, i1, swift1.beginTxn());
+        CausalityClock c = swift1.beginTxn().getClock();
+
+        swift1.prune(i1, c);
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 1);
+
+    }
+
+    @Test
+    public void prune2() {
+        registerUpdate(1, i1, swift1.beginTxn());
+        CausalityClock c = swift1.beginTxn().getClock();
+        registerUpdate(2, i1, swift1.beginTxn());
+
+        swift1.prune(i1, c);
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 2);
+    }
+
+    @Test
+    public void prune3() {
+        for (int i = 0; i < 10; i++) {
+            registerUpdate(i, i1, swift1.beginTxn());
+        }
+        CausalityClock c = swift1.beginTxn().getClock();
+
+        for (int i = 10; i < 20; i++) {
+            registerUpdate(i, i1, swift1.beginTxn());
+        }
+
+        swift1.prune(i1, c);
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 19);
+    }
 
 }

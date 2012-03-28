@@ -7,6 +7,8 @@ public class TesterUtils {
 
     public static void printInformtion(CRDT<?> i, TxnTester txn) {
         System.out.println(i.getClock());
+        System.out.println(i.toString());
+
         System.out.println(txn.getClock());
         System.out.println(getTxnLocal(i, txn).getValue());
     }
