@@ -31,6 +31,7 @@ import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CreateObjectOperation;
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcConnection;
@@ -151,13 +152,24 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp) {
         CRDTIdentifier id = grp.getTargetUID();
         CRDTData<V> data = (CRDTData<V>) getCRDT(id, null);
-        if (data == null)
-            return false;
         Iterator<CRDTOperation<V>> it = grp.operations.iterator();
         while (it.hasNext()) {
             CRDTOperation<V> o = it.next();
             System.out.println("op:" + o);
-            o.applyTo((V) data.crdt);
+            if( o instanceof CreateObjectOperation) {
+                CRDT crdt = ((CreateObjectOperation)o).getCreationState();
+                CausalityClock clk = crdt.getClock();
+                if( clk == null)
+                    clk = ClockFactory.newClock();
+                CausalityClock prune = crdt.getPruneClock();
+                if( prune == null)
+                    prune = ClockFactory.newClock();
+                crdt.setClock(clk);
+                crdt.setPruneClock(prune);
+                putCRDT( id, crdt, clk, prune);  // will merge if obejct exists
+            } else {
+                o.applyTo((V) data.crdt);
+            }
         }
         return true;
     }

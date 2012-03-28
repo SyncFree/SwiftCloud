@@ -30,7 +30,7 @@ public class TestClient {
         System.out.println( "(e,1) = " + i1.getValue());
         handle.commit();
         System.out.println( "commit");
-
+        
         handle = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
         i1 = handle.get( new CRDTIdentifier( "e", "1"), false, swift.crdt.IntegerVersioned.class);
         System.out.println( "(e,1) = " + i1.getValue());
@@ -39,17 +39,6 @@ public class TestClient {
         i1.add(1);
         System.out.println( "(e,1).add(1)");
         System.out.println( "(e,1) = " + i1.getValue());
-        handle.commit();
-        System.out.println( "commit");
-        
-        handle = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
-        i1 = handle.get( new CRDTIdentifier( "t", "1"), true, swift.crdt.IntegerVersioned.class);
-        System.out.println( "(t,1) = " + i1.getValue());
-        i2 = handle.get( new CRDTIdentifier( "t", "2"), true, swift.crdt.IntegerVersioned.class);
-        System.out.println( "(t,2) = " + i2.getValue());
-        i1.add(1);
-        System.out.println( "(t,1).add(1)");
-        System.out.println( "(t,1) = " + i1.getValue());
         handle.commit();
         System.out.println( "commit");
         
@@ -64,6 +53,17 @@ public class TestClient {
         handle.commit();
         System.out.println( "commit");
         
+        handle = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
+        i1 = handle.get( new CRDTIdentifier( "t", "1"), true, swift.crdt.IntegerVersioned.class);
+        System.out.println( "(t,1) = " + i1.getValue());
+        i2 = handle.get( new CRDTIdentifier( "t", "2"), true, swift.crdt.IntegerVersioned.class);
+        System.out.println( "(t,2) = " + i2.getValue());
+        i1.add(1);
+        System.out.println( "(t,1).add(1)");
+        System.out.println( "(t,1) = " + i1.getValue());
+        handle.commit();
+        System.out.println( "commit");
+
         handle = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
         i1 = handle.get( new CRDTIdentifier( "t", "1"), false, swift.crdt.IntegerVersioned.class);
         System.out.println( "(t,1) = " + i1.getValue());
