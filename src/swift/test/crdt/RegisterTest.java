@@ -27,14 +27,14 @@ public class RegisterTest {
 
     @Test
     public void initTest() {
-        assertTrue(i.get() == null);
+        assertTrue(i.getValue() == null);
     }
 
     @Test
     public void setTest() {
         final int incr = 10;
         i.set(incr);
-        assertTrue(incr == i.get());
+        assertTrue(incr == i.getValue());
     }
 
     @Test
@@ -42,7 +42,7 @@ public class RegisterTest {
         final int iterations = 5;
         for (int j = 0; j < iterations; j++) {
             i.set(j);
-            assertTrue(j == i.get());
+            assertTrue(j == i.getValue());
         }
     }
 }

@@ -20,7 +20,7 @@ public class RegisterTxnLocal<V> extends BaseCRDTTxnLocal<RegisterVersioned<V>> 
         registerLocalOperation(new RegisterUpdate<V>(ts, v));
     }
 
-    public V get() {
+    public V getValue() {
         return val;
     }
 

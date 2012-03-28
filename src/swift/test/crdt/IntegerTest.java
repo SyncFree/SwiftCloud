@@ -26,14 +26,14 @@ public class IntegerTest {
 
     @Test
     public void initTest() {
-        assertTrue(i.value() == 0);
+        assertTrue(i.getValue() == 0);
     }
 
     @Test
     public void addTest() {
         final int incr = 10;
         i.add(incr);
-        assertTrue(incr == i.value());
+        assertTrue(incr == i.getValue());
     }
 
     @Test
@@ -42,14 +42,14 @@ public class IntegerTest {
         for (int j = 0; j < incr; j++) {
             i.add(1);
         }
-        assertTrue(incr == i.value());
+        assertTrue(incr == i.getValue());
     }
 
     @Test
     public void subTest() {
         final int decr = 10;
         i.sub(decr);
-        assertTrue(decr == -i.value());
+        assertTrue(decr == -i.getValue());
     }
 
     @Test
@@ -58,7 +58,7 @@ public class IntegerTest {
         for (int j = 0; j < decr; j++) {
             i.sub(1);
         }
-        assertTrue(decr == -i.value());
+        assertTrue(decr == -i.getValue());
     }
 
     @Test
@@ -68,7 +68,7 @@ public class IntegerTest {
         for (int j = 0; j < iterations; j++) {
             i.add(incr);
             i.sub(incr);
-            assertTrue(0 == i.value());
+            assertTrue(0 == i.getValue());
         }
     }
 }

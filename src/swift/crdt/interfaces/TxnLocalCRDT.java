@@ -10,4 +10,12 @@ public interface TxnLocalCRDT<V extends CRDT<V>> {
      * @return
      */
     TxnHandle getTxnHandle();
+
+    /**
+     * Returns the plain object corresponding to the CRDT as given in the
+     * current state of the txn to which is it associated.
+     * 
+     * @return
+     */
+    Object getValue();
 }

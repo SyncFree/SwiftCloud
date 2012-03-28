@@ -14,7 +14,7 @@ public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
         this.val = val;
     }
 
-    public int value() {
+    public Integer getValue() {
         return val;
     }
 

@@ -26,10 +26,8 @@ public class SetMergeTest {
         swift1.merge(i1, i2, swift2);
     }
 
-    private void printInformtion(SetIntegers i, TxnTester txn) {
-        System.out.println(i.getClock());
-        System.out.println(txn.getClock());
-        System.out.println(getTxnLocal(i, txn).getValue());
+    private SetTxnLocalInteger getTxnLocal(SetIntegers i, TxnTester txn) {
+        return (SetTxnLocalInteger) TesterUtils.getTxnLocal(i, txn);
     }
 
     private TripleTimestamp registerInsert(int value, SetIntegers i, TxnTester txn) {
@@ -40,10 +38,6 @@ public class SetMergeTest {
 
     private void registerRemove(int value, Set<TripleTimestamp> rems, SetIntegers i, TxnTester txn) {
         txn.registerOperation(i, new SetRemove<Integer, SetIntegers>(txn.nextTimestamp(), value, rems));
-    }
-
-    private SetTxnLocalInteger getTxnLocal(SetIntegers i, TxnTester txn) {
-        return (SetTxnLocalInteger) i.getTxnLocalCopy(i.getClock(), txn);
     }
 
     @Before
@@ -123,7 +117,7 @@ public class SetMergeTest {
 
         registerInsert(5, i2, swift2.beginTxn());
         merge();
-        printInformtion(i1, swift1.beginTxn());
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
 
