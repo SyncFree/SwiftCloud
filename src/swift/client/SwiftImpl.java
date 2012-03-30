@@ -44,7 +44,8 @@ public class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
 
     private static String generateClientId() {
-        return Long.toHexString(new Random(System.currentTimeMillis()).nextLong());
+        final Random random = new Random(System.currentTimeMillis());
+        return Long.toHexString(System.identityHashCode(random) + random.nextLong());
     }
 
     private final String clientId;
