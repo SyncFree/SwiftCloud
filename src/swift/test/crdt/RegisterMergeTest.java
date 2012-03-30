@@ -137,18 +137,25 @@ public class RegisterMergeTest {
 
     @Test
     public void prune3() {
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             registerUpdate(i, i1, swift1.beginTxn());
         }
-        CausalityClock c = swift1.beginTxn().getClock();
+        CausalityClock c1 = swift1.beginTxn().getClock();
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(i, i1, swift1.beginTxn());
+        }
+        CausalityClock c2 = swift1.beginTxn().getClock();
 
         for (int i = 10; i < 20; i++) {
             registerUpdate(i, i1, swift1.beginTxn());
         }
 
-        swift1.prune(i1, c);
+        swift1.prune(i1, c2);
         TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 19);
-    }
 
+        RegisterTxnLocal locali1 = (RegisterTxnLocal) i1.getTxnLocalCopy(c1, swift2.beginTxn());
+        System.out.println(locali1.getValue());
+    }
 }
