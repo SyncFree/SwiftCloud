@@ -31,7 +31,7 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
             case CMP_CONCURRENT:
             case CMP_EQUALS:
                 if (other.ts == null) {
-                    return -1;
+                    return 1;
                 } else {
                     return other.ts.compareTo(this.ts);
                 }
@@ -79,8 +79,13 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
             return;
         }
         // remove all versions older than the pruningPoint
+        SortedSet<QueueEntry<V>> pruned = new TreeSet<QueueEntry<V>>();
         QueueEntry<V> dummy = new QueueEntry<V>(null, pruningPoint, null);
-        SortedSet<QueueEntry<V>> pruned = values.headSet(dummy);
+        for (QueueEntry<V> e : values) {
+            if (!pruningPoint.includes(e.ts)) {
+                pruned.add(e);
+            }
+        }
         if (pruned.isEmpty()) {
             pruned = new TreeSet<QueueEntry<V>>();
             pruned.add(values.first());

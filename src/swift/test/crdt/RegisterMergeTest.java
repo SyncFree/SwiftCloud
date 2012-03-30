@@ -131,11 +131,11 @@ public class RegisterMergeTest {
         registerUpdate(2, i1, swift1.beginTxn());
 
         swift1.prune(i1, c);
-        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 2);
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException.class)
     public void prune3() {
         for (int i = 0; i < 5; i++) {
             registerUpdate(i, i1, swift1.beginTxn());
@@ -152,10 +152,73 @@ public class RegisterMergeTest {
         }
 
         swift1.prune(i1, c2);
-        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 19);
 
-        RegisterTxnLocal locali1 = (RegisterTxnLocal) i1.getTxnLocalCopy(c1, swift2.beginTxn());
-        System.out.println(locali1.getValue());
+        i1.getTxnLocalCopy(c1, swift2.beginTxn());
     }
+
+    @Test
+    public void mergePruned1() {
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(i + 10, i1, swift1.beginTxn());
+        }
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(i + 20, i2, swift2.beginTxn());
+        }
+        CausalityClock c2 = swift2.beginTxn().getClock();
+        swift2.prune(i2, c2);
+        swift1.merge(i1, i2, swift2);
+
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 14 || result == 24);
+    }
+
+    @Test
+    public void mergePruned2() {
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(i + 10, i1, swift1.beginTxn());
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+        swift1.prune(i1, c1);
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(i + 20, i2, swift2.beginTxn());
+        }
+        swift1.merge(i1, i2, swift2);
+
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 14 || result == 24);
+    }
+
+    @Test
+    public void mergePruned3() {
+        for (int i = 0; i < 2; i++) {
+            registerUpdate(i + 10, i1, swift1.beginTxn());
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+        for (int i = 2; i < 4; i++) {
+            registerUpdate(i + 10, i1, swift1.beginTxn());
+        }
+        swift1.prune(i1, c1);
+
+        for (int i = 0; i < 2; i++) {
+            registerUpdate(i + 20, i2, swift2.beginTxn());
+        }
+
+        CausalityClock c2 = swift2.beginTxn().getClock();
+        for (int i = 2; i < 4; i++) {
+            registerUpdate(i + 20, i2, swift2.beginTxn());
+        }
+        swift2.prune(i2, c2);
+        swift1.merge(i1, i2, swift2);
+
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 13 || result == 23);
+    }
+
 }

@@ -104,7 +104,7 @@ public class TxnTester implements TxnHandle {
     }
 
     public CausalityClock getClock() {
-        return this.cc;
+        return this.cc.clone();
     }
 
 }
