@@ -6,9 +6,9 @@ import sys.net.api.rpc.RpcConnection;
  * Server interface for client-server interaction.
  * <p>
  * This interface defines interaction between clients and a single server, i.e.
- * sessions with affinity. Server can identify originating client using
- * Catadupa/RPC primitives available in messages. For documentation of
- * particular requests, see message definitions.
+ * sessions with affinity. Server can demultiplex different clients using client
+ * id available through {@link ClientRequest#getClientId()}. For documentation
+ * of particular requests, see message definitions.
  * 
  * @author mzawirski
  */

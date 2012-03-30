@@ -3,14 +3,13 @@ package swift.client.proto;
 import swift.crdt.CRDTIdentifier;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to unsubscribe update notifications for an object.
  * 
  * @author mzawirski
  */
-public class UnsubscribeUpdatesRequest implements RpcMessage {
+public class UnsubscribeUpdatesRequest extends ClientRequest {
     protected CRDTIdentifier uid;
 
     /**
@@ -19,7 +18,8 @@ public class UnsubscribeUpdatesRequest implements RpcMessage {
     public UnsubscribeUpdatesRequest() {
     }
 
-    public UnsubscribeUpdatesRequest(CRDTIdentifier uid) {
+    public UnsubscribeUpdatesRequest(String clientId, CRDTIdentifier uid) {
+        super(clientId);
         this.uid = uid;
     }
 

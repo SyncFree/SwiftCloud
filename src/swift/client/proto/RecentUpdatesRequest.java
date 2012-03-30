@@ -3,7 +3,6 @@ package swift.client.proto;
 import swift.clocks.CausalityClock;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request for recent updates on previously subscribed objects (see
@@ -17,7 +16,7 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author mzawirski
  */
-public class RecentUpdatesRequest implements RpcMessage {
+public class RecentUpdatesRequest extends ClientRequest {
     protected CausalityClock lastClock;
 
     /**
@@ -26,7 +25,8 @@ public class RecentUpdatesRequest implements RpcMessage {
     public RecentUpdatesRequest() {
     }
 
-    public RecentUpdatesRequest(final CausalityClock lastClock) {
+    public RecentUpdatesRequest(final String clientId, final CausalityClock lastClock) {
+        super(clientId);
         this.lastClock = lastClock;
     }
 

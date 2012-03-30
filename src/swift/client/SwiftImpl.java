@@ -2,6 +2,7 @@ package swift.client;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -41,6 +42,12 @@ import sys.net.api.rpc.RpcEndpoint;
 
 public class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
+
+    private static String generateClientId() {
+        return Long.toHexString(new Random(System.currentTimeMillis()).nextLong());
+    }
+
+    private final String clientId;
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
     private final ObjectsCache objectsCache;
@@ -52,12 +59,17 @@ public class SwiftImpl implements Swift {
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
     public SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
+        this.clientId = generateClientId();
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = new ObjectsCache();
         this.locallyCommittedTxns = new LinkedList<TxnHandleImpl>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
+    }
+
+    public String getClientId() {
+        return clientId;
     }
 
     @Override
@@ -153,7 +165,7 @@ public class SwiftImpl implements Swift {
 
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
-            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(id, version, false),
+            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, version, false),
                     new FetchObjectVersionReplyHandler() {
                         @Override
                         public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
@@ -206,13 +218,13 @@ public class SwiftImpl implements Swift {
         // WISHME: we should replace it with deltas or operations list
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
-            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(id, crdt.getClock(), version, false),
-                    new FetchObjectVersionReplyHandler() {
-                        @Override
-                        public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                            replyRef.set(reply);
-                        }
-                    });
+            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), version,
+                    false), new FetchObjectVersionReplyHandler() {
+                @Override
+                public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                    replyRef.set(reply);
+                }
+            });
         } while (replyRef.get() == null);
 
         final FetchObjectVersionReply versionReply = replyRef.get();
@@ -277,13 +289,14 @@ public class SwiftImpl implements Swift {
         // Get a timestamp from server.
         final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
         do {
-            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(txn.getGlobalVisibleTransactionsClock(),
-                    previousTimestamp), new GenerateTimestampReplyHandler() {
-                @Override
-                public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
-                    timestampReplyRef.set(reply);
-                }
-            });
+            localEndpoint.send(serverEndpoint,
+                    new GenerateTimestampRequest(clientId, txn.getGlobalVisibleTransactionsClock(), previousTimestamp),
+                    new GenerateTimestampReplyHandler() {
+                        @Override
+                        public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
+                            timestampReplyRef.set(reply);
+                        }
+                    });
         } while (timestampReplyRef.get() == null);
 
         // And replace old timestamp in operations with timestamp from server.
@@ -295,7 +308,7 @@ public class SwiftImpl implements Swift {
         // Commit at server.
         final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
         do {
-            localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(timestamp, operationsGroups),
+            localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, timestamp, operationsGroups),
                     new CommitUpdatesReplyHandler() {
                         @Override
                         public void onReceive(RpcConnection conn, CommitUpdatesReply reply) {

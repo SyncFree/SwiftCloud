@@ -4,7 +4,6 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to keepalive certain state at the server/storage-side.
@@ -13,7 +12,7 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author mzawirski
  */
-public class KeepaliveRequest implements RpcMessage {
+public class KeepaliveRequest extends ClientRequest {
     protected Timestamp timestamp;
     protected CausalityClock version;
 
@@ -23,7 +22,8 @@ public class KeepaliveRequest implements RpcMessage {
     public KeepaliveRequest() {
     }
 
-    public KeepaliveRequest(final Timestamp timestamp, final CausalityClock version) {
+    public KeepaliveRequest(String clientId, final Timestamp timestamp, final CausalityClock version) {
+        super(clientId);
         this.timestamp = timestamp;
         this.version = version;
     }

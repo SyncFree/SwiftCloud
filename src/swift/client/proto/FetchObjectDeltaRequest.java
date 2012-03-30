@@ -4,7 +4,6 @@ import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to get a delta between a known version and a specified version
@@ -12,7 +11,7 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author mzawirski
  */
-public class FetchObjectDeltaRequest extends FetchObjectVersionRequest implements RpcMessage {
+public class FetchObjectDeltaRequest extends FetchObjectVersionRequest {
     protected CausalityClock knownVersion;
 
     /**
@@ -21,9 +20,9 @@ public class FetchObjectDeltaRequest extends FetchObjectVersionRequest implement
     public FetchObjectDeltaRequest() {
     }
 
-    public FetchObjectDeltaRequest(CRDTIdentifier id, CausalityClock knownVersion, CausalityClock version,
-            boolean subscribeUpdates) {
-        super(id, version, subscribeUpdates);
+    public FetchObjectDeltaRequest(String clientId, CRDTIdentifier id, CausalityClock knownVersion,
+            CausalityClock version, boolean subscribeUpdates) {
+        super(clientId, id, version, subscribeUpdates);
         this.knownVersion = knownVersion;
     }
 

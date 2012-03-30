@@ -6,7 +6,6 @@ import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to commit set of updates to the store.
@@ -19,7 +18,7 @@ import sys.net.api.rpc.RpcMessage;
 // TODO: We can consider more space-efficient representation of this message
 // that require a bit of extra processing at the server (e.g. baseTimestamp and
 // dependency CausalityClock is shared by all updates).
-public class CommitUpdatesRequest implements RpcMessage {
+public class CommitUpdatesRequest extends ClientRequest {
     protected List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
     protected Timestamp baseTimestamp;
 
@@ -29,7 +28,9 @@ public class CommitUpdatesRequest implements RpcMessage {
     public CommitUpdatesRequest() {
     }
 
-    public CommitUpdatesRequest(final Timestamp baseTimestamp, List<CRDTObjectOperationsGroup<?>> objectUpdateGroups) {
+    public CommitUpdatesRequest(String clientId, final Timestamp baseTimestamp,
+            List<CRDTObjectOperationsGroup<?>> objectUpdateGroups) {
+        super(clientId);
         this.baseTimestamp = baseTimestamp;
         this.objectUpdateGroups = objectUpdateGroups;
     }

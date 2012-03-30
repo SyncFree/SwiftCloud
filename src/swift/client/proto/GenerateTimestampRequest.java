@@ -4,14 +4,13 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to generate a timestamp for a transaction.
  * 
  * @author mzawirski
  */
-public class GenerateTimestampRequest implements RpcMessage {
+public class GenerateTimestampRequest extends ClientRequest {
     protected CausalityClock dominatedClock;
     protected Timestamp previousTimestamp;
 
@@ -19,7 +18,8 @@ public class GenerateTimestampRequest implements RpcMessage {
     public GenerateTimestampRequest() {
     }
 
-    public GenerateTimestampRequest(CausalityClock dominatedClock, Timestamp previousTimestamp) {
+    public GenerateTimestampRequest(String clientId, CausalityClock dominatedClock, Timestamp previousTimestamp) {
+        super(clientId);
         this.dominatedClock = dominatedClock;
         this.previousTimestamp = previousTimestamp;
     }

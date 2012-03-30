@@ -2,19 +2,22 @@ package swift.client.proto;
 
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Client request to get the latest known clock at the server.
  * 
  * @author mzawirski
  */
-public class LatestKnownClockRequest implements RpcMessage {
+public class LatestKnownClockRequest extends ClientRequest {
 
     /**
      * Constructor for Kryo serialization.
      */
     public LatestKnownClockRequest() {
+    }
+
+    public LatestKnownClockRequest(String clientId) {
+        super(clientId);
     }
 
     @Override
