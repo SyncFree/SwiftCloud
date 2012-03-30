@@ -2,6 +2,8 @@ package swift.client;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import swift.clocks.CausalityClock;
@@ -30,19 +32,23 @@ import swift.exceptions.WrongTypeException;
  */
 class TxnHandleImpl implements TxnHandle {
     private final SwiftImpl swift;
-    private final CausalityClock snapshotClock;
-    private final Timestamp baseTimestamp;
+    private final CausalityClock globalVisibleTransactionsClock;
+    private final LinkedList<TxnHandleImpl> localVisibleTransactions;
+    private final Timestamp localTimestamp;
     private final IncrementalTripleTimestampGenerator timestampSource;
+    private Timestamp globalTimestamp;
     private final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectsInUse;
-    private final Map<CRDTIdentifier, CRDTObjectOperationsGroup<?>> objectOperations;
+    private final Map<CRDTIdentifier, CRDTObjectOperationsGroup<?>> localObjectOperations;
     private TxnStatus status;
 
-    TxnHandleImpl(final SwiftImpl swift, final CausalityClock snapshotClock, final Timestamp baseTimestamp) {
+    TxnHandleImpl(final SwiftImpl swift, final CausalityClock globalVisibleTransactionsClock,
+            final List<TxnHandleImpl> localVisibleTransactions, final Timestamp localTimestamp) {
         this.swift = swift;
-        this.snapshotClock = snapshotClock.clone();
-        this.baseTimestamp = baseTimestamp;
-        this.timestampSource = new IncrementalTripleTimestampGenerator(baseTimestamp);
-        this.objectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup<?>>();
+        this.globalVisibleTransactionsClock = globalVisibleTransactionsClock.clone();
+        this.localVisibleTransactions = new LinkedList<TxnHandleImpl>(localVisibleTransactions);
+        this.localTimestamp = localTimestamp;
+        this.timestampSource = new IncrementalTripleTimestampGenerator(localTimestamp);
+        this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup<?>>();
         this.objectsInUse = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         this.status = TxnStatus.PENDING;
     }
@@ -52,7 +58,7 @@ class TxnHandleImpl implements TxnHandle {
     public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
             Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
             ConsistentSnapshotVersionNotFoundException {
-        assertPending();
+        assertStatus(TxnStatus.PENDING);
 
         try {
             TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectsInUse.get(id);
@@ -68,18 +74,13 @@ class TxnHandleImpl implements TxnHandle {
 
     @Override
     public synchronized void commit(boolean waitForGlobalCommit) {
-        assertPending();
-        // TODO: Support starting another transaction while the previous one is
-        // currently committing at store. (COMMITTED_LOCAL). That requires some
-        // serious rework on how we deal with mapping tentative timestamps to
-        // server timestamps.
-        status = TxnStatus.COMMITTED_STORE;
+        assertStatus(TxnStatus.PENDING);
         swift.commitTxn(this, waitForGlobalCommit);
     }
 
     @Override
     public synchronized void rollback() {
-        assertPending();
+        assertStatus(TxnStatus.PENDING);
         swift.discardTxn(this);
         status = TxnStatus.CANCELLED;
     }
@@ -90,45 +91,110 @@ class TxnHandleImpl implements TxnHandle {
 
     @Override
     public synchronized TripleTimestamp nextTimestamp() {
-        assertPending();
+        assertStatus(TxnStatus.PENDING);
         return timestampSource.generateNew();
     }
 
+    synchronized List<TxnHandleImpl> getLocalVisibleTransactions() {
+        return localVisibleTransactions;
     }
 
-    Timestamp getBaseTimestamp() {
-        return baseTimestamp;
+    synchronized CausalityClock getGlobalVisibleTransactionsClock() {
+        return globalVisibleTransactionsClock;
+    }
+
+    synchronized CausalityClock getAllVisibleTransactionsClock() {
+        final CausalityClock clock = globalVisibleTransactionsClock.clone();
+        for (final TxnHandleImpl txn : localVisibleTransactions) {
+            clock.record(txn.getLocalTimestamp());
+        }
+        return clock;
+    }
+
+    Timestamp getLocalTimestamp() {
+        return localTimestamp;
+    }
+
+    synchronized Timestamp getGlobalTimestamp() {
+        return globalTimestamp;
+    }
+
+    synchronized void notifyFirstLocalVisibleTransactionGlobal() {
+        assertStatus(TxnStatus.COMMITTED_LOCAL);
+
+        final TxnHandleImpl txn = localVisibleTransactions.removeFirst();
+        txn.assertStatus(TxnStatus.COMMITTED_GLOBAL);
+        final Timestamp oldTs = txn.getLocalTimestamp();
+        final Timestamp newTs = txn.getGlobalTimestamp();
+        globalVisibleTransactionsClock.record(newTs);
+
+        for (final CRDTObjectOperationsGroup<?> ops : localObjectOperations.values()) {
+            ops.replaceDependentTimestamp(oldTs, newTs);
+        }
+    }
+
+    synchronized void setGlobalTimestamp(final Timestamp globalTimestamp) {
+        assertStatus(TxnStatus.COMMITTED_LOCAL);
+        if (!localVisibleTransactions.isEmpty()) {
+            throw new IllegalStateException("There is a local dependent transaction that was not globally committed");
+        }
+        this.globalTimestamp = globalTimestamp;
     }
 
     @Override
     public synchronized <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTOperation<V> op) {
-        assertPending();
+        assertStatus(TxnStatus.PENDING);
 
         @SuppressWarnings("unchecked")
-        CRDTObjectOperationsGroup<V> operationsGroup = (CRDTObjectOperationsGroup<V>) objectOperations.get(id);
+        CRDTObjectOperationsGroup<V> operationsGroup = (CRDTObjectOperationsGroup<V>) localObjectOperations.get(id);
         if (operationsGroup == null) {
-            operationsGroup = new CRDTObjectOperationsGroup<V>(id, getSnapshotClock(), getBaseTimestamp());
-            objectOperations.put(id, operationsGroup);
+            operationsGroup = new CRDTObjectOperationsGroup<V>(id, getAllVisibleTransactionsClock(),
+                    getLocalTimestamp(), null);
+            localObjectOperations.put(id, operationsGroup);
         }
         operationsGroup.append(op);
     }
 
     @Override
     public synchronized <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
-    synchronized void notifyLocallyCommitted() {
-        assertPending();
+        final CRDTObjectOperationsGroup<V> operationsGroup = new CRDTObjectOperationsGroup<V>(id,
+                getAllVisibleTransactionsClock(), getLocalTimestamp(), creationState);
+        if (localObjectOperations.put(id, operationsGroup) != null) {
+            throw new IllegalStateException("Object creation operation was preceded by some another operation");
+        }
     }
+
+    synchronized void markLocallyCommitted() {
+        assertStatus(TxnStatus.PENDING);
         status = TxnStatus.COMMITTED_LOCAL;
     }
 
-    synchronized Collection<CRDTObjectOperationsGroup<?>> getOperations() {
-        // TODO: Hmmm, perhaps COMMITTING state would be a better fit?
-        return objectOperations.values();
+    synchronized void markGloballyCommitted() {
+        assertStatus(TxnStatus.COMMITTED_LOCAL);
+        status = TxnStatus.COMMITTED_GLOBAL;
+        // TODO: add async. notification to the application
     }
 
-    private void assertPending() {
-        if (status != TxnStatus.PENDING) {
-            throw new IllegalStateException("Transaction has already terminated");
+    synchronized Collection<CRDTObjectOperationsGroup<?>> getAllLocalOperations() {
+        return localObjectOperations.values();
+    }
+
+    synchronized CRDTObjectOperationsGroup<?> getObjectLocalOperations(CRDTIdentifier id) {
+        return localObjectOperations.get(id);
+    }
+
+    synchronized Collection<CRDTObjectOperationsGroup<?>> getAllGlobalOperations() {
+        final List<CRDTObjectOperationsGroup<?>> objectOperationsGlobal = new LinkedList<CRDTObjectOperationsGroup<?>>();
+        for (final CRDTObjectOperationsGroup<?> localGroup : localObjectOperations.values()) {
+            objectOperationsGlobal.add(localGroup.withBaseTimestamp(globalTimestamp));
+        }
+        return objectOperationsGlobal;
+    }
+
+    private void assertStatus(final TxnStatus expectedStatus) {
+        if (status != expectedStatus) {
+            throw new IllegalStateException("Unexpected transaction status: was " + status + ", expected "
+                    + expectedStatus);
         }
     }
 }

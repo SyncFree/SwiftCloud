@@ -1,6 +1,7 @@
 package swift.client;
 
 import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -42,17 +43,19 @@ public class SwiftImpl implements Swift {
     private static final String CLIENT_CLOCK_ID = "client";
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
-    // TODO: implement LRU-alike eviction
     private final ObjectsCache objectsCache;
+    // Invariant: latestVersion only grows
     private final CausalityClock latestVersion;
     // Invariant: there is at most one pending transaction.
     private TxnHandleImpl pendingTxn;
+    private final LinkedList<TxnHandleImpl> locallyCommittedTxns;
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
     public SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = new ObjectsCache();
+        this.locallyCommittedTxns = new LinkedList<TxnHandleImpl>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
     }
@@ -74,16 +77,50 @@ public class SwiftImpl implements Swift {
                 // retry manager+server failover?
             } while (cp == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
         }
-        pendingTxn = new TxnHandleImpl(this, latestVersion, clientTimestampGenerator.generateNew());
+        // Invariant: snapshotClock (latestVersion) of a new transaction
+        // dominates clock of previous transaction - monotonicity.
+        pendingTxn = new TxnHandleImpl(this, latestVersion, locallyCommittedTxns,
+                clientTimestampGenerator.generateNew());
+        // FIXME: ensure that latestVersion does not contain any committing
+        // transaction's global timestamp - so that the transaction will not
+        // observe doubled updates (i.e. there is no locallyCommittedTxn such
+        // that
+        // latestVersion.include(txn.getGlobalTimestamp()))
         return pendingTxn;
     }
 
-    @SuppressWarnings("unchecked")
-    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getLocalVersion(TxnHandleImpl txn, CRDTIdentifier id,
-            CausalityClock version, boolean create, Class<V> classOfV) throws WrongTypeException,
-            NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id,
+            boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
+            ConsistentSnapshotVersionNotFoundException {
         assertPendingTransaction(txn);
 
+        final CausalityClock storeCommittedVersion = txn.getGlobalVisibleTransactionsClock();
+        V crdt = getObject(id, storeCommittedVersion, create, classOfV);
+
+        final V crdtCopy;
+        final CausalityClock clockCopy;
+        final List<TxnHandleImpl> localDependentTxns = txn.getLocalVisibleTransactions();
+        if (localDependentTxns.isEmpty()) {
+            crdtCopy = crdt;
+            clockCopy = storeCommittedVersion;
+        } else {
+            crdtCopy = crdt.clone();
+            clockCopy = storeCommittedVersion.clone();
+            for (final TxnHandleImpl dependentTxn : localDependentTxns) {
+                final CRDTObjectOperationsGroup<V> localOps = (CRDTObjectOperationsGroup<V>) dependentTxn
+                        .getObjectLocalOperations(id);
+                if (localOps != null) {
+                    crdtCopy.execute(localOps, false);
+                }
+                clockCopy.record(dependentTxn.getLocalTimestamp());
+            }
+        }
+        return crdtCopy.getTxnLocalCopy(clockCopy, txn);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <V extends CRDT<V>> V getObject(CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         V crdt;
         try {
             crdt = (V) objectsCache.get(id);
@@ -104,8 +141,7 @@ public class SwiftImpl implements Swift {
             throw new ConsistentSnapshotVersionNotFoundException(
                     "version consistent with current snapshot is not available in the store");
         }
-        final TxnLocalCRDT<V> crdtCopy = crdt.getTxnLocalCopy(version, txn);
-        return crdtCopy;
+        return crdt;
     }
 
     @SuppressWarnings("unchecked")
@@ -127,6 +163,7 @@ public class SwiftImpl implements Swift {
         } while (replyRef.get() == null);
 
         final FetchObjectVersionReply fetchReply = replyRef.get();
+        final boolean presentInStore;
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
             if (!create) {
@@ -137,6 +174,7 @@ public class SwiftImpl implements Swift {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
+            presentInStore = false;
             break;
         case VERSION_NOT_FOUND:
             // Even though we cannot satisfy application's request, save the
@@ -147,13 +185,12 @@ public class SwiftImpl implements Swift {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
+            presentInStore = true;
             break;
         default:
             throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
         }
-        crdt.setClock(fetchReply.getVersion());
-        crdt.setPruneClock(fetchReply.getPruneClock());
-        crdt.setUID(id);
+        crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), presentInStore);
         objectsCache.add(crdt);
         latestVersion.merge(fetchReply.getVersion());
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
@@ -193,9 +230,6 @@ public class SwiftImpl implements Swift {
             V receivedCrdt;
             try {
                 receivedCrdt = (V) versionReply.getCrdt();
-                // MAREK: check if this is correct
-                receivedCrdt.setClock(versionReply.getVersion());
-                receivedCrdt.setPruneClock(versionReply.getPruneClock());
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
@@ -212,7 +246,7 @@ public class SwiftImpl implements Swift {
         assertPendingTransaction(txn);
 
         // TODO: write disk log?
-        txn.notifyLocallyCommitted();
+        txn.markLocallyCommitted();
         // BIG TODO: Support starting another transaction while the previous one
         // is currently committing at store. Requires some changes in core CRDT
         // classes.
@@ -226,7 +260,7 @@ public class SwiftImpl implements Swift {
             // FIXME: replace timestamps to getPreviousTimestamp()
         }
 
-        for (final CRDTObjectOperationsGroup opsGroup : txn.getOperations()) {
+        for (final CRDTObjectOperationsGroup opsGroup : txn.getAllLocalOperations()) {
             // Try to apply changes in a cached copy of an object.
             final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
             final CMP_CLOCK clockCompare = crdt.getClock().compareTo(opsGroup.getDependency());
@@ -243,22 +277,20 @@ public class SwiftImpl implements Swift {
         // Get a timestamp from server.
         final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
         do {
-            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(txn.getSnapshotClock(), previousTimestamp),
-                    new GenerateTimestampReplyHandler() {
-                        @Override
-                        public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
-                            timestampReplyRef.set(reply);
-                        }
-                    });
+            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(txn.getGlobalVisibleTransactionsClock(),
+                    previousTimestamp), new GenerateTimestampReplyHandler() {
+                @Override
+                public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
+                    timestampReplyRef.set(reply);
+                }
+            });
         } while (timestampReplyRef.get() == null);
 
         // And replace old timestamp in operations with timestamp from server.
         final Timestamp timestamp = timestampReplyRef.get().getTimestamp();
+        txn.setGlobalTimestamp(timestamp);
         final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
-                txn.getOperations());
-        for (final CRDTObjectOperationsGroup<?> opsGroup : operationsGroups) {
-            opsGroup.replaceBaseTimestamp(timestamp);
-        }
+                txn.getAllGlobalOperations());
 
         // Commit at server.
         final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
@@ -272,7 +304,7 @@ public class SwiftImpl implements Swift {
                     });
         } while (commitReplyRef.get() == null);
 
-        // FIXME: look for getCommitTImestamp()
+        // FIXME: look for getCommitTimestamp()
         return commitReplyRef.get();
     }
 
@@ -291,6 +323,13 @@ public class SwiftImpl implements Swift {
         if (!pendingTxn.equals(expectedTxn)) {
             throw new IllegalStateException(
                     "Corrupted state: unexpected transaction is bothering me, not the pending one");
+        }
+    }
+
+    private static class CommitterThread extends Thread {
+        @Override
+        public void run() {
+
         }
     }
 }

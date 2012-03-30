@@ -5,6 +5,7 @@ package swift.crdt.interfaces;
  * 
  * @author mzawirski
  */
+// TODO: define legal transitions
 public enum TxnStatus {
     /**
      * Open and accepts operations.
@@ -24,7 +25,7 @@ public enum TxnStatus {
      * Committed to the store. Operations are (or will be soon) be visible to
      * transactions started at other clients.
      */
-    COMMITTED_STORE(false, true, true, true);
+    COMMITTED_GLOBAL(false, true, true, true);
 
     private final boolean acceptingOps;
     private final boolean terminated;
