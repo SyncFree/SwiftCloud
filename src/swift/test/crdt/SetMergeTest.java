@@ -2,12 +2,15 @@ package swift.test.crdt;
 
 import static org.junit.Assert.assertTrue;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.SetIntegers;
@@ -130,10 +133,135 @@ public class SetMergeTest {
 
         registerSingleInsertTxn(5, i2, swift2);
         merge();
-        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
 
-    // TODO Add tests for pruning!
+    @Test
+    public void prune1() {
+        registerSingleInsertTxn(1, i1, swift1);
+        CausalityClock c = swift1.beginTxn().getClock();
 
+        swift1.prune(i1, c);
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(1));
+    }
+
+    @Test
+    public void prune2() {
+        registerSingleInsertTxn(1, i1, swift1);
+        CausalityClock c = swift1.beginTxn().getClock();
+        registerSingleInsertTxn(2, i1, swift1);
+
+        swift1.prune(i1, c);
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(1));
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(2));
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void prune3() {
+        for (int i = 0; i < 5; i++) {
+            registerSingleInsertTxn(i, i1, swift1);
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+
+        Map<Integer, Set<TripleTimestamp>> rems = new HashMap<Integer, Set<TripleTimestamp>>();
+        for (int i = 0; i < 5; i++) {
+            TripleTimestamp ts = registerSingleInsertTxn(i, i1, swift1);
+            Set<TripleTimestamp> s = new HashSet<TripleTimestamp>();
+            s.add(ts);
+            rems.put(i, s);
+        }
+        CausalityClock c2 = swift1.beginTxn().getClock();
+
+        for (int i = 0; i < 5; i++) {
+            registerSingleRemoveTxn(i, rems.get(i), i1, swift1);
+        }
+
+        swift1.prune(i1, c2);
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        for (int i = 0; i < 5; i++) {
+            assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(i));
+        }
+        // should throw an exception
+        i1.getTxnLocalCopy(c1, swift2.beginTxn());
+    }
+
+    @Test
+    public void mergePruned1() {
+        for (int i = 0; i < 5; i++) {
+            registerSingleInsertTxn(i, i1, swift1);
+        }
+
+        for (int i = 5; i < 10; i++) {
+            registerSingleInsertTxn(i, i2, swift2);
+        }
+        CausalityClock c2 = swift2.beginTxn().getClock();
+        swift2.prune(i2, c2);
+        swift1.merge(i1, i2, swift2);
+
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        for (int i = 0; i < 10; i++) {
+            assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(i));
+        }
+    }
+
+    @Test
+    public void mergePruned2() {
+        for (int i = 0; i < 5; i++) {
+            registerSingleInsertTxn(i, i1, swift1);
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+        swift1.prune(i1, c1);
+
+        for (int i = 5; i < 10; i++) {
+            registerSingleInsertTxn(i, i2, swift2);
+        }
+        swift1.merge(i1, i2, swift2);
+
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        for (int i = 0; i < 10; i++) {
+            assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(i));
+        }
+    }
+
+    @Test
+    public void mergePruned3() {
+
+        Map<Integer, Set<TripleTimestamp>> rems = new HashMap<Integer, Set<TripleTimestamp>>();
+        for (int i = 0; i < 5; i++) {
+            TripleTimestamp ts = registerSingleInsertTxn(i, i1, swift1);
+            Set<TripleTimestamp> s = new HashSet<TripleTimestamp>();
+            s.add(ts);
+            rems.put(i, s);
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+        for (int i = 0; i < 5; i++) {
+            registerSingleRemoveTxn(i, rems.get(i), i1, swift1);
+        }
+        swift1.prune(i1, c1);
+
+        Map<Integer, Set<TripleTimestamp>> rems2 = new HashMap<Integer, Set<TripleTimestamp>>();
+        for (int i = 0; i < 5; i++) {
+            TripleTimestamp ts = registerSingleInsertTxn(i, i1, swift1);
+            Set<TripleTimestamp> s = new HashSet<TripleTimestamp>();
+            s.add(ts);
+            rems2.put(i, s);
+        }
+        CausalityClock c2 = swift2.beginTxn().getClock();
+        for (int i = 0; i < 5; i++) {
+            registerSingleRemoveTxn(i, rems2.get(i), i2, swift2);
+        }
+
+        swift2.prune(i2, c2);
+        swift1.merge(i1, i2, swift2);
+
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        for (int i = 0; i < 6; i++) {
+            assertTrue(!getTxnLocal(i1, swift1.beginTxn()).lookup(i));
+        }
+
+        swift1.prune(i1, swift1.beginTxn().getClock());
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+    }
 }
