@@ -207,7 +207,8 @@ public class SwiftImpl implements Swift {
         latestVersion.merge(versionReply.getVersion());
     }
 
-    public synchronized void commitTxn(TxnHandleImpl txn) {
+    public synchronized void commitTxn(TxnHandleImpl txn, boolean waitForGlobalCommit) {
+        // TODO: honor the flag
         assertPendingTransaction(txn);
 
         // TODO: write disk log?

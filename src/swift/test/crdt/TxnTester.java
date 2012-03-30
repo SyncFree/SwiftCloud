@@ -64,7 +64,7 @@ public class TxnTester implements TxnHandle {
     }
 
     @Override
-    public void commit() {
+    public void commit(boolean waitForStore) {
         throw new RuntimeException("Not supported for testing!");
     }
 
@@ -76,11 +76,6 @@ public class TxnTester implements TxnHandle {
     @Override
     public TripleTimestamp nextTimestamp() {
         return timestampGenerator.generateNew();
-    }
-
-    @Override
-    public CausalityClock getSnapshotClock() {
-        throw new RuntimeException("Not supported for testing!");
     }
 
     @Override

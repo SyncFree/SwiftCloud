@@ -1,6 +1,5 @@
 package swift.crdt.interfaces;
 
-import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
@@ -8,17 +7,27 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
 /**
- * Interface for transaction handles.
+ * Representation of transaction, a basic unit of application interaction with
+ * the Swift system. All read of objects accessed through a transaction (
+ * {@link #get(CRDTIdentifier, boolean, Class)}) constitute some consistent
+ * snapshot of the system. All updates issued on these objects within
+ * transaction become atomically visible to other transactions after commit (
+ * {@link #commit(boolean)}).
  * 
  * @author annettebieniusa
  * 
  */
 public interface TxnHandle {
-    // TODO specify fail mode/timeout for get() - if we support disconnected
-    // operations, it cannot be that a synchronous call fits everything.
     /**
      * Returns an object of the provided identifier. If object is not in the
      * store, the
+     * <p>
+     * This call may block if no appropriate (consistent) version of an object
+     * is available in the local cache of the client, as it requires
+     * communication with server in thatcase.
+     * 
+     * TODO specify fail mode/timeout for get() - if we support disconnected
+     * operations, it cannot be that a synchronous call fits everything.
      * 
      * @param id
      * @param create
@@ -26,18 +35,32 @@ public interface TxnHandle {
      * @return
      * @throws WrongTypeException
      * @throws NoSuchObjectException
+     * @throws IllegalStateException
+     *             when transaction is already committed or rolled back
      */
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
             throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
 
     /**
      * Commits the transaction.
+     * 
+     * TODO: add notification mechanism for async. global commit
+     * 
+     * @param waitForGlobalCommit
+     *            when true, blocks until the transaction reaches the store;
+     *            when false, awaits only local commit and commits at the store
+     *            asynchronously
+     * @throws IllegalStateException
+     *             when transaction is already committed or rolled back
      */
-    void commit();
+    void commit(boolean waitForGlobalCommit);
 
     /**
      * Abandons the transaction and reverts any updates that were executed under
      * this transaction.
+     * 
+     * @throws IllegalStateException
+     *             when transaction is already committed or rolled back
      */
     void rollback();
 
@@ -54,16 +77,8 @@ public interface TxnHandle {
     TripleTimestamp nextTimestamp();
 
     /**
-     * Returns the causality clock associated to this transaction handle. Only
-     * called by system.
-     * 
-     * @return
-     */
-    CausalityClock getSnapshotClock();
-
-    /**
-     * Registers a new CRDT operation on an object in this transaction. Only
-     * called by system (CRDT) object.
+     * Registers a new CRDT operation on an object in this transaction. Called
+     * only called by system (CRDT) object.
      * 
      * @param id
      *            object identifier
@@ -71,4 +86,10 @@ public interface TxnHandle {
      *            operation
      */
     <V extends CRDT<V>> void registerOperation(final CRDTIdentifier id, CRDTOperation<V> op);
+
+    /**
+     * 
+     * @param id
+     *            object identifier
+     */
 }

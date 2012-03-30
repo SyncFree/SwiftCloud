@@ -66,7 +66,7 @@ public class LocalSetUpTest {
             // i1.add(1);
             // System.out.println("(e,1).add(1)");
             // System.out.println("(e,1) = " + i1.getValue());
-            handle.commit();
+            handle.commit(true);
             // System.out.println("commit");
 
             System.out.println(Thread.currentThread().getName() + " finished successfully!");

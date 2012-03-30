@@ -67,14 +67,14 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     @Override
-    public synchronized void commit() {
+    public synchronized void commit(boolean waitForGlobalCommit) {
         assertPending();
-        swift.commitTxn(this);
         // TODO: Support starting another transaction while the previous one is
         // currently committing at store. (COMMITTED_LOCAL). That requires some
         // serious rework on how we deal with mapping tentative timestamps to
         // server timestamps.
         status = TxnStatus.COMMITTED_STORE;
+        swift.commitTxn(this, waitForGlobalCommit);
     }
 
     @Override
@@ -94,9 +94,6 @@ class TxnHandleImpl implements TxnHandle {
         return timestampSource.generateNew();
     }
 
-    @Override
-    public CausalityClock getSnapshotClock() {
-        return snapshotClock;
     }
 
     Timestamp getBaseTimestamp() {
