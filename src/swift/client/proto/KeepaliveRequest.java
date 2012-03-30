@@ -24,6 +24,8 @@ public class KeepaliveRequest implements RpcMessage {
     }
 
     public KeepaliveRequest(final Timestamp timestamp, final CausalityClock version) {
+        this.timestamp = timestamp;
+        this.version = version;
     }
 
     /**
