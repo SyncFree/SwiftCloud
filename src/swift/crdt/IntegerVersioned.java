@@ -205,10 +205,11 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
             }
 
             String siteId = updatesPerSite.getKey();
-            Integer priorPruneValue = pruneVector.get(siteId).getFirst();
-            if (priorPruneValue == null) {
+            Pair<Integer, TripleTimestamp> priorPruned = pruneVector.get(siteId);
+            if (priorPruned == null || priorPruned.getFirst() == null) {
                 pruneVector.put(siteId, new Pair<Integer, TripleTimestamp>(delta, pruneMax));
             } else {
+                Integer priorPruneValue = priorPruned.getFirst();
                 pruneVector.put(siteId, new Pair<Integer, TripleTimestamp>(priorPruneValue + delta, pruneMax));
             }
             sumOfDeltas += delta;

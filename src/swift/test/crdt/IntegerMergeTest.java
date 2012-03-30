@@ -5,6 +5,7 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
@@ -101,6 +102,111 @@ public class IntegerMergeTest {
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == -5);
     }
 
-    // TODO Tests for prune
+    @Test
+    public void prune1() {
+        registerUpdate(1, i1, swift1.beginTxn());
+        CausalityClock c = swift1.beginTxn().getClock();
+
+        swift1.prune(i1, c);
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 1);
+
+    }
+
+    @Test
+    public void prune2() {
+        registerUpdate(1, i1, swift1.beginTxn());
+        CausalityClock c = swift1.beginTxn().getClock();
+        registerUpdate(2, i1, swift1.beginTxn());
+
+        swift1.prune(i1, c);
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 3);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void prune3() {
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+        CausalityClock c2 = swift1.beginTxn().getClock();
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+
+        swift1.prune(i1, c2);
+        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 15);
+
+        i1.getTxnLocalCopy(c1, swift2.beginTxn());
+    }
+
+    @Test
+    public void mergePruned1() {
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i2, swift2.beginTxn());
+        }
+        CausalityClock c2 = swift2.beginTxn().getClock();
+        swift2.prune(i2, c2);
+        swift1.merge(i1, i2, swift2);
+
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 10);
+    }
+
+    @Test
+    public void mergePruned2() {
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+        swift1.prune(i1, c1);
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i2, swift2.beginTxn());
+        }
+        swift1.merge(i1, i2, swift2);
+
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 10);
+    }
+
+    @Test
+    public void mergePruned3() {
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+        CausalityClock c1 = swift1.beginTxn().getClock();
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i1, swift1.beginTxn());
+        }
+        swift1.prune(i1, c1);
+
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i2, swift2.beginTxn());
+        }
+
+        CausalityClock c2 = swift2.beginTxn().getClock();
+        for (int i = 0; i < 5; i++) {
+            registerUpdate(1, i2, swift2.beginTxn());
+        }
+        swift2.prune(i2, c2);
+        swift1.merge(i1, i2, swift2);
+
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 20);
+    }
 
 }
