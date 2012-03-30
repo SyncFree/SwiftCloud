@@ -113,8 +113,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     }
 
     @Override
-    public void setRegisteredInStore(boolean createdInStore) {
-        this.registeredInStore = createdInStore;
+    public void markRegisteredInStore() {
+        this.registeredInStore = true;
     }
 
     @Override

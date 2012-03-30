@@ -19,14 +19,4 @@ public abstract class BaseOperation<V extends CRDT<V>> implements CRDTOperation<
     public TripleTimestamp getTimestamp() {
         return this.ts;
     }
-
-    @Override
-    public boolean hasCreationState() {
-        return false;
-    }
-
-    @Override
-    public V getCreationState() {
-        return null;
-    }
 }

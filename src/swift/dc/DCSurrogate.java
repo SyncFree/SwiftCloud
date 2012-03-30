@@ -31,7 +31,6 @@ import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import swift.crdt.operations.CreateObjectOperation;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
 import swift.dc.proto.CommitTSRequest;
@@ -115,46 +114,23 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock version) {
         CRDTIdentifier id = grp.getTargetUID();
         CRDTData<?> data = getCRDT(id, null);
-        Iterator<CRDTOperation<V>> it = grp.operations.iterator();
         if (data == null) {
-            if (it.hasNext()) {
-                CRDTOperation<V> o = it.next();
-                System.out.println("op:" + o + " for id : " + id);
-                if (o instanceof CreateObjectOperation) {
-                    CRDT crdt = ((CreateObjectOperation) o).getCreationState();
-                    CausalityClock clk = grp.getDependency();
-                    if (clk == null) {
-                        clk = ClockFactory.newClock();
-                    }
-                    CausalityClock prune = ClockFactory.newClock();
-                    crdt.init(id, clk, prune, true);
-                    data = putCRDT(id, crdt, clk, prune); // will merge if
-                                                          // obejct exists
-                } else
-                    return false; // first operation should have been a create
-                                  // object
+            if (!grp.hasCreationState()) {
+                return false;
             }
+            CRDT crdt = grp.getCreationState();
+            CausalityClock clk = grp.getDependency();
+            if (clk == null) {
+                clk = ClockFactory.newClock();
+            }
+            CausalityClock prune = ClockFactory.newClock();
+            crdt.init(id, clk, prune, true);
+            data = putCRDT(id, crdt, clk, prune); // will merge if object exists
         }
 
         synchronized (data) {
-
-            while (it.hasNext()) {
-                CRDTOperation<V> o = it.next();
-                System.out.println("op:" + o + " for id : " + id);
-                if (o instanceof CreateObjectOperation) {
-                    CRDT crdt = ((CreateObjectOperation) o).getCreationState();
-                    CausalityClock clk = grp.getDependency();
-                    if (clk == null) {
-                        clk = ClockFactory.newClock();
-                    }
-                    CausalityClock prune = ClockFactory.newClock();
-                    crdt.init(id, clk, prune, true);
-                    data = putCRDT(id, crdt, clk, prune); // will merge if
-                                                          // obejct exists
-                } else {
-                    o.applyTo((V) data.crdt);
-                }
-            }
+            // TODO: Discuss the "checkDependency = false" choice I made here.
+            data.crdt.execute((CRDTObjectOperationsGroup) grp, false);
         }
         return true;
     }
@@ -239,7 +215,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
     }
 
     @Override
-    public void onReceive( final RpcConnection conn, CommitUpdatesRequest request) {
+    public void onReceive(final RpcConnection conn, CommitUpdatesRequest request) {
         System.err.println("CommitUpdatesRequest");
         List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp ts = request.getBaseTimestamp();
@@ -254,20 +230,20 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
             version.record(ts);
         }
         final boolean txResult = ok;
-        //TODO: handle failure
-        
-        sequencerClientEndpoint.send(sequencerServerEndpoint, 
-                new CommitTSRequest(ts, version, ok), new CommitTSReplyHandler() {
-            @Override
-            public void onReceive(RpcConnection conn0, CommitTSReply reply) {
-                System.err.println("Commit: received CommitTSRequest");
-                if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
-                    conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
-                } else {
-                    conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.INVALID_OPERATION, ts));
-                }
-            }
-        });
+        // TODO: handle failure
+
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, version, ok),
+                new CommitTSReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn0, CommitTSReply reply) {
+                        System.err.println("Commit: received CommitTSRequest");
+                        if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                            conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
+                        } else {
+                            conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.INVALID_OPERATION, ts));
+                        }
+                    }
+                });
     }
 
     @Override

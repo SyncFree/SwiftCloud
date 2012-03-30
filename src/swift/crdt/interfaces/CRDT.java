@@ -158,9 +158,9 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
     boolean isRegisteredInStore();
 
     /**
-     * @see #isRegisteredInStore()
+     * Marks crdt as registered in store.
      */
-    void setRegisteredInStore(boolean registeredInStore);
+    void markRegisteredInStore();
 
     /**
      * @return a deep copy of this object

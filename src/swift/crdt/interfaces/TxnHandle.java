@@ -88,8 +88,17 @@ public interface TxnHandle {
     <V extends CRDT<V>> void registerOperation(final CRDTIdentifier id, CRDTOperation<V> op);
 
     /**
+     * Registers a creation of CRDT object with a given initial empty state,
+     * identified by the specified id. Called only called by system (CRDT)
+     * object.
+     * <p>
+     * Creation can be registered before any other operation is registered and
+     * can be done only once in a transaction.
      * 
      * @param id
      *            object identifier
+     * @param creationState
+     *            initial empty state of an object
      */
+    <V extends CRDT<V>> void registerObjectCreation(final CRDTIdentifier id, V creationState);
 }

@@ -27,7 +27,8 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
     protected CRDTIdentifier id;
     protected CausalityClock dependencyClock;
     protected Timestamp baseTimestamp;
-    public List<CRDTOperation<V>> operations;
+    protected List<CRDTOperation<V>> operations;
+    protected V creationState;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -43,11 +44,13 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      *            dependency for this group of operations; clock is not copied
      * @param baseTimestamp
      */
-    public CRDTObjectOperationsGroup(CRDTIdentifier id, CausalityClock dependencyClock, Timestamp baseTimestamp) {
+    public CRDTObjectOperationsGroup(CRDTIdentifier id, CausalityClock dependencyClock, Timestamp baseTimestamp,
+            V creationState) {
         this.id = id;
         this.dependencyClock = dependencyClock;
         this.baseTimestamp = baseTimestamp;
         this.operations = new LinkedList<CRDTOperation<V>>();
+        this.creationState = creationState;
     }
 
     /**
@@ -75,7 +78,7 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      */
     public synchronized CRDTObjectOperationsGroup<V> withBaseTimestamp(Timestamp otherBaseTimestamp) {
         final CRDTObjectOperationsGroup<V> copy = new CRDTObjectOperationsGroup<V>(id, dependencyClock.clone(),
-                otherBaseTimestamp);
+                otherBaseTimestamp, creationState);
         for (final CRDTOperation<V> op : operations) {
             copy.append(op.withBaseTimestamp(otherBaseTimestamp));
         }
@@ -129,5 +132,20 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      */
     public synchronized void append(CRDTOperation<V> op) {
         operations.add(op);
+    }
+
+    /**
+     * @return true if this is a create operations containing initial state
+     */
+    public boolean hasCreationState() {
+        return creationState != null;
+    }
+
+    /**
+     * @return initial state of an object; null if {@link #hasCreationState()}
+     *         is false
+     */
+    public V getCreationState() {
+        return creationState;
     }
 }

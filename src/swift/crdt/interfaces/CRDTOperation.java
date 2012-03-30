@@ -39,14 +39,6 @@ public interface CRDTOperation<V extends CRDT<V>> {
      * 
      * @param crdt
      *            object where operation is applied
-     * @return true if this is a create operations containing initial state
-     */
-    boolean hasCreationState();
-
-    /**
-     * @return initial state of an object; null if {@link #hasCreationState()}
-     *         is false
      */
     void applyTo(V crdt);
-    V getCreationState();
 }

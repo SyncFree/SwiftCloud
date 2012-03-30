@@ -5,7 +5,6 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.operations.CreateObjectOperation;
 
 public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRDT<V> {
     private final TxnHandle txn;
@@ -15,7 +14,7 @@ public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRD
         this.txn = txn;
         this.id = id;
         if (creationState != null) {
-            registerLocalOperation(new CreateObjectOperation<V>(nextTimestamp(), creationState));
+            txn.registerObjectCreation(this.id, creationState);
         }
     }
 

@@ -113,8 +113,11 @@ class TxnHandleImpl implements TxnHandle {
         operationsGroup.append(op);
     }
 
+    @Override
+    public synchronized <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
     synchronized void notifyLocallyCommitted() {
         assertPending();
+    }
         status = TxnStatus.COMMITTED_LOCAL;
     }
 
