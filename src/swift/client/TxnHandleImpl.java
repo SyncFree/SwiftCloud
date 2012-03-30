@@ -119,7 +119,7 @@ class TxnHandleImpl implements TxnHandle {
         return globalTimestamp;
     }
 
-    synchronized void notifyFirstLocalVisibleTransactionGlobal() {
+    synchronized void markFirstLocalVisibleTransactionGlobal() {
         assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         final TxnHandleImpl txn = localVisibleTransactions.removeFirst();

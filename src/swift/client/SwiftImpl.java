@@ -40,7 +40,15 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
 
+/**
+ * TODO: document & test
+ * 
+ * @author mzawirski
+ */
 public class SwiftImpl implements Swift {
+    // TODO: FOR ALL REQUESTS: implement generic exponential backoff
+    // retry manager+server failover?
+
     private static final String CLIENT_CLOCK_ID = "client";
 
     private static String generateClientId() {
@@ -52,7 +60,7 @@ public class SwiftImpl implements Swift {
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
     private final ObjectsCache objectsCache;
-    // Invariant: latestVersion only grows
+    // Invariant: latestVersion only grows.
     private final CausalityClock latestVersion;
     // Invariant: there is at most one pending transaction.
     private TxnHandleImpl pendingTxn;
@@ -76,6 +84,7 @@ public class SwiftImpl implements Swift {
     @Override
     public synchronized TxnHandle beginTxn(CachePolicy cp, boolean readOnly) {
         assertNoPendingTransaction();
+
         if (cp == CachePolicy.MOST_RECENT || cp == CachePolicy.STRICTLY_MOST_RECENT) {
             final AtomicBoolean doneFlag = new AtomicBoolean(false);
             do {
@@ -86,8 +95,6 @@ public class SwiftImpl implements Swift {
                         doneFlag.set(true);
                     }
                 });
-                // TODO: FOR ALL REQUESTS: implement generic exponential backoff
-                // retry manager+server failover?
             } while (cp == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
         }
         // Invariant: snapshotClock (latestVersion) of a new transaction
@@ -97,8 +104,9 @@ public class SwiftImpl implements Swift {
         // FIXME: ensure that latestVersion does not contain any committing
         // transaction's global timestamp - so that the transaction will not
         // observe doubled updates (i.e. there is no locallyCommittedTxn such
-        // that
-        // latestVersion.include(txn.getGlobalTimestamp()))
+        // that latestVersion.include(txn.getGlobalTimestamp())); that would
+        // prevent a potential race condition caused by concurrency of
+        // commitment
         return pendingTxn;
     }
 
@@ -107,18 +115,18 @@ public class SwiftImpl implements Swift {
             ConsistentSnapshotVersionNotFoundException {
         assertPendingTransaction(txn);
 
-        final CausalityClock storeCommittedVersion = txn.getGlobalVisibleTransactionsClock();
-        V crdt = getObject(id, storeCommittedVersion, create, classOfV);
+        final CausalityClock globalVisibleClock = txn.getGlobalVisibleTransactionsClock();
+        V crdt = getObject(id, globalVisibleClock, create, classOfV);
 
         final V crdtCopy;
         final CausalityClock clockCopy;
         final List<TxnHandleImpl> localDependentTxns = txn.getLocalVisibleTransactions();
         if (localDependentTxns.isEmpty()) {
             crdtCopy = crdt;
-            clockCopy = storeCommittedVersion;
+            clockCopy = globalVisibleClock;
         } else {
             crdtCopy = crdt.clone();
-            clockCopy = storeCommittedVersion.clone();
+            clockCopy = globalVisibleClock.clone();
             for (final TxnHandleImpl dependentTxn : localDependentTxns) {
                 final CRDTObjectOperationsGroup<V> localOps = (CRDTObjectOperationsGroup<V>) dependentTxn
                         .getObjectLocalOperations(id);
@@ -132,8 +140,9 @@ public class SwiftImpl implements Swift {
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> V getObject(CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    private <V extends CRDT<V>> V getObject(CRDTIdentifier id, CausalityClock globalVisibleClock, boolean create,
+            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
+            ConsistentSnapshotVersionNotFoundException {
         V crdt;
         try {
             crdt = (V) objectsCache.get(id);
@@ -142,14 +151,14 @@ public class SwiftImpl implements Swift {
         }
 
         if (crdt == null) {
-            crdt = retrieveObject(id, version, create, classOfV);
+            crdt = retrieveObject(id, globalVisibleClock, create, classOfV);
         } else {
-            final CMP_CLOCK clockCmp = crdt.getClock().compareTo(version);
+            final CMP_CLOCK clockCmp = crdt.getClock().compareTo(globalVisibleClock);
             if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
-                refreshObject(id, version, classOfV, crdt);
+                refreshObject(id, globalVisibleClock, classOfV, crdt);
             }
         }
-        final CMP_CLOCK clockCmp = version.compareTo(crdt.getPruneClock());
+        final CMP_CLOCK clockCmp = globalVisibleClock.compareTo(crdt.getPruneClock());
         if (clockCmp == CMP_CLOCK.CMP_ISDOMINATED || clockCmp == CMP_CLOCK.CMP_CONCURRENT) {
             throw new ConsistentSnapshotVersionNotFoundException(
                     "version consistent with current snapshot is not available in the store");
@@ -158,7 +167,7 @@ public class SwiftImpl implements Swift {
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> V retrieveObject(CRDTIdentifier id, CausalityClock version, boolean create,
+    private <V extends CRDT<V>> V retrieveObject(CRDTIdentifier id, CausalityClock globalVisibleClock, boolean create,
             Class<V> classOfV) throws NoSuchObjectException, WrongTypeException,
             ConsistentSnapshotVersionNotFoundException {
         V crdt = null;
@@ -166,7 +175,7 @@ public class SwiftImpl implements Swift {
 
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
-            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, version, false),
+            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, globalVisibleClock, false),
                     new FetchObjectVersionReplyHandler() {
                         @Override
                         public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
@@ -214,13 +223,14 @@ public class SwiftImpl implements Swift {
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, CausalityClock version, Class<V> classOfV, V crdt)
-            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException {
+    private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, CausalityClock globalVisibleClock,
+            Class<V> classOfV, V crdt) throws NoSuchObjectException, WrongTypeException,
+            ConsistentSnapshotVersionNotFoundException {
         // WISHME: we should replace it with deltas or operations list
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
-            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), version,
-                    false), new FetchObjectVersionReplyHandler() {
+            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(),
+                    globalVisibleClock, false), new FetchObjectVersionReplyHandler() {
                 @Override
                 public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
                     replyRef.set(reply);
@@ -283,6 +293,8 @@ public class SwiftImpl implements Swift {
             }
             crdt.execute(opsGroup, false);
         }
+        // FIXME: latestVersion, removing dependent txn... move to
+        // CommitingThread
         pendingTxn = null;
     }
 
