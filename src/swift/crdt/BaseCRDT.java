@@ -6,6 +6,7 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 
 public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
@@ -14,22 +15,20 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected transient CRDTIdentifier id;
     protected transient boolean registeredInStore;
 
+    @Override
+    public void init(CRDTIdentifier id, CausalityClock clock, CausalityClock pruneClock, boolean registeredInStore) {
+        this.id = id;
+        this.updatesClock = clock;
+        this.pruneClock = pruneClock;
+        this.registeredInStore = registeredInStore;
+    }
+
     public CausalityClock getClock() {
         return updatesClock;
     }
 
-    @Override
-    public void setClock(CausalityClock c) {
-        this.updatesClock = c;
-    }
-
     public CausalityClock getPruneClock() {
         return pruneClock;
-    }
-
-    @Override
-    public void setPruneClock(CausalityClock c) {
-        this.pruneClock = c;
     }
 
     @Override
@@ -52,21 +51,37 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected abstract void mergePayload(V otherObject);
 
     @Override
-    public void executeOperation(CRDTOperation<V> op) {
-        executeImpl(op);
-        getClock().record(op.getTimestamp());
-    }
+    public boolean execute(CRDTObjectOperationsGroup<V> ops, boolean checkDependency) {
+        if (pruneClock.includes(ops.getBaseTimestamp())) {
+            throw new IllegalStateException("Operations group origin prior to the pruning point");
+        }
+        final CausalityClock dependencyClock = ops.getDependency();
+        if (checkDependency) {
+            final CMP_CLOCK dependencyCmp = updatesClock.compareTo(dependencyClock);
+            if (dependencyCmp == CMP_CLOCK.CMP_ISDOMINATED || dependencyCmp == CMP_CLOCK.CMP_CONCURRENT) {
+                throw new IllegalStateException("Object does not meet operation's dependencies");
+            }
+        } else {
+            // TODO: Discuss this approach.
+            updatesClock.merge(dependencyClock);
+        }
+        if (!updatesClock.record(ops.getBaseTimestamp())) {
+            // Operations group is already included in the state.
+            return false;
+        }
 
-    protected abstract void executeImpl(CRDTOperation<V> op);
+        for (final CRDTOperation<V> op : ops.getOperations()) {
+            // TODO: either leave this cast as is (same as in merge()) or use
+            // an indirection method execute(CRDTOperation<V>) to avoid it.
+            op.applyTo((V) this);
+        }
+        updatesClock.record(ops.getBaseTimestamp());
+        return true;
+    }
 
     @Override
     public CRDTIdentifier getUID() {
         return this.id;
-    }
-
-    @Override
-    public void setUID(CRDTIdentifier id) {
-        this.id = id;
     }
 
     public TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn) {
@@ -82,7 +97,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
         final CMP_CLOCK clockCmp = getPruneClock().compareTo(clock);
         if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
-            throw new IllegalArgumentException("provided clock is not higher or equal to the prune clock");
+            throw new IllegalStateException("provided clock is not higher or equal to the prune clock");
         }
     }
 
@@ -101,4 +116,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     public void setRegisteredInStore(boolean createdInStore) {
         this.registeredInStore = createdInStore;
     }
+
+    @Override
+    public abstract V clone();
 }

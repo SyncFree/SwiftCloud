@@ -30,10 +30,25 @@ public class SetMergeTest {
         return (SetTxnLocalInteger) TesterUtils.getTxnLocal(i, txn);
     }
 
+    private TripleTimestamp registerSingleInsertTxn(int value, SetIntegers i, SwiftTester swift) {
+        final TxnTester txn = swift.beginTxn();
+        try {
+            return registerInsert(value, i, txn);
+        } finally {
+            txn.commit(true);
+        }
+    }
+
     private TripleTimestamp registerInsert(int value, SetIntegers i, TxnTester txn) {
         TripleTimestamp ts = txn.nextTimestamp();
         txn.registerOperation(i, new SetInsert<Integer, SetIntegers>(ts, value));
         return ts;
+    }
+
+    private void registerSingleRemoveTxn(int value, Set<TripleTimestamp> rems, SetIntegers i, SwiftTester swift) {
+        final TxnTester txn = swift.beginTxn();
+        registerRemove(value, rems, i, txn);
+        txn.commit(true);
     }
 
     private void registerRemove(int value, Set<TripleTimestamp> rems, SetIntegers i, TxnTester txn) {
@@ -43,12 +58,10 @@ public class SetMergeTest {
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         i1 = new SetIntegers();
-        i1.setClock(ClockFactory.newClock());
-        i1.setPruneClock(ClockFactory.newClock());
+        i1.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
 
         i2 = new SetIntegers();
-        i2.setClock(ClockFactory.newClock());
-        i2.setPruneClock(ClockFactory.newClock());
+        i2.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
         swift1 = new SwiftTester("client1");
         swift2 = new SwiftTester("client2");
     }
@@ -56,7 +69,7 @@ public class SetMergeTest {
     // Merge with empty set
     @Test
     public void mergeEmpty1() {
-        registerInsert(5, i1, swift1.beginTxn());
+        registerSingleInsertTxn(5, i1, swift1);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
@@ -64,15 +77,15 @@ public class SetMergeTest {
     // Merge with empty set
     @Test
     public void mergeEmpty2() {
-        registerInsert(5, i2, swift2.beginTxn());
+        registerSingleInsertTxn(5, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
 
     @Test
     public void mergeNonEmpty() {
-        registerInsert(5, i1, swift1.beginTxn());
-        registerInsert(6, i2, swift2.beginTxn());
+        registerSingleInsertTxn(5, i1, swift1);
+        registerSingleInsertTxn(6, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(6));
@@ -80,42 +93,42 @@ public class SetMergeTest {
 
     @Test
     public void mergeConcurrentInsert() {
-        registerInsert(5, i1, swift1.beginTxn());
-        registerInsert(5, i2, swift2.beginTxn());
+        registerSingleInsertTxn(5, i1, swift1);
+        registerSingleInsertTxn(5, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
 
     @Test
     public void mergeConcurrentRemove() {
-        registerRemove(5, new HashSet<TripleTimestamp>(), i1, swift1.beginTxn());
-        registerRemove(5, new HashSet<TripleTimestamp>(), i2, swift2.beginTxn());
+        registerSingleRemoveTxn(5, new HashSet<TripleTimestamp>(), i1, swift1);
+        registerSingleRemoveTxn(5, new HashSet<TripleTimestamp>(), i2, swift2);
         merge();
         assertTrue(!getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
 
     @Test
     public void mergeConcurrentAddRem() {
-        TripleTimestamp ts = registerInsert(5, i1, swift1.beginTxn());
+        TripleTimestamp ts = registerSingleInsertTxn(5, i1, swift1);
 
-        registerRemove(5, new HashSet<TripleTimestamp>(), i2, swift2.beginTxn());
+        registerSingleRemoveTxn(5, new HashSet<TripleTimestamp>(), i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));
 
         Set<TripleTimestamp> rm = new HashSet<TripleTimestamp>();
         rm.add(ts);
-        registerRemove(5, rm, i1, swift1.beginTxn());
+        registerSingleRemoveTxn(5, rm, i1, swift1);
         assertTrue(!getTxnLocal(i1, swift1.beginTxn()).lookup(5));
     }
 
     @Test
     public void mergeConcurrentCausal() {
-        TripleTimestamp ts = registerInsert(5, i1, swift1.beginTxn());
+        TripleTimestamp ts = registerSingleInsertTxn(5, i1, swift1);
         Set<TripleTimestamp> rm = new HashSet<TripleTimestamp>();
         rm.add(ts);
-        registerRemove(5, rm, i1, swift1.beginTxn());
+        registerSingleRemoveTxn(5, rm, i1, swift1);
 
-        registerInsert(5, i2, swift2.beginTxn());
+        registerSingleInsertTxn(5, i2, swift2);
         merge();
         TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).lookup(5));

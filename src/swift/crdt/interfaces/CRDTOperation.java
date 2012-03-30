@@ -16,11 +16,12 @@ public interface CRDTOperation<V extends CRDT<V>> {
     TripleTimestamp getTimestamp();
 
     /**
-     * Replaces old base timestamp for the operation with the new one.
+     * Returns a deep copy of this operation with another base timestamp.
      * 
      * @param ts
+     *            base timestamp to use in the copy
      */
-    void replaceBaseTimestamp(Timestamp ts);
+    CRDTOperation<V> withBaseTimestamp(Timestamp ts);
 
     /**
      * Replaces base timestamp of depending operation(s) of this operation with
@@ -33,9 +34,11 @@ public interface CRDTOperation<V extends CRDT<V>> {
      */
     void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs);
 
-    void applyTo(V crdt);
-
     /**
+     * Applies operation to the given object instance.
+     * 
+     * @param crdt
+     *            object where operation is applied
      * @return true if this is a create operations containing initial state
      */
     boolean hasCreationState();
@@ -44,5 +47,6 @@ public interface CRDTOperation<V extends CRDT<V>> {
      * @return initial state of an object; null if {@link #hasCreationState()}
      *         is false
      */
+    void applyTo(V crdt);
     V getCreationState();
 }

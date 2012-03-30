@@ -234,7 +234,7 @@ public class SwiftImpl implements Swift {
                 // TODO: LRU eviction: ensure this won't happen?
                 throw new IllegalStateException("Cached object is older/concurrent with transaction copy");
             }
-            opsGroup.executeOn(crdt);
+            crdt.execute(opsGroup, false);
         }
         pendingTxn = null;
     }

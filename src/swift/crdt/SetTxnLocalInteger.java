@@ -4,7 +4,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.SetInsert;
@@ -13,9 +12,9 @@ import swift.crdt.operations.SetRemove;
 public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
     private Map<Integer, Set<TripleTimestamp>> elems;
 
-    public SetTxnLocalInteger(CRDTIdentifier id, TxnHandle txn, CausalityClock snapshotClock,
-            SetIntegers creationState, Map<Integer, Set<TripleTimestamp>> elems) {
-        super(id, txn, snapshotClock, creationState);
+    public SetTxnLocalInteger(CRDTIdentifier id, TxnHandle txn, SetIntegers creationState,
+            Map<Integer, Set<TripleTimestamp>> elems) {
+        super(id, txn, creationState);
         this.elems = elems;
     }
 

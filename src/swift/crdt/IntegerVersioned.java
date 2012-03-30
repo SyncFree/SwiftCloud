@@ -11,9 +11,9 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
 public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
@@ -175,11 +175,6 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    protected void executeImpl(CRDTOperation<IntegerVersioned> op) {
-        op.applyTo(this);
-    }
-
-    @Override
     protected void pruneImpl(CausalityClock c) {
         int sumOfDeltas = 0;
         Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = updates.entrySet().iterator();
@@ -219,7 +214,12 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     protected TxnLocalCRDT<IntegerVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final IntegerVersioned creationState = isRegisteredInStore() ? null : new IntegerVersioned();
-        IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, versionClock, creationState, value(versionClock));
+        IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, creationState, value(versionClock));
         return localView;
+    }
+
+    @Override
+    public IntegerVersioned clone() {
+        throw new NotSupportedOperationException("FIXME");
     }
 }

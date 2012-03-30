@@ -71,15 +71,13 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
         this.version = ClockFactory.newClock();
 
         IntegerVersioned i = new IntegerVersioned();
-        i.setClock(version);
-        i.setPruneClock(version);
         CRDTIdentifier id = new CRDTIdentifier("e", "1");
+        i.init(id, version, version, true);
         putCRDT(id, i, i.getClock(), i.getPruneClock());
 
         IntegerVersioned i2 = new IntegerVersioned();
-        i2.setClock(version);
-        i2.setPruneClock(version);
         CRDTIdentifier id2 = new CRDTIdentifier("e", "2");
+        i2.init(id2, version, version, true);
         putCRDT(id2, i2, i2.getClock(), i2.getPruneClock());
 
     }
@@ -129,8 +127,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                         clk = ClockFactory.newClock();
                     }
                     CausalityClock prune = ClockFactory.newClock();
-                    crdt.setClock(clk);
-                    crdt.setPruneClock(prune);
+                    crdt.init(id, clk, prune, true);
                     data = putCRDT(id, crdt, clk, prune); // will merge if
                                                           // obejct exists
                 } else
@@ -151,8 +148,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                         clk = ClockFactory.newClock();
                     }
                     CausalityClock prune = ClockFactory.newClock();
-                    crdt.setClock(clk);
-                    crdt.setPruneClock(prune);
+                    crdt.init(id, clk, prune, true);
                     data = putCRDT(id, crdt, clk, prune); // will merge if
                                                           // obejct exists
                 } else {

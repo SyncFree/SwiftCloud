@@ -4,8 +4,8 @@ import java.io.Serializable;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 
 /**
  * Common interface for Commutative Replicated Data Types (CRDTs) definitions.
@@ -13,26 +13,45 @@ import swift.crdt.CRDTIdentifier;
  * Implementations are encouraged to use {@link BaseCRDT} as a base class.
  * <p>
  * Conceptually, every CRDT object has an associated (1) state made of
- * application of udpate operations and (2) a clock indicating which updates are
+ * application of update operations and (2) a clock indicating which updates are
  * reflected in the state. A CRDT object is identified by {@link CRDTIdentifier}
  * , uniquely across the system.
  * <p>
  * Implementation must provide ability of viewing past snapshots of the object
  * (at time specified by {@link #prune(CausalityClock)} or any later time) and
  * generate new update operations. Applications using CRDT object always use it
- * together with transaction handle ({@link TxnHandle}). This handler is
- * available via {@link #getTxnHandle()} and should be used by queries (to
- * determine snapshot point) and methods preparing update operations (to
- * determine snapshot point, generate timestamp and register update).
+ * together with transaction handle ({@link TxnHandle}), using a local view
+ * obtained by {@link #getTxnLocalCopy(CausalityClock, TxnHandle)}.
  * 
  * @author annettebieniusa
  * 
  * @param <V>
  *            CvRDT type implementing the interface
  */
-// TODO(mzawirski): once we know the exact usage of the class, transform all
-// set*() into a single init(...) to avoid bugs introduced by partial init.
 public interface CRDT<V extends CRDT<V>> extends Serializable {
+    // TODO: consider it single-shot method?
+    /**
+     * Initializes object state. <b>INVOKED ONLY BY SWIFT SYSTEM, ONCE.</b>
+     * 
+     * @param id
+     *            identifier of the object
+     * @param clock
+     *            causality clock that is associated to the current object
+     *            state; object uses this reference directly without copying it
+     * @param pruneClock
+     *            prune causality clock that is associated to the current object
+     *            state; object uses this reference directly without copying it;
+     *            pruneClock should be dominated by or equal to clock, which is
+     *            NOT verified at init() phase
+     * @param registeredInStore
+     *            true if object with this identifier has been already
+     *            registered in the store; false if the object might not be yet
+     *            registered
+     * @throws IllegalStateException
+     *             if object was already initialized
+     */
+    void init(CRDTIdentifier id, CausalityClock clock, CausalityClock pruneClock, boolean registeredInStore);
+
     /**
      * Merges the object with other object state of the same type.
      * <p>
@@ -47,15 +66,23 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
     void merge(CRDT<V> crdt);
 
     /**
-     * Executes an update operation on this object.
+     * Executes a group of atomic operations on this object.
      * <p>
-     * In the outcome, operation and its timestamp are reflected in the state of
-     * this object.
+     * In the outcome, operations and their timestamp are reflected in the state
+     * of this object.
      * 
-     * @param op
-     *            operation to be executed
+     * @param ops
+     *            operation group to be executed
+     * @param checkDependency
+     *            verify that dependencies are included in the clock before
+     *            applying the operations
+     * @return true if operation were executed; false if they were already
+     *         included in the state
+     * @throws IllegalStateException
+     *             when operation's dependencies are not met and checkDependency
+     *             was requested
      */
-    void executeOperation(CRDTOperation<V> op);
+    boolean execute(CRDTObjectOperationsGroup<V> ops, boolean checkDependency);
 
     /**
      * Prunes the object state to remove versioning meta data from operations
@@ -66,7 +93,13 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
      * unaffected.
      * 
      * @param pruningPoint
-     *            clock up to which data clean-up is performed
+     *            clock up to which data clean-up is performed; without
+     *            exceptions
+     * @throws IllegalStateException
+     *             when the provided clock is not greater than or equal to the
+     *             existing pruning point
+     * @throws IllegalArgumentException
+     *             provided clock has disallowed exceptions
      */
     void prune(CausalityClock pruningPoint);
 
@@ -87,27 +120,12 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
     CRDTIdentifier getUID();
 
     /**
-     * Sets the identifier for the object. <b>INVOKED ONLY BY SWIFT SYSTEM.</b>
-     * 
-     * @param id
-     */
-    void setUID(CRDTIdentifier id);
-
-    /**
      * Returns the causality clock including timestamps of all update operations
      * reflected in the object state.
      * 
      * @return causality clock associated to object
      */
     CausalityClock getClock();
-
-    /**
-     * Sets the causality clock that is associated to the current object state.
-     * <b>INVOKED ONLY BY SWIFT SYSTEM.</b>
-     * 
-     * @param c
-     */
-    void setClock(CausalityClock c);
 
     /**
      * Returns the causality clock representing the minimum clock for which
@@ -117,17 +135,6 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
      * @return pruned causality clock associated with the object
      */
     CausalityClock getPruneClock();
-
-    /**
-     * Sets the prune causality clock that is associated to the current object
-     * state. <b>INVOKED ONLY BY SWIFT SYSTEM.</b>
-     * 
-     * @param c
-     * @throws IllegalArgumentException
-     *             when the provided clock is not greater or equal than existing
-     *             prune clock
-     */
-    void setPruneClock(CausalityClock c);
 
     /**
      * Creates a copy of an object with optionally restricted state according to
@@ -155,6 +162,8 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
      */
     void setRegisteredInStore(boolean registeredInStore);
 
-    // TODO: add clone() or replaceTimestamp(oldTs, newTs) method, for sake of
-    // cascading locally committed transactions
+    /**
+     * @return a deep copy of this object
+     */
+    V clone();
 }

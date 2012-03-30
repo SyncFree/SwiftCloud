@@ -10,7 +10,7 @@ public class RegisterTxnLocal<V> extends BaseCRDTTxnLocal<RegisterVersioned<V>> 
 
     public RegisterTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<V> creationState,
             V val) {
-        super(id, txn, clock, creationState);
+        super(id, txn, creationState);
         this.val = val;
     }
 

@@ -57,7 +57,7 @@ class TxnHandleImpl implements TxnHandle {
         try {
             TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectsInUse.get(id);
             if (localView == null) {
-                localView = swift.getLocalVersion(this, id, getSnapshotClock(), create, classOfV);
+                localView = swift.getObjectTxnView(this, id, create, classOfV);
                 objectsInUse.put(id, localView);
             }
             return (T) localView;

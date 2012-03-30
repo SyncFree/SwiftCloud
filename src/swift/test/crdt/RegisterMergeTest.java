@@ -26,6 +26,12 @@ public class RegisterMergeTest {
         swift1.merge(i1, i2, swift2);
     }
 
+    private <V> void registerSingleUpdateTxn(V value, RegisterVersioned<V> i, SwiftTester swift) {
+        final TxnTester txn = swift.beginTxn();
+        registerUpdate(value, i, txn);
+        txn.commit(true);
+    }
+
     private <V> void registerUpdate(V value, RegisterVersioned<V> i, TxnTester txn) {
         txn.registerOperation(i, new RegisterUpdate<V>(txn.nextTimestamp(), value));
     }
@@ -33,12 +39,10 @@ public class RegisterMergeTest {
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         i1 = new RegisterVersioned<Integer>();
-        i1.setClock(ClockFactory.newClock());
-        i1.setPruneClock(ClockFactory.newClock());
+        i1.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
 
         i2 = new RegisterVersioned<Integer>();
-        i2.setClock(ClockFactory.newClock());
-        i2.setPruneClock(ClockFactory.newClock());
+        i2.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
         swift1 = new SwiftTester("client1");
         swift2 = new SwiftTester("client2");
     }
@@ -46,7 +50,7 @@ public class RegisterMergeTest {
     // Merge with empty set
     @Test
     public void mergeEmpty1() {
-        registerUpdate(5, i1, swift1.beginTxn());
+        registerSingleUpdateTxn(5, i1, swift1);
         merge();
 
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 5);
@@ -55,15 +59,15 @@ public class RegisterMergeTest {
     // Merge with empty set
     @Test
     public void mergeEmpty2() {
-        registerUpdate(5, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(5, i2, swift2);
         i1.merge(i2);
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 5);
     }
 
     @Test
     public void mergeNonEmpty() {
-        registerUpdate(5, i1, swift1.beginTxn());
-        registerUpdate(6, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(5, i1, swift1);
+        registerSingleUpdateTxn(6, i2, swift2);
         i1.merge(i2);
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 6
                 || getTxnLocal(i1, swift1.beginTxn()).getValue() == 5);
@@ -71,29 +75,29 @@ public class RegisterMergeTest {
 
     @Test
     public void mergeMultiple() {
-        registerUpdate(5, i2, swift2.beginTxn());
-        registerUpdate(6, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(5, i2, swift2);
+        registerSingleUpdateTxn(6, i2, swift2);
         i1.merge(i2);
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 6);
     }
 
     @Test
     public void mergeConcurrentAddRem() {
-        registerUpdate(5, i1, swift1.beginTxn());
-        registerUpdate(-5, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(5, i1, swift1);
+        registerSingleUpdateTxn(-5, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == -5
                 || getTxnLocal(i1, swift1.beginTxn()).getValue() == 5);
 
-        registerUpdate(2, i1, swift1.beginTxn());
+        registerSingleUpdateTxn(2, i1, swift1);
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 2);
     }
 
     @Test
     public void mergeConcurrentCausal() {
-        registerUpdate(1, i1, swift1.beginTxn());
-        registerUpdate(-1, i1, swift1.beginTxn());
-        registerUpdate(2, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(1, i1, swift1);
+        registerSingleUpdateTxn(-1, i1, swift1);
+        registerSingleUpdateTxn(2, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 2
                 || getTxnLocal(i1, swift1.beginTxn()).getValue() == -1);
@@ -101,22 +105,22 @@ public class RegisterMergeTest {
 
     @Test
     public void mergeConcurrentCausal2() {
-        registerUpdate(1, i1, swift1.beginTxn());
-        registerUpdate(-1, i1, swift1.beginTxn());
-        registerUpdate(2, i2, swift2.beginTxn());
-        registerUpdate(-2, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(1, i1, swift1);
+        registerSingleUpdateTxn(-1, i1, swift1);
+        registerSingleUpdateTxn(2, i2, swift2);
+        registerSingleUpdateTxn(-2, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == -1
                 || getTxnLocal(i1, swift1.beginTxn()).getValue() == -2);
 
-        registerUpdate(-5, i2, swift2.beginTxn());
+        registerSingleUpdateTxn(-5, i2, swift2);
         merge();
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == -5);
     }
 
     @Test
     public void prune1() {
-        registerUpdate(1, i1, swift1.beginTxn());
+        registerSingleUpdateTxn(1, i1, swift1);
         CausalityClock c = swift1.beginTxn().getClock();
 
         swift1.prune(i1, c);
@@ -126,29 +130,29 @@ public class RegisterMergeTest {
 
     @Test
     public void prune2() {
-        registerUpdate(1, i1, swift1.beginTxn());
+        registerSingleUpdateTxn(1, i1, swift1);
         CausalityClock c = swift1.beginTxn().getClock();
-        registerUpdate(2, i1, swift1.beginTxn());
+        registerSingleUpdateTxn(2, i1, swift1);
 
         swift1.prune(i1, c);
         // TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 2);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expected = IllegalStateException.class)
     public void prune3() {
         for (int i = 0; i < 5; i++) {
-            registerUpdate(i, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i, i1, swift1);
         }
         CausalityClock c1 = swift1.beginTxn().getClock();
 
         for (int i = 0; i < 5; i++) {
-            registerUpdate(i, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i, i1, swift1);
         }
         CausalityClock c2 = swift1.beginTxn().getClock();
 
         for (int i = 10; i < 20; i++) {
-            registerUpdate(i, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i, i1, swift1);
         }
 
         swift1.prune(i1, c2);
@@ -161,11 +165,11 @@ public class RegisterMergeTest {
     @Test
     public void mergePruned1() {
         for (int i = 0; i < 5; i++) {
-            registerUpdate(i + 10, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i + 10, i1, swift1);
         }
 
         for (int i = 0; i < 5; i++) {
-            registerUpdate(i + 20, i2, swift2.beginTxn());
+            registerSingleUpdateTxn(i + 20, i2, swift2);
         }
         CausalityClock c2 = swift2.beginTxn().getClock();
         swift2.prune(i2, c2);
@@ -179,13 +183,13 @@ public class RegisterMergeTest {
     @Test
     public void mergePruned2() {
         for (int i = 0; i < 5; i++) {
-            registerUpdate(i + 10, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i + 10, i1, swift1);
         }
         CausalityClock c1 = swift1.beginTxn().getClock();
         swift1.prune(i1, c1);
 
         for (int i = 0; i < 5; i++) {
-            registerUpdate(i + 20, i2, swift2.beginTxn());
+            registerSingleUpdateTxn(i + 20, i2, swift2);
         }
         swift1.merge(i1, i2, swift2);
 
@@ -197,21 +201,21 @@ public class RegisterMergeTest {
     @Test
     public void mergePruned3() {
         for (int i = 0; i < 2; i++) {
-            registerUpdate(i + 10, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i + 10, i1, swift1);
         }
         CausalityClock c1 = swift1.beginTxn().getClock();
         for (int i = 2; i < 4; i++) {
-            registerUpdate(i + 10, i1, swift1.beginTxn());
+            registerSingleUpdateTxn(i + 10, i1, swift1);
         }
         swift1.prune(i1, c1);
 
         for (int i = 0; i < 2; i++) {
-            registerUpdate(i + 20, i2, swift2.beginTxn());
+            registerSingleUpdateTxn(i + 20, i2, swift2);
         }
 
         CausalityClock c2 = swift2.beginTxn().getClock();
         for (int i = 2; i < 4; i++) {
-            registerUpdate(i + 20, i2, swift2.beginTxn());
+            registerSingleUpdateTxn(i + 20, i2, swift2);
         }
         swift2.prune(i2, c2);
         swift1.merge(i1, i2, swift2);

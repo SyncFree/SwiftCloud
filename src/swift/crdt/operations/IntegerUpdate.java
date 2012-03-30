@@ -3,6 +3,7 @@ package swift.crdt.operations;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.IntegerVersioned;
+import swift.crdt.interfaces.CRDTOperation;
 
 public class IntegerUpdate extends BaseOperation<IntegerVersioned> {
     private int val;
@@ -30,4 +31,8 @@ public class IntegerUpdate extends BaseOperation<IntegerVersioned> {
         crdt.applyUpdate(val, getTimestamp());
     }
 
+    @Override
+    public CRDTOperation<IntegerVersioned> withBaseTimestamp(Timestamp ts) {
+        return new IntegerUpdate(getTimestamp().withBaseTimestamp(ts), val);
+    }
 }

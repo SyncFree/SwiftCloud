@@ -3,6 +3,7 @@ package swift.crdt.operations;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
+import swift.crdt.interfaces.CRDTOperation;
 
 /**
  * Dummy operation creating object in the store.
@@ -38,5 +39,10 @@ public class CreateObjectOperation<V extends CRDT<V>> extends BaseOperation<V> {
     @Override
     public V getCreationState() {
         return creationState;
+    }
+
+    @Override
+    public CRDTOperation<V> withBaseTimestamp(Timestamp ts) {
+        return new CreateObjectOperation<V>(getTimestamp().withBaseTimestamp(ts), creationState);
     }
 }

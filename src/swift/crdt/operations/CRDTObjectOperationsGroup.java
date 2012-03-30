@@ -1,5 +1,6 @@
 package swift.crdt.operations;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -34,6 +35,14 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
     public CRDTObjectOperationsGroup() {
     }
 
+    /**
+     * Constructs a group of operations.
+     * 
+     * @param id
+     * @param dependencyClock
+     *            dependency for this group of operations; clock is not copied
+     * @param baseTimestamp
+     */
     public CRDTObjectOperationsGroup(CRDTIdentifier id, CausalityClock dependencyClock, Timestamp baseTimestamp) {
         this.id = id;
         this.dependencyClock = dependencyClock;
@@ -52,23 +61,25 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
     /**
      * @return base timestamp of all operations in the sequence
      */
-    public synchronized Timestamp getBaseTimestamp() {
+    public Timestamp getBaseTimestamp() {
         return baseTimestamp;
     }
 
     /**
-     * Replaces old base timestamp with the final base timestamp for all
-     * operations in the group.
+     * Creates a copy of this group of operations with another base timestamp
+     * for all operations in the group.
      * 
-     * @param ts
-     *            final base timestamp to be used by all operations
-     * @return
+     * @param otherBaseTimestamp
+     *            base timestamp to be used by all operations in the copy
+     * @return a copy of the group with a different base timestamp
      */
-    public synchronized void replaceBaseTimestamp(Timestamp newBaseTimestamp) {
-        baseTimestamp = newBaseTimestamp;
-        for (CRDTOperation<V> op : operations) {
-            op.replaceBaseTimestamp(newBaseTimestamp);
+    public synchronized CRDTObjectOperationsGroup<V> withBaseTimestamp(Timestamp otherBaseTimestamp) {
+        final CRDTObjectOperationsGroup<V> copy = new CRDTObjectOperationsGroup<V>(id, dependencyClock.clone(),
+                otherBaseTimestamp);
+        for (final CRDTOperation<V> op : operations) {
+            copy.append(op.withBaseTimestamp(otherBaseTimestamp));
         }
+        return copy;
     }
 
     /**
@@ -82,7 +93,8 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      */
     public synchronized void replaceDependentTimestamp(Timestamp oldTs, Timestamp newTs) {
         dependencyClock.record(newTs);
-        // FIXME: remove (or replace) oldTs from the dependencyClock
+        // FIXME(mzawirski): CRITICAL remove (or replace) oldTs from the
+        // dependencyClock!
         for (CRDTOperation<V> op : operations) {
             op.replaceDependentOpTimestamp(oldTs, newTs);
         }
@@ -102,29 +114,12 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
     }
 
     /**
-     * Executes all operations from this group on a CRDT object.
-     * 
-     * @param crdt
-     *            object to execute operations on.
+     * @return read-only reference to the internal list of operations
+     *         constituting this group
      */
-    public synchronized void executeOn(CRDT<V> crdt) {
-        for (final CRDTOperation<V> op : operations) {
-            crdt.executeOperation(op);
-        }
+    public synchronized List<CRDTOperation<V>> getOperations() {
+        return Collections.unmodifiableList(operations);
     }
-
-    // /**
-    // * Returns all operations in the group. Note that the returned list a
-    // * reference to the internal structure and should be retrieved only when
-    // all
-    // * {@link #addOperation(CRDTOperation)} have been performed.
-    // *
-    // * @return all operations on an object, in order they were recorded and
-    // * should be applied
-    // */
-    // public List<CRDTOperation> getOperations() {
-    // return Collections.unmodifiableList(operations);
-    // }
 
     /**
      * Appends a new operation to the sequence of operations.

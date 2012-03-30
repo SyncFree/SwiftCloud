@@ -2,8 +2,10 @@ package swift.test.crdt;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
@@ -15,13 +17,18 @@ import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
 public class TxnTester implements TxnHandle {
+    // @Annette: this class is simply intended to work with a single object,
+    // isn't it? If so, maybe those are really unnecessary.
     private Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
+    private Map<CRDT<?>, CRDTObjectOperationsGroup<?>> objectOperations;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
+    private Timestamp ts;
 
     public TxnTester(String siteId, CausalityClock cc) {
         this(siteId, cc, new IncrementalTimestampGenerator(siteId, 0).generateNew());
@@ -29,7 +36,9 @@ public class TxnTester implements TxnHandle {
 
     public TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts) {
         this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        this.objectOperations = new HashMap<CRDT<?>, CRDTObjectOperationsGroup<?>>();
         this.cc = latestVersion;
+        this.ts = ts;
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
     }
 
@@ -41,8 +50,7 @@ public class TxnTester implements TxnHandle {
         if (create) {
             try {
                 V crdt = classOfV.newInstance();
-                crdt.setUID(id);
-                crdt.setClock(cc);
+                crdt.init(id, cc, ClockFactory.newClock(), true);
                 TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getClock(), this);
                 cache.put(id, localView);
                 return (T) localView;
@@ -65,7 +73,10 @@ public class TxnTester implements TxnHandle {
 
     @Override
     public void commit(boolean waitForStore) {
-        throw new RuntimeException("Not supported for testing!");
+        for (final Entry<CRDT<?>, CRDTObjectOperationsGroup<?>> entry : objectOperations.entrySet()) {
+            entry.getKey().execute((CRDTObjectOperationsGroup) entry.getValue(), false);
+        }
+        cc.record(ts);
     }
 
     @Override
@@ -85,8 +96,9 @@ public class TxnTester implements TxnHandle {
 
     // Short-cut for testing purpose
     public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTOperation<V> op) {
-        obj.executeOperation(op);
-        cc.record(op.getTimestamp());
+        final CRDTObjectOperationsGroup<V> opGroup = new CRDTObjectOperationsGroup<V>(obj.getUID(), cc, ts);
+        opGroup.append(op);
+        objectOperations.put(obj, opGroup);
     }
 
     @Override

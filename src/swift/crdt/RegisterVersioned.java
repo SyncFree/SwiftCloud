@@ -8,9 +8,9 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.exceptions.NotSupportedOperationException;
 
 public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     private static class QueueEntry<V> implements Comparable<QueueEntry<V>> {
@@ -93,11 +93,6 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
         values = pruned;
     }
 
-    @Override
-    protected void executeImpl(CRDTOperation<RegisterVersioned<V>> op) {
-        op.applyTo(this);
-    }
-
     public void update(V val, TripleTimestamp ts) {
         values.add(new QueueEntry<V>(ts, this.getClock().clone(), val));
     }
@@ -135,5 +130,10 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     @Override
     public String toString() {
         return values.toString();
+    }
+
+    @Override
+    public RegisterVersioned<V> clone() {
+        throw new NotSupportedOperationException("FIXME");
     }
 }

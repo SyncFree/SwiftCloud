@@ -4,6 +4,7 @@ import swift.clocks.CausalityClock;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.exceptions.NotSupportedOperationException;
 
 public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
     private static final long serialVersionUID = 1L;
@@ -14,13 +15,12 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
     @Override
     protected TxnLocalCRDT<SetIntegers> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final SetIntegers creationState = isRegisteredInStore() ? null : new SetIntegers();
-        SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, versionClock, creationState,
-                getValue(versionClock));
+        SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, creationState, getValue(versionClock));
         return localView;
     }
 
     @Override
-    protected void executeImpl(CRDTOperation<SetIntegers> op) {
-        op.applyTo(this);
+    public SetIntegers clone() {
+        throw new NotSupportedOperationException("FIXME");
     }
 }
