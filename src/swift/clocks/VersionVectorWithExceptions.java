@@ -364,4 +364,10 @@ public class VersionVectorWithExceptions implements CausalityClock {
     public boolean hasExceptions() {
         return excludedTimestamps.isEmpty();
     }
+
+    @Override
+    public void dropEntry(String siteId) {
+        vv.remove(siteId);
+        excludedTimestamps.remove(siteId);
+    }
 }

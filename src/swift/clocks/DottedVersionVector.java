@@ -333,4 +333,12 @@ public class DottedVersionVector implements CausalityClock {
         throw new RuntimeException("Method hasExpcetions() in DottedVersionVector is not implemented yet!");
     }
 
+    @Override
+    public void dropEntry(String siteId) {
+        vv.remove(siteId);
+        if (ts != null && ts.getIdentifier().equals(siteId)) {
+            ts = null;
+        }
+    }
+
 }

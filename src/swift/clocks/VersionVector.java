@@ -279,4 +279,8 @@ public class VersionVector implements CausalityClock {
         return false;
     }
 
+    @Override
+    public void dropEntry(String siteId) {
+        vv.remove(siteId);
+    }
 }
