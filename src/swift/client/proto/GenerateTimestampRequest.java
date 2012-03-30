@@ -43,6 +43,6 @@ public class GenerateTimestampRequest implements RpcMessage {
 
     @Override
     public void deliverTo(RpcConnection conn, RpcHandler handler) {
-        ((SequencerServer) handler).onReceive(conn, this);
+        ((BaseServer) handler).onReceive(conn, this);
     }
 }

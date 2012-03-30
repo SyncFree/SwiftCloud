@@ -51,4 +51,8 @@ public class CRDTIdentifier {
         CRDTIdentifier other = (CRDTIdentifier) obj;
         return table.equals(other.table) && key.equals(other.key);
     }
+    
+    public String toString() {
+        return "CRDTId(" + table + "," + key +")";
+    }
 }

@@ -12,7 +12,7 @@ import sys.net.api.rpc.RpcConnection;
  * 
  * @author mzawirski
  */
-public interface SwiftServer extends SequencerServer {
+public interface SwiftServer extends BaseServer {
     /**
      * @param conn
      *            connection such that the remote end implements

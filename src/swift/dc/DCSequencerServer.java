@@ -5,7 +5,7 @@ import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.GenerateTimestampReply;
 import swift.client.proto.GenerateTimestampRequest;
-import swift.client.proto.SequencerServer;
+import swift.client.proto.BaseServer;
 import swift.client.proto.KeepaliveReply;
 import swift.client.proto.KeepaliveRequest;
 import swift.client.proto.LatestKnownClockReply;
@@ -16,6 +16,10 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.clocks.VersionVectorWithExceptions;
+import swift.dc.proto.CommitTSReply;
+import swift.dc.proto.CommitTSReplyHandler;
+import swift.dc.proto.CommitTSRequest;
+import swift.dc.proto.SequencerServer;
 import sys.Sys;
 import sys.net.api.Networking;
 import sys.net.api.rpc.RpcConnection;
@@ -75,6 +79,13 @@ public class DCSequencerServer extends Handler  implements SequencerServer {
         return hasTS;
     }
 
+    private synchronized boolean commitTS( CausalityClock clk, Timestamp t, boolean commit) {
+        boolean hasTS = pendingTS.remove(t) != null;
+        currentState.merge(clk);
+        currentState.record(t);
+        return hasTS;
+    }
+
     private synchronized CausalityClock currentClock() {
         return currentState.clone();
     }
@@ -102,7 +113,26 @@ public class DCSequencerServer extends Handler  implements SequencerServer {
      *            request to serve
      */
     public void onReceive(RpcConnection conn, LatestKnownClockRequest request) {
-        System.out.println( "sequencer: latestknownclockrequest");
-        conn.reply( new LatestKnownClockReply( currentClock()));
+        System.out.println("sequencer: latestknownclockrequest");
+        conn.reply(new LatestKnownClockReply(currentClock()));
+    }
+
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link CommitTSReplyHandler} and expects
+     *            {@link CommitTSReply}
+     * @param request
+     *            request to serve
+     */
+   @Override
+    public void onReceive(RpcConnection conn, CommitTSRequest request) {
+       System.out.println("sequencer: commitTSRequest");
+       boolean ok = this.commitTS(request.getVersion(), request.getTimestamp(), request.getCommit());
+       if (ok) {
+           conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK));
+       } else {
+           conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED));
+       }
     }
 }
