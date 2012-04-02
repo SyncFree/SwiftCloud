@@ -10,31 +10,45 @@ import swift.exceptions.WrongTypeException;
  * Representation of transaction, a basic unit of application interaction with
  * the Swift system. All read of objects accessed through a transaction (
  * {@link #get(CRDTIdentifier, boolean, Class)}) constitute some consistent
- * snapshot of the system. All updates issued on these objects within
- * transaction become atomically visible to other transactions after commit (
- * {@link #commit(boolean)}).
+ * snapshot of the system. All updates issued on these objects within a
+ * transaction become atomically visible to other transactions at some time
+ * after commit ({@link #commit(boolean)}).
  * 
  * @author annettebieniusa
  * 
  */
+// TODO: BTW of testing, separate client and system interface (needed for mocks)
 public interface TxnHandle {
     /**
      * Returns an object of the provided identifier. If object is not in the
-     * store, the
+     * store, it is created if create equals true (the creation takes effect
+     * after the transaction commits), otherwise renders error.
      * <p>
      * This call may block if no appropriate (consistent) version of an object
      * is available in the local cache of the client, as it requires
-     * communication with server in thatcase.
+     * communication with server in such case.
      * 
      * TODO specify fail mode/timeout for get() - if we support disconnected
      * operations, it cannot be that a synchronous call fits everything.
      * 
      * @param id
+     *            identifier of an object
      * @param create
+     *            when true if object does not exist in the store, it is
+     *            created; otherwise call fails
      * @param classOfT
-     * @return
+     *            class of an object stored (or created) under this identifier;
+     *            it is the responsibility of application to ensure uniform
+     *            id<->type mapping across the system; TODO: reconsider adding
+     *            type as part of an id which woukd resolvesthis kind of issues
+     * @return transactional view of an object; accepts queries and updates;
+     *         note that this view of an object is valid only until the
+     *         transaction is committed or rolled back
      * @throws WrongTypeException
+     *             when classOfT does not match the type of object stored under
+     *             identifier id
      * @throws NoSuchObjectException
+     *             when create is false and object does not exist in the store
      * @throws IllegalStateException
      *             when transaction is already committed or rolled back
      */

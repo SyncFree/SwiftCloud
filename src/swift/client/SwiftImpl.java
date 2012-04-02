@@ -247,6 +247,8 @@ public class SwiftImpl implements Swift {
         case VERSION_NOT_FOUND:
             // Do not merge, since we would lost some versioning information
             // that client relies on.
+            // TODO: this case is very special, return to it once the API is
+            // stable.
             throw new ConsistentSnapshotVersionNotFoundException("consistent version is not available in the store");
         case OK:
             // Merge it with the local version.
