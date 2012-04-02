@@ -1,10 +1,11 @@
 package swift.client;
 
+import java.util.Deque;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesReply.CommitStatus;
@@ -32,6 +33,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
@@ -50,6 +52,7 @@ public class SwiftImpl implements Swift {
     // retry manager+server failover?
 
     private static final String CLIENT_CLOCK_ID = "client";
+    private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     private static String generateClientId() {
         final Random random = new Random(System.currentTimeMillis());
@@ -59,6 +62,7 @@ public class SwiftImpl implements Swift {
     private final String clientId;
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
+    private final CommitterThread committerThread;
     private final ObjectsCache objectsCache;
     // Invariant: latestVersion only grows.
     private final CausalityClock latestVersion;
@@ -75,6 +79,8 @@ public class SwiftImpl implements Swift {
         this.locallyCommittedTxns = new LinkedList<TxnHandleImpl>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
+        this.committerThread = new CommitterThread();
+        this.committerThread.start();
     }
 
     public String getClientId() {
@@ -97,16 +103,19 @@ public class SwiftImpl implements Swift {
                 });
             } while (cp == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
         }
+        final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
         // Invariant: snapshotClock (latestVersion) of a new transaction
         // dominates clock of previous transaction - monotonicity.
-        pendingTxn = new TxnHandleImpl(this, latestVersion, locallyCommittedTxns,
-                clientTimestampGenerator.generateNew());
+        setPendingTxn(new TxnHandleImpl(this, latestVersion, locallyCommittedTxns, localTimestmap));
         // FIXME: ensure that latestVersion does not contain any committing
         // transaction's global timestamp - so that the transaction will not
         // observe doubled updates (i.e. there is no locallyCommittedTxn such
         // that latestVersion.include(txn.getGlobalTimestamp())); that would
         // prevent a potential race condition caused by concurrency of
         // commitment
+
+        logger.info("transaction " + localTimestmap + " started with snapshot point: global=" + latestVersion
+                + "local=" + locallyCommittedTxns.size() + " transactions");
         return pendingTxn;
     }
 
@@ -120,7 +129,7 @@ public class SwiftImpl implements Swift {
 
         final V crdtCopy;
         final CausalityClock clockCopy;
-        final List<TxnHandleImpl> localDependentTxns = txn.getLocalVisibleTransactions();
+        final Deque<TxnHandleImpl> localDependentTxns = txn.getLocalVisibleTransactions();
         if (localDependentTxns.isEmpty()) {
             crdtCopy = crdt;
             clockCopy = globalVisibleClock;
@@ -266,47 +275,73 @@ public class SwiftImpl implements Swift {
         latestVersion.merge(versionReply.getVersion());
     }
 
-    public synchronized void commitTxn(TxnHandleImpl txn, boolean waitForGlobalCommit) {
-        // TODO: honor the flag
+    public synchronized void discardTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
-
-        // TODO: write disk log?
-        txn.markLocallyCommitted();
-        // BIG TODO: Support starting another transaction while the previous one
-        // is currently committing at store. Requires some changes in core CRDT
-        // classes.
-
-        CommitUpdatesReply commitReply = null;
-        do {
-            commitReply = commitAtServer(txn, commitReply == null ? null : commitReply.getCommitTimestamp());
-        } while (commitReply.getStatus() == CommitStatus.INVALID_TIMESTAMP);
-
-        if (commitReply.getStatus() == CommitStatus.ALREADY_COMMITTED) {
-            // FIXME: replace timestamps to getPreviousTimestamp()
-        }
-
-        for (final CRDTObjectOperationsGroup opsGroup : txn.getAllLocalOperations()) {
-            // Try to apply changes in a cached copy of an object.
-            final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
-            final CMP_CLOCK clockCompare = crdt.getClock().compareTo(opsGroup.getDependency());
-            if (clockCompare == CMP_CLOCK.CMP_ISDOMINATED || clockCompare == CMP_CLOCK.CMP_CONCURRENT) {
-                // TODO: LRU eviction: ensure this won't happen?
-                throw new IllegalStateException("Cached object is older/concurrent with transaction copy");
-            }
-            crdt.execute(opsGroup, false);
-        }
-        // FIXME: latestVersion, removing dependent txn... move to
-        // CommitingThread
-        pendingTxn = null;
+        setPendingTxn(null);
     }
 
-    private CommitUpdatesReply commitAtServer(TxnHandleImpl txn, final Timestamp previousTimestamp) {
-        // Get a timestamp from server.
+    public synchronized void commitTxn(TxnHandleImpl txn, boolean waitForGlobalCommit) {
+        assertPendingTransaction(txn);
+
+        // Big WISHME: write disk log and allow local recovery.
+        txn.markLocallyCommitted();
+        logger.info("transaction " + txn.getLocalTimestamp() + " commited locally");
+        locallyCommittedTxns.addLast(txn);
+        setPendingTxn(null);
+    }
+
+    /**
+     * Stubborn commit procedure, tries to get a global timestamp for a
+     * transaction and commit using this timestamp. Repeats until it succeeds.
+     * 
+     * @param txn
+     *            locally committed transaction
+     */
+    private void commitToStore(TxnHandleImpl txn) {
+        txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
+
+        final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
+        do {
+            requestTxnGlobalTimestamp(txn);
+
+            final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
+                    txn.getAllGlobalOperations());
+            // Commit at server.
+            do {
+                localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, txn.getGlobalTimestamp(),
+                        operationsGroups), new CommitUpdatesReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn, CommitUpdatesReply reply) {
+                        commitReplyRef.set(reply);
+                    }
+                });
+            } while (commitReplyRef.get() == null);
+        } while (commitReplyRef.get().getStatus() == CommitStatus.INVALID_TIMESTAMP);
+
+        if (commitReplyRef.get().getStatus() == CommitStatus.ALREADY_COMMITTED) {
+            txn.setGlobalTimestamp(commitReplyRef.get().getCommitTimestamp());
+            logger.info("transaction " + txn.getLocalTimestamp() + " is already committed using another timestamp "
+                    + txn.getGlobalTimestamp());
+        }
+        txn.markGloballyCommitted();
+        logger.info("transaction " + txn.getLocalTimestamp() + " commited globally as " + txn.getGlobalTimestamp());
+    }
+
+    /**
+     * Requests and assigns a new global timestamp for the transaction.
+     * 
+     * @param txn
+     *            locally committed transaction
+     */
+    private void requestTxnGlobalTimestamp(TxnHandleImpl txn) {
+        txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
+
         final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
         do {
-            localEndpoint.send(serverEndpoint,
-                    new GenerateTimestampRequest(clientId, txn.getGlobalVisibleTransactionsClock(), previousTimestamp),
-                    new GenerateTimestampReplyHandler() {
+            localEndpoint.send(
+                    serverEndpoint,
+                    new GenerateTimestampRequest(clientId, txn.getGlobalVisibleTransactionsClock(), txn
+                            .getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
                         @Override
                         public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
                             timestampReplyRef.set(reply);
@@ -315,30 +350,64 @@ public class SwiftImpl implements Swift {
         } while (timestampReplyRef.get() == null);
 
         // And replace old timestamp in operations with timestamp from server.
-        final Timestamp timestamp = timestampReplyRef.get().getTimestamp();
-        txn.setGlobalTimestamp(timestamp);
-        final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
-                txn.getAllGlobalOperations());
-
-        // Commit at server.
-        final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
-        do {
-            localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, timestamp, operationsGroups),
-                    new CommitUpdatesReplyHandler() {
-                        @Override
-                        public void onReceive(RpcConnection conn, CommitUpdatesReply reply) {
-                            commitReplyRef.set(reply);
-                        }
-                    });
-        } while (commitReplyRef.get() == null);
-
-        // FIXME: look for getCommitTimestamp()
-        return commitReplyRef.get();
+        txn.setGlobalTimestamp(timestampReplyRef.get().getTimestamp());
     }
 
-    public synchronized void discardTxn(TxnHandleImpl txn) {
-        assertPendingTransaction(txn);
-        txn = null;
+    /**
+     * Awaits until there is no pending transaction and applies the globally
+     * committed transaction locally using a global timestamp.
+     * 
+     * @param txn
+     *            globally committed transaction to apply locally
+     */
+    private synchronized void applyGlobalCommittedTxn(TxnHandleImpl txn) {
+        txn.assertStatus(TxnStatus.COMMITTED_GLOBAL);
+
+        // Globally committed transaction can only be applied when there is no
+        // pending transaction.
+        while (pendingTxn != null) {
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+            }
+        }
+
+        for (final CRDTObjectOperationsGroup opsGroup : txn.getAllGlobalOperations()) {
+            // Try to apply changes in a cached copy of an object.
+            final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
+            if (crdt == null) {
+                logger.warning("object evicted from the local cache before global commit");
+            }
+            try {
+                crdt.execute(opsGroup, true);
+            } catch (IllegalStateException x) {
+                logger.warning("cannot apply globally committed operations on local cached copy of an object - cached copy does not satisfy dependencies");
+            }
+        }
+        if (locallyCommittedTxns.removeFirst() != txn) {
+            throw new IllegalStateException("internal error, concurrently commiting transactions?");
+        }
+        for (final TxnHandleImpl dependingTxn : locallyCommittedTxns) {
+            dependingTxn.markFirstLocalVisibleTransactionGlobal();
+        }
+    }
+
+    private synchronized TxnHandleImpl getNextLocallyCommittedTxnBlocking() {
+        while (locallyCommittedTxns.isEmpty()) {
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+            }
+        }
+        return locallyCommittedTxns.getFirst();
+    }
+
+    private synchronized void setPendingTxn(final TxnHandleImpl txn) {
+        pendingTxn = txn;
+        if (txn == null) {
+            // Notify committer thread.
+            this.notifyAll();
+        }
     }
 
     private void assertNoPendingTransaction() {
@@ -354,10 +423,21 @@ public class SwiftImpl implements Swift {
         }
     }
 
-    private static class CommitterThread extends Thread {
+    /**
+     * Thread continuously committing locally committed transactions. The thread
+     * takes the oldest locally committed transaction one by one and tries to
+     * commit it to the store. The application of globally committed transaction
+     * can only take place when there is no pending transaction.
+     */
+    private class CommitterThread extends Thread {
         @Override
         public void run() {
-
+            // TODO: introduce gentle stop()
+            while (true) {
+                final TxnHandleImpl nextToCommit = getNextLocallyCommittedTxnBlocking();
+                commitToStore(nextToCommit);
+                applyGlobalCommittedTxn(nextToCommit);
+            }
         }
     }
 }

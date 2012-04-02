@@ -284,16 +284,16 @@ class TxnHandleImpl implements TxnHandle {
         return objectOperationsGlobal;
     }
 
-    private void assertGlobalTimestampDefined() {
-        if (globalTimestamp == null) {
-            throw new IllegalStateException("Global timestamp is not yet defined");
-        }
-    }
-
-    private void assertStatus(final TxnStatus expectedStatus) {
+    synchronized void assertStatus(final TxnStatus expectedStatus) {
         if (status != expectedStatus) {
             throw new IllegalStateException("Unexpected transaction status: was " + status + ", expected "
                     + expectedStatus);
+        }
+    }
+
+    private void assertGlobalTimestampDefined() {
+        if (globalTimestamp == null) {
+            throw new IllegalStateException("Global timestamp is not yet defined");
         }
     }
 }
