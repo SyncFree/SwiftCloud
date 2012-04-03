@@ -13,11 +13,12 @@ public class User {
     long birthday;
     // FIXME: Better format: Enum?
     int maritalStatus;
-    CRDTIdentifier eventList;
+    // CRDTIdentifier eventList;
     CRDTIdentifier msgList;
-    CRDTIdentifier friendList;
-    CRDTIdentifier inFriendReq;
-    CRDTIdentifier outFriendReq;
+
+    // CRDTIdentifier friendList;
+    // CRDTIdentifier inFriendReq;
+    // CRDTIdentifier outFriendReq;
 
     // TODO Add photos?
     // CRDTIdentifier photoAlbumList;
@@ -28,10 +29,10 @@ public class User {
     public User(String loginName, String password) {
         this.loginName = loginName;
         this.password = password;
-    }
-
-    public static CRDTIdentifier getCRDTIdentifier(final String loginName) {
-        // see wsocial_shared.cc for scheme used in walter, based on MD5 hashing
-        return new CRDTIdentifier("userData", loginName);
+        this.userId = NamingScheme.forLogin(loginName);
+        this.birthday = 0;
+        this.maritalStatus = 0;
+        this.active = true;
+        this.msgList = NamingScheme.forMessageList(loginName);
     }
 }

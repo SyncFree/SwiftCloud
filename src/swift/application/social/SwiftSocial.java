@@ -40,7 +40,7 @@ public class SwiftSocial {
         User user;
         boolean result;
         try {
-            user = (User) (txn.get(User.getCRDTIdentifier(loginName), false, RegisterVersioned.class)).getValue();
+            user = (User) (txn.get(NamingScheme.forLogin(loginName), false, RegisterVersioned.class)).getValue();
             // Check password
             // FIXME We actually need an external authentification mechanism, as
             // clients cannot be trusted.
@@ -84,7 +84,7 @@ public class SwiftSocial {
         // WalterSocial suggests using dedicated (non-replicated) login server.
         TxnHandle txn = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
         try {
-            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(User.getCRDTIdentifier(loginName), true,
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
                     RegisterVersioned.class);
             User newUser = new User(loginName, passwd);
             reg.set(newUser);
