@@ -267,6 +267,7 @@ public class SwiftImpl implements Swift {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
+            crdt.init(id, versionReply.getVersion(), versionReply.getPruneClock(), true);
             crdt.merge(receivedCrdt);
             break;
         default:
