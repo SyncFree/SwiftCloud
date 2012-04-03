@@ -1,5 +1,6 @@
 package swift.crdt;
 
+import java.io.Serializable;
 import java.util.Iterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -15,7 +16,7 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     private static final long serialVersionUID = 1L;
 
-    private static class QueueEntry<V> implements Comparable<QueueEntry<V>> {
+    private static class QueueEntry<V> implements Comparable<QueueEntry<V>>, Serializable {
         TripleTimestamp ts;
         CausalityClock c;
         V value;

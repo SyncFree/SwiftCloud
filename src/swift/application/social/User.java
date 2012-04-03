@@ -1,8 +1,10 @@
 package swift.application.social;
 
+import java.io.Serializable;
+
 import swift.crdt.CRDTIdentifier;
 
-public class User {
+public class User implements Serializable {
     CRDTIdentifier userId;
     String loginName;
     String password;

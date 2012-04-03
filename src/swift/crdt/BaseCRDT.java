@@ -123,6 +123,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         this.registeredInStore = true;
     }
 
+    // TODO Implement copy mechanisms for each CRDT!
     public V copy() {
         try {
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
@@ -136,6 +137,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
             @SuppressWarnings("unchecked")
             V object = (V) new ObjectInputStream(bais).readObject();
+            object.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
             return object;
         } catch (IOException e) {
             e.printStackTrace();

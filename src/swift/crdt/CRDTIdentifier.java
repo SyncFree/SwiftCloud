@@ -1,5 +1,7 @@
 package swift.crdt;
 
+import java.io.Serializable;
+
 /**
  * System-wide unique identifier for CRDT object. Identification via table to
  * which the CRDT is associated and key under which the CRDT is stored.
@@ -8,7 +10,7 @@ package swift.crdt;
  * 
  */
 // TODO: provide custom serializer or Kryo-lize the class
-public class CRDTIdentifier {
+public class CRDTIdentifier implements Serializable {
     private String table;
     private String key;
 
