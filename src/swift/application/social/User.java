@@ -22,7 +22,15 @@ public class User {
     // TODO Add photos?
     // CRDTIdentifier photoAlbumList;
 
-    public static CRDTIdentifier userNameToCRDTIdentifier(final String loginName) {
+    public User() {
+    }
+
+    public User(String loginName, String password) {
+        this.loginName = loginName;
+        this.password = password;
+    }
+
+    public static CRDTIdentifier getCRDTIdentifier(final String loginName) {
         // see wsocial_shared.cc for scheme used in walter, based on MD5 hashing
         return new CRDTIdentifier("userData", loginName);
     }

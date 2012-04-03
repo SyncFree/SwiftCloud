@@ -11,10 +11,12 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 
 public class SwiftSocialMain {
+    static String sequencerName = "localhost";
+
     public static void main(String[] args) {
         Thread sequencer = new Thread() {
             public void run() {
-                DCSequencerServer sequencer = new DCSequencerServer("seq");
+                DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
                 sequencer.start();
             }
         };
@@ -22,7 +24,7 @@ public class SwiftSocialMain {
 
         Thread server = new Thread() {
             public void run() {
-                DCServer server = new DCServer("seq");
+                DCServer server = new DCServer(sequencerName);
                 server.startSurrogServer();
             }
         };

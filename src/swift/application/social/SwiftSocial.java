@@ -2,7 +2,7 @@ package swift.application.social;
 
 import java.util.logging.Logger;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.RegisterTxnLocal;
 import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
@@ -10,14 +10,13 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
-import sys.utils.Log;
 
 // implements the social network functionality
 // see wsocial_srv.h
 
 public class SwiftSocial {
 
-    protected static Logger logger = Log.Log; // Logger.getLogger("swift.social");
+    protected static Logger logger = Logger.getLogger("swift.social");
     private User currentUser;
     private Swift server;
 
@@ -41,8 +40,13 @@ public class SwiftSocial {
         User user;
         boolean result;
         try {
-            user = (User) (txn.get(new CRDTIdentifier("users", loginName), false, RegisterVersioned.class)).getValue();
+            user = (User) (txn.get(User.getCRDTIdentifier(loginName), false, RegisterVersioned.class)).getValue();
             // Check password
+            // FIXME We actually need an external authentification mechanism, as
+            // clients cannot be trusted.
+            // In Walter, authentification is done on server side, within the
+            // data center. Moving password (even if hashed) to the client is a
+            // security breach.
             if (!user.password.equals(passwd)) {
                 logger.info("Wrong password for " + loginName);
                 result = false;
@@ -73,11 +77,23 @@ public class SwiftSocial {
         logger.info(currentUser + " successfully logged out");
     }
 
-    void addUser(String loginName, String passwd) {
+    // FIXME Return error code?
+    public void addUser(String loginName, String passwd) {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
-        // WalterSocial suggests using dedicated (non-replicated) login server?
+        // WalterSocial suggests using dedicated (non-replicated) login server.
+        TxnHandle txn = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
+        try {
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(User.getCRDTIdentifier(loginName), true,
+                    RegisterVersioned.class);
+            User newUser = new User(loginName, passwd);
+            reg.set(newUser);
 
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            txn.commit(true);
+        }
     }
 
     void updateUser() {

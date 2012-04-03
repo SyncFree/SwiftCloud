@@ -4,6 +4,7 @@ import java.io.Serializable;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 
@@ -165,5 +166,5 @@ public interface CRDT<V extends CRDT<V>> extends Serializable {
     /**
      * @return a deep copy of this object
      */
-    V clone();
+    V copy();
 }

@@ -13,7 +13,6 @@ import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.NotSupportedOperationException;
 import swift.utils.Pair;
 
 public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
@@ -216,10 +215,5 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         final IntegerVersioned creationState = isRegisteredInStore() ? null : new IntegerVersioned();
         IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, creationState, value(versionClock));
         return localView;
-    }
-
-    @Override
-    public IntegerVersioned clone() {
-        throw new NotSupportedOperationException("FIXME");
     }
 }

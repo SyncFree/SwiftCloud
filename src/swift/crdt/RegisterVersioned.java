@@ -10,9 +10,10 @@ import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.NotSupportedOperationException;
 
 public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
+    private static final long serialVersionUID = 1L;
+
     private static class QueueEntry<V> implements Comparable<QueueEntry<V>> {
         TripleTimestamp ts;
         CausalityClock c;
@@ -39,8 +40,9 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
                 return 1;
             case CMP_DOMINATES:
                 return -1;
+            default:
+                return 0;
             }
-            return 0;
         }
 
         @Override
@@ -80,7 +82,6 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
         }
         // remove all versions older than the pruningPoint
         SortedSet<QueueEntry<V>> pruned = new TreeSet<QueueEntry<V>>();
-        QueueEntry<V> dummy = new QueueEntry<V>(null, pruningPoint, null);
         for (QueueEntry<V> e : values) {
             if (!pruningPoint.includes(e.ts)) {
                 pruned.add(e);
@@ -132,8 +133,4 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
         return values.toString();
     }
 
-    @Override
-    public RegisterVersioned<V> clone() {
-        throw new NotSupportedOperationException("FIXME");
-    }
 }

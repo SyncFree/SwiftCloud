@@ -134,7 +134,7 @@ public class SwiftImpl implements Swift {
             crdtCopy = crdt;
             clockCopy = globalVisibleClock;
         } else {
-            crdtCopy = crdt.clone();
+            crdtCopy = crdt.copy();
             clockCopy = globalVisibleClock.clone();
             for (final TxnHandleImpl dependentTxn : localDependentTxns) {
                 final CRDTObjectOperationsGroup<V> localOps = (CRDTObjectOperationsGroup<V>) dependentTxn

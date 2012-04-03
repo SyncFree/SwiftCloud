@@ -8,6 +8,9 @@ import swift.crdt.interfaces.CRDTOperation;
 public class RegisterUpdate<V> extends BaseOperation<RegisterVersioned<V>> {
     private V val;
 
+    public RegisterUpdate() {
+    }
+
     public RegisterUpdate(TripleTimestamp ts, V val) {
         super(ts);
         this.val = val;
