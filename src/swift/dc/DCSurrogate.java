@@ -2,10 +2,14 @@ package swift.dc;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
@@ -51,9 +55,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
     RpcEndpoint endpoint;
     Endpoint sequencerServerEndpoint;
     RpcEndpoint sequencerClientEndpoint;
-    Map<String, Map<String, CRDTData<?>>> database;
-
-    CausalityClock version;
+    DCDataServer dataServer;
+    
+    Map<String,ClientSession> sessions;   // map clientId -> clientSession
+    Map<CRDTIdentifier,Set<String>> cltsObserving;   // map crdtIdentifier -> Set<clientId>
 
     DCSurrogate(RpcEndpoint e, RpcEndpoint seqClt, Endpoint seqSrv) {
         initData();
@@ -65,105 +70,86 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
     }
 
     private void initData() {
-        this.database = new HashMap<String, Map<String, CRDTData<?>>>();
-
-        this.version = ClockFactory.newClock();
-
-        IntegerVersioned i = new IntegerVersioned();
-        CRDTIdentifier id = new CRDTIdentifier("e", "1");
-        i.init(id, version, version, true);
-        putCRDT(id, i, i.getClock(), i.getPruneClock());
-
-        IntegerVersioned i2 = new IntegerVersioned();
-        CRDTIdentifier id2 = new CRDTIdentifier("e", "2");
-        i2.init(id2, version, version, true);
-        putCRDT(id2, i2, i2.getClock(), i2.getPruneClock());
-
+        sessions = new HashMap<String,ClientSession>();
+        cltsObserving = new HashMap<CRDTIdentifier,Set<String>>();
+        dataServer = new DCDataServer();
+    }
+    
+    void addToObserving(CRDTIdentifier id, String cltId) {
+        synchronized (cltsObserving) {
+            Set<String> clts = cltsObserving.get(id);
+            if (clts == null) {
+                clts = new TreeSet<String>();
+                cltsObserving.put(id, clts);
+            }
+            clts.add(cltId);
+        }
     }
 
+    void remFromObserving(CRDTIdentifier id, String cltId) {
+        synchronized (cltsObserving) {
+            Set<String> clts = cltsObserving.get(id);
+            if (clts != null) {
+                cltsObserving.remove(cltId);
+                if(clts.size() == 0) {
+                    cltsObserving.remove(id);
+                }
+            }
+        }
+    }
+
+    ClientSession getSession(String clientId) {
+        synchronized (sessions) {
+            ClientSession session = sessions.get(clientId);
+            if (session == null) {
+                session = new ClientSession();
+                sessions.put(clientId, session);
+            }
+            return session;
+        }
+    }
+    
+    void notifyNewUpdates( CRDTObjectOperationsGroup updates) {
+        
+    }
+    
     /**
      * Return null if CRDT does not exist
      */
     <V extends CRDT<V>> CRDTData<V> putCRDT(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clk, CausalityClock prune) {
-        // TODO:need to check prune stuff
-        prune = ClockFactory.newClock();
-        Map<String, CRDTData<?>> m;
-        synchronized (database) {
-            m = database.get(id.getTable());
-            if (m == null) {
-                m = new HashMap<String, CRDTData<?>>();
-                database.put(id.getTable(), m);
-            }
-        }
-        synchronized (m) {
-            @SuppressWarnings("unchecked")
-            CRDTData<V> data = (CRDTData<V>) m.get(id.getKey());
-            if (data == null) {
-                data = new CRDTData<V>(crdt, clk, prune);
-                m.put(id.getKey(), data);
-            } else {
-                data.crdt.merge(crdt);
-                data.clock.merge(clk);
-                data.pruneClock.merge(prune);
-            }
-            return data;
-        }
+        return dataServer.putCRDT(id, crdt, clk, prune);
     }
 
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock version) {
-        CRDTIdentifier id = grp.getTargetUID();
-        CRDTData<?> data = getCRDT(id, null);
-        if (data == null) {
-            if (!grp.hasCreationState()) {
-                return false;
-            }
-            CRDT crdt = grp.getCreationState();
-            CausalityClock clk = grp.getDependency();
-            if (clk == null) {
-                clk = ClockFactory.newClock();
-            }
-            CausalityClock prune = ClockFactory.newClock();
-            crdt.init(id, clk, prune, true);
-            data = putCRDT(id, crdt, clk, prune); // will merge if object exists
-        }
-
-        synchronized (data) {
-            // TODO: Discuss the "checkDependency = false" choice I made here.
-            data.crdt.execute((CRDTObjectOperationsGroup) grp, false);
-        }
-        return true;
+        return dataServer.execCRDT(grp, version);
     }
 
     /**
      * Return null if CRDT does not exist
      * 
      * If clock equals to null, just return full CRDT
+     * @param subscribe 
      */
-    CRDTData<?> getCRDT(CRDTIdentifier id, CausalityClock clock) {
-        Map<String, CRDTData<?>> m;
-        synchronized (database) {
-            m = database.get(id.getTable());
-            if (m == null)
-                return null;
-        }
-        synchronized (m) {
-            CRDTData<?> crdt = m.get(id.getKey());
-            return crdt;
-        }
+    CRDTData<?> getCRDT(CRDTIdentifier id, CausalityClock clock, boolean subscribe) {
+        return dataServer.getCRDT(id, clock, subscribe);
     }
 
     @Override
     public void onReceive(RpcConnection conn, FetchObjectVersionRequest request) {
         System.err.println("FetchObjectVersionRequest");
-
+        
         // TODO: check received timevector
 
-        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion());
+        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion(), request.isSubscribeUpdatesRequest());
         if (crdt == null) {
             conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, request
                     .getVersion(), ClockFactory.newClock()));
         } else {
+            ClientSession session = getSession(request.getClientId());
+            synchronized (session) {
+            }
+            addToObserving(request.getUid(), request.getClientId());
             synchronized (crdt) {
                 conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OK, crdt.crdt, crdt.clock,
                         crdt.pruneClock));
@@ -177,7 +163,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
         // TODO: check received timevector
 
-        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion());
+        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion(), request.isSubscribeUpdatesRequest());
         if (crdt == null) {
             conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, request
                     .getVersion(), ClockFactory.newClock()));
@@ -266,21 +252,39 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
     @Override
     public void onReceive(RpcConnection conn, RecentUpdatesRequest request) {
-        // TODO Auto-generated method stub
-
+        ClientSession session = getSession(request.getClientId());
+        synchronized (session) {
+            
+        }
     }
 }
 
-class CRDTData<V extends CRDT<V>> {
-    CRDT<V> crdt;
+class ClientSession
+{
+    Map<CRDTIdentifier, CausalityClock> newlyConfirmedSubscriptions;
+    List<CRDTObjectOperationsGroup> updates;
     CausalityClock clock;
-    CausalityClock pruneClock;
-
-    CRDTData(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock) {
-        this.crdt = crdt;
-        this.clock = clock;
-        this.pruneClock = pruneClock;
+    RpcConnection conn;
+    
+    ClientSession() {
+        newlyConfirmedSubscriptions = new TreeMap<CRDTIdentifier,CausalityClock>();
+        updates = new ArrayList<CRDTObjectOperationsGroup>();
+        clock = null;
+        conn = null;
     }
+    
+    
+    void dumpNewUpdates( RpcConnection conn, RecentUpdatesRequest request) {
+        
+/*        request.
+        
+        
+        conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OK, crdt.crdt, crdt.clock,
+                crdt.pruneClock));
+        
+*/    }
+    
+    
 }
 
 class Reply implements RpcMessage {

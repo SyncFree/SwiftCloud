@@ -11,6 +11,8 @@ public class Sys {
 
     private static final double NANOSECOND = 1e-9;
     
+    public static Sys Sys;
+
     public Random rg;
     public TaskScheduler scheduler;
 
@@ -23,8 +25,6 @@ public class Sys {
     }
 
     protected Sys() {
-        Sys = this;
-        initInstance();
     }
 
     protected void initInstance() {
@@ -39,9 +39,11 @@ public class Sys {
         return DHT_Node.getStub();
     }
     
-    public static void init() {
-        new Sys();
+    public synchronized static void init() {
+        if( Sys != null)
+            return;
+        Sys = new Sys();
+        Sys.initInstance();
     }
 
-    public static Sys Sys;
 }

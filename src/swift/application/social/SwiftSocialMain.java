@@ -14,6 +14,8 @@ public class SwiftSocialMain {
     static String sequencerName = "localhost";
 
     public static void main(String[] args) {
+        Sys.init();
+
         Thread sequencer = new Thread() {
             public void run() {
                 DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
@@ -21,6 +23,11 @@ public class SwiftSocialMain {
             }
         };
         sequencer.start();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
 
         Thread server = new Thread() {
             public void run() {
@@ -29,9 +36,13 @@ public class SwiftSocialMain {
             }
         };
         server.start();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
 
         int portId = 2001;
-        Sys.init();
         RpcEndpoint localEP = Networking.rpcBind(portId, null);
         final Endpoint serverEP = Networking.resolve("localhost", DCConstants.SURROGATE_PORT);
         Swift clientServer = new SwiftImpl(localEP, serverEP);
