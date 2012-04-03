@@ -29,7 +29,7 @@ import swift.crdt.operations.CRDTObjectOperationsGroup;
  * @param <V>
  *            CvRDT type implementing the interface
  */
-public interface CRDT<V extends CRDT<V>> extends Serializable {
+public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     // TODO: consider it single-shot method?
     /**
      * Initializes object state. <b>INVOKED ONLY BY SWIFT SYSTEM, ONCE.</b>

@@ -1,10 +1,9 @@
 package swift.application.social;
 
-import java.io.Serializable;
-
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.Copyable;
 
-public class User implements Serializable {
+public class User implements Copyable {
     CRDTIdentifier userId;
     String loginName;
     String password;
@@ -36,5 +35,14 @@ public class User implements Serializable {
         this.maritalStatus = 0;
         this.active = true;
         this.msgList = NamingScheme.forMessageList(loginName);
+    }
+
+    @Override
+    public Object copy() {
+        User copyObj = new User(loginName, password);
+        copyObj.birthday = birthday;
+        copyObj.maritalStatus = maritalStatus;
+        copyObj.active = active;
+        return copyObj;
     }
 }

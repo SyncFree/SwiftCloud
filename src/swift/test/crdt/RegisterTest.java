@@ -16,13 +16,13 @@ import swift.exceptions.WrongTypeException;
 
 public class RegisterTest {
     TxnHandle txn;
-    RegisterTxnLocal<Integer> i;
+    RegisterTxnLocal<IntegerWrap> i;
 
     @SuppressWarnings("unchecked")
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         txn = new TxnTester("client1", ClockFactory.newClock());
-        i = (RegisterTxnLocal<Integer>) txn.get(new CRDTIdentifier("A", "Int"), true, RegisterVersioned.class);
+        i = (RegisterTxnLocal<IntegerWrap>) txn.get(new CRDTIdentifier("A", "Int"), true, RegisterVersioned.class);
     }
 
     @Test
@@ -33,16 +33,16 @@ public class RegisterTest {
     @Test
     public void setTest() {
         final int incr = 10;
-        i.set(incr);
-        assertTrue(incr == i.getValue());
+        i.set(new IntegerWrap(incr));
+        assertTrue(incr == i.getValue().i);
     }
 
     @Test
     public void getAndSetTest() {
         final int iterations = 5;
         for (int j = 0; j < iterations; j++) {
-            i.set(j);
-            assertTrue(j == i.getValue());
+            i.set(new IntegerWrap(j));
+            assertTrue(j == i.getValue().i);
         }
     }
 }

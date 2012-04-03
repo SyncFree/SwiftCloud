@@ -2,10 +2,11 @@ package swift.crdt;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.RegisterUpdate;
 
-public class RegisterTxnLocal<V> extends BaseCRDTTxnLocal<RegisterVersioned<V>> {
+public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> {
     private V val;
 
     public RegisterTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<V> creationState,

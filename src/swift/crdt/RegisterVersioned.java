@@ -10,17 +10,21 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
-public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
+public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVersioned<V>> {
     private static final long serialVersionUID = 1L;
 
-    private static class QueueEntry<V> implements Comparable<QueueEntry<V>>, Serializable {
+    private static class QueueEntry<V extends Copyable> implements Comparable<QueueEntry<V>>, Serializable {
         TripleTimestamp ts;
         CausalityClock c;
         V value;
 
+        /**
+         * Only to be used by Kryo serialization.
+         */
         public QueueEntry() {
         }
 
@@ -55,9 +59,13 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
             return value + " -> " + ts + "," + c;
         }
 
+        public QueueEntry<V> copy() {
+            QueueEntry<V> copyObj = new QueueEntry<V>(ts, c.clone(), (V) value.copy());
+            return copyObj;
+        }
     }
 
-    // queue holding the versioning information, ordering is compatible with
+    // Queue holding the versioning information, ordering is compatible with
     // causal dependency, newest entries coming first
     private SortedSet<QueueEntry<V>> values;
 
@@ -141,6 +149,16 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     @Override
     protected void execute(CRDTOperation<RegisterVersioned<V>> op) {
         op.applyTo(this);
+    }
+
+    @Override
+    public RegisterVersioned<V> copy() {
+        RegisterVersioned<V> copyObj = new RegisterVersioned<V>();
+        for (QueueEntry<V> e : values) {
+            copyObj.values.add(e.copy());
+        }
+        copyObj.init(id, getClock().clone(), getPruneClock().clone(), registeredInStore);
+        return copyObj;
     }
 
 }
