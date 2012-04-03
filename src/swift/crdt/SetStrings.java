@@ -1,9 +1,9 @@
 package swift.crdt;
 
 import swift.clocks.CausalityClock;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.NotSupportedOperationException;
 
 public class SetStrings extends SetVersioned<String, SetStrings> {
 
@@ -20,7 +20,7 @@ public class SetStrings extends SetVersioned<String, SetStrings> {
     }
 
     @Override
-    public SetStrings clone() {
-        throw new NotSupportedOperationException("FIXME");
+    protected void execute(CRDTOperation<SetStrings> op) {
+        op.applyTo(this);
     }
 }

@@ -8,6 +8,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
@@ -18,6 +19,9 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
         TripleTimestamp ts;
         CausalityClock c;
         V value;
+
+        public QueueEntry() {
+        }
 
         public QueueEntry(TripleTimestamp ts, CausalityClock c, V value) {
             this.ts = ts;
@@ -131,6 +135,11 @@ public class RegisterVersioned<V> extends BaseCRDT<RegisterVersioned<V>> {
     @Override
     public String toString() {
         return values.toString();
+    }
+
+    @Override
+    protected void execute(CRDTOperation<RegisterVersioned<V>> op) {
+        op.applyTo(this);
     }
 
 }

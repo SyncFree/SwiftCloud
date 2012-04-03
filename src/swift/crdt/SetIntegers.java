@@ -4,7 +4,6 @@ import swift.clocks.CausalityClock;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.NotSupportedOperationException;
 
 public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
     private static final long serialVersionUID = 1L;
@@ -20,7 +19,7 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
     }
 
     @Override
-    public SetIntegers clone() {
-        throw new NotSupportedOperationException("FIXME");
+    protected void execute(CRDTOperation<SetIntegers> op) {
+        op.applyTo(this);
     }
 }

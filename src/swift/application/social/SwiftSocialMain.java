@@ -37,6 +37,12 @@ public class SwiftSocialMain {
         Swift clientServer = new SwiftImpl(localEP, serverEP);
         SwiftSocial client = new SwiftSocial(clientServer);
         client.addUser("Biene", "Honig");
+        try {
+            Thread.sleep(0);
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
         client.login("Biene", "Honig");
     }
 }

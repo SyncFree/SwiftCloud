@@ -77,13 +77,13 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
 
         for (final CRDTOperation<V> op : ops.getOperations()) {
-            // TODO: either leave this cast as is (same as in merge()) or use
-            // an indirection method execute(CRDTOperation<V>) to avoid it.
-            op.applyTo((V) this);
+            execute(op);
         }
         updatesClock.record(ops.getBaseTimestamp());
         return true;
     }
+
+    protected abstract void execute(CRDTOperation<V> op);
 
     @Override
     public CRDTIdentifier getUID() {
@@ -134,6 +134,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             byte[] byteData = bos.toByteArray();
 
             ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
+            @SuppressWarnings("unchecked")
             V object = (V) new ObjectInputStream(bais).readObject();
             return object;
         } catch (IOException e) {

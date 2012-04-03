@@ -88,7 +88,6 @@ public class SwiftSocial {
                     RegisterVersioned.class);
             User newUser = new User(loginName, passwd);
             reg.set(newUser);
-
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

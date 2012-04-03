@@ -11,6 +11,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.utils.Pair;
@@ -215,5 +216,10 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         final IntegerVersioned creationState = isRegisteredInStore() ? null : new IntegerVersioned();
         IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, creationState, value(versionClock));
         return localView;
+    }
+
+    @Override
+    protected void execute(CRDTOperation<IntegerVersioned> op) {
+        op.applyTo(this);
     }
 }
