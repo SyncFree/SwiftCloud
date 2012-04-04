@@ -9,7 +9,7 @@ public class NamingScheme {
         return new CRDTIdentifier("users", loginName);
     }
 
-    public static CRDTIdentifier forMessageList(final String loginName) {
+    public static CRDTIdentifier forMessages(final String loginName) {
         // see wsocial_shared.cc for scheme used in walter, based on MD5 hashing
         return new CRDTIdentifier("messages", loginName);
     }

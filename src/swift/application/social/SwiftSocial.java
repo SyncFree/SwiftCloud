@@ -1,9 +1,13 @@
 package swift.application.social;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import swift.crdt.RegisterTxnLocal;
 import swift.crdt.RegisterVersioned;
+import swift.crdt.SetMsg;
+import swift.crdt.SetTxnLocalMsg;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
@@ -25,7 +29,7 @@ public class SwiftSocial {
     }
 
     // FIXME Return type integer encoding error msg?
-    public boolean login(String loginName, String passwd) {
+    boolean login(String loginName, String passwd) {
         logger.info("Got login request from user " + loginName);
 
         // Check if user is already logged in
@@ -78,7 +82,7 @@ public class SwiftSocial {
     }
 
     // FIXME Return error code?
-    public void addUser(String loginName, String passwd) {
+    void addUser(String loginName, String passwd) {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
@@ -86,6 +90,7 @@ public class SwiftSocial {
         try {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
                     RegisterVersioned.class);
+            txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
             User newUser = new User(loginName, passwd);
             reg.set(newUser);
         } catch (Exception e) {
@@ -99,12 +104,37 @@ public class SwiftSocial {
         // TODO
     }
 
-    void getSiteReport() {
-        // TODO
+    Set<Message> getSiteReport(String loginName) {
+        logger.info("Get site report for " + loginName);
+        Set<Message> postings = new HashSet<Message>();
+        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, true);
+        try {
+            SetTxnLocalMsg messages = (SetTxnLocalMsg) txn
+                    .get(NamingScheme.forMessages(loginName), false, SetMsg.class);
+            postings = messages.getValue();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            txn.commit(false);
+        }
+        return postings;
+
     }
 
-    void updateStatus() {
-        // TODO
+    // FIXME return error code?
+    void postMessage(String senderName, String receiverName, String msg, long date) {
+        logger.info("Post status msg from " + senderName + " for " + receiverName);
+        Message newMsg = new Message(msg, senderName, receiverName, date);
+        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, false);
+        try {
+            SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(receiverName), false,
+                    SetMsg.class);
+            messages.insert(newMsg);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            txn.commit(false);
+        }
     }
 
     void answerFriendRequest() {

@@ -34,7 +34,7 @@ public class User implements Copyable {
         this.birthday = 0;
         this.maritalStatus = 0;
         this.active = true;
-        this.msgList = NamingScheme.forMessageList(loginName);
+        this.msgList = NamingScheme.forMessages(loginName);
     }
 
     @Override
