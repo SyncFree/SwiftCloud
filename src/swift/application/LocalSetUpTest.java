@@ -39,7 +39,7 @@ public class LocalSetUpTest {
         };
         server.start();
 
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 5; i++) {
             final int portId = i + 2000;
             Thread client = new Thread("client" + i) {
                 public void run() {
