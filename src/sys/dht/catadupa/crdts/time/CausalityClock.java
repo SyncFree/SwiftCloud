@@ -3,6 +3,8 @@ package sys.dht.catadupa.crdts.time;
 import java.io.Serializable;
 import java.util.Collection;
 
+import swift.exceptions.IncompatibleTypeException;
+
 /**
  * Interface for clocks that allow to trace causality, such as version vector
  * and dotted version vectors
@@ -10,8 +12,8 @@ import java.util.Collection;
  * @author nmp
  * @butcheredBy smd
  */
-public interface CausalityClock<V extends CausalityClock<V,T>, T extends Timestamp> extends Serializable {
-	
+public interface CausalityClock<V extends CausalityClock<V, T>, T extends Timestamp> extends Serializable {
+
 	enum CMP_CLOCK {
 		CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT
 	};
@@ -33,7 +35,7 @@ public interface CausalityClock<V extends CausalityClock<V,T>, T extends Timesta
 	 *            Event clock.
 	 * @throws IncompatibleTypeException
 	 */
-	void record(T ec) ;
+	void record(T ec);
 
 	/**
 	 * Checks if a given event clock is reflected in this clock
@@ -44,7 +46,7 @@ public interface CausalityClock<V extends CausalityClock<V,T>, T extends Timesta
 	 *         causality clock.
 	 * @throws IncompatibleTypeException
 	 */
-	boolean includes(T t) ;
+	boolean includes(T t);
 
 	/**
 	 * Compares two causality clock.
@@ -76,7 +78,7 @@ public interface CausalityClock<V extends CausalityClock<V,T>, T extends Timesta
 	 *         CMP_CONCUREENT : if this clock and the given c clock were
 	 *         concurrent; <br>
 	 */
-	CMP_CLOCK merge( V c);
+	CMP_CLOCK merge(V c);
 
 	/**
 	 * Create a copy of this causality clock.
@@ -90,5 +92,5 @@ public interface CausalityClock<V extends CausalityClock<V,T>, T extends Timesta
 	 * @throws IncompatibleTypeException
 	 */
 
-	public Collection<T> delta( V other ) ; 
+	public Collection<T> delta(V other);
 }

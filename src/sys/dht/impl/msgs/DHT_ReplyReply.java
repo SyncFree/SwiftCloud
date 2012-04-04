@@ -7,26 +7,26 @@ import sys.net.api.rpc.RpcMessage;
 
 public class DHT_ReplyReply implements RpcMessage {
 
-    public long handlerId;
-    public long replyHandlerId;
-    public DHT.Reply payload;
+	public long handlerId;
+	public long replyHandlerId;
+	public DHT.Reply payload;
 
-    DHT_ReplyReply() {
-    }
+	DHT_ReplyReply() {
+	}
 
-    public DHT_ReplyReply(DHT.Reply payload, long handlerId) {
-        this(payload, handlerId, 0);
-    }
+	public DHT_ReplyReply(DHT.Reply payload, long handlerId) {
+		this(payload, handlerId, 0);
+	}
 
-    public DHT_ReplyReply(DHT.Reply payload, long handlerId, long replyHandlerId) {
-        this.payload = payload;
-        this.handlerId = handlerId;
-        this.replyHandlerId = replyHandlerId;
-    }
+	public DHT_ReplyReply(DHT.Reply payload, long handlerId, long replyHandlerId) {
+		this.payload = payload;
+		this.handlerId = handlerId;
+		this.replyHandlerId = replyHandlerId;
+	}
 
-    @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
-        ((DHT_StubHandler) handler).onReceive(conn, this);
-    }
+	@Override
+	public void deliverTo(RpcConnection conn, RpcHandler handler) {
+		((DHT_StubHandler) handler).onReceive(conn, this);
+	}
 
 }

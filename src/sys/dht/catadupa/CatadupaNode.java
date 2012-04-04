@@ -1,5 +1,9 @@
 package sys.dht.catadupa;
 
+import static sys.Sys.Sys;
+import static sys.dht.catadupa.Config.Config;
+import static sys.utils.Log.Log;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Map;
@@ -19,11 +23,6 @@ import sys.net.api.rpc.RpcMessage;
 import sys.scheduler.PeriodicTask;
 import sys.scheduler.Task;
 
-import static sys.Sys.Sys;
-import static sys.utils.Log.Log;
-
-import static sys.dht.catadupa.Config.Config;
-
 /**
  * 
  * @author smd
@@ -31,263 +30,280 @@ import static sys.dht.catadupa.Config.Config;
  */
 public class CatadupaNode extends LocalNode implements MembershipListener {
 
-    protected DB db;
-    Task sequencerTask, repairTask;
+	protected DB db;
+	Task sequencerTask, repairTask;
 
-    public double lastSequencerRun = Double.NEGATIVE_INFINITY;
-    public double lastDepartureSend = Double.NEGATIVE_INFINITY;
+	public double lastSequencerRun = Double.NEGATIVE_INFINITY;
+	public double lastDepartureSend = Double.NEGATIVE_INFINITY;
 
-    double targetFanout = Config.BROADCAST_MAX_FANOUT;
+	double targetFanout = Config.BROADCAST_MAX_FANOUT;
 
-    Set<Node> joins = new HashSet<Node>();
-    Set<Node> rejoins = new HashSet<Node>();
-    Set<Node> departures = new HashSet<Node>();
+	Set<Node> joins = new HashSet<Node>();
+	Set<Node> rejoins = new HashSet<Node>();
+	Set<Node> departures = new HashSet<Node>();
 
-    protected CatadupaNode() {
-    }
+	public CatadupaNode() {
+	}
 
-    protected void init() {
-        KryoSerialization.init();
-        db = new DB(this);
+	public void init() {
+		db = new DB(this);
 
-        Log.finest("I am " + db.self);
+		Log.finest("I am " + db.self);
 
-        joinCatadupa();
-        repairCatadupa();
-        initSequencerTask();
+		joinCatadupa();
+		repairCatadupa();
+		initSequencerTask();
 
-        new PeriodicTask(0, 5) {
-            public void run() {
-                Log.finest(self.key + ": " + db.k2n.values());
-            }
-        };
-    }
+		new PeriodicTask(0, 5) {
+			@Override
+			public void run() {
+				Log.finest(self.key + ": " + db.k2n.values());
+			}
+		};
+	}
 
-    // --------------------------------------------------------------------------------------------------------------------------------
-    void joinCatadupa() {
+	public boolean isReady() {
+		return db.joined;
+	}
 
-        new PeriodicTask(0, 5 + 0 * Config.JOIN_ATTEMPT_PERIOD) {
-            double backoff = 0.1;
+	// --------------------------------------------------------------------------------------------------------------------------------
+	void joinCatadupa() {
 
-            public void run() {
-                if (!db.joined) {
-                    JoinRequest jr = new JoinRequest(db.self);
-                    Node aggregator = db.aggregatorFor(0, self.key);
-                    rpc.send(aggregator.endpoint, jr, new CatadupaHandler() {
+		new PeriodicTask(0, 5 + 0 * Config.JOIN_ATTEMPT_PERIOD) {
+			double backoff = 0.1;
 
-                        public void onReceive(JoinRequestAccept m) {
-                            reSchedule(Config.JOIN_ATTEMPT_PERIOD);
-                        }
+			@Override
+			public void run() {
+				if (!db.joined) {
+					JoinRequest jr = new JoinRequest(db.self);
+					Node aggregator = db.aggregatorFor(0, self.key);
+					rpc.send(aggregator.endpoint, jr, new CatadupaHandler() {
 
-                        public void onFailure() {
-                            backoff = Math.min(5, backoff * 1.5);
-                            reSchedule(backoff);
-                        }
-                    });
-                } else
-                    cancel();
-            }
-        };
-    }
+						@Override
+						public void onReceive(JoinRequestAccept m) {
+							reSchedule(Config.JOIN_ATTEMPT_PERIOD);
+						}
 
-    synchronized public void onReceive(RpcConnection conn, JoinRequest m) {
-        joins.add(m.node);
-        conn.reply(new JoinRequestAccept());
-        if (!sequencerTask.isScheduled())
-            sequencerTask.reSchedule(Config.SEQUENCER_BROADCAST_PERIOD + Sys.rg.nextDouble());
-    }
+						@Override
+						public void onFailure() {
+							backoff = Math.min(5, backoff * 1.5);
+							reSchedule(backoff);
+						}
+					});
+				} else
+					cancel();
+			}
+		};
+	}
 
-    // --------------------------------------------------------------------------------------------------------------------------------
-    void initSequencerTask() {
-        sequencerTask = new Task(Config.SEQUENCER_BROADCAST_PERIOD) {
-            public void run() {
-                if (joins.size() > 0 || rejoins.size() > 0 || departures.size() > 0) {
-                    lastSequencerRun = Sys.currentTime();
+	@Override
+	synchronized public void onReceive(RpcConnection conn, JoinRequest m) {
+		joins.add(m.node);
+		conn.reply(new JoinRequestAccept());
+		if (!sequencerTask.isScheduled())
+			sequencerTask.reSchedule(Config.SEQUENCER_BROADCAST_PERIOD + Sys.rg.nextDouble());
+	}
 
-                    broadcastCatadupaUpdates();
+	// --------------------------------------------------------------------------------------------------------------------------------
+	void initSequencerTask() {
+		sequencerTask = new Task(Config.SEQUENCER_BROADCAST_PERIOD) {
+			@Override
+			public void run() {
+				if (joins.size() > 0 || rejoins.size() > 0 || departures.size() > 0) {
+					lastSequencerRun = Sys.currentTime();
 
-                    joins.clear();
-                    rejoins.clear();
-                    departures.clear();
-                }
-            }
-        };
-    }
+					broadcastCatadupaUpdates();
 
-    private void broadcastCatadupaUpdates() {
-        MembershipUpdate m = new MembershipUpdate(joins, departures, rejoins);
-        Timestamp ts = db.merge(m);
+					joins.clear();
+					rejoins.clear();
+					departures.clear();
+				}
+			}
+		};
+	}
 
-        Log.finest("Broacasting:" + m + "-->" + ts);
+	private void broadcastCatadupaUpdates() {
+		MembershipUpdate m = new MembershipUpdate(joins, departures, rejoins);
+		Timestamp ts = db.merge(m);
 
-        CatadupaCastPayload ccp = new CatadupaCastPayload(m, ts);
-        onReceive((RpcConnection) null, new CatadupaCast(0, self.key, new Range(), ccp));
-    }
+		Log.finest("Broacasting:" + m + "-->" + ts);
 
-    // --------------------------------------------------------------------------------------------------------------------------------
-    // Broadcast a membership aggregate event.
-    synchronized public void onReceive(RpcConnection sock, final CatadupaCast m) {
+		CatadupaCastPayload ccp = new CatadupaCastPayload(m, ts);
+		onReceive((RpcConnection) null, new CatadupaCast(0, self.key, new Range(), ccp));
+	}
 
-        final int BroadcastFanout = broadcastFanout(m.level);
+	// --------------------------------------------------------------------------------------------------------------------------------
+	// Broadcast a membership aggregate event.
+	@Override
+	synchronized public void onReceive(RpcConnection sock, final CatadupaCast m) {
 
-        this.onReceive(sock, m.payload);
+		final int BroadcastFanout = broadcastFanout(m.level);
 
-        Range r0 = m.range;
+		this.onReceive(sock, m.payload);
 
-        if (m.level > 0)
-            r0 = r0.advancePast(self.key);
+		Range r0 = m.range;
 
-        if (r0.sizeGreaterThan(BroadcastFanout, db)) {
-            for (Range j : r0.slice(m.level, BroadcastFanout, db)) {
-                for (Node i : j.nodes(db)) {
-                    if (i.key == m.rootKey)
-                        continue;
+		if (m.level > 0)
+			r0 = r0.advancePast(self.key);
 
-                    if (rpc.send(i.endpoint, new CatadupaCast(m.level + 1, m.rootKey, j, m.payload)))
-                        break;
-                }
-            }
-        } else {
-            for (Node i : r0.nodes(db))
-                if (i.key != self.key && i.key != m.rootKey)
-                    rpc.send(i.endpoint, m.payload);
-        }
-    }
+		if (r0.sizeGreaterThan(BroadcastFanout, db)) {
+			for (Range j : r0.slice(m.level, BroadcastFanout, db)) {
+				for (Node i : j.nodes(db)) {
+					if (i.key == m.rootKey)
+						continue;
 
-    final int broadcastFanout(int level) {
-        return level == 0 ? 1 : Config.CATADUPA_DYNAMIC_FANOUT ? dynamicBroadcastFanout() : staticBroadcastFanout();
-    }
+					if (rpc.send(i.endpoint, new CatadupaCast(m.level + 1, m.rootKey, j, m.payload)))
+						break;
+				}
+			}
+		} else {
+			for (Node i : r0.nodes(db))
+				if (i.key != self.key && i.key != m.rootKey)
+					rpc.send(i.endpoint, m.payload);
+		}
+	}
 
-    public int staticBroadcastFanout() {
-        return Config.BROADCAST_MAX_FANOUT;
-    }
+	final int broadcastFanout(int level) {
+		return level == 0 ? 1 : Config.CATADUPA_DYNAMIC_FANOUT ? dynamicBroadcastFanout() : staticBroadcastFanout();
+	}
 
-    public int dynamicBroadcastFanout() {
-        final double TARGET_BROADCAST_ADJUST = 0.05;
+	public int staticBroadcastFanout() {
+		return Config.BROADCAST_MAX_FANOUT;
+	}
 
-        targetFanout *= (1 + TARGET_BROADCAST_ADJUST * (Sys.uploadedBytes > Sys.downloadedBytes ? -1 : 1));
-        targetFanout = Math.max(2, Math.min(targetFanout, Config.BROADCAST_MAX_FANOUT));
+	public int dynamicBroadcastFanout() {
+		final double TARGET_BROADCAST_ADJUST = 0.05;
 
-        int floor = (int) targetFanout;
-        return floor + (Sys.rg.nextDouble() < (targetFanout - floor) ? 1 : 0);
-    }
+		targetFanout *= (1 + TARGET_BROADCAST_ADJUST * (Sys.uploadedBytes > Sys.downloadedBytes ? -1 : 1));
+		targetFanout = Math.max(2, Math.min(targetFanout, Config.BROADCAST_MAX_FANOUT));
 
-    /*
-     * 
-     * Process a new membership aggregate event. The node has joined when it is
-     * being announced in the payload. Updates the node membership database.
-     */
-    synchronized public void onReceive(RpcConnection call, CatadupaCastPayload m) {
-        Log.finest(self.key + "  " + m.data);
-        db.merge(m);
-    }
+		int floor = (int) targetFanout;
+		return floor + (Sys.rg.nextDouble() < (targetFanout - floor) ? 1 : 0);
+	}
 
-    // ------------------------------------------------------------------------------------------------
-    // EPIDEMIC MEMBERSHIP REPAIR
-    /*
-     * Do periodic pair-wise membership (incremental) merge operations.
-     */
-    double mergePeriod = Config.MEMBERSHIP_MERGE_PERIOD;
+	/*
+	 * 
+	 * Process a new membership aggregate event. The node has joined when it is
+	 * being announced in the payload. Updates the node membership database.
+	 */
+	@Override
+	synchronized public void onReceive(RpcConnection call, CatadupaCastPayload m) {
+		Log.finest(self.key + "  " + m.data);
+		db.merge(m);
+	}
 
-    void repairCatadupa() {
-        repairTask = new Task(Sys.rg.nextDouble()) {
-            double backoff = 0.1;
+	// ------------------------------------------------------------------------------------------------
+	// EPIDEMIC MEMBERSHIP REPAIR
+	/*
+	 * Do periodic pair-wise membership (incremental) merge operations.
+	 */
+	double mergePeriod = Config.MEMBERSHIP_MERGE_PERIOD;
 
-            public void run() {
+	void repairCatadupa() {
+		repairTask = new Task(Sys.rg.nextDouble()) {
+			double backoff = 0.1;
 
-                Node other = db.randomNode();
-                Log.finest(self.key + "-->Merging with:" + other);
-                if (other != null) {
+			@Override
+			public void run() {
 
-                    rpc.send(other.endpoint, new DbMergeRequest(db.clock()), new CatadupaHandler() {
+				Node other = db.randomNode();
+				Log.finest(self.key + "-->Merging with:" + other);
+				if (other != null) {
 
-                        public void onFailure() {
-                            backoff = Math.min(5, backoff * 1.5);
-                            reSchedule(backoff);
-                        }
+					rpc.send(other.endpoint, new DbMergeRequest(db.clock()), new CatadupaHandler() {
 
-                        public void onReceive(final RpcConnection conn, final DbMergeReply r) {
-                            backoff = 0.1;
+						@Override
+						public void onFailure() {
+							backoff = Math.min(5, backoff * 1.5);
+							reSchedule(backoff);
+						}
 
-                            Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + r.clock);
-                            Log.finest("--DB---->" + db.membership);
+						@Override
+						public void onReceive(final RpcConnection conn, final DbMergeReply r) {
+							backoff = 0.1;
 
-                            db.merge(r);
-                            Collection<? extends Timestamp> ts = db.clock().delta(r.clock);
-                            conn.reply(new DbMergeReply(db.clock(), db.membership.subSet(ts)));
+							Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + r.clock);
+							Log.finest("--DB---->" + db.membership);
 
-                            mergePeriod = Math.min(45, Math.max(10, mergePeriod));
-                            reSchedule(mergePeriod + Sys.rg.nextDouble());
-                        }
-                    });
-                }
-                reSchedule(mergePeriod + Sys.rg.nextDouble());
-            }
-        };
-    }
+							db.merge(r);
+							Collection<? extends Timestamp> ts = db.clock().delta(r.clock);
+							conn.reply(new DbMergeReply(db.clock(), db.membership.subSet(ts)));
 
-    synchronized public void onReceive(RpcConnection conn, DbMergeRequest other) {
+							mergePeriod = Math.min(45, Math.max(10, mergePeriod));
+							reSchedule(mergePeriod + Sys.rg.nextDouble());
+						}
+					});
+				}
+				reSchedule(mergePeriod + Sys.rg.nextDouble());
+			}
+		};
+	}
 
-        Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + other.clock);
-        Log.finest("---DB--->" + db.membership);
+	@Override
+	synchronized public void onReceive(RpcConnection conn, DbMergeRequest other) {
 
-        Collection<? extends Timestamp> ts = db.clock().delta(other.clock);
+		Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + other.clock);
+		Log.finest("---DB--->" + db.membership);
 
-        Log.finest("Stamps:" + ts);
-        Map<MembershipUpdate, Timestamp> delta = db.membership.subSet(ts);
+		Collection<? extends Timestamp> ts = db.clock().delta(other.clock);
 
-        Log.finest("Delta:" + delta);
+		Log.finest("Stamps:" + ts);
+		Map<MembershipUpdate, Timestamp> delta = db.membership.subSet(ts);
 
-        conn.reply(new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
+		Log.finest("Delta:" + delta);
 
-            public void onReceive(DbMergeReply r) {
-                db.merge(r);
+		conn.reply(new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
 
-                mergePeriod *= r.delta != null ? 1.1 : 0.5;
-                mergePeriod = Math.min(45, Math.max(2.5, mergePeriod));
-            }
-        });
+			@Override
+			public void onReceive(DbMergeReply r) {
+				db.merge(r);
 
-        mergePeriod = Math.min(45, Math.max(10, mergePeriod));
-        repairTask.reSchedule(mergePeriod + Sys.rg.nextDouble());
-    }
+				mergePeriod *= r.delta != null ? 1.1 : 0.5;
+				mergePeriod = Math.min(45, Math.max(2.5, mergePeriod));
+			}
+		});
 
-    // --------------------------------------------------------------------------------------------------------------------------------
+		mergePeriod = Math.min(45, Math.max(10, mergePeriod));
+		repairTask.reSchedule(mergePeriod + Sys.rg.nextDouble());
+	}
 
-    // Failed Nodes...
+	// --------------------------------------------------------------------------------------------------------------------------------
 
-    /*
-     * Handle node failure events...
-     */
-    public void onFailure(Endpoint dst, RpcMessage m) {
-        if (dst != endpoint) {
+	// Failed Nodes...
 
-            Node failedNode = new Node(dst);
+	/*
+	 * Handle node failure events...
+	 */
+	@Override
+	public void onFailure(Endpoint dst, RpcMessage m) {
+		if (dst != endpoint) {
 
-            Log.finest("Failed Node:" + failedNode);
-            // if (state.db.loadedEndpoints) {
-            // state.db.deadNodes.set(failedNode.offline_index);
-            // state.departures.add(failedNode.offline_index);
-            //
-            // if (!isSequencer() && state.departures.size() > 0 &&
-            // (currentTime() - state.lastDepartureSend) > 10) {
-            // FailureNotice r = new FailureNotice(state.departures);
-            // CatadupaNode sequencer = state.db.sequencerFor(r.level,
-            // this.key);
-            // lPriority.send(sequencer.endpoint, r, 0, new
-            // CatadupaReplyHandler());
-            // state.lastDepartureSend = currentTime();
-            // state.departures.clear();
-            // }
-            // }
-        }
-    }
+			Node failedNode = new Node(dst);
 
-    @Override
-    public void onNodeAdded(Node n) {
-    }
+			Log.finest("Failed Node:" + failedNode);
+			// if (state.db.loadedEndpoints) {
+			// state.db.deadNodes.set(failedNode.offline_index);
+			// state.departures.add(failedNode.offline_index);
+			//
+			// if (!isSequencer() && state.departures.size() > 0 &&
+			// (currentTime() - state.lastDepartureSend) > 10) {
+			// FailureNotice r = new FailureNotice(state.departures);
+			// CatadupaNode sequencer = state.db.sequencerFor(r.level,
+			// this.key);
+			// lPriority.send(sequencer.endpoint, r, 0, new
+			// CatadupaReplyHandler());
+			// state.lastDepartureSend = currentTime();
+			// state.departures.clear();
+			// }
+			// }
+		}
+	}
 
-    @Override
-    public void onNodeRemoved(Node n) {
-    }
+	@Override
+	public void onNodeAdded(Node n) {
+	}
+
+	@Override
+	public void onNodeRemoved(Node n) {
+	}
 }

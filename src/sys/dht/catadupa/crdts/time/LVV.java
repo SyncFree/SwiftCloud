@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 
-
 public class LVV implements CausalityClock<LVV, LVV.TS> {
 
 	int maxCounter = -1;
@@ -43,29 +42,29 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 
 	@Override
 	public boolean includes(TS t) {
-		TsSet s = data.get( t.siteId ) ;
-		return s != null && s.contains( t ) ;
+		TsSet s = data.get(t.siteId);
+		return s != null && s.contains(t);
 	}
 
 	@Override
-	public CMP_CLOCK compareTo(LVV other)  {
+	public CMP_CLOCK compareTo(LVV other) {
 		boolean lessThan = false; // this less than c
 		boolean greaterThan = false;
 
 		Iterator<Map.Entry<String, TsSet>> it;
-		
-		for( it = other.data.entrySet().iterator() ; it.hasNext() && ! lessThan ; ) {
-			Map.Entry<String, TsSet> e = it.next() ;
-			TsSet s = data.get( e.getKey() ) ;
-			lessThan |= s == null || !s.containsAll( e.getValue() ) ;
+
+		for (it = other.data.entrySet().iterator(); it.hasNext() && !lessThan;) {
+			Map.Entry<String, TsSet> e = it.next();
+			TsSet s = data.get(e.getKey());
+			lessThan |= s == null || !s.containsAll(e.getValue());
 		}
 
-		for( it = data.entrySet().iterator() ; it.hasNext() && ! greaterThan ; ) {
-			Map.Entry<String, TsSet> e = it.next() ;
-			TsSet s = other.data.get( e.getKey() ) ;
-			greaterThan |= s == null || (!s.containsAll( e.getValue())) ;
+		for (it = data.entrySet().iterator(); it.hasNext() && !greaterThan;) {
+			Map.Entry<String, TsSet> e = it.next();
+			TsSet s = other.data.get(e.getKey());
+			greaterThan |= s == null || (!s.containsAll(e.getValue()));
 		}
-		
+
 		if (greaterThan && lessThan) {
 			return CMP_CLOCK.CMP_CONCURRENT;
 		}
@@ -83,15 +82,15 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 		boolean lessThan = false; // this less than c
 		boolean greaterThan = false;
 
-		for(Map.Entry<String, TsSet> i : other.data.entrySet() ) {
-			lessThan |= getSet( i.getKey() ).addAll( i.getValue() ) ;
+		for (Map.Entry<String, TsSet> i : other.data.entrySet()) {
+			lessThan |= getSet(i.getKey()).addAll(i.getValue());
 		}
 
-		for(Map.Entry<String, TsSet> i : data.entrySet() ) {
-			TsSet s = other.data.get( i.getKey() ) ;
-			greaterThan |= s == null || (!s.containsAll( i.getValue())) ;
+		for (Map.Entry<String, TsSet> i : data.entrySet()) {
+			TsSet s = other.data.get(i.getKey());
+			greaterThan |= s == null || (!s.containsAll(i.getValue()));
 		}
-		
+
 		if (greaterThan && lessThan) {
 			return CMP_CLOCK.CMP_CONCURRENT;
 		}
@@ -104,6 +103,7 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 		return CMP_CLOCK.CMP_EQUALS;
 	}
 
+	@Override
 	public LVV clone() {
 		return new LVV(this);
 	}
@@ -115,30 +115,32 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 		return res;
 	}
 
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append('{');
 		for (Map.Entry<String, TsSet> i : data.entrySet()) {
 			sb.append(String.format("<%s : %s>", i.getKey(), i.getValue())).append(", ");
 		}
-		if( data.size() > 0 )
-			sb.delete(sb.length()-2, sb.length()) ;
+		if (data.size() > 0)
+			sb.delete(sb.length() - 2, sb.length());
 		sb.append('}');
 		return sb.toString();
 	}
-	
+
 	public static class TS implements Timestamp {
 
 		String siteId;
 		public int c_value;
 		public int p_value;
 
-		public TS(){}
-		
+		public TS() {
+		}
+
 		TS(TS other) {
-			this.siteId = other.siteId;
-			this.c_value = other.c_value;
-			this.p_value = other.p_value;
+			siteId = other.siteId;
+			c_value = other.c_value;
+			p_value = other.p_value;
 		}
 
 		TS(String siteId, int c_value, int p_value) {
@@ -152,6 +154,7 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 			return siteId;
 		}
 
+		@Override
 		public TS clone() {
 			return new TS(this);
 		}
@@ -165,29 +168,32 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 			return (c_value != other.c_value) ? Integer.signum(c_value - other.c_value) : siteId.compareTo(other.siteId);
 		}
 
+		@Override
 		public String toString() {
-			return String.format("%d (%d)", c_value, p_value) ;
+			return String.format("%d (%d)", c_value, p_value);
 		}
-		
+
 		@Override
 		public int compareTo(Timestamp other) {
 			return compareTo((TS) other);
 		}
 
-		public int hashCode() {
-			return c_value ^ p_value ;
-		}
-		
-		public boolean equals( TS other ) {
-			return c_value == other.c_value && siteId.equals( other.siteId ) ;
-		}
-		
-		public boolean equals( Object other ) {
-			return equals( (TS) other );
-		}
-		
 		@Override
-		public void recordIn(CausalityClock<?, ?> cc)  {
+		public int hashCode() {
+			return c_value ^ p_value;
+		}
+
+		public boolean equals(TS other) {
+			return c_value == other.c_value && siteId.equals(other.siteId);
+		}
+
+		@Override
+		public boolean equals(Object other) {
+			return equals((TS) other);
+		}
+
+		@Override
+		public void recordIn(CausalityClock<?, ?> cc) {
 			((LVV) cc).record(this);
 		}
 
@@ -212,9 +218,10 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 		}
 
 		int maxCounter() {
-			return isEmpty() ? -1 : last().c_value ;
+			return isEmpty() ? -1 : last().c_value;
 		}
-		
+
+		@Override
 		public TsSet clone() {
 			return new TsSet(this);
 		}
@@ -245,10 +252,10 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 			return s.c_value <= cutoff || super.contains(s);
 		}
 
-//		public boolean contains(Object other) {
-//			Thread.dumpStack(); // vai ser preciso por causa do cutoff
-//			return false;
-//		}
+		// public boolean contains(Object other) {
+		// Thread.dumpStack(); // vai ser preciso por causa do cutoff
+		// return false;
+		// }
 
 		public boolean containsAll(Collection<?> c, int cutoff) {
 			for (Object i : c)
@@ -258,28 +265,29 @@ public class LVV implements CausalityClock<LVV, LVV.TS> {
 			return true;
 		}
 
+		@Override
 		public String toString() {
 			return super.toString();
 		}
 
 		private static final long serialVersionUID = 1L;
 	}
+
 	/**
 	 * 
 	 */
 	private static final long serialVersionUID = 1L;
 
+	@Override
 	public Collection<TS> delta(LVV other) {
 		Collection<TS> res = new ArrayList<TS>();
-		for( Iterator<Map.Entry<String, TsSet>> it = data.entrySet().iterator(); it.hasNext(); ) {
+		for (Iterator<Map.Entry<String, TsSet>> it = data.entrySet().iterator(); it.hasNext();) {
 			Map.Entry<String, TsSet> e = it.next();
-			TsSet otherSet = other.data.get( e.getKey() ) ;
-			for( TS t : e.getValue() )
-				if( otherSet == null || ! otherSet.contains(t) )
-					res.add( t ) ;
+			TsSet otherSet = other.data.get(e.getKey());
+			for (TS t : e.getValue())
+				if (otherSet == null || !otherSet.contains(t))
+					res.add(t);
 		}
 		return res;
 	}
 }
-
-

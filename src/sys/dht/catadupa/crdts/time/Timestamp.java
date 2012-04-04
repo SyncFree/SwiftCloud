@@ -4,18 +4,18 @@ import java.io.Serializable;
 
 /**
  * Common base interface for timestamps.
- * <p> 
+ * <p>
  */
 public interface Timestamp extends Serializable, Comparable<Timestamp> {
- 
-	public String siteId() ;
 
-    public Timestamp clone() ;
+	public String siteId();
 
-    public int size() ;
-    
-    public void recordIn( CausalityClock<?,?> clock ) ;
+	public Timestamp clone();
 
-    public boolean includedIn( CausalityClock<?,?> clock ) ;
+	public int size();
+
+	public void recordIn(CausalityClock<?, ?> clock);
+
+	public boolean includedIn(CausalityClock<?, ?> clock);
 
 }

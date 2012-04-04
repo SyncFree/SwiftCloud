@@ -12,8 +12,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
 
-import sys.dht.catadupa.crdts.time.*;
-
+import sys.dht.catadupa.crdts.time.Timestamp;
 
 public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 
@@ -93,11 +92,12 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 		return e2t.keySet().toArray(a);
 	}
 
+	@Override
 	public void merge(ORSet<V> other) {
 		merge(other, new ArrayList<V>(), new ArrayList<V>());
 	}
 
-	public void merge(ORSet<V> other, Collection<V> added, Collection<V> removed) {
+	public synchronized void merge(ORSet<V> other, Collection<V> added, Collection<V> removed) {
 
 		List<Timestamp> newTombs = new ArrayList<Timestamp>();
 		for (Timestamp t : other.tomb)
@@ -156,10 +156,11 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 		return s;
 	}
 
+	@Override
 	public String toString() {
 		return e2t.keySet().toString();
 	}
-	
+
 	class _OrSetIterator implements Iterator<V> {
 
 		Map.Entry<V, Set<Timestamp>> curr;
@@ -169,6 +170,7 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 			it = e2t.entrySet().iterator();
 		}
 
+		@Override
 		public boolean hasNext() {
 			return it.hasNext();
 		}

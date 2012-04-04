@@ -10,116 +10,118 @@ import sys.net.api.Endpoint;
  */
 public interface DHT {
 
-    void send(final DHT.Key key, final DHT.Message msg);
+	void send(final DHT.Key key, final DHT.Message msg);
 
-    void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler);
+	void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler);
 
-    interface Key {
+	interface Key {
 
-        long longHashValue();
-    }
+		long longHashValue();
+	}
 
-    interface Message {
+	interface Message {
 
-        void deliverTo(final DHT.Connection conn, final DHT.Key key, final DHT.MessageHandler handler);
+		void deliverTo(final DHT.Connection conn, final DHT.Key key, final DHT.MessageHandler handler);
 
-    }
+	}
 
-    interface MessageHandler {
+	interface MessageHandler {
 
-        void onFailure();
+		void onFailure();
 
-        void onReceive(final DHT.Connection conn, final DHT.Key key, final DHT.Message request);
+		void onReceive(final DHT.Connection conn, final DHT.Key key, final DHT.Message request);
 
-    }
+	}
 
-    interface Reply {
+	interface Reply {
 
-        void deliverTo(final DHT.Connection conn, final DHT.ReplyHandler handler);
+		void deliverTo(final DHT.Connection conn, final DHT.ReplyHandler handler);
 
-    }
+	}
 
-    interface ReplyHandler {
+	interface ReplyHandler {
 
-        void onFailure();
+		void onFailure();
 
-        void onReceive(final DHT.Reply msg);
+		void onReceive(final DHT.Reply msg);
 
-        void onReceive(final DHT.Connection conn, final DHT.Reply reply);
-    }
+		void onReceive(final DHT.Connection conn, final DHT.Reply reply);
+	}
 
-    interface Connection {
+	interface Connection {
 
-        /**
-         * Tells if this connection awaits a reply.
-         * 
-         * @return true/false if the connection awaits a reply or not
-         */
-        boolean expectingReply();
+		/**
+		 * Tells if this connection awaits a reply.
+		 * 
+		 * @return true/false if the connection awaits a reply or not
+		 */
+		boolean expectingReply();
 
-        /**
-         * Send a (final) reply message using this connection
-         * 
-         * @param msg
-         *            the reply being sent
-         * @return true/false if the reply was successful or failed
-         */
-        boolean reply(final DHT.Reply msg);
+		/**
+		 * Send a (final) reply message using this connection
+		 * 
+		 * @param msg
+		 *            the reply being sent
+		 * @return true/false if the reply was successful or failed
+		 */
+		boolean reply(final DHT.Reply msg);
 
-        /**
-         * Send a reply message using this connection, with further message
-         * exchange round implied.
-         * 
-         * @param msg
-         *            the reply message
-         * @param handler
-         *            the handler that will be notified upon the arrival of an
-         *            reply (to this reply)
-         * @return true/false if the reply was successful or failed
-         */
-        boolean reply(final DHT.Reply msg, final DHT.ReplyHandler handler);
+		/**
+		 * Send a reply message using this connection, with further message
+		 * exchange round implied.
+		 * 
+		 * @param msg
+		 *            the reply message
+		 * @param handler
+		 *            the handler that will be notified upon the arrival of an
+		 *            reply (to this reply)
+		 * @return true/false if the reply was successful or failed
+		 */
+		boolean reply(final DHT.Reply msg, final DHT.ReplyHandler handler);
 
-        /**
-         * 
-         * @return true if the connection failed to establish or failed during
-         *         message exchange
-         */
-        boolean failed();
+		/**
+		 * 
+		 * @return true if the connection failed to establish or failed during
+		 *         message exchange
+		 */
+		boolean failed();
 
-        /**
-         * Optional method to dispose of a connection
-         */
-        void dispose();
+		/**
+		 * Optional method to dispose of a connection
+		 */
+		void dispose();
 
-        /**
-         * Obtains the remote endpoint of this connection
-         * 
-         * @return the remote endpoint of this connection
-         */
-        Endpoint remoteEndpoint();
-    }
+		/**
+		 * Obtains the remote endpoint of this connection
+		 * 
+		 * @return the remote endpoint of this connection
+		 */
+		Endpoint remoteEndpoint();
+	}
 
-    abstract class AbstractReplyHandler implements ReplyHandler {
+	abstract class AbstractReplyHandler implements ReplyHandler {
 
-        public void onFailure() {
-        }
+		@Override
+		public void onFailure() {
+		}
 
-        @Override
-        public void onReceive(DHT.Reply msg) {
-        }
+		@Override
+		public void onReceive(DHT.Reply msg) {
+		}
 
-        @Override
-        public void onReceive(DHT.Connection conn, DHT.Reply reply) {
-        }
-    }
+		@Override
+		public void onReceive(DHT.Connection conn, DHT.Reply reply) {
+		}
+	}
 
-    abstract class AbstractMessageHandler implements MessageHandler {
+	abstract class AbstractMessageHandler implements MessageHandler {
 
-        public void onFailure() {
-        }
+		@Override
+		public void onFailure() {
+		}
 
-        @Override
-        public void onReceive(DHT.Connection conn, DHT.Key key, DHT.Message request) {
-        }
-    }
+		@Override
+		public void onReceive(DHT.Connection conn, DHT.Key key, DHT.Message request) {
+		}
+	}
 }

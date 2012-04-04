@@ -1,36 +1,39 @@
 package sys.dht.catadupa;
 
-import java.util.* ;
-
 import static sys.Sys.Sys;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 
 /**
  * 
  * @author smd
- *
+ * 
  * @param <T>
  */
-public class RandomList<T> extends ArrayList<T>{
+public class RandomList<T> extends ArrayList<T> {
 
-	public RandomList() {}
+	public RandomList() {
+	}
 
-	public RandomList( Collection <? extends T> c) {
-		super(c) ;
+	public RandomList(Collection<? extends T> c) {
+		super(c);
 	}
-	
-	public RandomList( Iterator <? extends T> it ) {
-		for( ; it.hasNext() ; )
-			add( it.next() ) ;
+
+	public RandomList(Iterator<? extends T> it) {
+		for (; it.hasNext();)
+			add(it.next());
 	}
-	
+
 	public T randomElement() {
-		return isEmpty() ? null : get( Sys.rg.nextInt( super.size() ) ) ;
+		return isEmpty() ? null : get(Sys.rg.nextInt(super.size()));
 	}
-	
+
 	public T removeRandomElement() {
-		return isEmpty() ? null : remove( Sys.rg.nextInt( super.size() ) ) ;		
-	}		
-	
+		return isEmpty() ? null : remove(Sys.rg.nextInt(super.size()));
+	}
+
 	/**
 	 * 
 	 */

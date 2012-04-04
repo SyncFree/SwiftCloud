@@ -1,9 +1,14 @@
 package sys.dht.catadupa;
 
+import static sys.Sys.Sys;
+import static sys.dht.catadupa.Config.Config;
+import static sys.utils.Log.Log;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Random;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -13,11 +18,6 @@ import sys.dht.catadupa.crdts.time.LVV;
 import sys.dht.catadupa.crdts.time.Timestamp;
 import sys.dht.catadupa.msgs.CatadupaCastPayload;
 import sys.dht.catadupa.msgs.DbMergeReply;
-
-import static sys.Sys.*;
-import static sys.utils.Log.Log;
-
-import static sys.dht.catadupa.Config.*;
 
 /**
  * 
@@ -39,10 +39,10 @@ public class DB {
 
 	public DB(CatadupaNode owner) {
 		this.owner = owner;
-		this.self = owner.self;
-		this.rt = new CRDTRuntime("" + self.key);
-		this.membership = new ORSet<MembershipUpdate>();
-		this.membership.setUpdatesRecorder(rt);
+		self = owner.self;
+		rt = new CRDTRuntime("" + self.key);
+		membership = new ORSet<MembershipUpdate>();
+		membership.setUpdatesRecorder(rt);
 
 		for (Node i : SeedDB.nodes())
 			k2n.put(i.key, i);
@@ -105,6 +105,10 @@ public class DB {
 		}
 	}
 
+	public Set<Long> nodeKeys() {
+		return k2n.keySet();
+	}
+	
 	public LVV clock() {
 		return rt.getCausalityClock();
 	}
@@ -167,7 +171,7 @@ public class DB {
 				return new AppendIterator<Node>(first, second);
 			}
 		} catch (Exception x) {
-			System.out.println(L + "/" + H);
+			Log.severe(L + "/" + H);
 			throw new RuntimeException(x.getMessage());
 		}
 	}
@@ -206,6 +210,7 @@ class AppendIterator<T> implements Iterator<T>, Iterable<T> {
 		curr.remove();
 	}
 
+	@Override
 	public Iterator<T> iterator() {
 		return this;
 	}

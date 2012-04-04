@@ -8,36 +8,37 @@ import java.security.NoSuchAlgorithmException;
  * A wrapper for using a String as a DHT key
  * 
  * @author smd
- *
+ * 
  */
 public class StringKey implements DHT.Key {
 
-    private static MessageDigest digest;
+	private static MessageDigest digest;
 
-    String key;
+	String key;
 
-    public StringKey() {
-    }
-    
-    public StringKey(final String key) {
-        this.key = key;
-    }
+	public StringKey() {
+	}
 
-    public String value() {
-        return key;
-    }
+	public StringKey(final String key) {
+		this.key = key;
+	}
 
-    public long longHashValue() {
-        digest.reset();
-        digest.update(key.getBytes());
-        return new BigInteger(1, digest.digest()).longValue() >>> 1;
-    }
+	public String value() {
+		return key;
+	}
 
-    static {
-        try {
-            digest = java.security.MessageDigest.getInstance("MD5");
-        } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-    }
+	@Override
+	public long longHashValue() {
+		digest.reset();
+		digest.update(key.getBytes());
+		return new BigInteger(1, digest.digest()).longValue() >>> 1;
+	}
+
+	static {
+		try {
+			digest = java.security.MessageDigest.getInstance("MD5");
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+	}
 }
