@@ -71,7 +71,7 @@ public class SwiftSocial {
             e.printStackTrace();
             result = false;
         }
-        txn.commit(false);
+        txn.commit();
         return result;
     }
 
@@ -96,7 +96,7 @@ public class SwiftSocial {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit(true);
+            txn.commit();
         }
     }
 
@@ -115,7 +115,7 @@ public class SwiftSocial {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit(false);
+            txn.commit();
         }
         return postings;
 
@@ -133,7 +133,7 @@ public class SwiftSocial {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit(false);
+            txn.commit();
         }
     }
 

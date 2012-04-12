@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.IncrementalTripleTimestampGenerator;
@@ -57,6 +58,7 @@ class TxnHandleImpl implements TxnHandle {
     private final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectsInUse;
     private final Map<CRDTIdentifier, CRDTObjectOperationsGroup<?>> localObjectOperations;
     private TxnStatus status;
+    private CommitListener commitListener;
 
     /**
      * @param swift
@@ -102,9 +104,22 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     @Override
-    public synchronized void commit(boolean waitForGlobalCommit) {
+    public void commit() {
+        final Semaphore commitSem = new Semaphore(0);
+        commitAsync(new CommitListener() {
+            @Override
+            public void onGlobalCommit(TxnHandle transaction) {
+                commitSem.release();
+            }
+        });
+        commitSem.acquireUninterruptibly();
+    }
+
+    @Override
+    public synchronized void commitAsync(final CommitListener listener) {
         assertStatus(TxnStatus.PENDING);
-        swift.commitTxn(this, waitForGlobalCommit);
+        this.commitListener = listener;
+        swift.commitTxn(this);
     }
 
     @Override
@@ -239,12 +254,16 @@ class TxnHandleImpl implements TxnHandle {
      * Marks transaction as globally committed, using currently assigned global
      * timestamp.
      */
-    synchronized void markGloballyCommitted() {
-        assertStatus(TxnStatus.COMMITTED_LOCAL);
-        assertGlobalTimestampDefined();
+    void markGloballyCommitted() {
+        synchronized (this) {
+            assertStatus(TxnStatus.COMMITTED_LOCAL);
+            assertGlobalTimestampDefined();
 
-        status = TxnStatus.COMMITTED_GLOBAL;
-        // TODO: add async. notification to the application
+            status = TxnStatus.COMMITTED_GLOBAL;
+        }
+        if (commitListener != null) {
+            commitListener.onGlobalCommit(this);
+        }
     }
 
     /**

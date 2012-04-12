@@ -281,7 +281,7 @@ public class SwiftImpl implements Swift {
         setPendingTxn(null);
     }
 
-    public synchronized void commitTxn(TxnHandleImpl txn, boolean waitForGlobalCommit) {
+    public synchronized void commitTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
 
         // Big WISHME: write disk log and allow local recovery.
@@ -431,6 +431,10 @@ public class SwiftImpl implements Swift {
      * can only take place when there is no pending transaction.
      */
     private class CommitterThread extends Thread {
+
+        public CommitterThread() {
+            super("SwiftTransactionCommitterThread");
+        }
         @Override
         public void run() {
             // TODO: introduce gentle stop()

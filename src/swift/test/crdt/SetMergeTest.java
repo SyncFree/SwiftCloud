@@ -38,7 +38,7 @@ public class SetMergeTest {
         try {
             return registerInsert(value, i, txn);
         } finally {
-            txn.commit(true);
+            txn.commit();
         }
     }
 
@@ -51,7 +51,7 @@ public class SetMergeTest {
     private void registerSingleRemoveTxn(int value, Set<TripleTimestamp> rems, SetIntegers i, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn();
         registerRemove(value, rems, i, txn);
-        txn.commit(true);
+        txn.commit();
     }
 
     private void registerRemove(int value, Set<TripleTimestamp> rems, SetIntegers i, TxnTester txn) {

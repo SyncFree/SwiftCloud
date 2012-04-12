@@ -1,5 +1,6 @@
 package swift.crdt.interfaces;
 
+import swift.client.CommitListener;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
@@ -56,18 +57,26 @@ public interface TxnHandle {
             throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
 
     /**
-     * Commits the transaction.
+     * Commits the transaction and blocks until the transaction is committed to
+     * the store.
      * 
-     * TODO: add notification mechanism for async. global commit
-     * 
-     * @param waitForGlobalCommit
-     *            when true, blocks until the transaction reaches the store;
-     *            when false, awaits only local commit and commits at the store
-     *            asynchronously
      * @throws IllegalStateException
      *             when transaction is already committed or rolled back
      */
-    void commit(boolean waitForGlobalCommit);
+    void commit();
+
+    /**
+     * Commits the transaction, blocks only until local commit and commits to
+     * the store asynchronously.
+     * 
+     * @param listener
+     *            listener notified about transaction global commit;
+     *            notification may be called by a system thread and should
+     *            minimize the processing; ignored if null
+     * @throws IllegalStateException
+     *             when transaction is already committed or rolled back
+     */
+    void commitAsync(final CommitListener listener);
 
     /**
      * Abandons the transaction and reverts any updates that were executed under

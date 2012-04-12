@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import swift.client.CommitListener;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
@@ -72,11 +73,16 @@ public class TxnTester implements TxnHandle {
     }
 
     @Override
-    public void commit(boolean waitForStore) {
+    public void commit() {
         for (final Entry<CRDT<?>, CRDTObjectOperationsGroup<?>> entry : objectOperations.entrySet()) {
             entry.getKey().execute((CRDTObjectOperationsGroup) entry.getValue(), false);
         }
         cc.record(ts);
+    }
+
+    @Override
+    public void commitAsync(final CommitListener listener) {
+        throw new UnsupportedOperationException();
     }
 
     @Override

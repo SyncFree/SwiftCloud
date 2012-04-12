@@ -33,7 +33,7 @@ public class IntegerMergeTest {
     private void registerSingleUpdateTxn(int value, IntegerVersioned i, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn();
         registerUpdate(value, i, txn);
-        txn.commit(true);
+        txn.commit();
     }
 
     @Before

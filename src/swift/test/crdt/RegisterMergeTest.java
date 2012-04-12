@@ -30,7 +30,7 @@ public class RegisterMergeTest {
     private void registerSingleUpdateTxn(int value, RegisterVersioned<IntegerWrap> i, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn();
         registerUpdate(value, i, txn);
-        txn.commit(true);
+        txn.commit();
     }
 
     private void registerUpdate(int value, RegisterVersioned<IntegerWrap> i, TxnTester txn) {
