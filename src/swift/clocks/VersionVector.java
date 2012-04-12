@@ -280,7 +280,12 @@ public class VersionVector implements CausalityClock {
     }
 
     @Override
-    public void dropEntry(String siteId) {
+    public void drop(String siteId) {
         vv.remove(siteId);
+    }
+
+    @Override
+    public void drop(Timestamp timestamp) {
+        throw new UnsupportedOperationException();
     }
 }

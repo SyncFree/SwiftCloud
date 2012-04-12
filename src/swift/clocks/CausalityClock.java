@@ -61,7 +61,17 @@ public interface CausalityClock extends Serializable {
      * @param siteId
      *            site identifier
      */
-    void dropEntry(String siteId);
+    void drop(String siteId);
+
+    /**
+     * Removes a single timestamp from the clock if it includes the timestamp.
+     * 
+     * @param timestamp
+     *            timestamp to remove from the clock
+     * @throws UnsupportedOperationException
+     *             when operation is not supported by this clock implementation
+     */
+    void drop(Timestamp timestamp);
 
     /**
      * Compares two causality clock.

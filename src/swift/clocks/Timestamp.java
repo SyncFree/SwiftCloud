@@ -10,8 +10,10 @@ import java.io.Serializable;
  * 
  * @see TripleTimestamp
  */
-// TODO: provide custom serializer or Kryo-lize the class
 public class Timestamp implements Serializable, Comparable<Timestamp> {
+    /**
+     * Minimum counter value (exclusive!?), never used by any timestamp.
+     */
     public static final long MIN_VALUE = 0L;
 
     private static final long serialVersionUID = 1L;
@@ -20,7 +22,7 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
 
     public Timestamp() {
     }
-    
+
     Timestamp(String siteid, long counter) {
         this.siteid = siteid;
         this.counter = counter;

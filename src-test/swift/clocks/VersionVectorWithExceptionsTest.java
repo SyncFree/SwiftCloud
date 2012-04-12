@@ -33,7 +33,7 @@ public class VersionVectorWithExceptionsTest {
         clock.record(tsB2);
 
         // Drop first entry.
-        clock.dropEntry(tsA1.getIdentifier());
+        clock.drop(tsA1.getIdentifier());
 
         // Should result in [0, 2].
         assertTrue(clock.includes(tsB1));
@@ -49,10 +49,54 @@ public class VersionVectorWithExceptionsTest {
         clock.record(tsB2);
 
         // Drop first entry.
-        clock.dropEntry(tsA1.getIdentifier());
+        clock.drop(tsA1.getIdentifier());
 
         // Should result in [0, 2 \ {1}].
         assertTrue(clock.includes(tsB2));
         assertFalse(clock.includes(tsA2));
+    }
+    
+    @Test
+    public void testDropFirstTimestamp() {
+        clock.record(tsA1);
+        clock.record(tsA2);
+        
+        clock.drop(tsA1);
+
+        assertFalse(clock.includes(tsA1));
+        assertTrue(clock.includes(tsA2));
+    }
+
+    @Test
+    public void testDropLastTimestamp() {
+        clock.record(tsA1);
+        clock.record(tsA2);
+
+        clock.drop(tsA2);
+
+        assertTrue(clock.includes(tsA1));
+        assertFalse(clock.includes(tsA2));
+    }
+
+    @Test
+    public void testDropAllTimestamps() {
+        clock.record(tsA1);
+        clock.record(tsA2);
+
+        clock.drop(tsA2);
+        clock.drop(tsA1);
+
+        assertFalse(clock.includes(tsA1));
+        assertFalse(clock.includes(tsA2));
+    }
+
+    @Test
+    public void testDropInexistentTimestamp() {
+        clock.record(tsA2);
+
+        clock.drop(tsA1);
+
+        assertFalse(clock.includes(tsA1));
+        assertTrue(clock.includes(tsA2));
     }
 }

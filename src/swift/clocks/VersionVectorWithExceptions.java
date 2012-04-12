@@ -14,7 +14,8 @@ import swift.exceptions.IncompatibleTypeException;
  * 
  * @author nmp
  */
-// TODO: provide custom serializer or Kryo-lize the class
+// TODO: provide alternative implementation with explicit non-contigous events,
+// rather than explicit exceptions.
 public class VersionVectorWithExceptions implements CausalityClock {
 
     private static final long serialVersionUID = 1L;
@@ -366,8 +367,29 @@ public class VersionVectorWithExceptions implements CausalityClock {
     }
 
     @Override
-    public void dropEntry(String siteId) {
+    public void drop(String siteId) {
         vv.remove(siteId);
         excludedTimestamps.remove(siteId);
+    }
+
+    @Override
+    public void drop(final Timestamp timestamp) {
+        if (!includes(timestamp)) {
+            return;
+        }
+
+        final String id = timestamp.getIdentifier();
+        Set<Long> excludes = excludedTimestamps.get(id);
+        if (excludes == null) {
+            excludes = new TreeSet<Long>();
+            excludedTimestamps.put(id, excludes);
+        }
+        excludes.add(timestamp.getCounter());
+
+        // Garbage collect VV entry fully covered with exceptions.
+        // TODO: implement more GC covering all cases if needed
+        if (excludes.size() == getLatestCounter(id)) {
+            drop(id);
+        }
     }
 }

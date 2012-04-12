@@ -334,11 +334,16 @@ public class DottedVersionVector implements CausalityClock {
     }
 
     @Override
-    public void dropEntry(String siteId) {
+    public void drop(String siteId) {
         vv.remove(siteId);
         if (ts != null && ts.getIdentifier().equals(siteId)) {
             ts = null;
         }
+    }
+
+    @Override
+    public void drop(Timestamp timestamp) {
+        throw new UnsupportedOperationException();
     }
 
 }

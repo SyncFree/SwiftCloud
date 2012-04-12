@@ -95,9 +95,8 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      *            new base timestamp of a dependent operation
      */
     public synchronized void replaceDependentTimestamp(Timestamp oldTs, Timestamp newTs) {
+        dependencyClock.drop(oldTs);
         dependencyClock.record(newTs);
-        // FIXME(mzawirski): CRITICAL remove (or replace) oldTs from the
-        // dependencyClock!
         for (CRDTOperation<V> op : operations) {
             op.replaceDependentOpTimestamp(oldTs, newTs);
         }
