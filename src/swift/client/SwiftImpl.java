@@ -1,5 +1,7 @@
 package swift.client;
 
+import static sys.net.api.Networking.Networking;
+
 import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Random;
@@ -53,6 +55,23 @@ public class SwiftImpl implements Swift, TxnManager {
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
+    /**
+     * Creates new instance of Swift using provided network settings and default
+     * cache parameters.
+     * 
+     * @param localPort
+     *            port to bind local RPC endpoint
+     * @param serverHostname
+     *            hostname of storage server
+     * @param serverPort
+     *            TCP port of storage server
+     * @return instance of Swift client
+     */
+    public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort) {
+        return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
+                new InfiniteObjectsCache());
+    }
+
     private static String generateClientId() {
         final Random random = new Random(System.currentTimeMillis());
         return Long.toHexString(System.identityHashCode(random) + random.nextLong());
@@ -62,7 +81,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
     private final CommitterThread committerThread;
-    private final ObjectsCache objectsCache;
+    private final InfiniteObjectsCache objectsCache;
     // Invariant: latestVersion only grows.
     private final CausalityClock latestVersion;
     // Invariant: there is at most one pending transaction.
@@ -70,11 +89,11 @@ public class SwiftImpl implements Swift, TxnManager {
     private final LinkedList<TxnHandleImpl> locallyCommittedTxns;
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
-    public SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint) {
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache) {
         this.clientId = generateClientId();
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
-        this.objectsCache = new ObjectsCache();
+        this.objectsCache = objectsCache;
         this.locallyCommittedTxns = new LinkedList<TxnHandleImpl>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);

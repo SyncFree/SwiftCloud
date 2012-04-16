@@ -9,14 +9,14 @@ import swift.crdt.interfaces.CRDT;
 /**
  * Local cache of CRDT objects.
  * <p>
- * TODO: LRU and other features
+ * Extract interface, add LRU and other features.
  * 
  * @author mzawirski
  */
-class ObjectsCache {
+class InfiniteObjectsCache {
     private Map<CRDTIdentifier, Entry> entries;
 
-    ObjectsCache() {
+    InfiniteObjectsCache() {
         entries = new HashMap<CRDTIdentifier, Entry>();
     }
 

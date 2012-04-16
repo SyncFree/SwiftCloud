@@ -44,9 +44,7 @@ public class LocalSetUpTest {
             Thread client = new Thread("client" + i) {
                 public void run() {
                     Sys.init();
-                    RpcEndpoint localEP = Networking.rpcBind(portId, null);
-                    final Endpoint serverEP = Networking.resolve("localhost", DCConstants.SURROGATE_PORT);
-                    SwiftImpl clientServer = new SwiftImpl(localEP, serverEP);
+                    SwiftImpl clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
                     clientCode(clientServer);
                 }
 

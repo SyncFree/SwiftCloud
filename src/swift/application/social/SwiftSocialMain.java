@@ -32,9 +32,7 @@ public class SwiftSocialMain {
 
         Sys.init();
         int portId = 2001;
-        RpcEndpoint localEP = Networking.rpcBind(portId, null);
-        final Endpoint serverEP = Networking.resolve("localhost", DCConstants.SURROGATE_PORT);
-        Swift clientServer = new SwiftImpl(localEP, serverEP);
+        Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
         client.addUser("Biene", "Honig");
         client.login("Biene", "Honig");
