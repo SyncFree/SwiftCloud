@@ -8,5 +8,10 @@
 	<classpathentry kind="lib" path="lib/kryo-1.04-all.jar"/>
 	<classpathentry kind="lib" path="lib/kryo-serializers-0.9.jar"/>
 	<classpathentry kind="lib" path="lib/riak-client-1.0.3-jar-with-dependencies.jar"/>
+	<classpathentry kind="lib" path="lib/easymock-3.1.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="http://www.easymock.org/api/easymock/3.1/"/>
+		</attributes>
+	</classpathentry>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
