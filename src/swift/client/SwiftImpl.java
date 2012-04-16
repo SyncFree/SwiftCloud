@@ -124,24 +124,20 @@ public class SwiftImpl implements Swift, TxnManager {
         V crdt = getObject(id, globalVisibleClock, create, classOfV);
 
         final V crdtCopy;
-        final CausalityClock clockCopy;
         final Deque<TxnHandleImpl> localDependentTxns = txn.getLocalVisibleTransactions();
         if (localDependentTxns.isEmpty()) {
             crdtCopy = crdt;
-            clockCopy = globalVisibleClock;
         } else {
             crdtCopy = crdt.copy();
-            clockCopy = globalVisibleClock.clone();
             for (final TxnHandleImpl dependentTxn : localDependentTxns) {
                 final CRDTObjectOperationsGroup<V> localOps = (CRDTObjectOperationsGroup<V>) dependentTxn
                         .getObjectLocalOperations(id);
                 if (localOps != null) {
                     crdtCopy.execute(localOps, false);
                 }
-                clockCopy.record(dependentTxn.getLocalTimestamp());
             }
         }
-        return crdtCopy.getTxnLocalCopy(clockCopy, txn);
+        return crdtCopy.getTxnLocalCopy(txn.getAllVisibleTransactionsClock(), txn);
     }
 
     @SuppressWarnings("unchecked")
