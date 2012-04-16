@@ -103,6 +103,8 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @Override
     public synchronized TxnHandleImpl beginTxn(CachePolicy cp, boolean readOnly) {
+        // FIXME: Ooops, readOnly is present here at API level, respect it here
+        // and in TxnHandleImpl or remove it from API.
         assertNoPendingTransaction();
 
         if (cp == CachePolicy.MOST_RECENT || cp == CachePolicy.STRICTLY_MOST_RECENT) {
