@@ -267,6 +267,13 @@ class TxnHandleImpl implements TxnHandle {
     }
 
     /**
+     * @return true when transaction did not perform any update
+     */
+    synchronized boolean isReadOnly() {
+        return localObjectOperations.isEmpty();
+    }
+
+    /**
      * @return a collection of operations group on objects updated by this
      *         transactions; these operation groups use local timestamp (
      *         {@link #getLocalTimestamp()}); the content of collection is
