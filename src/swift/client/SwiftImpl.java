@@ -31,7 +31,6 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
-import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
@@ -47,7 +46,7 @@ import sys.net.api.rpc.RpcEndpoint;
  * 
  * @author mzawirski
  */
-public class SwiftImpl implements Swift {
+public class SwiftImpl implements Swift, TxnManager {
     // TODO: FOR ALL REQUESTS: implement generic exponential backoff
     // retry manager+server failover?
 
@@ -83,12 +82,8 @@ public class SwiftImpl implements Swift {
         this.committerThread.start();
     }
 
-    public String getClientId() {
-        return clientId;
-    }
-
     @Override
-    public synchronized TxnHandle beginTxn(CachePolicy cp, boolean readOnly) {
+    public synchronized TxnHandleImpl beginTxn(CachePolicy cp, boolean readOnly) {
         assertNoPendingTransaction();
 
         if (cp == CachePolicy.MOST_RECENT || cp == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -119,6 +114,10 @@ public class SwiftImpl implements Swift {
         return pendingTxn;
     }
 
+    /* (non-Javadoc)
+     * @see swift.client.TxnManager#getObjectTxnView(swift.client.TxnHandleImpl, swift.crdt.CRDTIdentifier, boolean, java.lang.Class)
+     */
+    @Override
     public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id,
             boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
             ConsistentSnapshotVersionNotFoundException {
@@ -276,11 +275,19 @@ public class SwiftImpl implements Swift {
         latestVersion.merge(versionReply.getVersion());
     }
 
+    /* (non-Javadoc)
+     * @see swift.client.TxnManager#discardTxn(swift.client.TxnHandleImpl)
+     */
+    @Override
     public synchronized void discardTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
         setPendingTxn(null);
     }
 
+    /* (non-Javadoc)
+     * @see swift.client.TxnManager#commitTxn(swift.client.TxnHandleImpl)
+     */
+    @Override
     public synchronized void commitTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
 

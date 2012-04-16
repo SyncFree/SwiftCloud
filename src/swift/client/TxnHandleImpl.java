@@ -49,7 +49,7 @@ import swift.exceptions.WrongTypeException;
  * @author mzawirski
  */
 class TxnHandleImpl implements TxnHandle {
-    private final SwiftImpl swift;
+    private final TxnManager manager;
     private final CausalityClock globalVisibleTransactionsClock;
     private final Deque<TxnHandleImpl> localVisibleTransactions;
     private final Timestamp localTimestamp;
@@ -61,8 +61,8 @@ class TxnHandleImpl implements TxnHandle {
     private CommitListener commitListener;
 
     /**
-     * @param swift
-     *            swift instance that is maintaining this transaction
+     * @param manager
+     *            manager maintaining this transaction
      * @param globalVisibleTransactionsClock
      *            clock representing globally commited transactions visible to
      *            this transaction; left unmodified
@@ -72,9 +72,9 @@ class TxnHandleImpl implements TxnHandle {
      * @param localTimestamp
      *            local timestamp used for local operations of this transaction
      */
-    TxnHandleImpl(final SwiftImpl swift, final CausalityClock globalVisibleTransactionsClock,
+    TxnHandleImpl(final TxnManager manager, final CausalityClock globalVisibleTransactionsClock,
             final List<TxnHandleImpl> localVisibleTransactions, final Timestamp localTimestamp) {
-        this.swift = swift;
+        this.manager = manager;
         this.globalVisibleTransactionsClock = globalVisibleTransactionsClock.clone();
         this.localVisibleTransactions = new LinkedList<TxnHandleImpl>(localVisibleTransactions);
         this.localTimestamp = localTimestamp;
@@ -94,7 +94,7 @@ class TxnHandleImpl implements TxnHandle {
         try {
             TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectsInUse.get(id);
             if (localView == null) {
-                localView = swift.getObjectTxnView(this, id, create, classOfV);
+                localView = manager.getObjectTxnView(this, id, create, classOfV);
                 objectsInUse.put(id, localView);
             }
             return (T) localView;
@@ -119,13 +119,13 @@ class TxnHandleImpl implements TxnHandle {
     public synchronized void commitAsync(final CommitListener listener) {
         assertStatus(TxnStatus.PENDING);
         this.commitListener = listener;
-        swift.commitTxn(this);
+        manager.commitTxn(this);
     }
 
     @Override
     public synchronized void rollback() {
         assertStatus(TxnStatus.PENDING);
-        swift.discardTxn(this);
+        manager.discardTxn(this);
         status = TxnStatus.CANCELLED;
     }
 
