@@ -114,9 +114,6 @@ public class SwiftImpl implements Swift, TxnManager {
         return pendingTxn;
     }
 
-    /* (non-Javadoc)
-     * @see swift.client.TxnManager#getObjectTxnView(swift.client.TxnHandleImpl, swift.crdt.CRDTIdentifier, boolean, java.lang.Class)
-     */
     @Override
     public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id,
             boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
@@ -275,18 +272,12 @@ public class SwiftImpl implements Swift, TxnManager {
         latestVersion.merge(versionReply.getVersion());
     }
 
-    /* (non-Javadoc)
-     * @see swift.client.TxnManager#discardTxn(swift.client.TxnHandleImpl)
-     */
     @Override
     public synchronized void discardTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
         setPendingTxn(null);
     }
 
-    /* (non-Javadoc)
-     * @see swift.client.TxnManager#commitTxn(swift.client.TxnHandleImpl)
-     */
     @Override
     public synchronized void commitTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
@@ -294,7 +285,14 @@ public class SwiftImpl implements Swift, TxnManager {
         // Big WISHME: write disk log and allow local recovery.
         txn.markLocallyCommitted();
         logger.info("transaction " + txn.getLocalTimestamp() + " commited locally");
-        locallyCommittedTxns.addLast(txn);
+        if (txn.isReadOnly()) {
+            // Read-only transaction can be immediatelly discarded.
+            txn.markGloballyCommitted();
+            logger.info("read-only transaction " + txn.getLocalTimestamp() + " (virtually) commited globally");
+        } else {
+            // Update transaction is queued up for global commit.
+            locallyCommittedTxns.addLast(txn);
+        }
         setPendingTxn(null);
     }
 
@@ -442,6 +440,7 @@ public class SwiftImpl implements Swift, TxnManager {
         public CommitterThread() {
             super("SwiftTransactionCommitterThread");
         }
+
         @Override
         public void run() {
             // TODO: introduce gentle stop()
