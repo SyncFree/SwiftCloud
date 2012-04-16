@@ -232,7 +232,13 @@ public class SwiftImpl implements Swift, TxnManager {
         default:
             throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
         }
-        crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), presentInStore);
+        final CausalityClock pruneClock;
+        if (fetchReply.getPruneClock() != null) {
+            pruneClock = fetchReply.getPruneClock();
+        } else {
+            pruneClock = ClockFactory.newClock();
+        }
+        crdt.init(id, fetchReply.getVersion(), pruneClock, presentInStore);
         objectsCache.add(crdt);
         latestVersion.merge(fetchReply.getVersion());
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
