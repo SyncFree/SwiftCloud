@@ -11,9 +11,24 @@ import sys.net.api.rpc.RpcHandler;
  * @author mzawirski
  */
 public class FetchObjectVersionRequest extends ClientRequest {
+    public enum SubscriptionType {
+        /**
+         * Receive updates on changes.
+         */
+        UPDATES,
+        /**
+         * Receive a single notification on changes.
+         */
+        NOTIFICATION,
+        /**
+         * Receive nothing on changes.
+         */
+        NONE
+    }
+
     protected CRDTIdentifier uid;
     protected CausalityClock version;
-    protected boolean subscribeUpdatesRequest;
+    protected SubscriptionType subscribeUpdatesRequest;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -21,8 +36,15 @@ public class FetchObjectVersionRequest extends ClientRequest {
     public FetchObjectVersionRequest() {
     }
 
+    /**
+     * @deprecated
+     */
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
             boolean subscribeUpdates) {
+        this( clientId, uid, version, subscribeUpdates ? SubscriptionType.UPDATES: SubscriptionType.NONE);
+    }
+    public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
+            SubscriptionType subscribeUpdates) {
         super(clientId);
         this.uid = uid;
         this.version = version;
@@ -45,9 +67,9 @@ public class FetchObjectVersionRequest extends ClientRequest {
     }
 
     /**
-     * @return true if client requests to subscribe updates for this object
+     * @return the subscription type for the object
      */
-    public boolean isSubscribeUpdatesRequest() {
+    public SubscriptionType isSubscribeUpdatesRequest() {
         return subscribeUpdatesRequest;
     }
 

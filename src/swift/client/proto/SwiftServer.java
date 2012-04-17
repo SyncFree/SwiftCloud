@@ -56,6 +56,16 @@ public interface SwiftServer extends BaseServer {
     /**
      * @param conn
      *            connection such that the remote end implements
+     *            {@link FastRecentUpdatesReplyHandler} and expects
+     *            {@link FastRecentUpdatesReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, FastRecentUpdatesRequest request);
+
+    /**
+     * @param conn
+     *            connection such that the remote end implements
      *            {@link CommitUpdatesReplyHandler} and expects
      *            {@link CommitUpdatesReply}
      * @param request
