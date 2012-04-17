@@ -1,12 +1,11 @@
 package swift.client.proto;
 
-import swift.clocks.CausalityClock;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
 
 /**
  * Client request for recent updates on previously subscribed objects (see
- * {@link FetchObjectVersionRequest#isSubscribeUpdatesRequest()}. Beside of
+ * {@link FetchObjectVersionRequest#getSubscriptionType()}. Beside of
  * requesting recent updates, this request keep client subscriptions alive.
  * <p>
  * This call may block until new updates arrive, a timeout elapses on the server
@@ -31,7 +30,8 @@ public class FastRecentUpdatesRequest extends ClientRequest {
          */
         NONE
     }
-   /**
+
+    /**
      * No-args constructor for Kryo-serialization.
      */
     public FastRecentUpdatesRequest() {

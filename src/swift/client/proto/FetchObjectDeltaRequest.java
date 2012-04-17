@@ -1,6 +1,5 @@
 package swift.client.proto;
 
-import swift.client.proto.FetchObjectVersionRequest.SubscriptionType;
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import sys.net.api.rpc.RpcConnection;
@@ -24,10 +23,11 @@ public class FetchObjectDeltaRequest extends FetchObjectVersionRequest {
     /**
      * @deprecated
      */
-    public FetchObjectDeltaRequest(String clientId, CRDTIdentifier uid, CausalityClock knownVersion, CausalityClock version,
-            boolean subscribeUpdates) {
-        this( clientId, uid, knownVersion, version, subscribeUpdates ? SubscriptionType.UPDATES: SubscriptionType.NONE);
+    public FetchObjectDeltaRequest(String clientId, CRDTIdentifier uid, CausalityClock knownVersion,
+            CausalityClock version, boolean subscribeUpdates) {
+        this(clientId, uid, knownVersion, version, subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE);
     }
+
     public FetchObjectDeltaRequest(String clientId, CRDTIdentifier id, CausalityClock knownVersion,
             CausalityClock version, SubscriptionType subscribeUpdates) {
         super(clientId, id, version, subscribeUpdates);

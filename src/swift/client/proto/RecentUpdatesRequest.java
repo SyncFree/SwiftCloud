@@ -6,7 +6,7 @@ import sys.net.api.rpc.RpcHandler;
 
 /**
  * Client request for recent updates on previously subscribed objects (see
- * {@link FetchObjectVersionRequest#isSubscribeUpdatesRequest()}. Beside of
+ * {@link FetchObjectVersionRequest#getSubscriptionType()}. Beside of
  * requesting recent updates, this request keep client subscriptions alive.
  * <p>
  * This call may block until new updates arrive, a timeout elapses on the server

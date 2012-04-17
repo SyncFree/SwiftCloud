@@ -141,7 +141,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
         
         // TODO: check received timevector
 
-        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion(), request.isSubscribeUpdatesRequest());
+        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion(), request.getSubscriptionType());
         if (crdt == null) {
             conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, request
                     .getVersion(), ClockFactory.newClock()));
@@ -163,7 +163,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
         // TODO: check received timevector
 
-        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion(), request.isSubscribeUpdatesRequest());
+        CRDTData<?> crdt = getCRDT(request.getUid(), request.getVersion(), request.getSubscriptionType());
         if (crdt == null) {
             conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, request
                     .getVersion(), ClockFactory.newClock()));

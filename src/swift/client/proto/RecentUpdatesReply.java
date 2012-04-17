@@ -64,7 +64,7 @@ public class RecentUpdatesReply implements RpcMessage {
     /**
      * @return confirmation of successful new (or needlessly renewed)
      *         subscriptions since the last message, triggered by
-     *         {@link FetchObjectVersionRequest#isSubscribeUpdatesRequest()};
+     *         {@link FetchObjectVersionRequest#getSubscriptionType()};
      *         map of object identifier to the first clock covered by this and
      *         future notifications, i.e. client will be informed about all
      *         updates since that clock; null in case of no subscriptions;
