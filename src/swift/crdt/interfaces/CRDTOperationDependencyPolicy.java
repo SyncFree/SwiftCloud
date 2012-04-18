@@ -2,7 +2,7 @@ package swift.crdt.interfaces;
 
 /**
  * Policy defining how to treat operation group dependencies when attempting to
- * execute operation group on an object.
+ * execute operation group on a CRDT object.
  * 
  * @author mzawirski
  */
