@@ -15,6 +15,7 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
@@ -43,10 +44,15 @@ public class TxnTester implements TxnHandle {
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
     public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
             throws WrongTypeException, NoSuchObjectException {
+        return get(id, create, classOfV, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException {
 
         if (create) {
             try {

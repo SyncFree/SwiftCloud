@@ -21,6 +21,13 @@ import swift.exceptions.WrongTypeException;
 // TODO: BTW of testing, separate client and system interface (needed for mocks)
 public interface TxnHandle {
     /**
+     * See {@link #get(CRDTIdentifier, boolean, Class, ObjectUpdatesListener)}
+     * with no updates listener
+     */
+    <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
+
+    /**
      * Returns an object of the provided identifier. If object is not in the
      * store, it is created if create equals true (the creation takes effect
      * after the transaction commits), otherwise renders error.
@@ -41,7 +48,12 @@ public interface TxnHandle {
      *            class of an object stored (or created) under this identifier;
      *            it is the responsibility of application to ensure uniform
      *            id<->type mapping across the system; TODO: reconsider adding
-     *            type as part of an id which woukd resolvesthis kind of issues
+     *            type as part of an id which would resolve this kind of issues
+     * @param updatesListener
+     *            listener that will receive a notification when a newer version
+     *            of an object than the returned one is available in the store;
+     *            note that this event may fire even during this call; when
+     *            null, notification is disabled
      * @return transactional view of an object; accepts queries and updates;
      *         note that this view of an object is valid only until the
      *         transaction is committed or rolled back
@@ -53,8 +65,9 @@ public interface TxnHandle {
      * @throws IllegalStateException
      *             when transaction is already committed or rolled back
      */
-    <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
+    <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT,
+            final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
+            ConsistentSnapshotVersionNotFoundException;
 
     /**
      * Commits the transaction and blocks until the transaction is committed to
