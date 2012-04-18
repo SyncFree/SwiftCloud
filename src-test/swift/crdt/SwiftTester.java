@@ -1,4 +1,4 @@
-package swift.test.crdt;
+package swift.crdt;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;

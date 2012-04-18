@@ -1,14 +1,9 @@
-package swift.test.clocks;
+package swift.clocks;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
-
-import swift.clocks.IncrementalTimestampGenerator;
-import swift.clocks.IncrementalTripleTimestampGenerator;
-import swift.clocks.Timestamp;
-import swift.clocks.TripleTimestamp;
 
 public class TripleTimestampTest {
 

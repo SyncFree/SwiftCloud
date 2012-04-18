@@ -1,4 +1,4 @@
-package swift.test.crdt;
+package swift.crdt;
 
 import static org.junit.Assert.assertTrue;
 
@@ -6,9 +6,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import swift.clocks.ClockFactory;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.SetIntegers;
-import swift.crdt.SetTxnLocalInteger;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;

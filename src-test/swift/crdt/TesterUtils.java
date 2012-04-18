@@ -1,4 +1,4 @@
-package swift.test.crdt;
+package swift.crdt;
 
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.TxnLocalCRDT;

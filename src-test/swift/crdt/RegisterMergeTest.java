@@ -1,4 +1,4 @@
-package swift.test.crdt;
+package swift.crdt;
 
 import static org.junit.Assert.assertTrue;
 
@@ -7,8 +7,6 @@ import org.junit.Test;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.operations.RegisterUpdate;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;

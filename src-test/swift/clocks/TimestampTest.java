@@ -1,11 +1,8 @@
-package swift.test.clocks;
+package swift.clocks;
 
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
-
-import swift.clocks.IncrementalTimestampGenerator;
-import swift.clocks.Timestamp;
 
 public class TimestampTest {
 
