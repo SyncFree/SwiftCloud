@@ -13,4 +13,16 @@ public class NamingScheme {
         // see wsocial_shared.cc for scheme used in walter, based on MD5 hashing
         return new CRDTIdentifier("messages", loginName);
     }
+
+    public static CRDTIdentifier forFriends(String loginName) {
+        return new CRDTIdentifier("friends", loginName);
+    }
+
+    public static CRDTIdentifier forInFriendReq(String loginName) {
+        return new CRDTIdentifier("inFriendReq", loginName);
+    }
+
+    public static CRDTIdentifier forOutFriendReq(String loginName) {
+        return new CRDTIdentifier("outFriendReq", loginName);
+    }
 }

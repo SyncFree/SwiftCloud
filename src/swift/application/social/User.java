@@ -17,9 +17,9 @@ public class User implements Copyable {
     // CRDTIdentifier eventList;
     CRDTIdentifier msgList;
 
-    // CRDTIdentifier friendList;
-    // CRDTIdentifier inFriendReq;
-    // CRDTIdentifier outFriendReq;
+    CRDTIdentifier friendList;
+    CRDTIdentifier inFriendReq;
+    CRDTIdentifier outFriendReq;
 
     // TODO Add photos?
     // CRDTIdentifier photoAlbumList;
@@ -35,6 +35,10 @@ public class User implements Copyable {
         this.maritalStatus = 0;
         this.active = true;
         this.msgList = NamingScheme.forMessages(loginName);
+        this.friendList = NamingScheme.forFriends(loginName);
+        this.inFriendReq = NamingScheme.forInFriendReq(loginName);
+        this.outFriendReq = NamingScheme.forOutFriendReq(loginName);
+
     }
 
     @Override
