@@ -27,7 +27,10 @@ public class RegisterUpdate<V extends Copyable> extends BaseOperation<RegisterVe
 
     @Override
     public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
-        // Insert does not rely on any timestamp dependency.
+        if (c.includes(oldTs)) {
+            c.drop(oldTs);
+            c.record(newTs);
+        }
     }
 
     @Override
