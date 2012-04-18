@@ -5,6 +5,7 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 
@@ -20,7 +21,7 @@ public class SwiftTester implements Swift {
     }
 
     @Override
-    public TxnHandle beginTxn(CachePolicy cp, boolean readOnly) {
+    public TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly) {
         throw new RuntimeException("Not implemented");
     }
 

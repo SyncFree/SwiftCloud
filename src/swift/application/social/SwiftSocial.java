@@ -11,6 +11,7 @@ import swift.crdt.SetStrings;
 import swift.crdt.SetTxnLocalMsg;
 import swift.crdt.SetTxnLocalString;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
@@ -41,7 +42,7 @@ public class SwiftSocial {
         }
 
         // Check if user is known at all
-        TxnHandle txn = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, true);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
         // FIXME Is login possible in offline mode?
         User user;
         boolean result;
@@ -88,7 +89,7 @@ public class SwiftSocial {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
-        TxnHandle txn = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
         try {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
                     RegisterVersioned.class);
@@ -108,7 +109,7 @@ public class SwiftSocial {
         this.currentUser.fullName = fullName;
         this.currentUser.birthday = birthday;
         this.currentUser.maritalStatus = maritalStatus;
-        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, false);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
         try {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
                     NamingScheme.forLogin(this.currentUser.loginName), true, RegisterVersioned.class);
@@ -123,7 +124,7 @@ public class SwiftSocial {
     Set<Message> getSiteReport() {
         logger.info("Get site report for " + this.currentUser.loginName);
         Set<Message> postings = new HashSet<Message>();
-        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, true);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
         try {
             SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(this.currentUser.loginName),
                     false, SetMsg.class);
@@ -141,7 +142,7 @@ public class SwiftSocial {
     void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, receiverName, date);
-        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, false);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
         try {
             SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(receiverName), false,
                     SetMsg.class);
@@ -155,7 +156,7 @@ public class SwiftSocial {
 
     void answerFriendRequest(String requester, boolean accept) {
         logger.info("Answered friend request from " + this.currentUser.loginName + " for " + requester);
-        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, false);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
         try {
             SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(
                     NamingScheme.forInFriendReq(this.currentUser.loginName), false, SetStrings.class);
@@ -177,7 +178,7 @@ public class SwiftSocial {
 
     void sendFriendRequest(String receiverName) {
         logger.info("Sending friend request from " + this.currentUser.loginName + " to " + receiverName);
-        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, false);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
         try {
             SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(NamingScheme.forInFriendReq(receiverName),
                     false, SetStrings.class);
@@ -195,7 +196,7 @@ public class SwiftSocial {
     Set<String> readUserFriends() {
         logger.info("Get friends for " + this.currentUser.loginName);
         Set<String> friendNames = new HashSet<String>();
-        TxnHandle txn = server.beginTxn(CachePolicy.CACHED, true);
+        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
         try {
             SetTxnLocalString friends = (SetTxnLocalString) txn.get(
                     NamingScheme.forMessages(this.currentUser.loginName), false, SetStrings.class);

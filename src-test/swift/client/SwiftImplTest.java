@@ -37,6 +37,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
@@ -130,7 +131,7 @@ public class SwiftImplTest extends EasyMockSupport {
         replayAll();
 
         // Actual test: execute 1 transaction creating and updating object A.
-        final TxnHandleImpl txn = swiftImpl.beginTxn(CachePolicy.MOST_RECENT, true);
+        final TxnHandleImpl txn = swiftImpl.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT, true);
         final IntegerTxnLocal crdtA = txn.get(idCrdtA, true, IntegerVersioned.class);
         assertEquals(new Integer(0), crdtA.getValue());
         crdtA.add(5);

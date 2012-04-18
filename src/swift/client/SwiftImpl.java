@@ -7,10 +7,7 @@ import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import javax.print.attribute.standard.Severity;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesReply.CommitStatus;
@@ -36,6 +33,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
@@ -48,7 +46,9 @@ import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
 
 /**
- * TODO: document & test
+ * Implementation of Swift client and transactions manager.
+ * 
+ * @see Swift, {@link TxnManager}
  * 
  * @author mzawirski
  */
@@ -107,12 +107,13 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     @Override
-    public synchronized TxnHandleImpl beginTxn(CachePolicy cp, boolean readOnly) {
+    public synchronized TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly) {
+        // FIXME: respect isolationLevel other than SNAPSHOT_ISOLATION
         // FIXME: Ooops, readOnly is present here at API level, respect it here
         // and in TxnHandleImpl or remove it from API.
         assertNoPendingTransaction();
 
-        if (cp == CachePolicy.MOST_RECENT || cp == CachePolicy.STRICTLY_MOST_RECENT) {
+        if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
             final AtomicBoolean doneFlag = new AtomicBoolean(false);
             do {
                 localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(), new LatestKnownClockReplyHandler() {
@@ -122,7 +123,7 @@ public class SwiftImpl implements Swift, TxnManager {
                         doneFlag.set(true);
                     }
                 });
-            } while (cp == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
+            } while (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
         }
         final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
         // Invariant: snapshotClock (latestVersion) of a new transaction

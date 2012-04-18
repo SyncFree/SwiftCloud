@@ -4,6 +4,7 @@ import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -52,7 +53,8 @@ public class LocalSetUpTest {
 
     private static void clientCode(SwiftImpl server) {
         try {
-            TxnHandle handle = server.beginTxn(CachePolicy.STRICTLY_MOST_RECENT, false);
+            TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                    false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
             // System.out.println("(e,1) = " + i1.getValue());
             // IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"),

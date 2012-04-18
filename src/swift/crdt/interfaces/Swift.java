@@ -7,20 +7,21 @@ package swift.crdt.interfaces;
  */
 public interface Swift {
     /**
-     * Starts a new transactions.
+     * Starts a new transactions, observing the results of previously locally
+     * committed transactions and external transactions committed to the store.
      * 
-     * @param cp
+     * @param isolationLevel
+     *            isolation level defining guarantees for transaction reads
+     * @param cachePolicy
      *            cache policy to be used for the new transaction
-     *            TODO(mzawirski): specify how it affects visibility of
-     *            concurrently committing transaction?
      * @param readOnly
-     *            must be set to true if new transaction is read-only
+     *            when true, transaction is read-only
      * @return TxnHandle for the new transaction
-     * 
+     * @throws IllegalStateException
+     *             when another transaction is pending in the system
      */
-    TxnHandle beginTxn(CachePolicy cp, boolean readOnly);
+    TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly);
     // TODO: in order to support disconnected operations w/client partial
     // replication, extend API to start transaction and prefetch/update some
     // objects.
-    // TODO: extend Swift or TxnHandle API with observer for object updates.
 }

@@ -30,6 +30,7 @@ import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
@@ -343,7 +344,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     private class DummyManager implements TxnManager {
         @Override
-        public TxnHandleImpl beginTxn(CachePolicy cp, boolean readOnly) {
+        public TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly) {
             return null;
         }
 

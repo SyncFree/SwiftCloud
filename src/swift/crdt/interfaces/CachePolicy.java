@@ -6,6 +6,8 @@ package swift.crdt.interfaces;
  * @author annettebieniusa
  * 
  */
+// TODO(mzawirski): update descriptions, consider combinations with
+// IsolationLevel (the semantics should be clear).
 public enum CachePolicy {
     /**
      * CACHED: (Re-)Use the objects currently stored in cache.
