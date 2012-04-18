@@ -8,6 +8,10 @@ import swift.crdt.interfaces.CRDTOperation;
 public class SetInsert<V, T extends SetVersioned<V, T>> extends BaseOperation<T> {
     private V val;
 
+    // required for kryo
+    public SetInsert() {
+    }
+
     public SetInsert(TripleTimestamp ts, V val) {
         super(ts);
         this.val = val;

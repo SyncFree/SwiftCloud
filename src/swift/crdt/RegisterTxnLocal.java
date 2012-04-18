@@ -18,7 +18,7 @@ public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<Regis
     public void set(V v) {
         val = v;
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new RegisterUpdate<V>(ts, v));
+        registerLocalOperation(new RegisterUpdate<V>(ts, v, this.getClock()));
     }
 
     public V getValue() {

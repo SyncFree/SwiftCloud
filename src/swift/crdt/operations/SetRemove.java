@@ -14,6 +14,10 @@ public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseOperation<T>
     private V val;
     private Set<TripleTimestamp> ids;
 
+    // required for kryo
+    public SetRemove() {
+    }
+
     public SetRemove(TripleTimestamp ts, V val, Set<TripleTimestamp> ids) {
         super(ts);
         this.val = val;

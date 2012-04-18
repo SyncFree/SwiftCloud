@@ -107,8 +107,8 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         values = pruned;
     }
 
-    public void update(V val, TripleTimestamp ts) {
-        values.add(new QueueEntry<V>(ts, this.getClock().clone(), val));
+    public void update(V val, TripleTimestamp ts, CausalityClock c) {
+        values.add(new QueueEntry<V>(ts, c, val));
     }
 
     @Override

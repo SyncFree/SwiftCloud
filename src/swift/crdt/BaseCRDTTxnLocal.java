@@ -1,5 +1,6 @@
 package swift.crdt;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
@@ -30,4 +31,8 @@ public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRD
         getTxnHandle().registerOperation(this.id, op);
     }
 
+    protected CausalityClock getClock() {
+        // FIXME Use specific clock for this local version
+        return null;
+    }
 }

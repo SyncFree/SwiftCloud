@@ -34,7 +34,8 @@ public class RegisterMergeTest {
     }
 
     private void registerUpdate(int value, RegisterVersioned<IntegerWrap> i, TxnTester txn) {
-        txn.registerOperation(i, new RegisterUpdate<IntegerWrap>(txn.nextTimestamp(), new IntegerWrap(value)));
+        txn.registerOperation(i,
+                new RegisterUpdate<IntegerWrap>(txn.nextTimestamp(), new IntegerWrap(value), txn.getClock()));
     }
 
     @Before

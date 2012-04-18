@@ -1,6 +1,5 @@
 package swift.application;
 
-import static sys.net.api.Networking.Networking;
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
@@ -10,8 +9,6 @@ import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import sys.Sys;
-import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcEndpoint;
 
 /**
  * Local setup/test with one server and two clients.
