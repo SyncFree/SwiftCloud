@@ -48,6 +48,7 @@ import sys.net.api.rpc.RpcEndpoint;
  * 
  * @author mzawirski
  */
+// TODO: cache eviction and pruning
 public class SwiftImpl implements Swift, TxnManager {
     // TODO: FOR ALL REQUESTS: implement generic exponential backoff
     // retry manager+server failover?

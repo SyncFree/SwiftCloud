@@ -141,7 +141,8 @@ public class SwiftImplTest extends EasyMockSupport {
 
     @Ignore
     @Test
-    public void testTwoTxnsRetrieveObject() {
+    public void testSingleTxnRetrievePreexistingObject() throws WrongTypeException, NoSuchObjectException,
+            ConsistentSnapshotVersionNotFoundException {
         // TODO
     }
 
