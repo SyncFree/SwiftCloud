@@ -9,9 +9,9 @@ import swift.crdt.operations.RegisterUpdate;
 public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> {
     private V val;
 
-    public RegisterTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<V> creationState,
-            V val) {
-        super(id, txn, creationState);
+    public RegisterTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
+            RegisterVersioned<V> creationState, V val) {
+        super(id, txn, clock, creationState);
         this.val = val;
     }
 

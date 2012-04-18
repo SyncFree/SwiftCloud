@@ -16,7 +16,7 @@ public class SetMsg extends SetVersioned<Message, SetMsg> {
     @Override
     protected TxnLocalCRDT<SetMsg> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final SetMsg creationState = isRegisteredInStore() ? null : new SetMsg();
-        SetTxnLocalMsg localView = new SetTxnLocalMsg(id, txn, creationState, getValue(versionClock));
+        SetTxnLocalMsg localView = new SetTxnLocalMsg(id, txn, versionClock, creationState, getValue(versionClock));
         return localView;
     }
 

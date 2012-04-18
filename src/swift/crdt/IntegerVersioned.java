@@ -214,7 +214,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     protected TxnLocalCRDT<IntegerVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final IntegerVersioned creationState = isRegisteredInStore() ? null : new IntegerVersioned();
-        IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, creationState, value(versionClock));
+        IntegerTxnLocal localView = new IntegerTxnLocal(id, txn, versionClock, creationState, value(versionClock));
         return localView;
     }
 

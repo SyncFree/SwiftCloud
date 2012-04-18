@@ -14,7 +14,8 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
     @Override
     protected TxnLocalCRDT<SetIntegers> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final SetIntegers creationState = isRegisteredInStore() ? null : new SetIntegers();
-        SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, creationState, getValue(versionClock));
+        SetTxnLocalInteger localView = new SetTxnLocalInteger(id, txn, versionClock, creationState,
+                getValue(versionClock));
         return localView;
     }
 

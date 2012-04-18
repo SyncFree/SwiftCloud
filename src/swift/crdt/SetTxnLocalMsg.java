@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 import swift.application.social.Message;
+import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.SetInsert;
@@ -13,9 +14,9 @@ import swift.crdt.operations.SetRemove;
 public class SetTxnLocalMsg extends BaseCRDTTxnLocal<SetMsg> {
     private Map<Message, Set<TripleTimestamp>> elems;
 
-    public SetTxnLocalMsg(CRDTIdentifier id, TxnHandle txn, SetMsg creationState,
+    public SetTxnLocalMsg(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, SetMsg creationState,
             Map<Message, Set<TripleTimestamp>> elems) {
-        super(id, txn, creationState);
+        super(id, txn, clock, creationState);
         this.elems = elems;
     }
 
