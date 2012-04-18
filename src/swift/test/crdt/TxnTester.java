@@ -15,6 +15,7 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -81,7 +82,7 @@ public class TxnTester implements TxnHandle {
     @Override
     public void commit() {
         for (final Entry<CRDT<?>, CRDTObjectOperationsGroup<?>> entry : objectOperations.entrySet()) {
-            entry.getKey().execute((CRDTObjectOperationsGroup) entry.getValue(), false);
+            entry.getKey().execute((CRDTObjectOperationsGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
         }
         cc.record(ts);
     }

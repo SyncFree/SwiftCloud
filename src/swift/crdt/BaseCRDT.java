@@ -10,6 +10,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
@@ -57,18 +58,17 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected abstract void mergePayload(V otherObject);
 
     @Override
-    public boolean execute(CRDTObjectOperationsGroup<V> ops, boolean checkDependency) {
+    public boolean execute(CRDTObjectOperationsGroup<V> ops, final CRDTOperationDependencyPolicy dependenciesPolicy) {
         if (pruneClock.includes(ops.getBaseTimestamp())) {
             throw new IllegalStateException("Operations group origin prior to the pruning point");
         }
         final CausalityClock dependencyClock = ops.getDependency();
-        if (checkDependency) {
+        if (dependenciesPolicy == CRDTOperationDependencyPolicy.CHECK) {
             final CMP_CLOCK dependencyCmp = updatesClock.compareTo(dependencyClock);
             if (dependencyCmp == CMP_CLOCK.CMP_ISDOMINATED || dependencyCmp == CMP_CLOCK.CMP_CONCURRENT) {
                 throw new IllegalStateException("Object does not meet operation's dependencies");
             }
-        } else {
-            // TODO: Discuss this approach.
+        } else if (dependenciesPolicy == CRDTOperationDependencyPolicy.RECORD_BLINDLY) {
             updatesClock.merge(dependencyClock);
         }
         if (!updatesClock.record(ops.getBaseTimestamp())) {

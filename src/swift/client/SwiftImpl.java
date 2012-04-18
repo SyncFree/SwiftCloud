@@ -7,7 +7,10 @@ import java.util.LinkedList;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.print.attribute.standard.Severity;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesReply.CommitStatus;
@@ -31,6 +34,7 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
+import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -155,7 +159,16 @@ public class SwiftImpl implements Swift, TxnManager {
                 final CRDTObjectOperationsGroup<V> localOps = (CRDTObjectOperationsGroup<V>) dependentTxn
                         .getObjectLocalOperations(id);
                 if (localOps != null) {
-                    crdtCopy.execute(localOps, false);
+                    try {
+                        // TODO: use IGNORE for inconsistent snapshots
+                        crdtCopy.execute(localOps, CRDTOperationDependencyPolicy.CHECK);
+                    } catch (IllegalStateException x) {
+                        // TODO: cache implementation should make sure that
+                        // dependencies of locally committed transactions are
+                        // never evicted from the cache.
+                        logger.severe("cannot apply locally committed operations on local cached copy of an object - cached copy does not satisfy dependencies");
+                        throw x;
+                    }
                 }
             }
         }
@@ -409,7 +422,8 @@ public class SwiftImpl implements Swift, TxnManager {
                 logger.warning("object evicted from the local cache before global commit");
             }
             try {
-                crdt.execute(opsGroup, true);
+                // TODO: use IGNORE for inconsistent snapshots
+                crdt.execute(opsGroup, CRDTOperationDependencyPolicy.CHECK);
             } catch (IllegalStateException x) {
                 logger.warning("cannot apply globally committed operations on local cached copy of an object - cached copy does not satisfy dependencies");
             }

@@ -74,16 +74,15 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * 
      * @param ops
      *            operation group to be executed
-     * @param checkDependency
-     *            verify that dependencies are included in the clock before
-     *            applying the operations
+     * @param dependencyPolicy
+     *            policy for dealing with operation group dependencies
      * @return true if operation were executed; false if they were already
      *         included in the state
      * @throws IllegalStateException
-     *             when operation's dependencies are not met and checkDependency
-     *             was requested
+     *             when operation's dependencies are not met and checking
+     *             dependencies was requested
      */
-    boolean execute(CRDTObjectOperationsGroup<V> ops, boolean checkDependency);
+    boolean execute(CRDTObjectOperationsGroup<V> ops, CRDTOperationDependencyPolicy dependenciesPolicy);
 
     /**
      * Prunes the object state to remove versioning meta data from operations
@@ -167,4 +166,5 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * @return a deep copy of this object
      */
     V copy();
+
 }

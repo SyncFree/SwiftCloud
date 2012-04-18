@@ -30,6 +30,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
@@ -122,8 +123,9 @@ class DCDataServer {
         }
 
         synchronized (data) {
-            // TODO: Discuss the "checkDependency = false" choice I made here.
-            data.crdt.execute((CRDTObjectOperationsGroup) grp, false);
+            // Assumption: dependencies are checked at sequencer level, since
+            // causality and dependencies are given at inter-object level.
+            data.crdt.execute((CRDTObjectOperationsGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
         }
         return true;
     }

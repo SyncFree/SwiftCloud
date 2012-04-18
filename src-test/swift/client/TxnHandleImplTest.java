@@ -28,6 +28,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
+import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -279,7 +280,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
         // Leave txn1 only locally committed, execute locally timestamped
         // operations on A.
-        crdtA.execute((CRDTObjectOperationsGroup<IntegerVersioned>) txn1.getObjectLocalOperations(idCrdtA), false);
+        crdtA.execute((CRDTObjectOperationsGroup<IntegerVersioned>) txn1.getObjectLocalOperations(idCrdtA),
+                CRDTOperationDependencyPolicy.CHECK);
 
         // Start txn2 depending on txn1.
         txn2 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.singletonList(txn1),
