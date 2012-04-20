@@ -4,7 +4,6 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
@@ -15,7 +14,7 @@ import swift.exceptions.WrongTypeException;
  * 
  * @author mzawirski
  */
-public interface TxnManager extends Swift {
+public interface TxnManager {
     TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly);
 
     <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id, boolean create,

@@ -82,6 +82,8 @@ public class SwiftImpl implements Swift, TxnManager {
         return Long.toHexString(System.identityHashCode(random) + random.nextLong());
     }
 
+    private boolean stopFlag;
+    private boolean stopGracefully;
     private final String clientId;
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
@@ -106,12 +108,26 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committerThread.start();
     }
 
+    public void stop(boolean waitForCommit) {
+        synchronized (this) {
+            stopFlag = true;
+            stopGracefully = waitForCommit;
+            this.notifyAll();
+        }
+        try {
+            committerThread.join();
+        } catch (InterruptedException e) {
+            logger.warning(e.getMessage());
+        }
+    }
+
     @Override
     public synchronized TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly) {
         // FIXME: respect isolationLevel other than SNAPSHOT_ISOLATION
         // FIXME: Ooops, readOnly is present here at API level, respect it here
         // and in TxnHandleImpl or remove it from API.
         assertNoPendingTransaction();
+        assertRunning();
 
         if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
             final AtomicBoolean doneFlag = new AtomicBoolean(false);
@@ -319,6 +335,7 @@ public class SwiftImpl implements Swift, TxnManager {
     @Override
     public synchronized void commitTxn(TxnHandleImpl txn) {
         assertPendingTransaction(txn);
+        assertRunning();
 
         // Big WISHME: write disk log and allow local recovery.
         txn.markLocallyCommitted();
@@ -438,13 +455,13 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private synchronized TxnHandleImpl getNextLocallyCommittedTxnBlocking() {
-        while (locallyCommittedTxns.isEmpty()) {
+        while (locallyCommittedTxns.isEmpty() && !stopFlag) {
             try {
                 this.wait();
             } catch (InterruptedException e) {
             }
         }
-        return locallyCommittedTxns.getFirst();
+        return locallyCommittedTxns.peekFirst();
     }
 
     private synchronized void setPendingTxn(final TxnHandleImpl txn) {
@@ -468,6 +485,12 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
+    private void assertRunning() {
+        if (stopFlag) {
+            throw new IllegalStateException("client is stopped");
+        }
+    }
+
     /**
      * Thread continuously committing locally committed transactions. The thread
      * takes the oldest locally committed transaction one by one and tries to
@@ -482,9 +505,11 @@ public class SwiftImpl implements Swift, TxnManager {
 
         @Override
         public void run() {
-            // TODO: introduce gentle stop()
             while (true) {
                 final TxnHandleImpl nextToCommit = getNextLocallyCommittedTxnBlocking();
+                if (stopFlag && (!stopGracefully || nextToCommit == null)) {
+                    return;
+                }
                 commitToStore(nextToCommit);
                 applyGlobalCommittedTxn(nextToCommit);
             }

@@ -44,6 +44,7 @@ public class LocalSetUpTest {
                     Sys.init();
                     SwiftImpl clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
                     clientCode(clientServer);
+                    clientServer.stop(true);
                 }
 
             };

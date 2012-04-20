@@ -1,6 +1,5 @@
 package swift.client;
 
-import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.isA;
 import static org.easymock.EasyMock.same;
@@ -9,6 +8,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 
 import org.easymock.EasyMockSupport;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -69,6 +69,11 @@ public class SwiftImplTest extends EasyMockSupport {
         swiftImpl = new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new InfiniteObjectsCache());
         serverClock = ClockFactory.newClock();
         serverTimestampGen = new IncrementalTimestampGenerator("server");
+    }
+
+    @After
+    public void tearDown() {
+        swiftImpl.stop(true);
     }
 
     @Test
