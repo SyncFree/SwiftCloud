@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import swift.client.proto.SubscriptionType;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FetchObjectDeltaRequest;
@@ -107,7 +108,7 @@ class DCDataServer {
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock version) {
         CRDTIdentifier id = grp.getTargetUID();
-        CRDTData<?> data = getCRDT(id, null, false);
+        CRDTData<?> data = getCRDT(id, null, SubscriptionType.NONE);
         if (data == null) {
             if (!grp.hasCreationState()) {
                 return false;
@@ -136,7 +137,7 @@ class DCDataServer {
      * If clock equals to null, just return full CRDT
      * @param subscribe 
      */
-    CRDTData<?> getCRDT(CRDTIdentifier id, CausalityClock clock, boolean subscribe) {
+    CRDTData<?> getCRDT(CRDTIdentifier id, CausalityClock clock, SubscriptionType subscriptionType) {
         Map<String, CRDTData<?>> m;
         synchronized (database) {
             m = database.get(id.getTable());

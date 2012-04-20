@@ -13,6 +13,7 @@ import java.util.TreeSet;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
+import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectVersionRequest;
@@ -26,6 +27,7 @@ import swift.client.proto.LatestKnownClockReply;
 import swift.client.proto.LatestKnownClockReplyHandler;
 import swift.client.proto.LatestKnownClockRequest;
 import swift.client.proto.RecentUpdatesRequest;
+import swift.client.proto.SubscriptionType;
 import swift.client.proto.UnsubscribeUpdatesRequest;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
@@ -131,8 +133,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
      * If clock equals to null, just return full CRDT
      * @param subscribe 
      */
-    CRDTData<?> getCRDT(CRDTIdentifier id, CausalityClock clock, boolean subscribe) {
-        return dataServer.getCRDT(id, clock, subscribe);
+    CRDTData<?> getCRDT(CRDTIdentifier id, CausalityClock clock, final SubscriptionType subscriptionType) {
+        return dataServer.getCRDT(id, clock, subscriptionType);
     }
 
     @Override
@@ -256,6 +258,11 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
         synchronized (session) {
             
         }
+    }
+
+    @Override
+    public void onReceive(RpcConnection conn, FastRecentUpdatesRequest request) {
+        // TODO implement me
     }
 }
 

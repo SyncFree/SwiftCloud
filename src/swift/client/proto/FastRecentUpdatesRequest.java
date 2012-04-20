@@ -16,21 +16,6 @@ import sys.net.api.rpc.RpcHandler;
  * @author nmp
  */
 public class FastRecentUpdatesRequest extends ClientRequest {
-    public enum SubscriptionType {
-        /**
-         * Receive updates on changes.
-         */
-        UPDATES,
-        /**
-         * Receive a single notification on changes.
-         */
-        NOTIFICATION,
-        /**
-         * Receive nothing on changes.
-         */
-        NONE
-    }
-
     /**
      * No-args constructor for Kryo-serialization.
      */
