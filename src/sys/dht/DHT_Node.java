@@ -7,6 +7,7 @@ import sys.dht.impl.DHT_ClientStub;
 import sys.dht.impl.DHT_NodeImpl;
 import sys.net.api.Endpoint;
 import sys.utils.Threading;
+import static sys.Sys.*;
 
 public class DHT_Node extends DHT_NodeImpl {
 
@@ -18,7 +19,8 @@ public class DHT_Node extends DHT_NodeImpl {
 
 	synchronized public static DHT getStub() {
 		if (clientStub == null) {
-			Endpoint dhtEndpoint = Discovery.lookup(DHT_ENDPOINT, 5000);
+		    String name = DHT_ENDPOINT + Sys.getDatacenter();
+			Endpoint dhtEndpoint = Discovery.lookup(name, 5000);
 			if (dhtEndpoint != null) {
 				clientStub = new DHT_ClientStub(dhtEndpoint);
 			} else {

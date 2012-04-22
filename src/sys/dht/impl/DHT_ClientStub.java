@@ -1,6 +1,7 @@
 package sys.dht.impl;
 
 import static sys.net.api.Networking.Networking;
+import sys.RpcServices;
 import sys.dht.api.DHT;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
@@ -16,7 +17,7 @@ public class DHT_ClientStub implements DHT {
 
 	public DHT_ClientStub(final Endpoint dhtEndpoint) {
 		this.dhtEndpoint = dhtEndpoint;
-		myEndpoint = Networking.rpcBind(0).rpcService(DHT_NodeImpl.DHT_SERVICE, new _Handler());
+		myEndpoint = Networking.rpcBind(0).rpcService( RpcServices.DHT.ordinal(), new _Handler());
 	}
 
 	DHT_ClientStub(final RpcEndpoint myEndpoint, final Endpoint dhtEndpoint) {

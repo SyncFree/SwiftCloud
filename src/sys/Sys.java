@@ -20,6 +20,8 @@ public class Sys {
 
 	private double T0;
 
+	private String datacenter = "*";
+	
 	public double currentTime() {
 		return (System.nanoTime() - T0) * NANOSECOND;
 	}
@@ -38,10 +40,19 @@ public class Sys {
 		KryoCatadupa.init();
 	}
 
-	public DHT getDHT_ClientStub() {
-		return DHT_Node.getStub();
+	public void setDatacenter( String datacenter ) {
+	   this.datacenter = datacenter;
 	}
+	
+	public String getDatacenter() {
+	    return datacenter;
+	}
+	
 
+	public DHT getDHT_ClientStub() {
+        return DHT_Node.getStub();
+    }
+	
 	synchronized public static void init() {
 		if (Sys == null) {
 			Sys = new Sys();

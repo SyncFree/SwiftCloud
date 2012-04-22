@@ -1,5 +1,6 @@
 package sys.dht.impl;
 
+import static sys.Sys.Sys;
 import static sys.dht.catadupa.Config.Config;
 import static sys.utils.Log.Log;
 import sys.RpcServices;
@@ -17,8 +18,6 @@ import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
 
 public class DHT_NodeImpl extends CatadupaNode {
-
-	public static final int DHT_SERVICE = 1;
 
 	protected static DHT_ClientStub clientStub;
 	protected static _DHT_ServerStub serverStub;
@@ -43,7 +42,8 @@ public class DHT_NodeImpl extends CatadupaNode {
 			}
 		});
 
-		Discovery.register(DHT_Node.DHT_ENDPOINT, serverStub.getEndpoint().localEndpoint());
+        String name = DHT_Node.DHT_ENDPOINT + Sys.getDatacenter();
+		Discovery.register(name, serverStub.getEndpoint().localEndpoint());
 
 		clientStub = new _DHT_ClientStub(serverStub.getEndpoint());
 	}

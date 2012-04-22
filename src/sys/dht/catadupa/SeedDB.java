@@ -17,8 +17,6 @@ import sys.net.api.Endpoint;
  */
 public class SeedDB {
 
-	private static final String CATADUPA_ENDPOINT = "CATADUPA_ENDPOINT";
-
 	static String RIAK_KEY = "seedDB";
 	static String RIAK_BUCKET = "swift.catadupa";
 
@@ -45,11 +43,11 @@ public class SeedDB {
 	}
 
 	static void initWithMulticast(Node self) {
-		Endpoint seed = Discovery.lookup(CATADUPA_ENDPOINT, 1000);
+		Endpoint seed = Discovery.lookup(Catadupa.discoveryName(), 1000);
 		if (seed == null) {
 			Log.finer("No seed node found in local machine/network");
 			seeds.add(self);
-			Discovery.register(CATADUPA_ENDPOINT, self.endpoint);
+			Discovery.register(Catadupa.discoveryName(), self.endpoint);
 		} else {
 			Log.finer(String.format("Seed node found in local machine/network: <%s>", seed));
 			seeds.add(new Node(seed));
