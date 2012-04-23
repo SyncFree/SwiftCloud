@@ -13,6 +13,7 @@ import sys.net.api.rpc.RpcHandler;
 public class FetchObjectVersionRequest extends ClientRequest {
     protected CRDTIdentifier uid;
     protected CausalityClock version;
+    protected boolean committedVersion;
     protected SubscriptionType subscriptionType;
 
     /**
@@ -26,14 +27,15 @@ public class FetchObjectVersionRequest extends ClientRequest {
      */
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
             boolean subscribeUpdates) {
-        this(clientId, uid, version, subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE);
+        this(clientId, uid, version, true, subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE);
     }
 
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            SubscriptionType subscribeUpdates) {
+            boolean committedVersion, SubscriptionType subscribeUpdates) {
         super(clientId);
         this.uid = uid;
         this.version = version;
+        this.committedVersion = committedVersion;
         this.subscriptionType = subscribeUpdates;
     }
 
@@ -50,6 +52,13 @@ public class FetchObjectVersionRequest extends ClientRequest {
      */
     public CausalityClock getVersion() {
         return version;
+    }
+
+    /**
+     * @return true if the returned version must be committed
+     */
+    public boolean isCommittedVersion() {
+        return committedVersion;
     }
 
     /**
