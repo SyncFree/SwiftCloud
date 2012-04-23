@@ -163,6 +163,19 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     void markRegisteredInStore();
 
     /**
+     * Checks whether an object executed any updates since provided clock.
+     * 
+     * @param clock
+     *            clock to look for updates
+     * @return true if object
+     * @throws IllegalArgumentException
+     *             when clock dominates or is concurrent to {@link #getClock()},
+     *             or clock is dominated or concurrent to
+     *             {@link #getPruneClock()}
+     */
+    boolean hasUpdatesSince(final CausalityClock clock);
+
+    /**
      * @return a deep copy of this object
      */
     V copy();

@@ -161,4 +161,9 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         return copyObj;
     }
 
+    @Override
+    protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
+        // TODO: implement
+        return false;
+    }
 }

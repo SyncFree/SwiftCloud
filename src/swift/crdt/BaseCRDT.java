@@ -123,6 +123,19 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         this.registeredInStore = true;
     }
 
+    @Override
+    public boolean hasUpdatesSince(CausalityClock clock) {
+        final CMP_CLOCK clockCmp = clock.compareTo(updatesClock);
+        final CMP_CLOCK pruneCmp = clock.compareTo(pruneClock);
+        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED
+                || pruneCmp == CMP_CLOCK.CMP_CONCURRENT || pruneCmp == CMP_CLOCK.CMP_DOMINATES) {
+            throw new IllegalArgumentException();
+        }
+        return hasUpdatesSinceImpl(clock);
+    }
+
+    protected abstract boolean hasUpdatesSinceImpl(CausalityClock clock);
+
     // TODO Implement copy mechanisms for each CRDT!
     public V copy() {
         try {

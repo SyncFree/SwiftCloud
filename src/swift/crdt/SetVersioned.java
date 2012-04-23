@@ -183,4 +183,9 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         }
     }
 
+    @Override
+    protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
+        // TODO: implement
+        return false;
+    }
 }

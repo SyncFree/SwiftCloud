@@ -222,4 +222,10 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     protected void execute(CRDTOperation<IntegerVersioned> op) {
         op.applyTo(this);
     }
+
+    @Override
+    protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
+        // TODO: implement
+        return false;
+    }
 }
