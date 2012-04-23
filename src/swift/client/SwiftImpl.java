@@ -97,9 +97,9 @@ public class SwiftImpl implements Swift, TxnManager {
     private AbstractTxnHandle pendingTxn;
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
-    private final LinkedList<AbstractTxnHandle> locallyCommittedTxns;
-    // Local dependencies of locally committed and pending transactions.
-    private final Map<AbstractTxnHandle, LinkedList<AbstractTxnHandle>> txnLocalDependencies;
+    private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
+    // Local dependencies of a pending transaction.
+    private final LinkedList<AbstractTxnHandle> pendingTxnLocalDependencies;
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache) {
@@ -107,8 +107,8 @@ public class SwiftImpl implements Swift, TxnManager {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
-        this.locallyCommittedTxns = new LinkedList<AbstractTxnHandle>();
-        this.txnLocalDependencies = new HashMap<AbstractTxnHandle, LinkedList<AbstractTxnHandle>>();
+        this.locallyCommittedTxnsQueue = new LinkedList<AbstractTxnHandle>();
+        this.pendingTxnLocalDependencies = new LinkedList<AbstractTxnHandle>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
         this.committerThread = new CommitterThread();
@@ -146,7 +146,7 @@ public class SwiftImpl implements Swift, TxnManager {
                             new LatestKnownClockReplyHandler() {
                                 @Override
                                 public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
-                                    updatedLatestKnownClock(reply.getClock());
+                                    updateLatestKnownClock(reply.getClock());
                                     doneFlag.set(true);
                                 }
                             });
@@ -158,7 +158,6 @@ public class SwiftImpl implements Swift, TxnManager {
             // latestVersion only grows.
             final CausalityClock snapshotClock = latestVersion.clone();
             setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, localTimestmap, snapshotClock));
-            txnLocalDependencies.put(pendingTxn, new LinkedList<AbstractTxnHandle>(locallyCommittedTxns));
             logger.info("SI transaction " + localTimestmap + " started with global snapshot point: " + snapshotClock);
             return pendingTxn;
         default:
@@ -167,9 +166,14 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private synchronized void updatedLatestKnownClock(final CausalityClock clock) {
+    private synchronized void updateLatestKnownClock(final CausalityClock clock) {
+        if (clock == null) {
+            logger.warning("server returned null clock");
+            return;
+        }
+
         latestVersion.merge(clock);
-        final AbstractTxnHandle commitingTxn = locallyCommittedTxns.peekFirst();
+        final AbstractTxnHandle commitingTxn = locallyCommittedTxnsQueue.peekFirst();
         if (commitingTxn != null && clock.includes(commitingTxn.getGlobalTimestamp())) {
             // We have received globlal update of locally committed transaction
             // before it was locally recognized as globally committed.
@@ -220,7 +224,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private CausalityClock clockWithLocalDependencies(final AbstractTxnHandle txn, CausalityClock clock) {
         clock = clock.clone();
-        for (final AbstractTxnHandle dependentTxn : txnLocalDependencies.get(txn)) {
+        for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
             // Include in clock those dependent transactions that already
             // committed globally after the pending transaction started.
             if (dependentTxn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
@@ -272,7 +276,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // Apply them on sandboxed copy of an object, since these operations
             // use local timestamps.
             final V crdtCopy = crdt.copy();
-            for (final AbstractTxnHandle dependentTxn : txnLocalDependencies.get(txn)) {
+            for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
                 final CRDTObjectOperationsGroup<V> localOps;
                 try {
                     localOps = (CRDTObjectOperationsGroup<V>) dependentTxn.getObjectLocalOperations(id);
@@ -340,7 +344,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         crdt.init(id, fetchReply.getVersion(), pruneClock, presentInStore);
         objectsCache.add(crdt);
-        updatedLatestKnownClock(fetchReply.getVersion());
+        updateLatestKnownClock(fetchReply.getVersion());
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
             logger.warning("unexpected server reply - version not found while version was left unspecified");
         }
@@ -385,7 +389,7 @@ public class SwiftImpl implements Swift, TxnManager {
         default:
             throw new IllegalStateException("Unexpected status code" + versionReply.getStatus());
         }
-        updatedLatestKnownClock(versionReply.getVersion());
+        updateLatestKnownClock(versionReply.getVersion());
     }
 
     @Override
@@ -407,10 +411,23 @@ public class SwiftImpl implements Swift, TxnManager {
             txn.markGloballyCommitted();
             logger.info("read-only transaction " + txn.getLocalTimestamp() + " (virtually) commited globally");
         } else {
+            for (final AbstractTxnHandle dependeeTxn : pendingTxnLocalDependencies) {
+                // Replace timestamps of transactions that globally committed
+                // when this transaction waspending.
+                if (dependeeTxn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
+                    txn.includeGlobalDependency(dependeeTxn.getLocalTimestamp(), dependeeTxn.getGlobalTimestamp());
+                }
+            }
             // Update transaction is queued up for global commit.
-            locallyCommittedTxns.addLast(txn);
+            addLocallyCommittedTransaction(txn);
         }
         setPendingTxn(null);
+    }
+
+    private void addLocallyCommittedTransaction(AbstractTxnHandle txn) {
+        locallyCommittedTxnsQueue.addLast(txn);
+        // Notify committer thread.
+        this.notifyAll();
     }
 
     /**
@@ -422,6 +439,9 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     private void commitToStore(AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
+        if (txn.getUpdatesDependencyClock().getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
+            throw new IllegalStateException("Trying to commit to data store with client clock");
+        }
 
         final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
         do {
@@ -460,9 +480,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
         final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
         do {
-            localEndpoint.send(
-                    serverEndpoint,
-                    new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(),
+            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(),
                     txn.getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
                 @Override
                 public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
@@ -496,7 +514,7 @@ public class SwiftImpl implements Swift, TxnManager {
             }
             crdt.execute(opsGroup, CRDTOperationDependencyPolicy.IGNORE);
         }
-        for (final AbstractTxnHandle dependingTxn : locallyCommittedTxns) {
+        for (final AbstractTxnHandle dependingTxn : locallyCommittedTxnsQueue) {
             if (dependingTxn != txn) {
                 dependingTxn.includeGlobalDependency(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
             }
@@ -506,20 +524,20 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
-        while (locallyCommittedTxns.isEmpty() && !stopFlag) {
+        while (locallyCommittedTxnsQueue.isEmpty() && !stopFlag) {
             try {
                 this.wait();
             } catch (InterruptedException e) {
             }
         }
-        return locallyCommittedTxns.peekFirst();
+        return locallyCommittedTxnsQueue.peekFirst();
     }
 
     private synchronized void setPendingTxn(final AbstractTxnHandle txn) {
         pendingTxn = txn;
-        if (txn == null) {
-            // Notify committer thread.
-            this.notifyAll();
+        pendingTxnLocalDependencies.clear();
+        if (txn != null) {
+            pendingTxnLocalDependencies.addAll(locallyCommittedTxnsQueue);
         }
     }
 
@@ -564,10 +582,9 @@ public class SwiftImpl implements Swift, TxnManager {
                 commitToStore(nextToCommit);
                 applyGloballyCommittedTxn(nextToCommit);
                 // Clean up after nextToCommit.
-                if (locallyCommittedTxns.removeFirst() != nextToCommit) {
+                if (locallyCommittedTxnsQueue.removeFirst() != nextToCommit) {
                     throw new IllegalStateException("internal error, concurrently commiting transactions?");
                 }
-                txnLocalDependencies.remove(nextToCommit);
             }
         }
     }
