@@ -24,7 +24,7 @@ public interface CRDTOperation<V extends CRDT<V>> {
     CRDTOperation<V> withBaseTimestamp(Timestamp ts);
 
     /**
-     * Replaces base timestamp of depending operation(s) of this operation with
+     * Replaces base timestamp of dependee operation(s) of this operation with
      * the new one.
      * 
      * @param oldTs
@@ -32,7 +32,7 @@ public interface CRDTOperation<V extends CRDT<V>> {
      * @param newTs
      *            new base timestamp of a dependent operation
      */
-    void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs);
+    void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs);
 
     /**
      * Applies operation to the given object instance.

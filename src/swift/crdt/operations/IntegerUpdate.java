@@ -22,7 +22,7 @@ public class IntegerUpdate extends BaseOperation<IntegerVersioned> {
     }
 
     @Override
-    public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
+    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
         // Integer operation does not rely on any timestamp dependency.
     }
 

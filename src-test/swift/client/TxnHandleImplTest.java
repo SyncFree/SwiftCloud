@@ -58,8 +58,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
     private IntegerVersioned crdtB;
     private CRDTIdentifier idCrdtB;
 
-    private TxnHandleImpl txn1;
-    private TxnHandleImpl txn2;
+    private SnapshotIsolationTxnHandle txn1;
+    private SnapshotIsolationTxnHandle txn2;
 
     @Before
     public void setUp() {
@@ -81,8 +81,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     @Test
     public void testInitTxn() {
-        txn1 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.EMPTY_LIST,
-                localTimestampGen.generateNew());
+        txn1 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.EMPTY_LIST, localTimestampGen.generateNew());
 
         assertEquals(TxnStatus.PENDING, txn1.getStatus());
         assertNotNull(txn1.getLocalTimestamp());
@@ -90,7 +90,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
         assertTrue(txn1.getLocalVisibleTransactions().isEmpty());
         final CausalityClock clockAll = txn1.getAllVisibleTransactionsClock();
-        final CausalityClock clockGlobal = txn1.getGlobalVisibleTransactionsClock();
+        final CausalityClock clockGlobal = txn1.getVisibleTransactionsClock();
         assertNotNull(clockAll);
         assertEquals(CMP_CLOCK.CMP_EQUALS, clockAll.compareTo(clockGlobal));
 
@@ -105,8 +105,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
         replayAll();
 
         // Actual test using mocks.
-        txn1 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.EMPTY_LIST,
-                localTimestampGen.generateNew());
+        txn1 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.EMPTY_LIST, localTimestampGen.generateNew());
         txn1.rollback();
         assertEquals(TxnStatus.CANCELLED, txn1.getStatus());
 
@@ -127,8 +127,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
         replayAll();
 
         // Actual test.
-        txn1 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.EMPTY_LIST,
-                localTimestampGen.generateNew());
+        txn1 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.EMPTY_LIST, localTimestampGen.generateNew());
 
         // Query for existing object A.
         final IntegerTxnLocal crdtAView = txn1.get(idCrdtA, true, IntegerVersioned.class);
@@ -160,8 +160,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
         replayAll();
 
         // Actual test.
-        txn1 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.EMPTY_LIST,
-                localTimestampGen.generateNew());
+        txn1 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.EMPTY_LIST, localTimestampGen.generateNew());
         final AtomicBoolean committedFlag = new AtomicBoolean();
         txn1.commitAsync(new CommitListener() {
             @Override
@@ -199,8 +199,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
         replayAll();
 
         // Actual test.
-        txn1 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.EMPTY_LIST,
-                localTimestampGen.generateNew());
+        txn1 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.EMPTY_LIST, localTimestampGen.generateNew());
 
         // Perform some operations on existing object A.
         final IntegerTxnLocal crdtAView = txn1.get(idCrdtA, true, IntegerVersioned.class);
@@ -271,8 +271,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
         // Actual test.
         // Commit some operations on object A in txn1.
-        txn1 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.EMPTY_LIST,
-                localTimestampGen.generateNew());
+        txn1 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.EMPTY_LIST, localTimestampGen.generateNew());
         final IntegerTxnLocal crdtAViewTxn1 = txn1.get(idCrdtA, true, IntegerVersioned.class);
         crdtAViewTxn1.add(1);
         txn1.commitAsync(null);
@@ -285,8 +285,8 @@ public class TxnHandleImplTest extends EasyMockSupport {
                 CRDTOperationDependencyPolicy.CHECK);
 
         // Start txn2 depending on txn1.
-        txn2 = new TxnHandleImpl(mockManager, globalCausalityClock, Collections.singletonList(txn1),
-                localTimestampGen.generateNew());
+        txn2 = new SnapshotIsolationTxnHandle(mockManager, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                globalCausalityClock, Collections.singletonList(txn1), localTimestampGen.generateNew());
         // Mess up even further - change txn1 global timestamp now, it should
         // not affect anything.
         txn1.setGlobalTimestamp(txn1GlobalTimestampFinal);
@@ -322,7 +322,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
         verifyAll();
     }
 
-    private TxnHandleImpl txn1Matcher() {
+    private SnapshotIsolationTxnHandle txn1Matcher() {
         new AbstractTxnMatcher() {
             @Override
             public boolean matches(Object arg) {
@@ -332,7 +332,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
         return null;
     }
 
-    private TxnHandleImpl txn2Matcher() {
+    private SnapshotIsolationTxnHandle txn2Matcher() {
         new AbstractTxnMatcher() {
             @Override
             public boolean matches(Object arg) {
@@ -344,23 +344,23 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     private class DummyManager implements TxnManager {
         @Override
-        public TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly) {
+        public AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly) {
             return null;
         }
 
         @Override
-        public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id,
+        public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(SnapshotIsolationTxnHandle txn, CRDTIdentifier id,
                 boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
                 ConsistentSnapshotVersionNotFoundException {
             return null;
         }
 
         @Override
-        public void discardTxn(TxnHandleImpl txn) {
+        public void discardTxn(AbstractTxnHandle txn) {
         }
 
         @Override
-        public void commitTxn(TxnHandleImpl txn) {
+        public void commitTxn(SnapshotIsolationTxnHandle txn) {
         }
     }
 
@@ -374,7 +374,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
         }
 
         @Override
-        public void commitTxn(TxnHandleImpl txn) {
+        public void commitTxn(SnapshotIsolationTxnHandle txn) {
             txn.markLocallyCommitted();
             if (globalTimestamp != null) {
                 txn.setGlobalTimestamp(globalTimestamp);
@@ -393,7 +393,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
         }
 
         @Override
-        public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id,
+        public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(SnapshotIsolationTxnHandle txn, CRDTIdentifier id,
                 boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
                 ConsistentSnapshotVersionNotFoundException {
             return (TxnLocalCRDT<V>) crdt.getTxnLocalCopy(txn.getAllVisibleTransactionsClock(), txn);

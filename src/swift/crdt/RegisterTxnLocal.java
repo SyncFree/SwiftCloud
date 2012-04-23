@@ -9,8 +9,8 @@ import swift.crdt.operations.RegisterUpdate;
 public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> {
     private V val;
 
-    public RegisterTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
-            RegisterVersioned<V> creationState, V val) {
+    public RegisterTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<V> creationState,
+            V val) {
         super(id, txn, clock, creationState);
         this.val = val;
     }
@@ -18,7 +18,7 @@ public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<Regis
     public void set(V v) {
         val = v;
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new RegisterUpdate<V>(ts, v, this.getClock()));
+        registerLocalOperation(new RegisterUpdate<V>(ts, v, getClock().clone()));
     }
 
     public V getValue() {

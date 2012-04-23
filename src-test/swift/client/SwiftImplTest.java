@@ -77,7 +77,7 @@ public class SwiftImplTest extends EasyMockSupport {
     }
 
     @Test
-    public void testSingleTxnCreateObject() throws WrongTypeException, NoSuchObjectException,
+    public void testSingleSITxnCreateObject() throws WrongTypeException, NoSuchObjectException,
             ConsistentSnapshotVersionNotFoundException {
         // Specify communication with the server mock.
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(LatestKnownClockRequest.class),
@@ -136,7 +136,8 @@ public class SwiftImplTest extends EasyMockSupport {
         replayAll();
 
         // Actual test: execute 1 transaction creating and updating object A.
-        final TxnHandleImpl txn = swiftImpl.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT, true);
+        final AbstractTxnHandle txn = swiftImpl.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT,
+                true);
         final IntegerTxnLocal crdtA = txn.get(idCrdtA, true, IntegerVersioned.class);
         assertEquals(new Integer(0), crdtA.getValue());
         crdtA.add(5);

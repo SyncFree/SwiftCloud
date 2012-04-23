@@ -7,8 +7,10 @@ package swift.crdt.interfaces;
  */
 public interface Swift {
     /**
-     * Starts a new transactions, observing the results of previously locally
-     * committed transactions and external transactions committed to the store.
+     * Starts a new transaction, observing the results of previously locally
+     * committed transactions (read-your-writes) and all their dependencies
+     * (monotonic-reads), and some external transactions committed to the store,
+     * depending on cache and isolation options.
      * 
      * @param isolationLevel
      *            isolation level defining guarantees for transaction reads

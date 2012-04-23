@@ -11,12 +11,12 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 
 /**
- * Representation of a sequence of operations on an object belonging to the same
- * transaction.
+ * Representation of an atomic sequence of operations on an object.
  * <p>
  * The sequence of operations shares a base Timestamp (two dimensional
- * timestamp). Each individual operation has a unique TripleTimestamp based on
- * the common timestamp.
+ * timestamp), which is the unit of visibility of operations group. Each
+ * individual operation has a unique TripleTimestamp based on the common
+ * timestamp.
  * <p>
  * Thread-safe.
  * 
@@ -40,14 +40,11 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      * Constructs a group of operations.
      * 
      * @param id
-     * @param dependencyClock
-     *            dependency for this group of operations; clock is not copied
      * @param baseTimestamp
+     * @param creationState
      */
-    public CRDTObjectOperationsGroup(CRDTIdentifier id, CausalityClock dependencyClock, Timestamp baseTimestamp,
-            V creationState) {
+    public CRDTObjectOperationsGroup(CRDTIdentifier id, Timestamp baseTimestamp, V creationState) {
         this.id = id;
-        this.dependencyClock = dependencyClock;
         this.baseTimestamp = baseTimestamp;
         this.operations = new LinkedList<CRDTOperation<V>>();
         this.creationState = creationState;
@@ -70,49 +67,60 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
 
     /**
      * Creates a copy of this group of operations with another base timestamp
-     * for all operations in the group.
+     * and dependency clock for all operations in the group.
      * 
      * @param otherBaseTimestamp
      *            base timestamp to be used by all operations in the copy
+     * @param dependencyClock
+     *            dependency clock for the new copy of operations group
      * @return a copy of the group with a different base timestamp
      */
-    public synchronized CRDTObjectOperationsGroup<V> withBaseTimestamp(Timestamp otherBaseTimestamp) {
-        final CRDTObjectOperationsGroup<V> copy = new CRDTObjectOperationsGroup<V>(id, dependencyClock.clone(),
-                otherBaseTimestamp, creationState);
+    public synchronized CRDTObjectOperationsGroup<V> withBaseTimestampAndDependency(Timestamp otherBaseTimestamp,
+            final CausalityClock otherDependencyClock) {
+        final CRDTObjectOperationsGroup<V> copy = new CRDTObjectOperationsGroup<V>(id, otherBaseTimestamp,
+                creationState);
+        copy.dependencyClock = otherDependencyClock;
         for (final CRDTOperation<V> op : operations) {
             copy.append(op.withBaseTimestamp(otherBaseTimestamp));
         }
+        copy.replaceDependeeOperationTimestamp(baseTimestamp, otherBaseTimestamp);
         return copy;
     }
 
     /**
-     * Replaces base timestamp of depending operation(s) with the new one for
-     * all operations in the group.
+     * Replaces base timestamp of dependee operation(s) with the new one for all
+     * operations in the group.
      * 
      * @param oldTs
-     *            old base timestamp of a dependent operation
+     *            old base timestamp of a dependee operation
      * @param newTs
-     *            new base timestamp of a dependent operation
+     *            new base timestamp of a depenedee operation
      */
-    public synchronized void replaceDependentTimestamp(Timestamp oldTs, Timestamp newTs) {
-        dependencyClock.drop(oldTs);
-        dependencyClock.record(newTs);
+    public synchronized void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
         for (CRDTOperation<V> op : operations) {
-            op.replaceDependentOpTimestamp(oldTs, newTs);
+            op.replaceDependeeOperationTimestamp(oldTs, newTs);
         }
     }
 
     /**
      * Returns the minimum causality clock for the object on which the
      * operations are to be executed, representing causal dependencies of this
-     * group of operations. Affected by
-     * {@link #replaceDependentTimestamp(Timestamp, Timestamp)}.
+     * group of operations.
      * 
      * @return causality clock of object state when operations have been issued
      * 
      */
     public synchronized CausalityClock getDependency() {
         return dependencyClock;
+    }
+
+    /**
+     * Sets the dependency clock of operation group.
+     * 
+     * @see #getDependency()
+     */
+    public void setDependency(CausalityClock dependencyClock) {
+        this.dependencyClock = dependencyClock;
     }
 
     /**

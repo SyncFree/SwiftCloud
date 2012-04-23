@@ -22,7 +22,7 @@ public class SetInsert<V, T extends SetVersioned<V, T>> extends BaseOperation<T>
     }
 
     @Override
-    public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
+    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
         // Insert does not rely on any timestamp dependency.
     }
 

@@ -2,8 +2,9 @@ package swift.client;
 
 import static sys.net.api.Networking.Networking;
 
-import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -48,15 +49,13 @@ import sys.net.api.rpc.RpcEndpoint;
 /**
  * Implementation of Swift client and transactions manager.
  * 
- * @see Swift, {@link TxnManager}
+ * @see Swift, TxnManager
  * 
  * @author mzawirski
  */
-// TODO: cache eviction and pruning
 public class SwiftImpl implements Swift, TxnManager {
-    // TODO: FOR ALL REQUESTS: implement generic exponential backoff
-    // retry manager+server failover?
-
+    // TODO: cache eviction and pruning
+    // TODO: server failover
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -88,12 +87,19 @@ public class SwiftImpl implements Swift, TxnManager {
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
     private final CommitterThread committerThread;
+    // Cache of objects.
+    // Invariant: if object is in the cache, it must include all updates
+    // of locally and globally committed locally-originating transactions.
     private final InfiniteObjectsCache objectsCache;
     // Invariant: latestVersion only grows.
     private final CausalityClock latestVersion;
-    // Invariant: there is at most one pending transaction.
-    private TxnHandleImpl pendingTxn;
-    private final LinkedList<TxnHandleImpl> locallyCommittedTxns;
+    // Invariant: there is at most one pending (open) transaction.
+    private AbstractTxnHandle pendingTxn;
+    // Locally committed transactions (in commit order), the first one is
+    // possibly committing to the store.
+    private final LinkedList<AbstractTxnHandle> locallyCommittedTxns;
+    // Local dependencies of locally committed and pending transactions.
+    private final Map<AbstractTxnHandle, LinkedList<AbstractTxnHandle>> txnLocalDependencies;
     private IncrementalTimestampGenerator clientTimestampGenerator;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache) {
@@ -101,13 +107,15 @@ public class SwiftImpl implements Swift, TxnManager {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
-        this.locallyCommittedTxns = new LinkedList<TxnHandleImpl>();
+        this.locallyCommittedTxns = new LinkedList<AbstractTxnHandle>();
+        this.txnLocalDependencies = new HashMap<AbstractTxnHandle, LinkedList<AbstractTxnHandle>>();
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
         this.committerThread = new CommitterThread();
         this.committerThread.start();
     }
 
+    @Override
     public void stop(boolean waitForCommit) {
         synchronized (this) {
             stopFlag = true;
@@ -122,81 +130,81 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     @Override
-    public synchronized TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly) {
-        // FIXME: respect isolationLevel other than SNAPSHOT_ISOLATION
+    public synchronized AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy,
+            boolean readOnly) {
         // FIXME: Ooops, readOnly is present here at API level, respect it here
         // and in TxnHandleImpl or remove it from API.
         assertNoPendingTransaction();
         assertRunning();
 
-        if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-            final AtomicBoolean doneFlag = new AtomicBoolean(false);
-            do {
-                localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(), new LatestKnownClockReplyHandler() {
-                    @Override
-                    public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
-                        latestVersion.merge(reply.getClock());
-                        doneFlag.set(true);
-                    }
-                });
-            } while (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
+        switch (isolationLevel) {
+        case SNAPSHOT_ISOLATION:
+            if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                final AtomicBoolean doneFlag = new AtomicBoolean(false);
+                do {
+                    localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(),
+                            new LatestKnownClockReplyHandler() {
+                                @Override
+                                public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
+                                    updatedLatestKnownClock(reply.getClock());
+                                    doneFlag.set(true);
+                                }
+                            });
+                } while (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
+            }
+            final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
+            // Invariant: for SI snapshotClock of a new transaction dominates
+            // clock of all previous SI transaction (monotonic reads), since
+            // latestVersion only grows.
+            final CausalityClock snapshotClock = latestVersion.clone();
+            setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, localTimestmap, snapshotClock));
+            txnLocalDependencies.put(pendingTxn, new LinkedList<AbstractTxnHandle>(locallyCommittedTxns));
+            logger.info("SI transaction " + localTimestmap + " started with global snapshot point: " + snapshotClock);
+            return pendingTxn;
+        default:
+            // FIXME: implement other isolation levels.
+            throw new UnsupportedOperationException("isolation level " + isolationLevel + " unsupported");
         }
-        final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
-        // Invariant: snapshotClock (latestVersion) of a new transaction
-        // dominates clock of previous transaction - monotonicity.
-        setPendingTxn(new TxnHandleImpl(this, latestVersion, locallyCommittedTxns, localTimestmap));
-        // FIXME: ensure that latestVersion does not contain any committing
-        // transaction's global timestamp - so that the transaction will not
-        // observe doubled updates (i.e. there is no locallyCommittedTxn such
-        // that latestVersion.include(txn.getGlobalTimestamp())); that would
-        // prevent a potential race condition caused by concurrency of
-        // commitment
+    }
 
-        logger.info("transaction " + localTimestmap + " started with snapshot point: global=" + latestVersion
-                + "local=" + locallyCommittedTxns.size() + " transactions");
-        return pendingTxn;
+    private synchronized void updatedLatestKnownClock(final CausalityClock clock) {
+        latestVersion.merge(clock);
+        final AbstractTxnHandle commitingTxn = locallyCommittedTxns.peekFirst();
+        if (commitingTxn != null && clock.includes(commitingTxn.getGlobalTimestamp())) {
+            // We have received globlal update of locally committed transaction
+            // before it was locally recognized as globally committed.
+            applyGloballyCommittedTxn(commitingTxn);
+        }
     }
 
     @Override
-    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id,
-            boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
+            CausalityClock minVersion, final boolean tryMoreRecent, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
         assertPendingTransaction(txn);
-
-        final CausalityClock globalVisibleClock = txn.getGlobalVisibleTransactionsClock();
-        V crdt = getObject(id, globalVisibleClock, create, classOfV);
-
-        final V crdtCopy;
-        final Deque<TxnHandleImpl> localDependentTxns = txn.getLocalVisibleTransactions();
-        if (localDependentTxns.isEmpty()) {
-            crdtCopy = crdt;
-        } else {
-            crdtCopy = crdt.copy();
-            for (final TxnHandleImpl dependentTxn : localDependentTxns) {
-                final CRDTObjectOperationsGroup<V> localOps = (CRDTObjectOperationsGroup<V>) dependentTxn
-                        .getObjectLocalOperations(id);
-                if (localOps != null) {
-                    try {
-                        // TODO: use IGNORE for inconsistent snapshots
-                        crdtCopy.execute(localOps, CRDTOperationDependencyPolicy.CHECK);
-                    } catch (IllegalStateException x) {
-                        // TODO: cache implementation should make sure that
-                        // dependencies of locally committed transactions are
-                        // never evicted from the cache.
-                        logger.severe("cannot apply locally committed operations on local cached copy of an object - cached copy does not satisfy dependencies");
-                        throw x;
-                    }
-                }
-            }
+        if (minVersion.getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
+            throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
-        return crdtCopy.getTxnLocalCopy(txn.getAllVisibleTransactionsClock(), txn);
+
+        // FIXME honor tryMoreRecent
+        TxnLocalCRDT<V> localView = getCachedObjectForTxn(txn, id, minVersion, classOfV);
+        if (localView != null) {
+            return localView;
+        }
+
+        fetchLatestObject(id, create, classOfV);
+
+        localView = getCachedObjectForTxn(txn, id, minVersion, classOfV);
+        if (localView == null) {
+            throw new IllegalStateException(
+                    "Internal error: recently retrieved object unavailble in appropriate verison in cache");
+        }
+        return localView;
     }
 
-    @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> V getObject(CRDTIdentifier id, CausalityClock globalVisibleClock, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
-        V crdt;
+    private <V extends CRDT<V>> void fetchLatestObject(CRDTIdentifier id, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+        final V crdt;
         try {
             crdt = (V) objectsCache.get(id);
         } catch (ClassCastException x) {
@@ -204,31 +212,92 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (crdt == null) {
-            crdt = retrieveObject(id, globalVisibleClock, create, classOfV);
+            fetchObject(id, create, classOfV);
         } else {
-            final CMP_CLOCK clockCmp = crdt.getClock().compareTo(globalVisibleClock);
-            if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
-                refreshObject(id, globalVisibleClock, classOfV, crdt);
+            refreshObject(id, classOfV, crdt);
+        }
+    }
+
+    private CausalityClock clockWithLocalDependencies(final AbstractTxnHandle txn, CausalityClock clock) {
+        clock = clock.clone();
+        for (final AbstractTxnHandle dependentTxn : txnLocalDependencies.get(txn)) {
+            // Include in clock those dependent transactions that already
+            // committed globally after the pending transaction started.
+            if (dependentTxn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
+                clock.record(dependentTxn.getGlobalTimestamp());
+            } else {
+                clock.record(dependentTxn.getLocalTimestamp());
             }
         }
-        final CMP_CLOCK clockCmp = globalVisibleClock.compareTo(crdt.getPruneClock());
-        if (clockCmp == CMP_CLOCK.CMP_ISDOMINATED || clockCmp == CMP_CLOCK.CMP_CONCURRENT) {
-            throw new ConsistentSnapshotVersionNotFoundException(
-                    "version consistent with current snapshot is not available in the store");
-        }
-        return crdt;
+        return clock;
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> V retrieveObject(CRDTIdentifier id, CausalityClock globalVisibleClock, boolean create,
-            Class<V> classOfV) throws NoSuchObjectException, WrongTypeException,
+    private <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(final AbstractTxnHandle txn, CRDTIdentifier id,
+            CausalityClock clock, Class<V> classOfV) throws WrongTypeException,
             ConsistentSnapshotVersionNotFoundException {
+        V crdt;
+        try {
+            crdt = (V) objectsCache.get(id);
+        } catch (ClassCastException x) {
+            throw new WrongTypeException(x.getMessage());
+        }
+        if (crdt == null) {
+            return null;
+        }
+
+        if (clock == null) {
+            // Return the most recent version.
+            clock = crdt.getClock();
+        }
+        clock = clockWithLocalDependencies(txn, clock);
+        final CausalityClock globalClock = clock.clone();
+        globalClock.drop(CLIENT_CLOCK_ID);
+
+        final CMP_CLOCK clockCmp = crdt.getClock().compareTo(globalClock);
+        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
+            return null;
+        }
+
+        final CMP_CLOCK pruneCmp = globalClock.compareTo(crdt.getPruneClock());
+        if (pruneCmp == CMP_CLOCK.CMP_ISDOMINATED || pruneCmp == CMP_CLOCK.CMP_CONCURRENT) {
+            throw new ConsistentSnapshotVersionNotFoundException(
+                    "version consistent with current snapshot is not available in the store");
+            // TODO: Or just in the cache? return to it if server returns pruned
+            // crdt.
+        }
+
+        // Are there any local dependencies to apply on the cached object?
+        if (clock.getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
+            // Apply them on sandboxed copy of an object, since these operations
+            // use local timestamps.
+            final V crdtCopy = crdt.copy();
+            for (final AbstractTxnHandle dependentTxn : txnLocalDependencies.get(txn)) {
+                final CRDTObjectOperationsGroup<V> localOps;
+                try {
+                    localOps = (CRDTObjectOperationsGroup<V>) dependentTxn.getObjectLocalOperations(id);
+                } catch (ClassCastException x) {
+                    throw new WrongTypeException(x.getMessage());
+                }
+                if (localOps != null) {
+                    crdtCopy.execute(localOps, CRDTOperationDependencyPolicy.IGNORE);
+                }
+            }
+            return crdtCopy.getTxnLocalCopy(clock, txn);
+        } else {
+            return crdt.getTxnLocalCopy(clock, txn);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private <V extends CRDT<V>> V fetchObject(CRDTIdentifier id, boolean create, Class<V> classOfV)
+            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException {
         V crdt = null;
         // TODO: Support notification subscription.
 
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
-            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, globalVisibleClock, false),
+            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, null, false),
                     new FetchObjectVersionReplyHandler() {
                         @Override
                         public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
@@ -252,8 +321,6 @@ public class SwiftImpl implements Swift, TxnManager {
             presentInStore = false;
             break;
         case VERSION_NOT_FOUND:
-            // Even though we cannot satisfy application's request, save the
-            // object for sake of restarted transaction.
         case OK:
             try {
                 crdt = (V) fetchReply.getCrdt();
@@ -273,28 +340,26 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         crdt.init(id, fetchReply.getVersion(), pruneClock, presentInStore);
         objectsCache.add(crdt);
-        latestVersion.merge(fetchReply.getVersion());
+        updatedLatestKnownClock(fetchReply.getVersion());
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
-            throw new ConsistentSnapshotVersionNotFoundException(
-                    "version consistent with current snapshot is not available in the store");
+            logger.warning("unexpected server reply - version not found while version was left unspecified");
         }
         return crdt;
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, CausalityClock globalVisibleClock,
-            Class<V> classOfV, V crdt) throws NoSuchObjectException, WrongTypeException,
-            ConsistentSnapshotVersionNotFoundException {
+    private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, Class<V> classOfV, V crdt)
+            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException {
         // WISHME: we should replace it with deltas or operations list
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         do {
-            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(),
-                    globalVisibleClock, false), new FetchObjectVersionReplyHandler() {
-                @Override
-                public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                    replyRef.set(reply);
-                }
-            });
+            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), null, false),
+                    new FetchObjectVersionReplyHandler() {
+                        @Override
+                        public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                            replyRef.set(reply);
+                        }
+                    });
         } while (replyRef.get() == null);
 
         final FetchObjectVersionReply versionReply = replyRef.get();
@@ -304,11 +369,8 @@ public class SwiftImpl implements Swift, TxnManager {
             crdt.getClock().merge(versionReply.getVersion());
             break;
         case VERSION_NOT_FOUND:
-            // Do not merge, since we would lost some versioning information
-            // that client relies on.
-            // TODO: this case is very special, return to it once the API is
-            // stable.
-            throw new ConsistentSnapshotVersionNotFoundException("consistent version is not available in the store");
+            logger.warning("unexpected server reply - version not found while version was left unspecified");
+            break;
         case OK:
             // Merge it with the local version.
             V receivedCrdt;
@@ -323,17 +385,17 @@ public class SwiftImpl implements Swift, TxnManager {
         default:
             throw new IllegalStateException("Unexpected status code" + versionReply.getStatus());
         }
-        latestVersion.merge(versionReply.getVersion());
+        updatedLatestKnownClock(versionReply.getVersion());
     }
 
     @Override
-    public synchronized void discardTxn(TxnHandleImpl txn) {
+    public synchronized void discardTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
         setPendingTxn(null);
     }
 
     @Override
-    public synchronized void commitTxn(TxnHandleImpl txn) {
+    public synchronized void commitTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
         assertRunning();
 
@@ -358,7 +420,7 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param txn
      *            locally committed transaction
      */
-    private void commitToStore(TxnHandleImpl txn) {
+    private void commitToStore(AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
@@ -380,11 +442,10 @@ public class SwiftImpl implements Swift, TxnManager {
         } while (commitReplyRef.get().getStatus() == CommitStatus.INVALID_TIMESTAMP);
 
         if (commitReplyRef.get().getStatus() == CommitStatus.ALREADY_COMMITTED) {
-            txn.setGlobalTimestamp(commitReplyRef.get().getCommitTimestamp());
-            logger.info("transaction " + txn.getLocalTimestamp() + " is already committed using another timestamp "
-                    + txn.getGlobalTimestamp());
+            // FIXME Perhaps we could move this complexity to RequestTimestamp
+            // on server side?
+            throw new UnsupportedOperationException("transaction committed under another timestamp");
         }
-        txn.markGloballyCommitted();
         logger.info("transaction " + txn.getLocalTimestamp() + " commited globally as " + txn.getGlobalTimestamp());
     }
 
@@ -394,20 +455,20 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param txn
      *            locally committed transaction
      */
-    private void requestTxnGlobalTimestamp(TxnHandleImpl txn) {
+    private void requestTxnGlobalTimestamp(AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
         do {
             localEndpoint.send(
                     serverEndpoint,
-                    new GenerateTimestampRequest(clientId, txn.getGlobalVisibleTransactionsClock(), txn
-                            .getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
-                        @Override
-                        public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
-                            timestampReplyRef.set(reply);
-                        }
-                    });
+                    new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(),
+                    txn.getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
+                @Override
+                public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
+                    timestampReplyRef.set(reply);
+                }
+            });
         } while (timestampReplyRef.get() == null);
 
         // And replace old timestamp in operations with timestamp from server.
@@ -415,46 +476,36 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     /**
-     * Awaits until there is no pending transaction and applies the globally
-     * committed transaction locally using a global timestamp.
+     * Applies globally committed transaction locally using a global timestamp.
      * 
      * @param txn
      *            globally committed transaction to apply locally
      */
-    private synchronized void applyGlobalCommittedTxn(TxnHandleImpl txn) {
-        txn.assertStatus(TxnStatus.COMMITTED_GLOBAL);
-
-        // Globally committed transaction can only be applied when there is no
-        // pending transaction.
-        while (pendingTxn != null) {
-            try {
-                this.wait();
-            } catch (InterruptedException e) {
-            }
+    private synchronized void applyGloballyCommittedTxn(AbstractTxnHandle txn) {
+        txn.assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
+        if (txn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
+            return;
         }
 
+        txn.markGloballyCommitted();
         for (final CRDTObjectOperationsGroup opsGroup : txn.getAllGlobalOperations()) {
             // Try to apply changes in a cached copy of an object.
             final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
             if (crdt == null) {
                 logger.warning("object evicted from the local cache before global commit");
             }
-            try {
-                // TODO: use IGNORE for inconsistent snapshots
-                crdt.execute(opsGroup, CRDTOperationDependencyPolicy.CHECK);
-            } catch (IllegalStateException x) {
-                logger.warning("cannot apply globally committed operations on local cached copy of an object - cached copy does not satisfy dependencies");
+            crdt.execute(opsGroup, CRDTOperationDependencyPolicy.IGNORE);
+        }
+        for (final AbstractTxnHandle dependingTxn : locallyCommittedTxns) {
+            if (dependingTxn != txn) {
+                dependingTxn.includeGlobalDependency(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
             }
         }
-        if (locallyCommittedTxns.removeFirst() != txn) {
-            throw new IllegalStateException("internal error, concurrently commiting transactions?");
-        }
-        for (final TxnHandleImpl dependingTxn : locallyCommittedTxns) {
-            dependingTxn.markFirstLocalVisibleTransactionGlobal();
-        }
+        // TODO [tricky]: to implement IsolationLevel.READ_COMMITTED we may need
+        // to replace timestamps in pending transaction too.
     }
 
-    private synchronized TxnHandleImpl getNextLocallyCommittedTxnBlocking() {
+    private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
         while (locallyCommittedTxns.isEmpty() && !stopFlag) {
             try {
                 this.wait();
@@ -464,7 +515,7 @@ public class SwiftImpl implements Swift, TxnManager {
         return locallyCommittedTxns.peekFirst();
     }
 
-    private synchronized void setPendingTxn(final TxnHandleImpl txn) {
+    private synchronized void setPendingTxn(final AbstractTxnHandle txn) {
         pendingTxn = txn;
         if (txn == null) {
             // Notify committer thread.
@@ -478,7 +529,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private void assertPendingTransaction(final TxnHandleImpl expectedTxn) {
+    private void assertPendingTransaction(final AbstractTxnHandle expectedTxn) {
         if (!pendingTxn.equals(expectedTxn)) {
             throw new IllegalStateException(
                     "Corrupted state: unexpected transaction is bothering me, not the pending one");
@@ -506,12 +557,17 @@ public class SwiftImpl implements Swift, TxnManager {
         @Override
         public void run() {
             while (true) {
-                final TxnHandleImpl nextToCommit = getNextLocallyCommittedTxnBlocking();
+                final AbstractTxnHandle nextToCommit = getNextLocallyCommittedTxnBlocking();
                 if (stopFlag && (!stopGracefully || nextToCommit == null)) {
                     return;
                 }
                 commitToStore(nextToCommit);
-                applyGlobalCommittedTxn(nextToCommit);
+                applyGloballyCommittedTxn(nextToCommit);
+                // Clean up after nextToCommit.
+                if (locallyCommittedTxns.removeFirst() != nextToCommit) {
+                    throw new IllegalStateException("internal error, concurrently commiting transactions?");
+                }
+                txnLocalDependencies.remove(nextToCommit);
             }
         }
     }

@@ -1,5 +1,6 @@
 package swift.client;
 
+import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
@@ -15,13 +16,13 @@ import swift.exceptions.WrongTypeException;
  * @author mzawirski
  */
 public interface TxnManager {
-    TxnHandleImpl beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly);
+    AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly);
 
-    <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(TxnHandleImpl txn, CRDTIdentifier id, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException;
+    <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
+            CausalityClock minVersion, boolean tryMoreRecent, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
 
-    void discardTxn(TxnHandleImpl txn);
+    void discardTxn(AbstractTxnHandle txn);
 
-    void commitTxn(TxnHandleImpl txn);
+    void commitTxn(AbstractTxnHandle txn);
 }

@@ -108,7 +108,8 @@ public class TxnTester implements TxnHandle {
 
     // Short-cut for testing purpose
     public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTOperation<V> op) {
-        final CRDTObjectOperationsGroup<V> opGroup = new CRDTObjectOperationsGroup<V>(obj.getUID(), cc, ts, null);
+        final CRDTObjectOperationsGroup<V> opGroup = new CRDTObjectOperationsGroup<V>(obj.getUID(), ts, null)
+                .withBaseTimestampAndDependency(ts, cc);
         opGroup.append(op);
         objectOperations.put(obj, opGroup);
     }

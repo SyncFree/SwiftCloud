@@ -33,7 +33,7 @@ public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseOperation<T>
     }
 
     @Override
-    public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
+    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
         final List<TripleTimestamp> newIds = new LinkedList<TripleTimestamp>();
         final Iterator<TripleTimestamp> iter = ids.iterator();
         while (iter.hasNext()) {

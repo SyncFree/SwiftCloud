@@ -26,7 +26,7 @@ public class RegisterUpdate<V extends Copyable> extends BaseOperation<RegisterVe
     }
 
     @Override
-    public void replaceDependentOpTimestamp(Timestamp oldTs, Timestamp newTs) {
+    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
         // WISHME: extract as a CausalityClock method?
         if (c.includes(oldTs)) {
             c.drop(oldTs);
