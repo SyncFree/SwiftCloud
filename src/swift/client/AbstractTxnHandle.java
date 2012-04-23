@@ -42,6 +42,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
     protected final Map<CRDTIdentifier, CRDTObjectOperationsGroup<?>> localObjectOperations;
     protected TxnStatus status;
     protected CommitListener commitListener;
+    protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
 
     /**
      * @param manager
@@ -59,6 +60,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
         this.timestampSource = new IncrementalTripleTimestampGenerator(localTimestamp);
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup<?>>();
         this.status = TxnStatus.PENDING;
+        this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
     }
 
     @Override
@@ -76,14 +78,14 @@ abstract class AbstractTxnHandle implements TxnHandle {
         // TODO: implement listener support - client-side notifications
         assertStatus(TxnStatus.PENDING);
         try {
-            return getImpl(id, create, classOfV);
+            return getImpl(id, create, classOfV, listener);
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }
     }
 
     protected abstract <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T getImpl(CRDTIdentifier id, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
+            Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             ConsistentSnapshotVersionNotFoundException, NetworkException;
 
     @Override
@@ -261,7 +263,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
         }
     }
 
-    CausalityClock getUpdatesDependencyClock() {
+    synchronized CausalityClock getUpdatesDependencyClock() {
         assertStatus(TxnStatus.COMMITTED_LOCAL);
         return updatesDependencyClock;
     }

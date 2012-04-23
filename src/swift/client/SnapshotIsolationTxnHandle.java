@@ -8,6 +8,7 @@ import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
@@ -73,11 +74,12 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
 
     @Override
     protected <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T getImpl(CRDTIdentifier id, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
+            Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             ConsistentSnapshotVersionNotFoundException, NetworkException {
         TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectViewsCache.get(id);
         if (localView == null) {
-            localView = manager.getObjectTxnView(this, id, visibleTransactionsClock, false, create, classOfV);
+            localView = manager.getObjectTxnView(this, id, visibleTransactionsClock, false, create, classOfV,
+                    updatesListener);
             objectViewsCache.put(id, localView);
         }
         return (T) localView;

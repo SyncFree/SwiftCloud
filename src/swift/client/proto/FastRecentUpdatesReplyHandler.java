@@ -9,5 +9,5 @@ import sys.net.api.rpc.RpcConnection;
  * @author mzawirski
  */
 public abstract class FastRecentUpdatesReplyHandler extends AbstractRpcHandler {
-    public abstract void onReceive(RpcConnection conn, RecentUpdatesReply reply);
+    public abstract void onReceive(RpcConnection conn, FastRecentUpdatesReply reply);
 }

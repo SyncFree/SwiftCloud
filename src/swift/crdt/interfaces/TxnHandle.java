@@ -11,8 +11,9 @@ import swift.exceptions.WrongTypeException;
 /**
  * Representation of transaction, a basic unit of application interaction with
  * the Swift system. All read of objects accessed through a transaction (
- * {@link #get(CRDTIdentifier, boolean, Class)}) constitute some consistent
- * snapshot of the system. All updates issued on these objects within a
+ * {@link #get(CRDTIdentifier, boolean, Class)}) ensure guarantees specified by
+ * transaction {@link IsolationLevel}. The fresness of read objects is
+ * determined by {@link CachePolicy}. All updates issued on objects within a
  * transaction become atomically visible to other transactions at some time
  * after commit ({@link #commit(boolean)}).
  * 
@@ -34,12 +35,10 @@ public interface TxnHandle {
      * store, it is created if create equals true (the creation takes effect
      * after the transaction commits), otherwise renders error.
      * <p>
-     * This call may block if no appropriate (consistent) version of an object
-     * is available in the local cache of the client, as it requires
-     * communication with server in such case.
-     * 
-     * TODO specify fail mode/timeout for get() - if we support disconnected
-     * operations, it cannot be that a synchronous call fits everything.
+     * This call may block if no appropriate version of an object is available
+     * in the local cache of the client according to transaction's isolation
+     * level and cache policy, as it requires communication with server in such
+     * case.
      * 
      * @param id
      *            identifier of an object
@@ -53,9 +52,10 @@ public interface TxnHandle {
      *            type as part of an id which would resolve this kind of issues
      * @param updatesListener
      *            listener that will receive a notification when a newer version
-     *            of an object than the returned one is available in the store;
-     *            note that this event may fire even during this call; when
-     *            null, notification is disabled
+     *            of an object than the returned one is available in the store
+     *            before the client reads this object again or terminates this
+     *            transaction; note that this event may fire even during this
+     *            call; when null, notification is disabled
      * @return transactional view of an object; accepts queries and updates;
      *         note that this view of an object is valid only until the
      *         transaction is committed or rolled back

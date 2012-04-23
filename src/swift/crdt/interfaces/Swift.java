@@ -15,15 +15,17 @@ public interface Swift {
      * depending on cache and isolation options.
      * 
      * @param isolationLevel
-     *            isolation level defining guarantees for transaction reads
+     *            isolation level defining consistency guarantees for
+     *            transaction reads
      * @param cachePolicy
-     *            cache policy to be used for the new transaction
+     *            cache policy for the new transaction
      * @param readOnly
-     *            when true, transaction is read-only
+     *            when true, perform updates on objects from the transaction
+     *            will render an error
      * @return TxnHandle for the new transaction
      * @throws IllegalStateException
      *             when another transaction is pending in the system, or the
-     *             client is stopped
+     *             client is already stopped
      * @throws NetworkException
      *             when strict cachePolicy is selected and the store does not
      *             reply

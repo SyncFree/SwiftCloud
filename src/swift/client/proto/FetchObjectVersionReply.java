@@ -23,7 +23,8 @@ public class FetchObjectVersionReply implements RpcMessage {
         OBJECT_NOT_FOUND,
         /**
          * The requested version of an object is not any more available in the
-         * store.
+         * store. Returned only if
+         * {@link FetchObjectVersionRequest#isRecentUpdatesRequsted()} is false.
          */
         VERSION_NOT_FOUND
     }
