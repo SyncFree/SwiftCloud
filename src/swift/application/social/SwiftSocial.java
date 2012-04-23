@@ -15,6 +15,7 @@ import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -42,11 +43,12 @@ public class SwiftSocial {
         }
 
         // Check if user is known at all
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+        TxnHandle txn = null;
         // FIXME Is login possible in offline mode?
         User user;
         boolean result;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
             user = (User) (txn.get(NamingScheme.forLogin(loginName), false, RegisterVersioned.class)).getValue();
             // Check password
             // FIXME We actually need an external authentification mechanism, as
@@ -62,6 +64,9 @@ public class SwiftSocial {
             currentUser = user;
             logger.info(loginName + " successfully logged in");
             result = true;
+        } catch (NetworkException e) {
+            e.printStackTrace();
+            result = false;
         } catch (WrongTypeException e) {
             // should not happen
             e.printStackTrace();
@@ -89,8 +94,9 @@ public class SwiftSocial {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
@@ -99,7 +105,9 @@ public class SwiftSocial {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
     }
 
@@ -109,30 +117,36 @@ public class SwiftSocial {
         this.currentUser.fullName = fullName;
         this.currentUser.birthday = birthday;
         this.currentUser.maritalStatus = maritalStatus;
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
                     NamingScheme.forLogin(this.currentUser.loginName), true, RegisterVersioned.class);
             reg.set(currentUser);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
     }
 
     Set<Message> getSiteReport() {
         logger.info("Get site report for " + this.currentUser.loginName);
         Set<Message> postings = new HashSet<Message>();
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
             SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(this.currentUser.loginName),
                     false, SetMsg.class);
             postings = messages.getValue();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
         return postings;
 
@@ -142,22 +156,26 @@ public class SwiftSocial {
     void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, receiverName, date);
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(receiverName), false,
                     SetMsg.class);
             messages.insert(newMsg);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
     }
 
     void answerFriendRequest(String requester, boolean accept) {
         logger.info("Answered friend request from " + this.currentUser.loginName + " for " + requester);
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(
                     NamingScheme.forInFriendReq(this.currentUser.loginName), false, SetStrings.class);
             inFriendReq.remove(requester);
@@ -172,14 +190,17 @@ public class SwiftSocial {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
     }
 
     void sendFriendRequest(String receiverName) {
         logger.info("Sending friend request from " + this.currentUser.loginName + " to " + receiverName);
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(NamingScheme.forInFriendReq(receiverName),
                     false, SetStrings.class);
             inFriendReq.insert(this.currentUser.loginName);
@@ -189,22 +210,27 @@ public class SwiftSocial {
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
     }
 
     Set<String> readUserFriends() {
         logger.info("Get friends for " + this.currentUser.loginName);
         Set<String> friendNames = new HashSet<String>();
-        TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
+        TxnHandle txn = null;
         try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
             SetTxnLocalString friends = (SetTxnLocalString) txn.get(
                     NamingScheme.forMessages(this.currentUser.loginName), false, SetStrings.class);
             friendNames = friends.getValue();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            txn.commit();
+            if (txn != null) {
+                txn.commit();
+            }
         }
         return friendNames;
     }

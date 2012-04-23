@@ -1,5 +1,7 @@
 package swift.crdt.interfaces;
 
+import swift.exceptions.NetworkException;
+
 /**
  * API for the Swift system.
  * 
@@ -22,12 +24,17 @@ public interface Swift {
      * @throws IllegalStateException
      *             when another transaction is pending in the system, or the
      *             client is stopped
+     * @throws NetworkException
+     *             when strict cachePolicy is selected and the store does not
+     *             reply
      */
-    TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly);
+    TxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy, boolean readOnly)
+            throws NetworkException;
 
-    // TODO: in order to support disconnected operations w/client partial
+    // WISHME: in order to support disconnected operations w/client partial
     // replication, extend API to start transaction and prefetch/update some
-    // objects.
+    // objects and to switch IsolationLevel/CachePolicy after stating the
+    // transaction.
 
     /**
      * Stops the client, which renders it unusable after this call returns.

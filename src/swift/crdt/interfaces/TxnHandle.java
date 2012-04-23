@@ -5,6 +5,7 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.NetworkException;
 import swift.exceptions.WrongTypeException;
 
 /**
@@ -18,7 +19,7 @@ import swift.exceptions.WrongTypeException;
  * @author annettebieniusa
  * 
  */
-// TODO: BTW of testing, separate client and system interface (needed for mocks)
+// WISHME: separate client and system interface (needed for mocks)
 public interface TxnHandle {
     /**
      * See {@link #get(CRDTIdentifier, boolean, Class, ObjectUpdatesListener)}
@@ -64,10 +65,15 @@ public interface TxnHandle {
      *             when create is false and object does not exist in the store
      * @throws IllegalStateException
      *             when transaction is already committed or rolled back
+     * @throws NetworkException
+     *             when the state of local cache and/or cachePolicy requires
+     *             communication with the store and connection fails; client may
+     *             repeat the call or start a transaction with different
+     *             settings
      */
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT,
             final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException;
+            ConsistentSnapshotVersionNotFoundException, NetworkException;
 
     /**
      * Commits the transaction and blocks until the transaction is committed to
