@@ -66,12 +66,12 @@ class DCDataServer {
 
         IntegerVersioned i = new IntegerVersioned();
         CRDTIdentifier id = new CRDTIdentifier("e", "1");
-        i.init(id, version, version, true);
+        i.init(id, version.clone(), version.clone(), true);
         putCRDT(id, i, i.getClock(), i.getPruneClock());
 
         IntegerVersioned i2 = new IntegerVersioned();
         CRDTIdentifier id2 = new CRDTIdentifier("e", "2");
-        i2.init(id2, version, version, true);
+        i2.init(id2, version.clone(), version.clone(), true);
         putCRDT(id2, i2, i2.getClock(), i2.getPruneClock());
 
     }
