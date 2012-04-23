@@ -2,9 +2,7 @@ package swift.client;
 
 import static sys.net.api.Networking.Networking;
 
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -40,6 +38,7 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
@@ -56,6 +55,7 @@ import sys.net.api.rpc.RpcEndpoint;
 public class SwiftImpl implements Swift, TxnManager {
     // TODO: cache eviction and pruning
     // TODO: server failover
+    public static int DEFAULT_TIMEOUT_MILLIS = 10000;
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -73,7 +73,7 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort) {
         return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
-                new InfiniteObjectsCache());
+                new InfiniteObjectsCache(), DEFAULT_TIMEOUT_MILLIS);
     }
 
     private static String generateClientId() {
@@ -101,9 +101,12 @@ public class SwiftImpl implements Swift, TxnManager {
     // Local dependencies of a pending transaction.
     private final LinkedList<AbstractTxnHandle> pendingTxnLocalDependencies;
     private IncrementalTimestampGenerator clientTimestampGenerator;
+    private final int timeoutMillis;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache) {
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache,
+            int timeoutMillis) {
         this.clientId = generateClientId();
+        this.timeoutMillis = timeoutMillis;
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
@@ -131,7 +134,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @Override
     public synchronized AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy,
-            boolean readOnly) {
+            boolean readOnly) throws NetworkException {
         // FIXME: Ooops, readOnly is present here at API level, respect it here
         // and in TxnHandleImpl or remove it from API.
         assertNoPendingTransaction();
@@ -141,16 +144,16 @@ public class SwiftImpl implements Swift, TxnManager {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                 final AtomicBoolean doneFlag = new AtomicBoolean(false);
-                do {
-                    localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(),
-                            new LatestKnownClockReplyHandler() {
-                                @Override
-                                public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
-                                    updateLatestKnownClock(reply.getClock());
-                                    doneFlag.set(true);
-                                }
-                            });
-                } while (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT && !doneFlag.get());
+                localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(), new LatestKnownClockReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
+                        updateLatestKnownClock(reply.getClock());
+                        doneFlag.set(true);
+                    }
+                }, timeoutMillis);
+                if (!doneFlag.get() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                    throw new NetworkException("timed out to get transcation snapshot point");
+                }
             }
             final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
             // Invariant: for SI snapshotClock of a new transaction dominates
@@ -175,7 +178,7 @@ public class SwiftImpl implements Swift, TxnManager {
         latestVersion.merge(clock);
         final AbstractTxnHandle commitingTxn = locallyCommittedTxnsQueue.peekFirst();
         if (commitingTxn != null && clock.includes(commitingTxn.getGlobalTimestamp())) {
-            // We have received globlal update of locally committed transaction
+            // We have received global update of locally committed transaction
             // before it was locally recognized as globally committed.
             applyGloballyCommittedTxn(commitingTxn);
         }
@@ -184,7 +187,8 @@ public class SwiftImpl implements Swift, TxnManager {
     @Override
     public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
             CausalityClock minVersion, final boolean tryMoreRecent, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException,
+            NetworkException {
         assertPendingTransaction(txn);
         if (minVersion.getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
             throw new IllegalArgumentException("transaction requested visibility of local transaction");
@@ -201,13 +205,14 @@ public class SwiftImpl implements Swift, TxnManager {
         localView = getCachedObjectForTxn(txn, id, minVersion, classOfV);
         if (localView == null) {
             throw new IllegalStateException(
-                    "Internal error: recently retrieved object unavailble in appropriate verison in cache");
+                    "Internal error: recently retrieved object unavailable in appropriate version in the cache");
         }
         return localView;
     }
 
     private <V extends CRDT<V>> void fetchLatestObject(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException,
+            NetworkException {
         final V crdt;
         try {
             crdt = (V) objectsCache.get(id);
@@ -295,20 +300,22 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> V fetchObject(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException {
+            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException,
+            NetworkException {
         V crdt = null;
         // TODO: Support notification subscription.
 
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
-        do {
-            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, null, false),
-                    new FetchObjectVersionReplyHandler() {
-                        @Override
-                        public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                            replyRef.set(reply);
-                        }
-                    });
-        } while (replyRef.get() == null);
+        localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, null, false),
+                new FetchObjectVersionReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                        replyRef.set(reply);
+                    }
+                }, timeoutMillis);
+        if (replyRef.get() == null) {
+            throw new NetworkException("Fetching object version timed out");
+        }
 
         final FetchObjectVersionReply fetchReply = replyRef.get();
         final boolean presentInStore;
@@ -353,18 +360,20 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void refreshObject(CRDTIdentifier id, Class<V> classOfV, V crdt)
-            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException {
+            throws NoSuchObjectException, WrongTypeException, ConsistentSnapshotVersionNotFoundException,
+            NetworkException {
         // WISHME: we should replace it with deltas or operations list
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
-        do {
-            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), null, false),
-                    new FetchObjectVersionReplyHandler() {
-                        @Override
-                        public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                            replyRef.set(reply);
-                        }
-                    });
-        } while (replyRef.get() == null);
+        localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), null, false),
+                new FetchObjectVersionReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                        replyRef.set(reply);
+                    }
+                }, timeoutMillis);
+        if (replyRef.get() == null) {
+            throw new NetworkException("Fetching newer object version timed out");
+        }
 
         final FetchObjectVersionReply versionReply = replyRef.get();
         switch (versionReply.getStatus()) {
@@ -457,7 +466,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     public void onReceive(RpcConnection conn, CommitUpdatesReply reply) {
                         commitReplyRef.set(reply);
                     }
-                });
+                }, timeoutMillis);
             } while (commitReplyRef.get() == null);
         } while (commitReplyRef.get().getStatus() == CommitStatus.INVALID_TIMESTAMP);
 
@@ -486,7 +495,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
                     timestampReplyRef.set(reply);
                 }
-            });
+            }, timeoutMillis);
         } while (timestampReplyRef.get() == null);
 
         // And replace old timestamp in operations with timestamp from server.

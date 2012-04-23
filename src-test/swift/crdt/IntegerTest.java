@@ -7,16 +7,14 @@ import org.junit.Test;
 
 import swift.clocks.ClockFactory;
 import swift.crdt.interfaces.TxnHandle;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
-import swift.exceptions.NoSuchObjectException;
-import swift.exceptions.WrongTypeException;
+import swift.exceptions.SwiftException;
 
 public class IntegerTest {
     TxnHandle txn;
     IntegerTxnLocal i;
 
     @Before
-    public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    public void setUp() throws SwiftException {
         txn = new TxnTester("client1", ClockFactory.newClock());
         i = txn.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
     }

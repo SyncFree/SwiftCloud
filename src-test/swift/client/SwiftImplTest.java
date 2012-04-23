@@ -1,6 +1,7 @@
 package swift.client;
 
 import static org.easymock.EasyMock.expectLastCall;
+import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.isA;
 import static org.easymock.EasyMock.same;
 import static org.junit.Assert.assertEquals;
@@ -39,6 +40,7 @@ import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
@@ -66,7 +68,8 @@ public class SwiftImplTest extends EasyMockSupport {
     public void setUp() {
         mockLocalEndpoint = createMock(RpcEndpoint.class);
         mockServerEndpoint = createMock(Endpoint.class);
-        swiftImpl = new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new InfiniteObjectsCache());
+        swiftImpl = new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new InfiniteObjectsCache(),
+                SwiftImpl.DEFAULT_TIMEOUT_MILLIS);
         serverClock = ClockFactory.newClock();
         serverTimestampGen = new IncrementalTimestampGenerator("server");
     }
@@ -78,22 +81,22 @@ public class SwiftImplTest extends EasyMockSupport {
 
     @Test
     public void testSingleSITxnCreateObject() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+            ConsistentSnapshotVersionNotFoundException, NetworkException {
         // Specify communication with the server mock.
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(LatestKnownClockRequest.class),
-                isA(LatestKnownClockReplyHandler.class));
+                isA(LatestKnownClockReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
+            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 ((LatestKnownClockReplyHandler) replyHandler).onReceive(null, new LatestKnownClockReply(serverClock));
                 return true;
             }
         });
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(FetchObjectVersionRequest.class),
-                isA(FetchObjectVersionReplyHandler.class));
+                isA(FetchObjectVersionReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
+            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FetchObjectVersionReply fetchReply = new FetchObjectVersionReply(FetchStatus.OBJECT_NOT_FOUND,
                         null, serverClock, null);
                 ((FetchObjectVersionReplyHandler) replyHandler).onReceive(null, fetchReply);
@@ -102,10 +105,10 @@ public class SwiftImplTest extends EasyMockSupport {
         });
         final Timestamp txn1Timestamp = serverTimestampGen.generateNew();
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(GenerateTimestampRequest.class),
-                isA(GenerateTimestampReplyHandler.class));
+                isA(GenerateTimestampReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
+            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final GenerateTimestampRequest request = (GenerateTimestampRequest) m;
                 assertFalse(request.getClientId().isEmpty());
                 assertNull(request.getPreviousTimestamp());
@@ -117,10 +120,10 @@ public class SwiftImplTest extends EasyMockSupport {
         });
 
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(CommitUpdatesRequest.class),
-                isA(CommitUpdatesReplyHandler.class));
+                isA(CommitUpdatesReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
+            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final CommitUpdatesRequest request = (CommitUpdatesRequest) m;
                 assertFalse(request.getClientId().isEmpty());
                 assertEquals(txn1Timestamp, request.getBaseTimestamp());

@@ -26,7 +26,8 @@ public interface TxnHandle {
      * with no updates listener
      */
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException;
+            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException,
+            NetworkException;
 
     /**
      * Returns an object of the provided identifier. If object is not in the
