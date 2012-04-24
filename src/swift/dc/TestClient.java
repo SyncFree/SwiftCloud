@@ -74,6 +74,8 @@ public class TestClient {
             System.out.println("commit");
 
             System.out.println("TetsClient ended with success");
+
+            server.stop(true);
         } catch (Exception e) {
             e.printStackTrace();
         }

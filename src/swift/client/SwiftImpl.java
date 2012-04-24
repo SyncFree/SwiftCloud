@@ -139,6 +139,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         try {
             committerThread.join();
+            notificationsThread.join();
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
         }
@@ -627,6 +628,11 @@ public class SwiftImpl implements Swift, TxnManager {
         public void run() {
             // FIXME: this is just to test the server!!
             while (true) {
+                synchronized (SwiftImpl.this) {
+                    if (stopFlag) {
+                        return;
+                    }
+                }
                 localEndpoint.send(serverEndpoint, new FastRecentUpdatesRequest(clientId),
                         new FastRecentUpdatesReplyHandler() {
                             @Override
