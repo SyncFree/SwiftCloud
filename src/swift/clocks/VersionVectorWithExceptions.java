@@ -180,6 +180,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         if( l == null) {
             l = duplicateList( l0);
             numPairs = numPairs + l0.size();
+            vv.put(siteid, l);
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
         CMP_CLOCK cmp = compareOneEntryVV( siteid, l0);

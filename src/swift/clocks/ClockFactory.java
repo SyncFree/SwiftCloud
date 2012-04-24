@@ -15,12 +15,12 @@ package swift.clocks;
  */
 public class ClockFactory {
     public static CausalityClock newClock() {
-        return new VersionVectorWithExceptionsOld();
+        return new VersionVectorWithExceptions();
     }
 
     public static CausalityClock newClock(CausalityClock c) {
-        if (c instanceof VersionVectorWithExceptionsOld) {
-            return new VersionVectorWithExceptionsOld((VersionVectorWithExceptionsOld) c);
+        if (c instanceof VersionVectorWithExceptions) {
+            return new VersionVectorWithExceptions((VersionVectorWithExceptions) c);
         } else {
             throw new RuntimeException(
                     "This should not have happened! The system only uses VersionVectorWithExceptions!");
