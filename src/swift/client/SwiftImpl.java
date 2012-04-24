@@ -98,8 +98,8 @@ public class SwiftImpl implements Swift, TxnManager {
     // Invariant: if object is in the cache, it must include all updates
     // of locally and globally committed locally-originating transactions.
     private final InfiniteObjectsCache objectsCache;
-    // Invariant: latestVersion only grows.
-    private final CausalityClock latestVersion;
+    // Invariant: committedVersion only grows.
+    private final CausalityClock commitedVersion;
     // Invariant: there is at most one pending (open) transaction.
     private AbstractTxnHandle pendingTxn;
     // Locally committed transactions (in commit order), the first one is
@@ -121,7 +121,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.objectsCache = objectsCache;
         this.locallyCommittedTxnsQueue = new LinkedList<AbstractTxnHandle>();
         this.pendingTxnLocalDependencies = new LinkedList<AbstractTxnHandle>();
-        this.latestVersion = ClockFactory.newClock();
+        this.commitedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
         this.committerThread = new CommitterThread();
         this.committerThread.start();
@@ -161,7 +161,7 @@ public class SwiftImpl implements Swift, TxnManager {
                         new LatestKnownClockReplyHandler() {
                             @Override
                             public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
-                                updateLatestKnownClock(reply.getClock());
+                                updateCommittedVersion(reply.getClock());
                                 doneFlag.set(true);
                             }
                         }, timeoutMillis);
@@ -172,8 +172,8 @@ public class SwiftImpl implements Swift, TxnManager {
             final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
             // Invariant: for SI snapshotClock of a new transaction dominates
             // clock of all previous SI transaction (monotonic reads), since
-            // latestVersion only grows.
-            final CausalityClock snapshotClock = latestVersion.clone();
+            // commitedVersion only grows.
+            final CausalityClock snapshotClock = commitedVersion.clone();
             setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, localTimestmap, snapshotClock));
             logger.info("SI transaction " + localTimestmap + " started with global snapshot point: " + snapshotClock);
             return pendingTxn;
@@ -183,17 +183,18 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private synchronized void updateLatestKnownClock(final CausalityClock clock) {
+    private synchronized void updateCommittedVersion(final CausalityClock clock) {
         if (clock == null) {
             logger.warning("server returned null clock");
             return;
         }
 
-        latestVersion.merge(clock);
+        commitedVersion.merge(clock);
         final AbstractTxnHandle commitingTxn = locallyCommittedTxnsQueue.peekFirst();
         if (commitingTxn != null && clock.includes(commitingTxn.getGlobalTimestamp())) {
-            // We have received global update of locally committed transaction
-            // before it was locally recognized as globally committed.
+            // We observe global visibility (and possibly updates) of locally
+            // committed transaction before the CommitUpdatesReply has been
+            // received.
             applyGloballyCommittedTxn(commitingTxn);
         }
     }
@@ -208,7 +209,7 @@ public class SwiftImpl implements Swift, TxnManager {
             throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
 
-        // FIXME honor tryMoreRecent
+        // FIXME honor tryMoreRecent and check with commitedVersion
         TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, minVersion, classOfV);
         if (localView != null) {
             return localView;
@@ -216,6 +217,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
         // FIXME: support updatesListener for real
         final CausalityClock clock = clockWithLocalDependencies(minVersion);
+        clock.drop(CLIENT_CLOCK_ID);
         fetchLatestObject(id, create, classOfV, clock, updatesListener != null);
 
         localView = getCachedObjectForTxn(id, minVersion, classOfV);
@@ -368,8 +370,9 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         crdt.init(id, fetchReply.getVersion(), pruneClock, presentInStore);
         objectsCache.add(crdt);
-        updateLatestKnownClock(fetchReply.getVersion());
+        updateCommittedVersion(fetchReply.getEstimatedLatestKnownClock());
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
+            // FIXME: retry if version <= minVerson?
             logger.warning("unexpected server reply - version not found while version was left unspecified");
         }
         return crdt;
@@ -393,30 +396,31 @@ public class SwiftImpl implements Swift, TxnManager {
             throw new NetworkException("Fetching newer object version timed out");
         }
 
-        final FetchObjectVersionReply versionReply = replyRef.get();
-        switch (versionReply.getStatus()) {
+        final FetchObjectVersionReply refreshReply = replyRef.get();
+        switch (refreshReply.getStatus()) {
         case OBJECT_NOT_FOUND:
             // Just update the clock of local version.
-            crdt.getClock().merge(versionReply.getVersion());
+            crdt.getClock().merge(refreshReply.getVersion());
             break;
         case VERSION_NOT_FOUND:
-            logger.warning("unexpected server reply - version not found while requested more recent updates ");
+            // FIXME: retry if minVersion <= version?
+            logger.warning("requested object version not found");
             break;
         case OK:
             // Merge it with the local version.
             V receivedCrdt;
             try {
-                receivedCrdt = (V) versionReply.getCrdt();
+                receivedCrdt = (V) refreshReply.getCrdt();
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-            receivedCrdt.init(id, versionReply.getVersion(), versionReply.getPruneClock(), true);
+            receivedCrdt.init(id, refreshReply.getVersion(), refreshReply.getPruneClock(), true);
             crdt.merge(receivedCrdt);
             break;
         default:
-            throw new IllegalStateException("Unexpected status code" + versionReply.getStatus());
+            throw new IllegalStateException("Unexpected status code" + refreshReply.getStatus());
         }
-        updateLatestKnownClock(versionReply.getVersion());
+        updateCommittedVersion(refreshReply.getEstimatedLatestKnownClock());
     }
 
     @Override
@@ -551,6 +555,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // need
             // to replace timestamps in pending transaction too.
         }
+        commitedVersion.record(txn.getGlobalTimestamp());
     }
 
     private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
