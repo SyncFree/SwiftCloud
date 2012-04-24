@@ -28,6 +28,11 @@ public class LocalSetUpTest {
             }
         };
         sequencer.start();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
 
         Thread server = new Thread() {
             public void run() {
@@ -37,6 +42,11 @@ public class LocalSetUpTest {
             }
         };
         server.start();
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
 
         for (int i = 0; i < 5; i++) {
             final int portId = i + 2000;
