@@ -77,8 +77,9 @@ public class SwiftSocialMain {
     private static void startDCServer() {
         Thread server = new Thread() {
             public void run() {
-                DCServer server = new DCServer(sequencerName);
-                server.startSurrogServer();
+//                DCServer server = new DCServer(sequencerName);
+//                server.startSurrogServer();
+                DCServer.main( new String[] {sequencerName});
             }
         };
         server.start();

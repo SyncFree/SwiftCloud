@@ -1,6 +1,9 @@
 package swift.dc;
 
 import static sys.net.api.Networking.Networking;
+
+import java.util.Properties;
+
 import sys.Sys;
 
 /**
@@ -13,9 +16,11 @@ import sys.Sys;
 public class DCServer {
     DCSurrogate server;
     String sequencerHost;
+    Properties props;
 
-    public DCServer(String sequencerHost) {
+    public DCServer(String sequencerHost, Properties props) {
         this.sequencerHost = sequencerHost;
+        this.props = props;
         init();
     }
 
@@ -27,10 +32,13 @@ public class DCServer {
         Sys.init();
 
         server = new DCSurrogate(Networking.Networking.rpcBind(DCConstants.SURROGATE_PORT, null), Networking.rpcBind(0,
-                null), Networking.resolve(sequencerHost, DCConstants.SEQUENCER_PORT));
+                null), Networking.resolve(sequencerHost, DCConstants.SEQUENCER_PORT), props);
     }
 
     public static void main(String[] args) {
-        new DCServer(args.length == 0 ? "localhost" : args[0]).startSurrogServer();
+        Properties props = new Properties();
+        props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+        
+        new DCServer(args.length == 0 ? "localhost" : args[0], props).startSurrogServer( );
     }
 }

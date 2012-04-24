@@ -1,5 +1,6 @@
 package swift.client.proto;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import swift.clocks.CausalityClock;
@@ -42,12 +43,26 @@ public class FastRecentUpdatesReply implements RpcMessage {
         protected boolean dirty;
         protected List<CRDTObjectOperationsGroup<?>> updates;
 
+        public ObjectSubscriptionInfo() {
+        }
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                List<CRDTObjectOperationsGroup<?>> updates) {
+                CRDTObjectOperationsGroup<?> update) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
-            this.updates = updates;
+            this.updates = new ArrayList<CRDTObjectOperationsGroup<?>>();
+            updates.add(update);
+            this.dirty = true;
+        }
+        public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
+                List<CRDTObjectOperationsGroup<?>> updates, boolean dirty) {
+            this.id = id;
+            this.oldClock = oldClock;
+            this.newClock = newClock;
+            this.updates = new ArrayList<CRDTObjectOperationsGroup<?>>();
+            if( updates != null)
+                this.updates.addAll(updates);
+            this.dirty = dirty;
         }
 
         /**
@@ -86,6 +101,13 @@ public class FastRecentUpdatesReply implements RpcMessage {
          */
         public List<CRDTObjectOperationsGroup<?>> getUpdates() {
             return updates;
+        }
+        public void clearOperations() {
+            updates.clear();            
+        }
+        
+        public ObjectSubscriptionInfo clone() {
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, updates, dirty);
         }
     }
 

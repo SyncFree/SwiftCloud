@@ -3,6 +3,7 @@ package swift.dc;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.*;
 
 import swift.client.proto.GenerateTimestampReply;
 import swift.client.proto.GenerateTimestampRequest;
@@ -56,7 +57,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
         this.endpoint = Networking.Networking.rpcBind(DCConstants.SEQUENCER_PORT, null);
         this.endpoint.setHandler(this);
-        System.out.println("Sequencer ready...");
+        DCConstants.DCLogger.info("Sequencer ready...");
     }
 
     public static void main(String[] args) {
@@ -89,14 +90,13 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
     @Override
     public void onReceive(RpcConnection conn, GenerateTimestampRequest request) {
-        System.out.println("sequencer: generatetimestamprequest");
+        DCConstants.DCLogger.info( "sequencer: generatetimestamprequest");
         conn.reply(new GenerateTimestampReply(generateNewId(), DCConstants.DEFAULT_TRXIDTIME));
     }
 
     @Override
     public void onReceive(RpcConnection conn, KeepaliveRequest request) {
-        // TODO Auto-generated method stub
-        System.out.println("sequencer: keepaliverequest");
+        DCConstants.DCLogger.info("sequencer: keepaliverequest");
         boolean success = refreshId(request.getTimestamp());
         conn.reply(new KeepaliveReply(success, success, DCConstants.DEFAULT_TRXIDTIME));
 
@@ -111,7 +111,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      *            request to serve
      */
     public void onReceive(RpcConnection conn, LatestKnownClockRequest request) {
-        System.out.println("sequencer: latestknownclockrequest");
+        DCConstants.DCLogger.info("sequencer: latestknownclockrequest:" + currentClock());
         conn.reply(new LatestKnownClockReply(currentClock()));
     }
 
@@ -124,12 +124,16 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      */
     @Override
     public void onReceive(RpcConnection conn, CommitTSRequest request) {
-        System.out.println("sequencer: commitTSRequest");
+        DCConstants.DCLogger.info("sequencer: commitTSRequest:" + request.getTimestamp());
         boolean ok = this.commitTS(request.getVersion(), request.getTimestamp(), request.getCommit());
+        CausalityClock clk = null;
+        synchronized( this) {
+            clk = currentClock().clone();
+        }
         if (ok) {
-            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK));
+            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk));
         } else {
-            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED));
+            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk));
         }
     }
 }
