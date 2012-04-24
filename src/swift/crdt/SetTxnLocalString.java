@@ -43,8 +43,10 @@ public class SetTxnLocalString extends BaseCRDTTxnLocal<SetStrings> {
      */
     public void remove(String e) {
         Set<TripleTimestamp> ids = elems.remove(e);
-        TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new SetRemove<String, SetStrings>(ts, e, ids));
+        if (ids != null) {
+            TripleTimestamp ts = nextTimestamp();
+            registerLocalOperation(new SetRemove<String, SetStrings>(ts, e, ids));
+        }
     }
 
     public boolean lookup(int e) {
