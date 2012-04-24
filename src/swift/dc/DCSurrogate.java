@@ -16,6 +16,7 @@ import java.util.TreeSet;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
+import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionReply;
@@ -174,90 +175,57 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
      * @param subscribe Subscription type
      */
     CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
-        CausalityClock clk = null;
-        synchronized( estimatedDCVersion) {
-            clk = estimatedDCVersion.clone();
-        }
-        CRDTObject<?> o = dataServer.getCRDT(id, subscribe);    // call DHT server
-        if( o == null)
-            return null;
-        o.clock.merge(estimatedDCVersion);
-        return o;
+        return dataServer.getCRDT(id, subscribe);    // call DHT server
     }
 
     @Override
     public void onReceive(RpcConnection conn, FetchObjectVersionRequest request) {
         DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId());
-        final ClientSession session = getSession( request.getClientId());
-
-        CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
-        synchronized( estimatedDCVersion) {
-            cmp = request.getVersion() == null ? CMP_CLOCK.CMP_EQUALS : estimatedDCVersion.compareTo(request.getVersion());
-        }
-        if( cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) {
-            updateEstimatedDCVersion();
-            cmp = estimatedDCVersion.compareTo(request.getVersion());
-        }
-        if( cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) {
-             conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.VERSION_NOT_FOUND, null, request
-                    .getVersion(), ClockFactory.newClock()));
-        } else {
-
-        CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType());
-        if (crdt == null) {
-            conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, request
-                    .getVersion(), ClockFactory.newClock()));
-        } else {
-            if( request.getSubscriptionType() != SubscriptionType.NONE) {
-                if( request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
-                    addToNotificating(request.getUid(), session);
-                else if( request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
-                    addToObserving(request.getUid(), session);
-            }
-            synchronized (crdt) {
-                conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OK, crdt.crdt, crdt.clock,
-                        crdt.pruneClock));
-            }
-        }
-        }
+        conn.reply(handleFetchVersionRequest(request));
     }
-
+    
     @Override
     public void onReceive(RpcConnection conn, FetchObjectDeltaRequest request) {
         DCConstants.DCLogger.info("FetchObjectDeltaRequest client = " + request.getClientId());
+        conn.reply(handleFetchVersionRequest(request));
+    }
+
+    private FetchObjectVersionReply handleFetchVersionRequest(FetchObjectVersionRequest request) {
         final ClientSession session = getSession( request.getClientId());
 
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
-        synchronized( estimatedDCVersion) {
-            cmp = request.getVersion() == null ? CMP_CLOCK.CMP_EQUALS : estimatedDCVersion.compareTo(request.getVersion());
+        CausalityClock estimatedDCVersionCopy = null;
+        synchronized (estimatedDCVersion) {
+            cmp = request.getVersion() == null ? CMP_CLOCK.CMP_EQUALS : estimatedDCVersion.compareTo(request
+                    .getVersion());
+            estimatedDCVersionCopy = estimatedDCVersion.clone();
         }
-        if( cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) {
+        if (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) {
             updateEstimatedDCVersion();
-            cmp = estimatedDCVersion.compareTo(request.getVersion());
+            synchronized (estimatedDCVersion) {
+                cmp = estimatedDCVersion.compareTo(request.getVersion());
+                estimatedDCVersionCopy = estimatedDCVersion.clone();
+            }
         }
-        if( cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) {
-             conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.VERSION_NOT_FOUND, null, request
-                    .getVersion(), ClockFactory.newClock()));
-        } else {
 
         CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType());
         if (crdt == null) {
-            conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, request
-                    .getVersion(), ClockFactory.newClock()));
+            return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, estimatedDCVersionCopy,
+                    ClockFactory.newClock(), estimatedDCVersionCopy);
         } else {
-            if( request.getSubscriptionType() != SubscriptionType.NONE) {
-                if( request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
+            if (request.getSubscriptionType() != SubscriptionType.NONE) {
+                if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
                     addToNotificating(request.getUid(), session);
-                else if( request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
+                else if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
                     addToObserving(request.getUid(), session);
             }
             synchronized (crdt) {
-                conn.reply(new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OK, crdt.crdt, crdt.clock,
-                        crdt.pruneClock));
+                crdt.clock.merge(estimatedDCVersionCopy);
+                final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
+                        : FetchStatus.OK;
+                return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock, estimatedDCVersionCopy);
             }
         }
-        }
-
     }
 
     @Override

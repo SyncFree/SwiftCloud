@@ -30,9 +30,8 @@ public class FetchObjectDeltaRequest extends FetchObjectVersionRequest {
     }
 
     public FetchObjectDeltaRequest(String clientId, CRDTIdentifier id, CausalityClock knownVersion,
-            CausalityClock version, boolean committedVersion, boolean recentUpdatesRequested,
-            SubscriptionType subscribeUpdates) {
-        super(clientId, id, version, committedVersion, recentUpdatesRequested, subscribeUpdates);
+            CausalityClock version, SubscriptionType subscribeUpdates) {
+        super(clientId, id, version, subscribeUpdates);
         this.knownVersion = knownVersion;
     }
 

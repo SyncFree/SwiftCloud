@@ -323,13 +323,13 @@ public class SwiftImpl implements Swift, TxnManager {
 
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, minVersion, true, true,
-                subscriptionType), new FetchObjectVersionReplyHandler() {
-            @Override
-            public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                replyRef.set(reply);
-            }
-        }, timeoutMillis);
+        localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, minVersion, subscriptionType),
+                new FetchObjectVersionReplyHandler() {
+                    @Override
+                    public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                        replyRef.set(reply);
+                    }
+                }, timeoutMillis);
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching object version timed out");
         }
@@ -382,8 +382,8 @@ public class SwiftImpl implements Swift, TxnManager {
         // WISHME: we should replace it with deltas or operations list
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), minVersion, true,
-                true, subscriptionType), new FetchObjectVersionReplyHandler() {
+        localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, crdt.getClock(), minVersion,
+                subscriptionType), new FetchObjectVersionReplyHandler() {
             @Override
             public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
                 replyRef.set(reply);

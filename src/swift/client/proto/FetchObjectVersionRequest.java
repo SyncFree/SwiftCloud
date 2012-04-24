@@ -13,9 +13,7 @@ import sys.net.api.rpc.RpcHandler;
 public class FetchObjectVersionRequest extends ClientRequest {
     protected CRDTIdentifier uid;
     protected CausalityClock version;
-    protected boolean committedVersionRequested;
     protected SubscriptionType subscriptionType;
-    private boolean recentUpdatesRequested;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -28,16 +26,14 @@ public class FetchObjectVersionRequest extends ClientRequest {
      */
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
             boolean subscribeUpdates) {
-        this(clientId, uid, version, true, true, subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE);
+        this(clientId, uid, version, subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE);
     }
 
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            boolean committedVersionRequested, boolean recentUpdatesRequested, SubscriptionType subscribeUpdates) {
+            SubscriptionType subscribeUpdates) {
         super(clientId);
         this.uid = uid;
         this.version = version;
-        this.committedVersionRequested = committedVersionRequested;
-        this.recentUpdatesRequested = recentUpdatesRequested;
         this.subscriptionType = subscribeUpdates;
     }
 
@@ -53,20 +49,6 @@ public class FetchObjectVersionRequest extends ClientRequest {
      */
     public CausalityClock getVersion() {
         return version;
-    }
-
-    /**
-     * @return true if client wishes to receive more recent updates too
-     */
-    public boolean isRecentUpdatesRequsted() {
-        return recentUpdatesRequested;
-    }
-
-    /**
-     * @return true if the returned version must be committed
-     */
-    public boolean isCommittedVersionRequested() {
-        return committedVersionRequested;
     }
 
     /**

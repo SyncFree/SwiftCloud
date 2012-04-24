@@ -119,7 +119,7 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      * 
      * @see #getDependency()
      */
-    public void setDependency(CausalityClock dependencyClock) {
+    public synchronized void setDependency(CausalityClock dependencyClock) {
         this.dependencyClock = dependencyClock;
     }
 

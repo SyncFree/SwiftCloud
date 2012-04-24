@@ -45,6 +45,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
 
         public ObjectSubscriptionInfo() {
         }
+
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
                 CRDTObjectOperationsGroup<?> update) {
             this.id = id;
@@ -54,13 +55,14 @@ public class FastRecentUpdatesReply implements RpcMessage {
             updates.add(update);
             this.dirty = true;
         }
+
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
                 List<CRDTObjectOperationsGroup<?>> updates, boolean dirty) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
             this.updates = new ArrayList<CRDTObjectOperationsGroup<?>>();
-            if( updates != null)
+            if (updates != null)
                 this.updates.addAll(updates);
             this.dirty = dirty;
         }
@@ -102,10 +104,11 @@ public class FastRecentUpdatesReply implements RpcMessage {
         public List<CRDTObjectOperationsGroup<?>> getUpdates() {
             return updates;
         }
+
         public void clearOperations() {
-            updates.clear();            
+            updates.clear();
         }
-        
+
         public ObjectSubscriptionInfo clone() {
             return new ObjectSubscriptionInfo(id, oldClock, newClock, updates, dirty);
         }
@@ -113,6 +116,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
 
     protected SubscriptionStatus status;
     protected List<ObjectSubscriptionInfo> subscriptions;
+    protected CausalityClock estimatedLatestKnownClock;
 
     /**
      * No-args constructor for Kryo-serialization.
@@ -120,9 +124,11 @@ public class FastRecentUpdatesReply implements RpcMessage {
     public FastRecentUpdatesReply() {
     }
 
-    public FastRecentUpdatesReply(SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions) {
+    public FastRecentUpdatesReply(SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions,
+            CausalityClock estimatedLatestKnownClock) {
         this.status = status;
         this.subscriptions = subscriptions;
+        this.estimatedLatestKnownClock = estimatedLatestKnownClock;
     }
 
     /**
@@ -143,6 +149,13 @@ public class FastRecentUpdatesReply implements RpcMessage {
         // TODO: let's clarify, is it for all active subscriptions or only for a
         // subset where we have some information available?
         return subscriptions;
+    }
+
+    /**
+     * @return estimation of the latest committed clock in the store
+     */
+    public CausalityClock getEstimatedLatestKnownClock() {
+        return estimatedLatestKnownClock;
     }
 
     @Override

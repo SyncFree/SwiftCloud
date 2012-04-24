@@ -22,9 +22,7 @@ public class FetchObjectVersionReply implements RpcMessage {
          */
         OBJECT_NOT_FOUND,
         /**
-         * The requested version of an object is not any more available in the
-         * store. Returned only if
-         * {@link FetchObjectVersionRequest#isRecentUpdatesRequsted()} is false.
+         * The requested version of an object is available in the store.
          */
         VERSION_NOT_FOUND
     }
@@ -35,16 +33,19 @@ public class FetchObjectVersionReply implements RpcMessage {
     protected CRDT<?> crdt;
     protected CausalityClock version;
     protected CausalityClock pruneClock;
+    protected CausalityClock estimatedLatestKnownClock;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     public FetchObjectVersionReply() {
     }
 
-    public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock) {
+    public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
+            CausalityClock estimatedLatestKnownClock) {
         this.status = status;
         this.crdt = crdt;
         this.version = version;
         this.pruneClock = pruneClock;
+        this.estimatedLatestKnownClock = estimatedLatestKnownClock;
     }
 
     /**
@@ -55,12 +56,13 @@ public class FetchObjectVersionReply implements RpcMessage {
     }
 
     /**
-     * @return state of an object requested by the client; if
-     *         {@link #getStatus()} is {@link FetchStatus#OK} then the object is
-     *         pruned from history at most to the level specified by version in
-     *         the original client request; null if {@link #getStatus()} is
-     *         {@link FetchStatus#OBJECT_NOT_FOUND}.
+     * @return state of an object requested by the client; null if
+     *         {@link #getStatus()} is {@link FetchStatus#OBJECT_NOT_FOUND}.
      */
+    // Old docs, not true anymore: if {@link #getStatus()} is {@link
+    // FetchStatus#OK} then the object is
+    // pruned from history at most to the level specified by version in
+    // the original client request;
     public CRDT<?> getCrdt() {
         return crdt;
     }
@@ -81,6 +83,14 @@ public class FetchObjectVersionReply implements RpcMessage {
      */
     public CausalityClock getPruneClock() {
         return pruneClock;
+    }
+
+    /**
+     * @return estimation of the latest committed clock in the store, dominated
+     *         by or equals {@link #getVersion()}
+     */
+    public CausalityClock getEstimatedLatestKnownClock() {
+        return estimatedLatestKnownClock;
     }
 
     @Override
