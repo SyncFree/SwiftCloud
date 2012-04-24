@@ -206,6 +206,14 @@ public class VersionVectorWithExceptions implements CausalityClock {
                         p0 = null;
                         hasChanged = true;
                     }
+                } else if( p != null) {
+                    np = p;
+                    p = null;
+                    hasChanged = true;
+                } else if( p0 != null) {
+                    np = p0;
+                    p0 = null;
+                    hasChanged = true;
                 }
             }
             if( p != null) {
