@@ -156,13 +156,14 @@ public class SwiftImpl implements Swift, TxnManager {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                 final AtomicBoolean doneFlag = new AtomicBoolean(false);
-                localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(), new LatestKnownClockReplyHandler() {
-                    @Override
-                    public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
-                        updateLatestKnownClock(reply.getClock());
-                        doneFlag.set(true);
-                    }
-                }, timeoutMillis);
+                localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
+                        new LatestKnownClockReplyHandler() {
+                            @Override
+                            public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
+                                updateLatestKnownClock(reply.getClock());
+                                doneFlag.set(true);
+                            }
+                        }, timeoutMillis);
                 if (!doneFlag.get() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     throw new NetworkException("timed out to get transcation snapshot point");
                 }
