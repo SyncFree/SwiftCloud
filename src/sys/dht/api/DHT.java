@@ -10,6 +10,8 @@ import sys.net.api.Endpoint;
  */
 public interface DHT {
 
+    Endpoint localEndpoint();
+    
 	void send(final DHT.Key key, final DHT.Message msg);
 
 	void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler);

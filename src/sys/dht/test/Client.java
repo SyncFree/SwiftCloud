@@ -9,6 +9,7 @@ import sys.dht.api.DHT;
 import sys.dht.api.StringKey;
 import sys.dht.test.msgs.StoreData;
 import sys.dht.test.msgs.StoreDataReply;
+import sys.net.api.rpc.RpcFactory;
 import sys.utils.Threading;
 
 /**
@@ -29,6 +30,8 @@ public class Client {
 		Log.setLevel(Level.ALL);
 		sys.Sys.init();
 
+		Sys.setDatacenter("datacenter-0");
+		
 		DHT stub = Sys.getDHT_ClientStub();
 
 		while (stub != null) {

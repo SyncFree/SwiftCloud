@@ -34,14 +34,14 @@ import static sys.pubsub.PubSub.*;
  * @author smd (smd@fct.unl.pt)
  * 
  */
-public class Server {
+public class Server2 {
 
     public static void main(String[] args) throws Exception {
-        Log.setLevel("", Level.OFF);
+        Log.setLevel("", Level.ALL);
         Log.setLevel("sys.dht.catadupa", Level.FINER);
         Log.setLevel("sys.dht", Level.FINEST);
-        Log.setLevel("sys.net", Level.FINE);
-        Log.setLevel("sys", Level.FINE);
+        Log.setLevel("sys.net", Level.ALL);
+        Log.setLevel("sys", Level.ALL);
 
         sys.Sys.init();
         Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(3));
@@ -57,27 +57,36 @@ public class Server {
                 conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
 
                 System.out.println(conn.remoteEndpoint());
-                PubSub.addRemoteSubscriber("xxx", conn.remoteEndpoint());
-                PubSub.publish("xxx", "asjdajshdajhd asdajdhahsdjahsdja ajdahdjd");
+                PubSub.addRemoteSubscriber("xxx",  conn.remoteEndpoint() ) ;
+                PubSub.publish("xxx", "asjdajshdajhd asdajdhahsdjahsdja ajdahdjd" );
             }
         });
 
         Threading.sleep(1000);
 
-//        int n = 0;
-//        DHT stub = Sys.getDHT_ClientStub();
-//
-//        System.out.println(stub.localEndpoint());
-//
-//        while (stub != null) {
-//            String key = "" + Sys.rg.nextInt(1000);
-//            stub.send(new StringKey(key), new StoreData("" + n++), new KVS.ReplyHandler() {
-//                @Override
-//                public void onReceive(StoreDataReply reply) {
-//                    System.out.println(reply.msg);
-//                }
-//            });
-//            Threading.sleep(1000);
-//        }
+            int n = 0;
+            DHT stub = Sys.getDHT_ClientStub();
+            
+            System.out.println( stub.localEndpoint() );
+
+            PubSub.subscribe("xxx", new Handler() {
+
+                @Override
+                public void notify(String group, Object payload) {
+                    System.err.println( group + "---" + payload );
+                }
+                
+            });
+            
+            while (stub != null) {
+                String key = "" + Sys.rg.nextInt(1000);
+                stub.send(new StringKey(key), new StoreData("" + n++), new KVS.ReplyHandler() {
+                    @Override
+                    public void onReceive(StoreDataReply reply) {
+                        //System.out.println(reply.msg);
+                    }
+                });
+                Threading.sleep(1000);
+            }
     }
 }

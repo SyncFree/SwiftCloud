@@ -15,6 +15,11 @@ public class DHT_ClientStub implements DHT {
 	Endpoint dhtEndpoint;
 	RpcEndpoint myEndpoint;
 
+	@Override
+    public Endpoint localEndpoint() {
+        return myEndpoint.localEndpoint();
+    }
+	
 	public DHT_ClientStub(final Endpoint dhtEndpoint) {
 		this.dhtEndpoint = dhtEndpoint;
 		myEndpoint = Networking.rpcBind(0).rpcService( RpcServices.DHT.ordinal(), new _Handler());
@@ -25,6 +30,7 @@ public class DHT_ClientStub implements DHT {
 		this.dhtEndpoint = dhtEndpoint;
 	}
 
+	
 	@Override
 	public void send(final Key key, final DHT.Message msg) {
 		myEndpoint.send(dhtEndpoint, new DHT_Request(key, msg));
@@ -55,4 +61,6 @@ public class DHT_ClientStub implements DHT {
 			}
 		}
 	}
+
+    
 }

@@ -1,5 +1,7 @@
 package sys.net.impl;
 
+import static sys.utils.Log.Log;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -50,6 +52,7 @@ public class KryoSerializer implements Serializer {
                 outgoing.writeClassAndObject(o, out);
             }
         } catch (IOException e) {
+            Log.fine( String.format("Kryo Serialization Exception: ", e.getMessage() ));
             throw new SerializerException(e);
         }
     }
@@ -62,6 +65,7 @@ public class KryoSerializer implements Serializer {
                 return (T) incoming.readClassAndObject(in);
             }
         } catch (IOException e) {
+            Log.fine( String.format("Kryo Serialization Exception: ", e.getMessage() ));
             throw new SerializerException(e);
         }
     }

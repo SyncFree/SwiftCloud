@@ -28,6 +28,6 @@ public class Catadupa {
         if( SCOPE == Scope.UNIVERSAL )
             return DOMAIN;
         else
-            return DOMAIN + "-" + Sys.getDatacenter();
+            return DOMAIN + "@" + Sys.getDatacenter();
     }
 }

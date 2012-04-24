@@ -16,6 +16,7 @@ import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.pubsub.impl.PubSubService;
 
 public class DHT_NodeImpl extends CatadupaNode {
 
@@ -46,6 +47,8 @@ public class DHT_NodeImpl extends CatadupaNode {
 		Discovery.register(name, serverStub.getEndpoint().localEndpoint());
 
 		clientStub = new _DHT_ClientStub(serverStub.getEndpoint());
+		
+        new PubSubService( rpcFactory );
 	}
 
 	@Override

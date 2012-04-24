@@ -1,5 +1,5 @@
 package sys;
 
 public enum RpcServices {
-	CATADUPA, DHT
+	CATADUPA, DHT, PUBSUB
 }

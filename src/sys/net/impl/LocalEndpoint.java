@@ -218,8 +218,8 @@ class TcpConnectionImpl implements TcpConnection {
                 return (T) serializer.readObject(dis);
             }
         } catch (Exception x) {
-            // x.printStackTrace();
-            Log.log(Level.FINE, String.format("Broken connection<read error>: %s", remote));
+            x.printStackTrace();
+            Log.fine( String.format("Broken connection<read error>: %s", remote));
             dispose();
             failed = true;
             return null;
@@ -235,7 +235,7 @@ class TcpConnectionImpl implements TcpConnection {
             return true;
         } catch (Exception x) {
             x.printStackTrace();
-            Log.log(Level.FINE, String.format("Broken connection<write error>: %s", remote));
+            Log.fine( String.format("Broken connection<write error>: %s", remote));
             dispose();
             failed = true;
             return false;
