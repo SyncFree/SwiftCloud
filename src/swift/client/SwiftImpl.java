@@ -207,15 +207,16 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         // FIXME honor tryMoreRecent
-        TxnLocalCRDT<V> localView = getCachedObjectForTxn(txn, id, minVersion, classOfV);
+        TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, minVersion, classOfV);
         if (localView != null) {
             return localView;
         }
 
         // FIXME: support updatesListener for real
-        fetchLatestObject(id, create, classOfV, latestVersion.clone(), updatesListener != null);
+        final CausalityClock clock = clockWithLocalDependencies(minVersion);
+        fetchLatestObject(id, create, classOfV, clock, updatesListener != null);
 
-        localView = getCachedObjectForTxn(txn, id, minVersion, classOfV);
+        localView = getCachedObjectForTxn(id, minVersion, classOfV);
         if (localView == null) {
             throw new IllegalStateException(
                     "Internal error: recently retrieved object unavailable in appropriate version in the cache");
@@ -240,7 +241,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private CausalityClock clockWithLocalDependencies(final AbstractTxnHandle txn, CausalityClock clock) {
+    private CausalityClock clockWithLocalDependencies(CausalityClock clock) {
         clock = clock.clone();
         for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
             // Include in clock those dependent transactions that already
@@ -255,9 +256,8 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(final AbstractTxnHandle txn, CRDTIdentifier id,
-            CausalityClock clock, Class<V> classOfV) throws WrongTypeException,
-            ConsistentSnapshotVersionNotFoundException {
+    private <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(CRDTIdentifier id, CausalityClock clock,
+            Class<V> classOfV) throws WrongTypeException, ConsistentSnapshotVersionNotFoundException {
         V crdt;
         try {
             crdt = (V) objectsCache.get(id);
@@ -272,7 +272,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // Return the most recent version.
             clock = crdt.getClock();
         }
-        clock = clockWithLocalDependencies(txn, clock);
+        clock = clockWithLocalDependencies(clock);
         final CausalityClock globalClock = clock.clone();
         globalClock.drop(CLIENT_CLOCK_ID);
 
@@ -306,9 +306,9 @@ public class SwiftImpl implements Swift, TxnManager {
                     crdtCopy.execute(localOps, CRDTOperationDependencyPolicy.IGNORE);
                 }
             }
-            crdtView = crdtCopy.getTxnLocalCopy(clock, txn);
+            crdtView = crdtCopy.getTxnLocalCopy(clock, pendingTxn);
         } else {
-            crdtView = crdt.getTxnLocalCopy(clock, txn);
+            crdtView = crdt.getTxnLocalCopy(clock, pendingTxn);
         }
         return crdtView;
     }
