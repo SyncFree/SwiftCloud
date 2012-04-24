@@ -15,7 +15,9 @@ abstract public class PubSub {
     
     public abstract void subscribe( String group, Handler handler );
     
-
+    public abstract void unsubscribe( String group, Handler handler );
+    
+    
     protected PubSub() {
         PubSub = this;
     }

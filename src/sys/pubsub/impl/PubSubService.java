@@ -34,7 +34,7 @@ public class PubSubService extends PubSub {
         svc = factory.rpcService( RpcServices.PUBSUB.ordinal(), new PubSubRpcHandler(){
 
             public void onReceive(RpcConnection conn, PubSubNotification m) {
-                conn.reply( new PubSubAck() );
+                conn.reply( new PubSubAck( localSubscribers(m.group, false).size() ) );
                 
                 for( Handler i : localSubscribers(m.group, true)){
                     i.notify(m.group, m.payload);
@@ -57,7 +57,9 @@ public class PubSubService extends PubSub {
                    }
                } 
                
-               public void onReceive( final PubSubAck ack ) {
+               public void onReceive( final RpcConnection conn, final PubSubAck ack ) {
+                   if( ack.totalSubscribers() < 1)
+                       remoteSubscribers( group, false).remove( conn.remoteEndpoint() );
                }
             });
         }
@@ -75,6 +77,9 @@ public class PubSubService extends PubSub {
         localSubscribers( group, false).add( handler);
     }
 
+    synchronized public void unsubscribe( String group, Handler handler ) {
+        localSubscribers( group, false).remove( handler);
+    }
     
     synchronized private Set<Handler> localSubscribers( String group, boolean clone ) {
         Set<Handler> res = localSubscribers.get( group);

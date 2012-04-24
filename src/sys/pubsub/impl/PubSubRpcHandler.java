@@ -27,7 +27,7 @@ public class PubSubRpcHandler implements RpcHandler {
         Thread.dumpStack();
     }
 
-    public void onReceive(PubSubAck m) {
+    public void onReceive(RpcConnection conn, PubSubAck m) {
         Thread.dumpStack();
     }
 
