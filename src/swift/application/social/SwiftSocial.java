@@ -100,6 +100,9 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
+            //preguica: either create objects here or set true when accessing them in other methods
+            txn.get(NamingScheme.forInFriendReq(loginName), true, SetStrings.class);
+            txn.get(NamingScheme.forOutFriendReq(loginName), true, SetStrings.class);
             User newUser = new User(loginName, passwd);
             reg.set(newUser);
         } catch (Exception e) {
@@ -223,7 +226,7 @@ public class SwiftSocial {
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
             SetTxnLocalString friends = (SetTxnLocalString) txn.get(
-                    NamingScheme.forMessages(this.currentUser.loginName), false, SetStrings.class);
+                    NamingScheme.forFriends(this.currentUser.loginName), false, SetStrings.class);
             friendNames = friends.getValue();
         } catch (Exception e) {
             e.printStackTrace();

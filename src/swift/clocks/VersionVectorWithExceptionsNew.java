@@ -16,12 +16,10 @@ import swift.exceptions.IncompatibleTypeException;
  * This representation records the intervals of contiguous values.
  * @author nmp
  */
-public class VersionVectorWithExceptions implements CausalityClock {
+public class VersionVectorWithExceptionsNew implements CausalityClock {
     static class Pair {
         long from;  //inclusive
         long to;    //inclusive
-        Pair() {
-        }
         Pair( long from, long to) {
             this.from = from;
             this.to = to;
@@ -52,12 +50,12 @@ public class VersionVectorWithExceptions implements CausalityClock {
     protected Map<String, LinkedList<Pair>> vv;
     protected int numPairs;
 
-    public VersionVectorWithExceptions() {
+    protected VersionVectorWithExceptionsNew() {
         vv = new TreeMap<String, LinkedList<Pair>>();
         numPairs = 0;
     }
 
-    protected VersionVectorWithExceptions(VersionVectorWithExceptions v) {
+    protected VersionVectorWithExceptionsNew(VersionVectorWithExceptionsNew v) {
         vv = new TreeMap<String, LinkedList<Pair>>();
         numPairs = v.numPairs;
         Iterator<Entry<String, LinkedList<Pair>>> it = v.vv.entrySet().iterator();
@@ -69,7 +67,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         }
     }
 
-    protected VersionVectorWithExceptions(VersionVector v) {
+    protected VersionVectorWithExceptionsNew(VersionVector v) {
         vv = new TreeMap<String, LinkedList<Pair>>();
         numPairs = 0;
         Iterator<Entry<String, Long>> it = v.vv.entrySet().iterator();
@@ -341,7 +339,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    protected CMP_CLOCK mergeVV(VersionVectorWithExceptions cc) {
+    protected CMP_CLOCK mergeVV(VersionVectorWithExceptionsNew cc) {
         CMP_CLOCK result = CMP_CLOCK.CMP_EQUALS;
         Iterator<Entry<String, LinkedList<Pair>>> it = cc.vv.entrySet().iterator();
         while (it.hasNext()) {
@@ -381,7 +379,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
-        return mergeVV((VersionVectorWithExceptions) cc);
+        return mergeVV((VersionVectorWithExceptionsNew) cc);
     }
 
     protected CMP_CLOCK compareOneEntryVV(String siteid, LinkedList<Pair> l0) {
@@ -535,7 +533,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
      * @throws IncompatibleTypeException
      *             Case comparison cannot be made
      */
-    protected CMP_CLOCK compareVV(VersionVectorWithExceptions cc) {
+    protected CMP_CLOCK compareVV(VersionVectorWithExceptionsNew cc) {
         CMP_CLOCK result = CMP_CLOCK.CMP_EQUALS;
         Iterator<Entry<String, LinkedList<Pair>>> it = cc.vv.entrySet().iterator();
         while (it.hasNext()) {
@@ -561,7 +559,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
         // }
-        return compareVV((VersionVectorWithExceptions) cc);
+        return compareVV((VersionVectorWithExceptionsNew) cc);
     }
 
     /**
@@ -600,7 +598,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
      * Create a copy of this causality clock.
      */
     public CausalityClock clone() {
-        return new VersionVectorWithExceptions(this);
+        return new VersionVectorWithExceptionsNew(this);
     }
 
     public String toString() {

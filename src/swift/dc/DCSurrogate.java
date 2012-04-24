@@ -174,7 +174,15 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
      * @param subscribe Subscription type
      */
     CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
-        return dataServer.getCRDT(id, subscribe);    // call DHT server
+        CausalityClock clk = null;
+        synchronized( estimatedDCVersion) {
+            clk = estimatedDCVersion.clone();
+        }
+        CRDTObject<?> o = dataServer.getCRDT(id, subscribe);    // call DHT server
+        if( o == null)
+            return null;
+        o.clock.merge(estimatedDCVersion);
+        return o;
     }
 
     @Override
@@ -343,7 +351,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new LatestKnownClockReplyHandler() {
             @Override
             public void onReceive(RpcConnection conn0, LatestKnownClockReply reply) {
-                DCConstants.DCLogger.info("LatestKnownClockRequest: forwarding reply");
+                DCConstants.DCLogger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
                 conn.reply(reply);
                 synchronized( estimatedDCVersion) {
                     estimatedDCVersion.merge( reply.getClock());

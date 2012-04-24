@@ -17,9 +17,12 @@ public class SwiftSocialTest {
         // public void run() {
         DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
         sequencer.start();
-        // }
-        // };
-        // sequencer.start();
+        
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
 
         // Thread server = new Thread() {
         // public void run() {
@@ -30,12 +33,21 @@ public class SwiftSocialTest {
         // };
         // server.start();
 
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
+
         Sys.init();
         int portId = 2001;
         Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
 
+        client.addUser("Butterfly", "Red");
+
         client.addUser("Biene", "Honig");
+
         boolean successfulLogin = client.login("Biene", "Honig");
         System.out.println("Login successful:" + successfulLogin);
 

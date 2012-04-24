@@ -420,6 +420,8 @@ class DCDataServer {
         lock(id);
         try {
             CRDTData<?> data = localGetCRDT(observer, id, subscribe);
+            if( data == null)
+                return null;
             return new CRDTObject( data);
         } finally {
             unlock(id);

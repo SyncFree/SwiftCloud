@@ -36,7 +36,7 @@ import sys.net.api.rpc.RpcEndpoint;
 public class DCSequencerServer extends Handler implements SequencerServer {
     RpcEndpoint endpoint;
     IncrementalTimestampGenerator clockGen;
-    VersionVectorWithExceptions currentState;
+    CausalityClock currentState;
     Map<Timestamp, Date> pendingTS;
     String siteId;
 
@@ -47,7 +47,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
     protected void init() {
         // TODO: reinitiate clock to a correct value
-        currentState = (VersionVectorWithExceptions) ClockFactory.newClock();
+        currentState = ClockFactory.newClock();
         clockGen = new IncrementalTimestampGenerator(siteId);
         pendingTS = new HashMap<Timestamp, Date>();
     }
@@ -84,7 +84,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         return hasTS;
     }
 
-    private synchronized CausalityClock currentClock() {
+    private synchronized CausalityClock currentClockCopy() {
         return currentState.clone();
     }
 
@@ -111,8 +111,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      *            request to serve
      */
     public void onReceive(RpcConnection conn, LatestKnownClockRequest request) {
-        DCConstants.DCLogger.info("sequencer: latestknownclockrequest:" + currentClock());
-        conn.reply(new LatestKnownClockReply(currentClock()));
+        DCConstants.DCLogger.info("sequencer: latestknownclockrequest:" + currentClockCopy());
+        conn.reply(new LatestKnownClockReply(currentClockCopy()));
     }
 
     /**
@@ -126,10 +126,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     public void onReceive(RpcConnection conn, CommitTSRequest request) {
         DCConstants.DCLogger.info("sequencer: commitTSRequest:" + request.getTimestamp());
         boolean ok = this.commitTS(request.getVersion(), request.getTimestamp(), request.getCommit());
-        CausalityClock clk = null;
-        synchronized( this) {
-            clk = currentClock().clone();
-        }
+        CausalityClock clk = currentClockCopy();
         if (ok) {
             conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk));
         } else {

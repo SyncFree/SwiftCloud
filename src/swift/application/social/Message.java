@@ -8,6 +8,10 @@ public class Message implements Copyable {
     private String receiver;
     private long date;
 
+    // needed for krio
+    public Message() {
+    }
+
     public Message(String msg, String sender, String receiver, long date) {
         this.msg = msg;
         this.sender = sender;
