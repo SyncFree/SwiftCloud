@@ -25,9 +25,9 @@ public class DHTGetCRDTReply implements DHT.Reply {
     @Override
     public void deliverTo(DHT.Connection conn, DHT.ReplyHandler handler) {
         if (conn.expectingReply())
-            ((DHTDataNode.ReplyHandler) handler).onReceive(conn, this);
+            ((DHTGetCRDTReplyHandler) handler).onReceive(conn, this);
         else
-            ((DHTDataNode.ReplyHandler) handler).onReceive(this);
+            ((DHTGetCRDTReplyHandler) handler).onReceive(this);
     }
 
     public CRDTObject getObject() {

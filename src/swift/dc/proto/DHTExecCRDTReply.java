@@ -25,9 +25,9 @@ public class DHTExecCRDTReply implements DHT.Reply {
     @Override
     public void deliverTo(DHT.Connection conn, DHT.ReplyHandler handler) {
         if (conn.expectingReply())
-            ((DHTDataNode.ReplyHandler) handler).onReceive(conn, this);
+            ((DHTExecCRDTReplyHandler) handler).onReceive(conn, this);
         else
-            ((DHTDataNode.ReplyHandler) handler).onReceive(this);
+            ((DHTExecCRDTReplyHandler) handler).onReceive(this);
     }
 
     public boolean isResult() {

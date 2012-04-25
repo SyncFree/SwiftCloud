@@ -53,5 +53,10 @@ public class DHT_Node extends DHT_NodeImpl {
             Threading.sleep(50);
     }
 
+    synchronized public static DHT_Node getInstance() {
+        start();
+        return singleton;
+    }
+
     private static DHT_Node singleton;
 }

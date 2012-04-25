@@ -64,6 +64,7 @@ class DCDataServer {
         initData(props);
         this.localSurrogate = new LocalObserver(surrogate);
         this.localSurrogateId = surrogate.getId();
+        initDHT();
         Thread t = new Thread() {
             public void run() {
                 for (;;) {
@@ -278,9 +279,11 @@ class DCDataServer {
      */
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
-/*        final Result<Boolean> result = new Result<Boolean>();
+        final StringKey key = new StringKey( grp.getTargetUID().toString());
+        DHT_Node
+        final Result<Boolean> result = new Result<Boolean>();
         while( ! result.hasResult()) {
-            dhtClient.send( new StringKey( grp.getTargetUID().toString()), 
+            dhtClient.send( key, 
                 new DHTExecCRDT( localSurrogateId, grp, snapshotVersion, trxVersion), new DHTExecCRDTReplyHandler() {
                     @Override
                     public void onReceive(DHTExecCRDTReply reply) {
@@ -292,7 +295,7 @@ class DCDataServer {
         }
         return result.getResult();
         //TODO: if object is local, just execute local object
-*/        return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion);
+//        return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion);
     }
 
     // /**
@@ -312,9 +315,10 @@ class DCDataServer {
      * @return null if cannot fulfill request
      */
     CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
-/*        final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
+        final StringKey key = new StringKey( id.toString());
+        final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
         while( ! result.hasResult()) {
-            dhtClient.send( new StringKey( id.toString()), 
+            dhtClient.send( key, 
                 new DHTGetCRDT( localSurrogateId, id, subscribe), new DHTGetCRDTReplyHandler() {
                     @Override
                     public void onReceive(DHTGetCRDTReply reply) {
@@ -326,7 +330,7 @@ class DCDataServer {
         }
         return result.getResult();
         //TODO: if object is local, just execute local object
-*/        return localGetCRDTObject(localSurrogate, id, subscribe);
+//        return localGetCRDTObject(localSurrogate, id, subscribe);
     }
 
     /**
