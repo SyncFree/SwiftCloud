@@ -24,12 +24,7 @@ public class DHT_Node extends DHT_NodeImpl {
     }
 
     public boolean isLocalMatch(final DHT.Key key) {
-        long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
-        for (Node i : super.db.nodes(key2key))
-            if (i.isOnline())
-                return i.key == self.key;
-
-        return true;
+        return super.resolve( key ).key == self.key;
     }
 
     synchronized public static DHT getStub() {
