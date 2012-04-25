@@ -95,6 +95,11 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         return this.id;
     }
 
+    @Override
+    public boolean isRegisteredInStore() {
+        return registeredInStore;
+    }
+
     public TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn) {
         assertGreaterEqualsPruneClock(versionClock);
         return getTxnLocalCopyImpl(versionClock, txn);
@@ -116,11 +121,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         if (clock.hasExceptions()) {
             throw new IllegalArgumentException("provided clock has exceptions and cannot be used as prune clock");
         }
-    }
-
-    @Override
-    public void markRegisteredInStore() {
-        this.registeredInStore = true;
     }
 
     @Override

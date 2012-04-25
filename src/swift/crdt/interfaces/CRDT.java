@@ -158,11 +158,6 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     boolean isRegisteredInStore();
 
     /**
-     * Marks crdt as registered in store.
-     */
-    void markRegisteredInStore();
-
-    /**
      * Checks whether an object executed any updates since provided clock.
      * 
      * @param clock
