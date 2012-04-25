@@ -98,7 +98,7 @@ public class SwiftImplTest extends EasyMockSupport {
             @Override
             public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FetchObjectVersionReply fetchReply = new FetchObjectVersionReply(FetchStatus.OBJECT_NOT_FOUND,
-                        null, serverClock, null);
+                        null, serverClock, ClockFactory.newClock(), serverClock);
                 ((FetchObjectVersionReplyHandler) replyHandler).onReceive(null, fetchReply);
                 return true;
             }
