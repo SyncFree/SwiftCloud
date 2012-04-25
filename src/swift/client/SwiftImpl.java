@@ -147,6 +147,8 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         try {
             committerThread.join();
+            // No need to close notifications thread in theory, but it brakes
+            // the connection and makes debugging harder.
             notificationsThread.join();
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
@@ -322,12 +324,12 @@ public class SwiftImpl implements Swift, TxnManager {
         if (crdt == null) {
             fetchLatestObjectFromScratch(id, create, classOfV, minVersion, subscribeUpdates);
         } else {
-            fetchLatestObjectByRefresh(id, classOfV, crdt, minVersion, subscribeUpdates);
+            fetchLatestObjectByRefresh(id, create, classOfV, crdt, minVersion, subscribeUpdates);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> V fetchLatestObjectFromScratch(CRDTIdentifier id, boolean create, Class<V> classOfV,
+    private <V extends CRDT<V>> void fetchLatestObjectFromScratch(CRDTIdentifier id, boolean create, Class<V> classOfV,
             CausalityClock minVersion, boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException,
             VersionNotFoundException, NetworkException {
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
@@ -342,62 +344,13 @@ public class SwiftImpl implements Swift, TxnManager {
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching object version timed out");
         }
-
-        final FetchObjectVersionReply fetchReply = replyRef.get();
-        final V crdt;
-        final boolean presentInStore;
-        switch (fetchReply.getStatus()) {
-        case OBJECT_NOT_FOUND:
-            if (!create) {
-                throw new NoSuchObjectException("object " + id.toString() + " not found");
-            }
-            try {
-                crdt = classOfV.newInstance();
-            } catch (Exception e) {
-                throw new WrongTypeException(e.getMessage());
-            }
-            presentInStore = false;
-            break;
-        case VERSION_NOT_FOUND:
-        case OK:
-            try {
-                crdt = (V) fetchReply.getCrdt();
-            } catch (Exception e) {
-                throw new WrongTypeException(e.getMessage());
-            }
-            presentInStore = true;
-            break;
-        default:
-            throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
-        }
-        crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), presentInStore);
-
-        synchronized (this) {
-            final V concurrentlyCachedCRDT;
-            try {
-                concurrentlyCachedCRDT = (V) objectsCache.get(id);
-            } catch (Exception e) {
-                throw new WrongTypeException(e.getMessage());
-            }
-
-            if (concurrentlyCachedCRDT == null) {
-                objectsCache.add(crdt);
-            } else {
-                concurrentlyCachedCRDT.merge(crdt);
-            }
-            updateCommittedVersion(fetchReply.getEstimatedLatestKnownClock());
-        }
-        if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
-            // FIXME: retry if version <= minVerson?
-            throw new VersionNotFoundException("unexpected server reply - version not found in the store");
-        }
-        return crdt;
+        processFetchObjectReply(id, create, classOfV, replyRef.get());
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void fetchLatestObjectByRefresh(CRDTIdentifier id, Class<V> classOfV, V cachedCrdt,
-            CausalityClock minVersion, boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException,
-            VersionNotFoundException, NetworkException {
+    private <V extends CRDT<V>> void fetchLatestObjectByRefresh(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            V cachedCrdt, CausalityClock minVersion, boolean subscribeUpdates) throws NoSuchObjectException,
+            WrongTypeException, VersionNotFoundException, NetworkException {
         final CausalityClock oldCrdtClock;
         synchronized (this) {
             oldCrdtClock = cachedCrdt.getClock().clone();
@@ -416,57 +369,90 @@ public class SwiftImpl implements Swift, TxnManager {
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching newer object version timed out");
         }
+        processFetchObjectReply(id, create, classOfV, replyRef.get());
+    }
+
+    private <V extends CRDT<V>> void processFetchObjectReply(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            final FetchObjectVersionReply fetchReply) throws NoSuchObjectException, WrongTypeException,
+            VersionNotFoundException {
+        final V crdt;
+        switch (fetchReply.getStatus()) {
+        case OBJECT_NOT_FOUND:
+            if (!create) {
+                throw new NoSuchObjectException("object " + id.toString() + " not found");
+            }
+            try {
+                crdt = classOfV.newInstance();
+            } catch (Exception e) {
+                throw new WrongTypeException(e.getMessage());
+            }
+            crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), true);
+            break;
+        case VERSION_NOT_FOUND:
+        case OK:
+            try {
+                crdt = (V) fetchReply.getCrdt();
+            } catch (Exception e) {
+                throw new WrongTypeException(e.getMessage());
+            }
+            crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), true);
+            break;
+        default:
+            throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
+        }
 
         synchronized (this) {
+            final V cachedCRDT;
             try {
-                cachedCrdt = (V) objectsCache.get(id);
+                cachedCRDT = (V) objectsCache.get(id);
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
 
-            final FetchObjectVersionReply refreshReply = replyRef.get();
-            switch (refreshReply.getStatus()) {
-            case OBJECT_NOT_FOUND:
-                // Just update the clock of local version.
-                cachedCrdt.getClock().merge(refreshReply.getVersion());
-                break;
-            case VERSION_NOT_FOUND:
-            case OK:
-                // Merge it with the local version.
-                V crdt;
-                try {
-                    crdt = (V) refreshReply.getCrdt();
-                } catch (Exception e) {
-                    throw new WrongTypeException(e.getMessage());
-                }
-                crdt.init(id, refreshReply.getVersion(), refreshReply.getPruneClock(), true);
-                cachedCrdt.merge(crdt);
-                break;
-            default:
-                throw new IllegalStateException("Unexpected status code" + refreshReply.getStatus());
+            if (cachedCRDT == null) {
+                objectsCache.add(crdt);
+            } else {
+                cachedCRDT.merge(crdt);
+                // FIXME: check for updates and notify listener?
             }
-            updateCommittedVersion(refreshReply.getEstimatedLatestKnownClock());
+            updateCommittedVersion(fetchReply.getEstimatedLatestKnownClock());
+        }
+
+        if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
+            // FIXME: retry if version <= minVerson?
+            throw new VersionNotFoundException("requested version not found in the store");
         }
     }
 
     private void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
             final List<CRDTObjectOperationsGroup<?>> ops, final CausalityClock outputClock) {
         final CRDT crdt;
-        final CMP_CLOCK clkCmp;
+        final CausalityClock crdtClockCopy;
         synchronized (this) {
             crdt = objectsCache.get(id);
-            clkCmp = crdt.getClock().compareTo(dependencyClock);
+            crdtClockCopy = crdt == null ? null : crdt.getClock().clone();
         }
+
+        if (crdt == null) {
+            // Ooops, we evicted the object from the cache.
+            logger.warning("cannot apply received updates on object " + id + " as it has been evicted from the cache");
+            // FIXME trigger fetch() and then applyObjectUpdates()
+            return;
+        }
+
+        final CMP_CLOCK clkCmp = crdtClockCopy.compareTo(dependencyClock);
         if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
             // Ooops, we missed some update or messages were ordered.
-            logger.warning("cannot apply updates on object " + id + " due to unsatisfied dependencies");
+            logger.warning("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
             // FIXME trigger fetch() and then applyObjectUpdates()
             return;
         }
 
         synchronized (this) {
             for (final CRDTObjectOperationsGroup<?> op : ops) {
-                crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+                if (crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
+                    // FIXME: notify listener?
+                }
             }
             crdt.getClock().merge(outputClock);
         }
@@ -602,8 +588,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // pendingTxn will map timestamp later inside commitToStore().
 
             // TODO [tricky]: to implement IsolationLevel.READ_COMMITTED we may
-            // need
-            // to replace timestamps in pending transaction too.
+            // need to replace timestamps in pending transaction too.
         }
         commitedVersion.record(txn.getGlobalTimestamp());
     }
@@ -624,6 +609,41 @@ public class SwiftImpl implements Swift, TxnManager {
         if (txn != null) {
             pendingTxnLocalDependencies.addAll(locallyCommittedTxnsQueue);
         }
+    }
+
+    private void fetchSubscribedNotifications() {
+        final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
+        localEndpoint.send(serverEndpoint, new FastRecentUpdatesRequest(clientId), new FastRecentUpdatesReplyHandler() {
+            @Override
+            public void onReceive(RpcConnection conn, FastRecentUpdatesReply reply) {
+                replyRef.set(reply);
+            }
+        }, timeoutMillis);
+        final FastRecentUpdatesReply notifications = replyRef.get();
+        if (notifications == null) {
+            logger.warning("server timed out on subscriptions information request");
+            return;
+        }
+
+        logger.fine("notifications received for " + notifications.getSubscriptions().size() + " objects");
+        updateCommittedVersion(notifications.getEstimatedLatestKnownClock());
+        if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
+            for (final ObjectSubscriptionInfo subscriptionInfo : notifications.getSubscriptions()) {
+                if (subscriptionInfo.isDirty() && subscriptionInfo.getUpdates().isEmpty()) {
+                    // FIXME
+                    logger.warning("unexpected server notification information without update");
+                } else {
+                    applyObjectUpdates(subscriptionInfo.getId(), subscriptionInfo.getOldClock(),
+                            subscriptionInfo.getUpdates(), subscriptionInfo.getNewClock());
+                }
+            }
+        } else {
+            // FIXME: renew subscriptions
+        }
+        // FIXME: wait? or will server block and control the frequency on its
+        // own?
+        // FIXME: GC of subscriptions
+        // FIXME: real notifications to the client
     }
 
     private void assertNoPendingTransaction() {
@@ -681,39 +701,13 @@ public class SwiftImpl implements Swift, TxnManager {
 
         @Override
         public void run() {
-            // FIXME: this is just to test the server!!
             while (true) {
                 synchronized (SwiftImpl.this) {
                     if (stopFlag) {
                         return;
                     }
                 }
-                localEndpoint.send(serverEndpoint, new FastRecentUpdatesRequest(clientId),
-                        new FastRecentUpdatesReplyHandler() {
-                            @Override
-                            public void onReceive(RpcConnection conn, FastRecentUpdatesReply reply) {
-                                logger.fine("notifications received for " + reply.getSubscriptions().size()
-                                        + " objects");
-                                updateCommittedVersion(reply.getEstimatedLatestKnownClock());
-                                if (reply.getStatus() == SubscriptionStatus.ACTIVE) {
-                                    for (final ObjectSubscriptionInfo subscriptionInfo : reply.getSubscriptions()) {
-                                        if (subscriptionInfo.isDirty() && subscriptionInfo.getUpdates().isEmpty()) {
-                                            // FIXME
-                                            logger.warning("unexpected server notification information without update");
-                                        } else {
-                                            applyObjectUpdates(subscriptionInfo.getId(),
-                                                    subscriptionInfo.getOldClock(), subscriptionInfo.getUpdates(),
-                                                    subscriptionInfo.getNewClock());
-                                        }
-                                    }
-                                } else {
-                                    // FIXME: renew subscriptions
-                                }
-                            }
-                        }, timeoutMillis);
-                // FIXME: wait?
-                // FIXME: GC of subscriptions
-                // FIXME: real notifications to the client
+                fetchSubscribedNotifications();
             }
         }
     }
