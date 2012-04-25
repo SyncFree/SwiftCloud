@@ -2,7 +2,7 @@ package swift.application.social;
 
 import swift.crdt.interfaces.Copyable;
 
-public class Message implements Copyable {
+public class Message implements Copyable, java.io.Serializable {
     private String msg;
     private String sender;
     private String receiver;

@@ -101,6 +101,7 @@ public class SwiftSocial {
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
             //preguica: either create objects here or set true when accessing them in other methods
+            txn.get(NamingScheme.forFriends(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forInFriendReq(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forOutFriendReq(loginName), true, SetStrings.class);
             User newUser = new User(loginName, passwd);

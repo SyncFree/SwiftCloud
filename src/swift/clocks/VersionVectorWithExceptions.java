@@ -12,39 +12,46 @@ import java.util.TreeSet;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
- * Class to represent version vectors with exceptions.
- * This representation records the intervals of contiguous values.
+ * Class to represent version vectors with exceptions. This representation
+ * records the intervals of contiguous values.
+ * 
  * @author nmp
  */
 public class VersionVectorWithExceptions implements CausalityClock {
     static class Pair {
-        long from;  //inclusive
-        long to;    //inclusive
+        long from; // inclusive
+        long to; // inclusive
+
         Pair() {
         }
-        Pair( long from, long to) {
+
+        Pair(long from, long to) {
             this.from = from;
             this.to = to;
         }
-        boolean includes( long l) {
+
+        boolean includes(long l) {
             return l >= from && l <= to;
         }
-        boolean mergeFwd( Pair p) {
-            if( to == p.from + 1) {
+
+        boolean mergeFwd(Pair p) {
+            if (to == p.from + 1) {
                 to = p.to;
                 return true;
             } else
                 return false;
         }
-        boolean mergeBack( Pair p) {
-            if( from == p.to + 1) {
+
+        boolean mergeBack(Pair p) {
+            if (from == p.to + 1) {
                 from = p.from;
                 return true;
             } else
                 return false;
         }
+
         Pair duplicate() {
-            return new Pair( from, to);
+            return new Pair(from, to);
         }
     }
 
@@ -61,11 +68,11 @@ public class VersionVectorWithExceptions implements CausalityClock {
         vv = new TreeMap<String, LinkedList<Pair>>();
         numPairs = v.numPairs;
         Iterator<Entry<String, LinkedList<Pair>>> it = v.vv.entrySet().iterator();
-        while( it.hasNext()) {
+        while (it.hasNext()) {
             Entry<String, LinkedList<Pair>> entry = it.next();
             String key = entry.getKey();
             LinkedList<Pair> l = entry.getValue();
-            vv.put(key, duplicateList( l));
+            vv.put(key, duplicateList(l));
         }
     }
 
@@ -73,20 +80,20 @@ public class VersionVectorWithExceptions implements CausalityClock {
         vv = new TreeMap<String, LinkedList<Pair>>();
         numPairs = 0;
         Iterator<Entry<String, Long>> it = v.vv.entrySet().iterator();
-        while( it.hasNext()) {
+        while (it.hasNext()) {
             Entry<String, Long> entry = it.next();
             String key = entry.getKey();
             LinkedList<Pair> nl = new LinkedList<Pair>();
-            nl.add( new Pair( 0, entry.getValue()));
+            nl.add(new Pair(0, entry.getValue()));
             numPairs++;
             vv.put(key, nl);
         }
     }
-    
-    protected LinkedList<Pair> duplicateList( LinkedList<Pair> l) {
+
+    protected LinkedList<Pair> duplicateList(LinkedList<Pair> l) {
         LinkedList<Pair> nl = new LinkedList<Pair>();
         Iterator<Pair> it = l.iterator();
-        while( it.hasNext()) {
+        while (it.hasNext()) {
             Pair p = it.next();
             nl.addLast(p.duplicate());
         }
@@ -109,11 +116,11 @@ public class VersionVectorWithExceptions implements CausalityClock {
         }
         long v = cc.getCounter();
         ListIterator<Pair> it = l.listIterator(l.size());
-        while( it.hasPrevious()) {
+        while (it.hasPrevious()) {
             Pair p = it.previous();
-            if( v > p.to)
+            if (v > p.to)
                 return false;
-            if( v >= p.from)
+            if (v >= p.from)
                 return true;
         }
         return false;
@@ -130,60 +137,208 @@ public class VersionVectorWithExceptions implements CausalityClock {
         LinkedList<Pair> l = vv.get(cc.getIdentifier());
         if (l == null) {
             l = new LinkedList<Pair>();
-            vv.put( cc.getIdentifier(), l);
-            l.add( new Pair(v,v));
+            vv.put(cc.getIdentifier(), l);
+            l.add(new Pair(v, v));
             return true;
         }
         ListIterator<Pair> it = l.listIterator(l.size());
         Pair p = null;
-        while( it.hasPrevious()) {
+        while (it.hasPrevious()) {
             Pair oldP = p;
             p = it.previous();
-            if( v == p.to + 1) {
+            if( v >= p.from && v <= p.to)
+                return true;
+            if (v == p.to + 1) {
                 p.to = p.to + 1;
-                if( oldP != null && oldP.mergeBack(p)) {
+                if (oldP != null && oldP.mergeBack(p)) {
                     it.remove();
                     numPairs--;
                 }
                 return true;
-            } else if( v > p.to) {
+            } else if (v > p.to) {
                 it.next();
-                it.add(new Pair(v,v));
+                it.add(new Pair(v, v));
                 numPairs++;
                 return true;
             }
         }
-        if( p != null) {
-            if( p.from == v + 1) {
+        if (p != null) {
+            if (p.from == v + 1) {
                 p.from = v;
                 return true;
             }
         }
-        l.addFirst(new Pair( v, v));
+        l.addFirst(new Pair(v, v));
         numPairs++;
         return true;
     }
-    
-    protected Pair advanceUntil( Pair p, Iterator<Pair> it, int val) {
-        if( val <= p.to)
+
+    protected Pair advanceUntil(Pair p, Iterator<Pair> it, int val) {
+        if (val <= p.to)
             return p;
-        while( it.hasNext()) {
+        while (it.hasNext()) {
             p = it.next();
-            if( val > p.to)
+            if (val > p.to)
                 continue;
             return p;
         }
         return null;
     }
-    protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Pair> l0) {
+
+/*    protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Pair> l0) {
         LinkedList<Pair> l = vv.get(siteid);
-        if( l == null) {
-            l = duplicateList( l0);
+        if (l == null) {
+            l = duplicateList(l0);
             numPairs = numPairs + l0.size();
             vv.put(siteid, l);
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
-        CMP_CLOCK cmp = compareOneEntryVV( siteid, l0);
+        boolean thisHasMoreEntries = false;
+        boolean otherHasMoreEntries = false;
+        LinkedList<Pair> nl = new LinkedList<Pair>();
+        Iterator<Pair> it = l.iterator();
+        Iterator<Pair> it0 = l0.iterator();
+        Pair np = null;
+        Pair p = it.hasNext() ? it.next() : null;
+        Pair p0 = it0.hasNext() ? it0.next() : null;
+        numPairs = 0;
+        // last value that has been compared between the two sets
+        long v = Math.min(p == null ? Long.MAX_VALUE : p.from - 1, p0 == null ? Long.MAX_VALUE : p0.from - 1);
+        for (;;) {
+            if (p == null && p0 == null)
+                break;
+            if (p != null && p0 != null) {
+                
+                
+                if (p.from == p0.from && p.to == p0.to) {
+                    nl.add(p);
+                    numPairs++;
+                    v = p.to;
+                    p = null;
+                    p0 = null;
+                } else {
+                    if (p.from <= v) { // we are in the middle of p
+                        if (p0.from > v + 1) {
+                            thisHasMoreEntries = true;
+                        }
+                        if (p.to < p0.from) { // p ends before p0 start
+                            v = p.to;
+                            p = null;
+                        } else {
+                            if (p.to == p0.to) {
+                                v = p.to;
+                                p = null;
+                                p0 = null;
+                            } else if (p.to < p0.to) {
+                                v = p.to;
+                                p = null;
+                            } else {
+                                v = p0.to;
+                                p0 = null;
+                            }
+                        }
+                    } else if (p0.from <= v) { // we are in the middle of p0
+                        if (p.from > v + 1) {
+                            otherHasMoreEntries = true;
+                        }
+                        if (p0.to < p.from) { // p ends before p0 start
+                            v = p0.to;
+                            p0 = null;
+                        } else {
+                            if (p.to == p0.to) {
+                                v = p.to;
+                                p = null;
+                                p0 = null;
+                            } else if (p0.to < p.to) {
+                                v = p0.to;
+                                p0 = null;
+                            } else {
+                                v = p.to;
+                                p = null;
+                            }
+                        }
+                    } else { // need to advance to next intervals
+                        if (p.from == p0.from) {
+                            v = p.from;
+                        } else if (p.from < p0.from) {
+                            thisHasMoreEntries = true;
+                            if (p.to < p0.from) {
+                                v = p.to;
+                                p = null;
+                            } else {
+                                if (p.to == p0.to) {
+                                    v = p.to;
+                                    p = null;
+                                    p0 = null;
+                                } else if (p.to < p0.to) {
+                                    v = p.to;
+                                    p = null;
+                                } else {
+                                    v = p0.to;
+                                    p0 = null;
+                                }
+                            }
+                        } else {
+                            otherHasMoreEntries = true;
+                            if (p0.to < p.from) {
+                                v = p0.to;
+                                p0 = null;
+                            } else {
+                                if (p.to == p0.to) {
+                                    v = p.to;
+                                    p = null;
+                                    p0 = null;
+                                } else if (p0.to < p.to) {
+                                    v = p0.to;
+                                    p0 = null;
+                                } else {
+                                    v = p.to;
+                                    p = null;
+                                }
+                            }
+                        }
+
+                    }
+                }
+            } else if (p == null) {
+                otherHasMoreEntries = true;
+                break;
+            } else if (p0 == null) {
+                thisHasMoreEntries = true;
+                break;
+            }
+            if (p == null && it.hasNext()) {
+                p = it.next();
+            }
+            if (p0 == null && it0.hasNext()) {
+                p0 = it0.next();
+            }
+        }
+        vv.put(siteid, nl);
+
+        if (thisHasMoreEntries && otherHasMoreEntries) {
+            return CMP_CLOCK.CMP_CONCURRENT;
+        }
+        if (thisHasMoreEntries) {
+            return CMP_CLOCK.CMP_DOMINATES;
+        }
+        if (otherHasMoreEntries) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        return CMP_CLOCK.CMP_EQUALS;
+    }
+    
+    
+    
+    protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Pair> l0) {
+        LinkedList<Pair> l = vv.get(siteid);
+        if (l == null) {
+            l = duplicateList(l0);
+            numPairs = numPairs + l0.size();
+            vv.put(siteid, l);
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        CMP_CLOCK cmp = compareOneEntryVV(siteid, l0);
         numPairs = numPairs - l.size();
         LinkedList<Pair> nl = new LinkedList<Pair>();
         Iterator<Pair> it = l.iterator();
@@ -191,13 +346,13 @@ public class VersionVectorWithExceptions implements CausalityClock {
         Pair p = it.hasNext() ? it.next() : null;
         Pair p0 = it0.hasNext() ? it0.next() : null;
         Pair np = null;
-        for( ; ; ) {
+        for (;;) {
             boolean hasChanged = false;
-            if( p == null && p0 == null)
+            if (p == null && p0 == null)
                 break;
-            if( np == null) {
-                if( p != null && p0 != null) {
-                    if( p.from <= p0.from) {
+            if (np == null) {
+                if (p != null && p0 != null) {
+                    if (p.from <= p0.from) {
                         np = p;
                         p = null;
                         hasChanged = true;
@@ -206,132 +361,129 @@ public class VersionVectorWithExceptions implements CausalityClock {
                         p0 = null;
                         hasChanged = true;
                     }
-                } else if( p != null) {
+                } else if (p != null) {
                     np = p;
                     p = null;
                     hasChanged = true;
-                } else if( p0 != null) {
-                    np = p0;
+                } else if (p0 != null) {
+                    np = p0.duplicate();
                     p0 = null;
                     hasChanged = true;
                 }
             }
-            if( p != null) {
-                    if( np.to >= p.from - 1) {
-                        if( p.to > np.to)
-                            np.to = p.to;
-                        p = null;
-                        hasChanged = true;
-                    }
+            if (p != null) {
+                if (np.to >= p.from - 1) {
+                    if (p.to > np.to)
+                        np.to = p.to;
+                    p = null;
+                    hasChanged = true;
+                }
             }
-            if( p0 != null) {
-                    if( np.to >= p0.from - 1) {
-                        if( p0.to > np.to)
-                            np.to = p0.to;
-                        p0 = null;
-                        hasChanged = true;
-                    }
+            if (p0 != null) {
+                if (np.to >= p0.from - 1) {
+                    if (p0.to > np.to)
+                        np.to = p0.to;
+                    p0 = null;
+                    hasChanged = true;
+                }
             }
-            if( ! hasChanged) {
+            if (!hasChanged) {
                 nl.add(np);
                 numPairs++;
                 np = null;
             }
-            if( p == null && it.hasNext()) {
+            if (p == null && it.hasNext()) {
                 p = it.next();
             }
-            if( p0 == null && it0.hasNext()) {
+            if (p0 == null && it0.hasNext()) {
                 p0 = it0.next();
             }
         }
-        if( np != null) {
+        if (np != null) {
             nl.add(np);
             numPairs++;
         }
         vv.put(siteid, nl);
-        
+
         return cmp;
     }
-
-    protected CMP_CLOCK mergeOneEntryVV0(String siteid, LinkedList<Pair> l0) {
+*/
+    protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Pair> l0) {
         LinkedList<Pair> l = vv.get(siteid);
-        if( l == null) {
-            l = duplicateList( l0);
+        if (l == null) {
+            l = duplicateList(l0);
             numPairs = numPairs + l0.size();
+            vv.put(siteid, l);
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
-        
-        boolean thisHasMoreEntries = false;
-        boolean otherHasMoreEntries = false;
+        CMP_CLOCK cmp = compareOneEntryVV(siteid, l0);
         numPairs = numPairs - l.size();
         LinkedList<Pair> nl = new LinkedList<Pair>();
         Iterator<Pair> it = l.iterator();
         Iterator<Pair> it0 = l0.iterator();
         Pair p = it.hasNext() ? it.next() : null;
         Pair p0 = it0.hasNext() ? it0.next() : null;
-        boolean hasChanged = false;
         Pair np = null;
-        for( ; ; ) {
-            if( p == null && p0 == null)
+        for (;;) {
+            boolean hasChanged = false;
+            if (p == null && p0 == null)
                 break;
-            if( np == null) {
-                if( p != null && p0 != null) {
-                    if( p.from <= p0.from) {
-                        if( p.from < p0.from)
-                            thisHasMoreEntries = true;
+            if (np == null) {
+                if (p != null && p0 != null) {
+                    if (p.from <= p0.from) {
                         np = p;
                         p = null;
                         hasChanged = true;
                     } else {
-                        otherHasMoreEntries = true;
                         np = p0.duplicate();
                         p0 = null;
                         hasChanged = true;
                     }
+                } else if (p != null) {
+                    np = p;
+                    p = null;
+                    hasChanged = true;
+                } else if (p0 != null) {
+                    np = p0.duplicate();
+                    p0 = null;
+                    hasChanged = true;
                 }
             }
-            if( p != null) {
-                    if( np.to >= p.from - 1) {
+            if (p != null) {
+                if (np.to >= p.from - 1) {
+                    if (p.to > np.to)
                         np.to = p.to;
-                        p = null;
-                        hasChanged = true;
-                    }
+                    p = null;
+                    hasChanged = true;
+                }
             }
-            if( p0 != null) {
-                    if( np.to >= p0.from - 1) {
+            if (p0 != null) {
+                if (np.to >= p0.from - 1) {
+                    if (p0.to > np.to)
                         np.to = p0.to;
-                        p0 = null;
-                        hasChanged = true;
-                    }
+                    p0 = null;
+                    hasChanged = true;
+                }
             }
-            if( ! hasChanged) {
+            if (!hasChanged) {
                 nl.add(np);
                 numPairs++;
                 np = null;
             }
-            if( p == null && it.hasNext()) {
+            if (p == null && it.hasNext()) {
                 p = it.next();
             }
-            if( p0 == null && it0.hasNext()) {
+            if (p0 == null && it0.hasNext()) {
                 p0 = it0.next();
             }
         }
-        if( np != null) {
+        if (np != null) {
             nl.add(np);
             numPairs++;
         }
         vv.put(siteid, nl);
-        
-/*        if (greaterThan && lessThan) {
-            return CMP_CLOCK.CMP_CONCURRENT;
-        }
-        if (greaterThan) {
-            return CMP_CLOCK.CMP_DOMINATES;
-        }
-        if (lessThan) {
-            return CMP_CLOCK.CMP_ISDOMINATED;
-        }
-*/        return CMP_CLOCK.CMP_EQUALS;
+
+        return cmp;
     }
 
     /**
@@ -394,138 +546,138 @@ public class VersionVectorWithExceptions implements CausalityClock {
     }
 
     protected CMP_CLOCK compareOneEntryVV(String siteid, LinkedList<Pair> l0) {
-            LinkedList<Pair> l = vv.get(siteid);
-            if( l == null) {
-                return CMP_CLOCK.CMP_ISDOMINATED;
-            }
-            
-            boolean thisHasMoreEntries = false;
-            boolean otherHasMoreEntries = false;
-            Iterator<Pair> it = l.iterator();
-            Iterator<Pair> it0 = l0.iterator();
-            Pair p = it.hasNext() ? it.next() : null;
-            Pair p0 = it0.hasNext() ? it0.next() : null;
-            // last value that has been compared between the two sets
-            long v = Math.min( p == null ? Long.MAX_VALUE : p.from - 1, p0 == null ? Long.MAX_VALUE : p0.from - 1);
-            for( ; ; ) {
-                if( p == null && p0 == null)
-                    break;
-                if( thisHasMoreEntries && otherHasMoreEntries)
-                    break;
-                if( p != null && p0 != null) {
-                    if( p.from == p0.from && p.to == p0.to) {
-                        v = p.to;
-                        p = null;
-                        p0 = null;
-                    } else {
-                        if( p.from <= v) {      // we are in the middle of p
-                            if( p0.from > v + 1) {
-                                thisHasMoreEntries = true;
-                            }
-                            if( p.to < p0.from) {       // p ends before p0 start
+        LinkedList<Pair> l = vv.get(siteid);
+        if (l == null) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+
+        boolean thisHasMoreEntries = false;
+        boolean otherHasMoreEntries = false;
+        Iterator<Pair> it = l.iterator();
+        Iterator<Pair> it0 = l0.iterator();
+        Pair p = it.hasNext() ? it.next() : null;
+        Pair p0 = it0.hasNext() ? it0.next() : null;
+        // last value that has been compared between the two sets
+        long v = Math.min(p == null ? Long.MAX_VALUE : p.from - 1, p0 == null ? Long.MAX_VALUE : p0.from - 1);
+        for (;;) {
+            if (p == null && p0 == null)
+                break;
+            if (thisHasMoreEntries && otherHasMoreEntries)
+                break;
+            if (p != null && p0 != null) {
+                if (p.from == p0.from && p.to == p0.to) {
+                    v = p.to;
+                    p = null;
+                    p0 = null;
+                } else {
+                    if (p.from <= v) { // we are in the middle of p
+                        if (p0.from > v + 1) {
+                            thisHasMoreEntries = true;
+                        }
+                        if (p.to < p0.from) { // p ends before p0 start
+                            v = p.to;
+                            p = null;
+                        } else {
+                            if (p.to == p0.to) {
+                                v = p.to;
+                                p = null;
+                                p0 = null;
+                            } else if (p.to < p0.to) {
                                 v = p.to;
                                 p = null;
                             } else {
-                                if( p.to == p0.to) {
-                                    v = p.to;
-                                    p = null;
-                                    p0 = null;
-                                } else if( p.to < p0.to) {
-                                    v = p.to;
-                                    p = null;
-                                } else {
-                                    v = p0.to;
-                                    p0 = null;
-                                }
+                                v = p0.to;
+                                p0 = null;
                             }
-                        } else if( p0.from <= v) { // we are in the middle of p0
-                            if( p.from > v + 1) {
-                                otherHasMoreEntries = true;
-                            }
-                            if( p0.to < p.from) {       // p ends before p0 start
+                        }
+                    } else if (p0.from <= v) { // we are in the middle of p0
+                        if (p.from > v + 1) {
+                            otherHasMoreEntries = true;
+                        }
+                        if (p0.to < p.from) { // p ends before p0 start
+                            v = p0.to;
+                            p0 = null;
+                        } else {
+                            if (p.to == p0.to) {
+                                v = p.to;
+                                p = null;
+                                p0 = null;
+                            } else if (p0.to < p.to) {
                                 v = p0.to;
                                 p0 = null;
                             } else {
-                                if( p.to == p0.to) {
-                                    v = p.to;
-                                    p = null;
-                                    p0 = null;
-                                } else if( p0.to < p.to) {
-                                    v = p0.to;
-                                    p0 = null;
-                                } else {
-                                    v = p.to;
-                                    p = null;
-                                }
+                                v = p.to;
+                                p = null;
                             }
-                        } else {    //need to advance to next intervals
-                            if( p.from == p0.from) {
-                                v = p.from;
-                            } else if( p.from < p0.from) {
-                                thisHasMoreEntries = true;
-                                if( p.to < p0.from) {
-                                    v = p.to;
-                                    p = null;
-                                } else {
-                                    if( p.to == p0.to) {
-                                        v = p.to;
-                                        p = null;
-                                        p0 = null;
-                                    } else if( p.to < p0.to) {
-                                        v = p.to;
-                                        p = null;
-                                    } else {
-                                        v = p0.to;
-                                        p0 = null;
-                                    }
-                                }
-                            } else {
-                                otherHasMoreEntries = true;
-                                if( p0.to < p.from) {
-                                    v = p0.to;
-                                    p0 = null;
-                                } else {
-                                    if( p.to == p0.to) {
-                                        v = p.to;
-                                        p = null;
-                                        p0 = null;
-                                    } else if( p0.to < p.to) {
-                                        v = p0.to;
-                                        p0 = null;
-                                    } else {
-                                        v = p.to;
-                                        p = null;
-                                    }
-                                }
-                            }
-                            
                         }
-                    }
-                } else if( p == null) {
-                    otherHasMoreEntries = true;
-                    break;
-                } else if( p0 == null)  {
-                    thisHasMoreEntries = true;
-                    break;
-                }
-                if( p == null && it.hasNext()) {
-                    p = it.next();
-                }
-                if( p0 == null && it0.hasNext()) {
-                    p0 = it0.next();
-                }
-            }
+                    } else { // need to advance to next intervals
+                        if (p.from == p0.from) {
+                            v = p.from;
+                        } else if (p.from < p0.from) {
+                            thisHasMoreEntries = true;
+                            if (p.to < p0.from) {
+                                v = p.to;
+                                p = null;
+                            } else {
+                                if (p.to == p0.to) {
+                                    v = p.to;
+                                    p = null;
+                                    p0 = null;
+                                } else if (p.to < p0.to) {
+                                    v = p.to;
+                                    p = null;
+                                } else {
+                                    v = p0.to;
+                                    p0 = null;
+                                }
+                            }
+                        } else {
+                            otherHasMoreEntries = true;
+                            if (p0.to < p.from) {
+                                v = p0.to;
+                                p0 = null;
+                            } else {
+                                if (p.to == p0.to) {
+                                    v = p.to;
+                                    p = null;
+                                    p0 = null;
+                                } else if (p0.to < p.to) {
+                                    v = p0.to;
+                                    p0 = null;
+                                } else {
+                                    v = p.to;
+                                    p = null;
+                                }
+                            }
+                        }
 
-            if (thisHasMoreEntries && otherHasMoreEntries) {
-                return CMP_CLOCK.CMP_CONCURRENT;
+                    }
+                }
+            } else if (p == null) {
+                otherHasMoreEntries = true;
+                break;
+            } else if (p0 == null) {
+                thisHasMoreEntries = true;
+                break;
             }
-            if (thisHasMoreEntries) {
-                return CMP_CLOCK.CMP_DOMINATES;
+            if (p == null && it.hasNext()) {
+                p = it.next();
             }
-            if (otherHasMoreEntries) {
-                return CMP_CLOCK.CMP_ISDOMINATED;
+            if (p0 == null && it0.hasNext()) {
+                p0 = it0.next();
             }
-           return CMP_CLOCK.CMP_EQUALS;
+        }
+
+        if (thisHasMoreEntries && otherHasMoreEntries) {
+            return CMP_CLOCK.CMP_CONCURRENT;
+        }
+        if (thisHasMoreEntries) {
+            return CMP_CLOCK.CMP_DOMINATES;
+        }
+        if (otherHasMoreEntries) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        return CMP_CLOCK.CMP_EQUALS;
     }
 
     /**
@@ -554,7 +706,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         }
         it = vv.entrySet().iterator();
         while (it.hasNext()) {
-            Entry<String,LinkedList<Pair>> e = it.next();
+            Entry<String, LinkedList<Pair>> e = it.next();
             LinkedList<Pair> i = cc.vv.get(e.getKey());
             if (i == null) {
                 result = ClockUtils.combineCmpClock(result, CMP_CLOCK.CMP_DOMINATES);
@@ -619,8 +771,8 @@ public class VersionVectorWithExceptions implements CausalityClock {
         while (it.hasNext()) {
             Entry<String, LinkedList<Pair>> e = it.next();
             buf.append(e.getKey() + ":");
-            Iterator<Pair> it2 =e.getValue().iterator();
-            while( it2.hasNext()) {
+            Iterator<Pair> it2 = e.getValue().iterator();
+            while (it2.hasNext()) {
                 Pair p = it2.next();
                 buf.append("[");
                 buf.append(p.from);
@@ -654,32 +806,32 @@ public class VersionVectorWithExceptions implements CausalityClock {
         long v = cc.getCounter();
         ListIterator<Pair> it = l.listIterator(l.size());
         Pair p = null;
-        while( it.hasPrevious()) {
+        while (it.hasPrevious()) {
             Pair oldP = p;
             p = it.previous();
-            if( v > p.to) {
+            if (v > p.to) {
                 return;
-            } else if( v == p.to) {
+            } else if (v == p.to) {
                 p.to = p.to - 1;
-                if( p.from > p.to) {
+                if (p.from > p.to) {
                     it.remove();
                     numPairs--;
-                    if( l.size() == 0)
+                    if (l.size() == 0)
                         vv.remove(cc.getIdentifier());
                 }
                 return;
-            } else if( v == p.from) {
+            } else if (v == p.from) {
                 p.from = p.from + 1;
-                if( p.from > p.to) {
+                if (p.from > p.to) {
                     it.remove();
                     numPairs--;
-                    if( l.size() == 0)
+                    if (l.size() == 0)
                         vv.remove(cc.getIdentifier());
                 }
                 return;
-            } else if( v > p.from && v < p.to) {
+            } else if (v > p.from && v < p.to) {
                 p.from = v + 1;
-                it.add(new Pair(p.from,v-1));
+                it.add(new Pair(p.from, v - 1));
                 numPairs++;
                 return;
             }
