@@ -1,7 +1,10 @@
 package swift.client.proto;
 
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import sys.net.api.rpc.RpcConnection;
@@ -21,6 +24,10 @@ import sys.net.api.rpc.RpcHandler;
 public class CommitUpdatesRequest extends ClientRequest {
     protected List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
     protected Timestamp baseTimestamp;
+    // Optimization HACK! dependencyClock is stored together for transfer time
+    // only. We should have a cleaner way to do it, perhaps with Kryo
+    // serializer?
+    protected CausalityClock dependencyClock;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -32,7 +39,12 @@ public class CommitUpdatesRequest extends ClientRequest {
             List<CRDTObjectOperationsGroup<?>> objectUpdateGroups) {
         super(clientId);
         this.baseTimestamp = baseTimestamp;
-        this.objectUpdateGroups = objectUpdateGroups;
+        this.objectUpdateGroups = new ArrayList<CRDTObjectOperationsGroup<?>>(objectUpdateGroups.size());
+        // Part of optimization hack.
+        for (final CRDTObjectOperationsGroup<?> ops : objectUpdateGroups) {
+            this.dependencyClock = ops.getDependency();
+            this.objectUpdateGroups.add(ops.withBaseTimestampAndDependency(baseTimestamp, null));
+        }
     }
 
     /**
@@ -50,6 +62,10 @@ public class CommitUpdatesRequest extends ClientRequest {
      *         {@link #getBaseTimestamp()}
      */
     public List<CRDTObjectOperationsGroup<?>> getObjectUpdateGroups() {
+        // // Part of optimization hack: make sure dependencies are filled in.
+        for (final CRDTObjectOperationsGroup<?> ops : objectUpdateGroups) {
+            ops.setDependency(dependencyClock);
+        }
         return objectUpdateGroups;
     }
 
