@@ -61,7 +61,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 		Log.finest("Catadupa removed:" + n);
 	}
 
-	private Node resolve(final DHT.Key key) {
+	protected Node resolve(final DHT.Key key) {
 		long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
 //		Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys() ) );
 		for (Node i : super.db.nodes(key2key))
