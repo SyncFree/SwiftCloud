@@ -328,6 +328,11 @@ public class DottedVersionVector implements CausalityClock {
     }
 
     @Override
+    public boolean hasEventFrom(String siteid) {
+        return getLatestCounter(siteid) != Timestamp.MIN_VALUE;
+    }
+
+    @Override
     public boolean hasExceptions() {
         // TODO Auto-generated method stub
         throw new RuntimeException("Method hasExpcetions() in DottedVersionVector is not implemented yet!");

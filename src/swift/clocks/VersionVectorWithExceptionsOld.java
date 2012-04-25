@@ -339,6 +339,11 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         }
     }
 
+    @Override
+    public boolean hasEventFrom(String siteid) {
+        return getLatestCounter(siteid) != Timestamp.MIN_VALUE;
+    }
+
     /**
      * Create a copy of this causality clock.
      */

@@ -75,6 +75,11 @@ public class VersionVector implements CausalityClock {
         }
     }
 
+    @Override
+    public boolean hasEventFrom(String siteid) {
+        return getLatestCounter(siteid) != Timestamp.MIN_VALUE;
+    }
+
     /**
      * Compares the elements in the version vector.
      * 
