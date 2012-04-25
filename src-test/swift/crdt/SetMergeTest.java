@@ -15,7 +15,7 @@ import swift.clocks.ClockFactory;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -57,7 +57,7 @@ public class SetMergeTest {
     }
 
     @Before
-    public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    public void setUp() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         i1 = new SetIntegers();
         i1.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
 

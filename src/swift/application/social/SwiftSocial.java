@@ -14,7 +14,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
@@ -74,7 +74,7 @@ public class SwiftSocial {
         } catch (NoSuchObjectException e) {
             logger.info("User " + loginName + " is not known");
             result = false;
-        } catch (ConsistentSnapshotVersionNotFoundException e) {
+        } catch (VersionNotFoundException e) {
             // should not happen
             e.printStackTrace();
             result = false;

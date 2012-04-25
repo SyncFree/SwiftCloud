@@ -7,7 +7,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
@@ -23,7 +23,7 @@ public interface TxnManager {
     <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
             CausalityClock minVersion, boolean tryMoreRecent, boolean create, Class<V> classOfV,
             ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException, NetworkException;
+            VersionNotFoundException, NetworkException;
 
     void discardTxn(AbstractTxnHandle txn);
 

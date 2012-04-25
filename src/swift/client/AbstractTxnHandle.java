@@ -21,7 +21,7 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
@@ -66,7 +66,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
     @Override
     public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
             Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException, NetworkException {
+            VersionNotFoundException, NetworkException {
         return get(id, create, classOfV, null);
     }
 
@@ -74,7 +74,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
     @SuppressWarnings("unchecked")
     public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
             Class<V> classOfV, ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException, NetworkException {
+            VersionNotFoundException, NetworkException {
         // TODO: implement listener support - client-side notifications
         assertStatus(TxnStatus.PENDING);
         try {
@@ -86,7 +86,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
 
     protected abstract <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T getImpl(CRDTIdentifier id, boolean create,
             Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException, NetworkException;
+            VersionNotFoundException, NetworkException;
 
     @Override
     public void commit() {

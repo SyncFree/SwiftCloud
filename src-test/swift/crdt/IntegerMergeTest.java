@@ -8,7 +8,7 @@ import org.junit.Test;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.operations.IntegerUpdate;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -35,7 +35,7 @@ public class IntegerMergeTest {
     }
 
     @Before
-    public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    public void setUp() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         i1 = new IntegerVersioned();
         i1.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
 

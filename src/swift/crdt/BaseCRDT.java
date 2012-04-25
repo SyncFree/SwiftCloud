@@ -53,6 +53,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         // pruneClock is preserved
         // FIXME: if otherObject has non-versioned updates that we do not have
         // in verisoned form, we must raise the pruneClock :-(
+        // TODO: registeredInStore = resgisteredInStore &&
+        // otherObject.registeredInStore ??
     }
 
     protected abstract void mergePayload(V otherObject);

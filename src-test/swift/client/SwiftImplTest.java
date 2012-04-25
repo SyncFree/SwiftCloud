@@ -39,7 +39,7 @@ import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
@@ -81,7 +81,7 @@ public class SwiftImplTest extends EasyMockSupport {
 
     @Test
     public void testSingleSITxnCreateObject() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException, NetworkException {
+            VersionNotFoundException, NetworkException {
         // Specify communication with the server mock.
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(LatestKnownClockRequest.class),
                 isA(LatestKnownClockReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
@@ -152,7 +152,7 @@ public class SwiftImplTest extends EasyMockSupport {
     @Ignore
     @Test
     public void testSingleTxnRetrievePreexistingObject() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+            VersionNotFoundException {
         // TODO
     }
 

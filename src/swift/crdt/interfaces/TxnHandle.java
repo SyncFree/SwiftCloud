@@ -3,7 +3,7 @@ package swift.crdt.interfaces;
 import swift.client.CommitListener;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.WrongTypeException;
@@ -27,7 +27,7 @@ public interface TxnHandle {
      * with no updates listener
      */
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
-            throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException,
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException;
 
     /**
@@ -74,7 +74,7 @@ public interface TxnHandle {
      */
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT,
             final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException, NetworkException;
+            VersionNotFoundException, NetworkException;
 
     /**
      * Commits the transaction and blocks until the transaction is committed to

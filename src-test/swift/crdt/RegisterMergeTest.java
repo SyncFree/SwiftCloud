@@ -9,7 +9,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.operations.RegisterUpdate;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -38,7 +38,7 @@ public class RegisterMergeTest {
     }
 
     @Before
-    public void setUp() throws WrongTypeException, NoSuchObjectException, ConsistentSnapshotVersionNotFoundException {
+    public void setUp() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         i1 = new RegisterVersioned<IntegerWrap>();
         i1.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
 

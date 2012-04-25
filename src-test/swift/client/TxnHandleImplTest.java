@@ -35,7 +35,7 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import swift.exceptions.ConsistentSnapshotVersionNotFoundException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -116,7 +116,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     @Test
     public void testSingleReadOnlyTxn() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+            VersionNotFoundException {
         // Specify calls to manager made by txn1.
         EasyMock.expect(mockManager.getObjectTxnView(txn1Matcher(), eq(idCrdtA), eq(true), eq(IntegerVersioned.class)))
                 .andDelegateTo(new ObjectProviderManagerStub(crdtA));
@@ -153,7 +153,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     @Test
     public void testSingleReadOnlyTxnAsyncCommit() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+            VersionNotFoundException {
         // Specify calls to manager made by txn1.
         mockManager.commitTxn(txn1Matcher());
         EasyMock.expectLastCall().andDelegateTo(new CommitingManagerStub(null, false));
@@ -187,7 +187,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     @Test
     public void testSingleUpdateTxnCreationAndUpdate() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+            VersionNotFoundException {
         // Specify calls to manager made by txn1.
         EasyMock.expect(mockManager.getObjectTxnView(txn1Matcher(), eq(idCrdtA), eq(true), eq(IntegerVersioned.class)))
                 .andDelegateTo(new ObjectProviderManagerStub(crdtA));
@@ -252,7 +252,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
 
     @Test
     public void testTwoUpdateTxnsLocalDependency() throws WrongTypeException, NoSuchObjectException,
-            ConsistentSnapshotVersionNotFoundException {
+            VersionNotFoundException {
         // Calls made by txn1.
         EasyMock.expect(mockManager.getObjectTxnView(txn1Matcher(), eq(idCrdtA), eq(true), eq(IntegerVersioned.class)))
                 .andDelegateTo(new ObjectProviderManagerStub(crdtA));
@@ -351,7 +351,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
         @Override
         public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(SnapshotIsolationTxnHandle txn, CRDTIdentifier id,
                 boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
-                ConsistentSnapshotVersionNotFoundException {
+                VersionNotFoundException {
             return null;
         }
 
@@ -395,7 +395,7 @@ public class TxnHandleImplTest extends EasyMockSupport {
         @Override
         public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(SnapshotIsolationTxnHandle txn, CRDTIdentifier id,
                 boolean create, Class<V> classOfV) throws WrongTypeException, NoSuchObjectException,
-                ConsistentSnapshotVersionNotFoundException {
+                VersionNotFoundException {
             return (TxnLocalCRDT<V>) crdt.getTxnLocalCopy(txn.getAllVisibleTransactionsClock(), txn);
         }
     }
