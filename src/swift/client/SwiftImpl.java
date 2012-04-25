@@ -231,7 +231,7 @@ public class SwiftImpl implements Swift, TxnManager {
         localView = getCachedObjectForTxn(id, minVersion, classOfV);
         if (localView == null) {
             throw new IllegalStateException(
-                    "Internal error: recently retrieved object unavailable in appropriate version in the cache");
+                    "Internal error: just retrieved object unavailable in appropriate version in the cache");
         }
         return localView;
     }
@@ -251,8 +251,8 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(CRDTIdentifier id, CausalityClock clock,
-            Class<V> classOfV) throws WrongTypeException, VersionNotFoundException {
+    private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(CRDTIdentifier id,
+            CausalityClock clock, Class<V> classOfV) throws WrongTypeException, VersionNotFoundException {
         V crdt;
         try {
             crdt = (V) objectsCache.get(id);
