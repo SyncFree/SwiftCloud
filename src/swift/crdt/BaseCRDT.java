@@ -50,11 +50,10 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     public void merge(CRDT<V> otherObject) {
         mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
+        registeredInStore |= otherObject.isRegisteredInStore();
         // pruneClock is preserved
         // FIXME: if otherObject has non-versioned updates that we do not have
         // in verisoned form, we must raise the pruneClock :-(
-        // TODO: registeredInStore = resgisteredInStore &&
-        // otherObject.registeredInStore ??
     }
 
     protected abstract void mergePayload(V otherObject);
@@ -76,6 +75,10 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         if (!updatesClock.record(ops.getBaseTimestamp())) {
             // Operations group is already included in the state.
             return false;
+        }
+
+        if (ops.hasCreationState()) {
+            registeredInStore = true;
         }
 
         for (final CRDTOperation<V> op : ops.getOperations()) {
@@ -113,11 +116,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         if (clock.hasExceptions()) {
             throw new IllegalArgumentException("provided clock has exceptions and cannot be used as prune clock");
         }
-    }
-
-    @Override
-    public boolean isRegisteredInStore() {
-        return registeredInStore;
     }
 
     @Override
