@@ -1,6 +1,5 @@
 package swift.dc;
 
-import static sys.net.api.Networking.Networking;
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
@@ -9,15 +8,13 @@ import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import sys.Sys;
-import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcEndpoint;
 
 public class TestClient {
     public static void main(String[] args) {
         try {
             Sys.init();
 
-            SwiftImpl server = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT);
+            SwiftImpl server = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT, Integer.MAX_VALUE);
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,

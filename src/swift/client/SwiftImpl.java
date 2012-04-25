@@ -47,9 +47,9 @@ import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcConnection;
@@ -75,8 +75,8 @@ public class SwiftImpl implements Swift, TxnManager {
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     /**
-     * Creates new instance of Swift using provided network settings and default
-     * cache parameters.
+     * Creates new instance of Swift using provided network settings and
+     * otherwise default settings.
      * 
      * @param localPort
      *            port to bind local RPC endpoint
@@ -89,6 +89,25 @@ public class SwiftImpl implements Swift, TxnManager {
     public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort) {
         return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
                 new InfiniteObjectsCache(), DEFAULT_TIMEOUT_MILLIS);
+    }
+
+    /**
+     * Creates new instance of Swift using provided network and timeout settings
+     * and default cache parameters.
+     * 
+     * @param localPort
+     *            port to bind local RPC endpoint
+     * @param serverHostname
+     *            hostname of storage server
+     * @param serverPort
+     *            TCP port of storage server
+     * @param timeoutMillis
+     *            timeout for server replies in milliseconds
+     * @return instance of Swift client
+     */
+    public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort, int timeoutMillis) {
+        return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
+                new InfiniteObjectsCache(), timeoutMillis);
     }
 
     private static String generateClientId() {
