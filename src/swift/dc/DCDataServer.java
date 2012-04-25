@@ -280,7 +280,8 @@ class DCDataServer {
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
         final StringKey key = new StringKey( grp.getTargetUID().toString());
-        DHT_Node
+        // FIXME: commented out this non-compiling line:
+        // DHT_Node
         final Result<Boolean> result = new Result<Boolean>();
         while( ! result.hasResult()) {
             dhtClient.send( key, 
