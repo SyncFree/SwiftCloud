@@ -213,7 +213,7 @@ public class SwiftImpl implements Swift, TxnManager {
             final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
-        if (minVersion.getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
+        if (minVersion.hasEventFrom(CLIENT_CLOCK_ID)) {
             throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
 
@@ -285,7 +285,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
         final TxnLocalCRDT<V> crdtView;
         // Are there any local dependencies to apply on the cached object?
-        if (clock.getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
+        if (clock.hasEventFrom(CLIENT_CLOCK_ID)) {
             // Apply them on sandboxed copy of an object, since these operations
             // use local timestamps.
             final V crdtCopy = crdt.copy();
@@ -519,7 +519,7 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     private void commitToStore(AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
-        if (txn.getUpdatesDependencyClock().getLatestCounter(CLIENT_CLOCK_ID) != Timestamp.MIN_VALUE) {
+        if (txn.getUpdatesDependencyClock().hasEventFrom(CLIENT_CLOCK_ID)) {
             throw new IllegalStateException("Trying to commit to data store with client clock");
         }
 
