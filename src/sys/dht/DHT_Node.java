@@ -23,7 +23,7 @@ public class DHT_Node extends DHT_NodeImpl {
         super.init();
     }
 
-    public boolean isLocalMatch(final DHT.Key key) {
+    public boolean isHandledLocally(final DHT.Key key) {
         return super.resolve( key ).key == self.key;
     }
 
