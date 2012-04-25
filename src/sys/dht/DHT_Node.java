@@ -1,10 +1,12 @@
 package sys.dht;
 
+import static sys.dht.catadupa.Config.Config;
 import static sys.utils.Log.Log;
 
 import org.hamcrest.Factory;
 
 import sys.dht.api.DHT;
+import sys.dht.catadupa.Node;
 import sys.dht.discovery.Discovery;
 import sys.dht.impl.DHT_ClientStub;
 import sys.dht.impl.DHT_NodeImpl;
@@ -15,37 +17,46 @@ import static sys.Sys.*;
 
 public class DHT_Node extends DHT_NodeImpl {
 
-	public static final String DHT_ENDPOINT = "DHT_ENDPOINT";
+    public static final String DHT_ENDPOINT = "DHT_ENDPOINT";
 
-	protected DHT_Node() {
-		super.init();
-	}
+    protected DHT_Node() {
+        super.init();
+    }
 
-	synchronized public static DHT getStub() {
-		if (clientStub == null) {
-		    String name = DHT_ENDPOINT + Sys.getDatacenter();
-			Endpoint dhtEndpoint = Discovery.lookup(name, 5000);
-			if (dhtEndpoint != null) {
-				clientStub = new DHT_ClientStub(dhtEndpoint);
-			} else {
-				Log.severe("Failed to discovery DHT access endpoint...");
-				return null;
-			}
-		}
-		return clientStub;
-	}
+    public boolean isLocalMatch(final DHT.Key key) {
+        long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
+        for (Node i : super.db.nodes(key2key))
+            if (i.isOnline())
+                return i.key == self.key;
 
-	public static void setHandler(DHT.MessageHandler handler) {
-		serverStub.setHandler(handler);
-	}
+        return true;
+    }
 
-	synchronized public static void start() {
-		if (singleton == null) {
-			singleton = new DHT_Node();
-		}
-		while (!singleton.isReady())
-			Threading.sleep(50);
-	}
+    synchronized public static DHT getStub() {
+        if (clientStub == null) {
+            String name = DHT_ENDPOINT + Sys.getDatacenter();
+            Endpoint dhtEndpoint = Discovery.lookup(name, 5000);
+            if (dhtEndpoint != null) {
+                clientStub = new DHT_ClientStub(dhtEndpoint);
+            } else {
+                Log.severe("Failed to discovery DHT access endpoint...");
+                return null;
+            }
+        }
+        return clientStub;
+    }
 
-	private static DHT_Node singleton;
+    public static void setHandler(DHT.MessageHandler handler) {
+        serverStub.setHandler(handler);
+    }
+
+    synchronized public static void start() {
+        if (singleton == null) {
+            singleton = new DHT_Node();
+        }
+        while (!singleton.isReady())
+            Threading.sleep(50);
+    }
+
+    private static DHT_Node singleton;
 }
