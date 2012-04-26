@@ -84,7 +84,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         for (final CRDTOperation<V> op : ops.getOperations()) {
             execute(op);
         }
-        updatesClock.record(ops.getBaseTimestamp());
         return true;
     }
 
