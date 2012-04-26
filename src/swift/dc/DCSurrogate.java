@@ -511,8 +511,10 @@ class ClientPubInfo {
     }
 
     synchronized long dumpNotificationsIfTimeout(CausalityClock clk) {
-        if (conn != null && System.currentTimeMillis() > replyTime)
+        if (conn != null && System.currentTimeMillis() > replyTime) {
+            DCConstants.DCLogger.info("dumpNotificationsIfTimeout clientId = " + clientId + " =========================================");
             dumpNotifications(clk);
+        }
         if (conn == null)
             return Long.MAX_VALUE;
         else
