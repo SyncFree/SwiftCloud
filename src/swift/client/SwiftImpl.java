@@ -426,7 +426,7 @@ public class SwiftImpl implements Swift, TxnManager {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-            crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), true);
+            crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), false);
             break;
         case VERSION_NOT_FOUND:
         case OK:
