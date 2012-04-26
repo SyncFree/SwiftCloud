@@ -75,8 +75,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     Map<CRDTIdentifier,Map<String,ClientPubInfo>> cltsObserving;   // map crdtIdentifier -> Map<clientId,ClientPubInfo>
 
     DCSurrogate(RpcEndpoint e, RpcEndpoint seqClt, Endpoint seqSrv, Properties props) {
-        initData( props);
         this.surrogateId = "s" + System.nanoTime();
+        initData( props);
         this.endpoint = e;
         this.sequencerServerEndpoint = seqSrv;
         this.sequencerClientEndpoint = seqClt;
@@ -132,6 +132,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     void remFromObserving(CRDTIdentifier id, ClientPubInfo session) {
         synchronized (cltsObserving) {
                 Map<String,ClientPubInfo> clts = cltsObserving.get(id);
+                if( clts == null) {
+                    PubSub.PubSub.unsubscribe(id.toString(), this);
+                    return;
+                }
                 clts.remove(session.getClientId());
                 if( clts.size() == 0) {
                     PubSub.PubSub.unsubscribe(id.toString(), this);

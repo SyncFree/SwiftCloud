@@ -61,10 +61,10 @@ class DCDataServer {
     Set<CRDTData<?>> modified;
 
     DCDataServer(DCSurrogate surrogate, Properties props) {
-        initStore();
-        initData(props);
         this.localSurrogate = new LocalObserver(surrogate);
         this.localSurrogateId = surrogate.getId();
+        initStore();
+        initData(props);
         initDHT();
         initNotifier();
         DCConstants.DCLogger.info("Data server ready...");
@@ -297,7 +297,7 @@ class DCDataServer {
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
         final StringKey key = new StringKey(grp.getTargetUID().toString());
-//        if (!DHT_Node.getInstance().isHandledLocally(key)) {
+        if (!DHT_Node.getInstance().isHandledLocally(key)) {
             final Result<Boolean> result = new Result<Boolean>();
             while (!result.hasResult()) {
                 dhtClient.send(key, new DHTExecCRDT(localSurrogateId, grp, snapshotVersion, trxVersion),
@@ -311,8 +311,8 @@ class DCDataServer {
                 // TODO: probably should not continue forever !!!
             }
             return result.getResult();
- //       } else
- //           return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion);
+        } else
+            return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion);
     }
 
     // /**
@@ -333,7 +333,7 @@ class DCDataServer {
      */
     CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
         final StringKey key = new StringKey(id.toString());
-//        if (!DHT_Node.getInstance().isHandledLocally(key)) {
+        if (!DHT_Node.getInstance().isHandledLocally(key)) {
             final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
             while (!result.hasResult()) {
                 dhtClient.send(key, new DHTGetCRDT(localSurrogateId, id, subscribe), new DHTGetCRDTReplyHandler() {
@@ -346,8 +346,8 @@ class DCDataServer {
                 // TODO: probably should not continue forever !!!
             }
             return result.getResult();
- //       } else
- //           return localGetCRDTObject(localSurrogate, id, subscribe);
+        } else
+            return localGetCRDTObject(localSurrogate, id, subscribe);
     }
 
     /**
@@ -523,7 +523,7 @@ class DCDataServer {
 
 interface Observer extends Comparable<Observer> {
     public String getSurrogateId();
-    public void sendNotification(ObjectSubscriptionInfo info);
+//    public void sendNotification(ObjectSubscriptionInfo info);
 }
 
 class LocalObserver implements Observer {
@@ -533,11 +533,11 @@ class LocalObserver implements Observer {
         this.surrogate = s;
     }
 
-    public void sendNotification(ObjectSubscriptionInfo info) {
+/*    public void sendNotification(ObjectSubscriptionInfo info) {
         DCConstants.DCLogger.info("DHT data server: send local notidication: CRDT : " + info.getId());
         surrogate.notifyNewUpdates(info);
     }
-
+*/
     public int hashCode() {
         return surrogate.hashCode();
     }
@@ -549,7 +549,9 @@ class LocalObserver implements Observer {
     @Override
     public int compareTo(Observer o) {
         if( o == null)
-            return -1;
+            throw new RuntimeException( "local.o == null");
+        if( getSurrogateId() == null)
+            throw new RuntimeException( "local.surrogateid == null");
         return getSurrogateId().compareTo(o.getSurrogateId());
     }
 
@@ -568,12 +570,12 @@ class RemoteObserver implements Observer {
         this.con = con;
     }
 
-    public void sendNotification(ObjectSubscriptionInfo info) {
+/*    public void sendNotification(ObjectSubscriptionInfo info) {
         DCConstants.DCLogger.info("DHT data server: send remote notidication: CRDT : " + info.getId());
         // TODO: should this be a reply ?
         con.reply(new DHTSendNotification(info));
     }
-
+*/
     public int hashCode() {
         return surrogateId.hashCode();
     }
@@ -584,8 +586,6 @@ class RemoteObserver implements Observer {
 
     @Override
     public int compareTo(Observer o) {
-        if( o == null)
-            return -1;
         return getSurrogateId().compareTo(o.getSurrogateId());
     }
 
