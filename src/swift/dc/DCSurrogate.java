@@ -301,7 +301,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         synchronized (estimatedDCVersion) {
             estimatedDCVersionCopy = estimatedDCVersion.clone();
         }
-        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok),
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok, 
+                        request.getObjectUpdateGroups(), request.getBaseTimestamp()),
                 new CommitTSReplyHandler() {
                     @Override
                     public void onReceive(RpcConnection conn0, CommitTSReply reply) {

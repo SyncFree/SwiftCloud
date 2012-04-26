@@ -1,7 +1,11 @@
 package swift.dc.proto;
 
+import java.util.List;
+
 import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -26,13 +30,16 @@ public class CommitTSReply implements RpcMessage {
     protected CommitTSStatus status;
     protected CausalityClock currVersion;
 
+
     public CommitTSReply() {
     }
 
     public CommitTSReply(CommitTSStatus status, CausalityClock currVersion) {
+        super();
         this.status = status;
         this.currVersion = currVersion;
     }
+
 
     /**
      * @return status code of the reply

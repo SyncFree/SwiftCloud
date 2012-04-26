@@ -2,8 +2,10 @@ package swift.dc;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.logging.*;
+import java.util.Set;
+import java.util.TreeSet;
 
 import swift.client.proto.GenerateTimestampReply;
 import swift.client.proto.GenerateTimestampRequest;
@@ -16,7 +18,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
-import swift.clocks.VersionVectorWithExceptions;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
 import swift.dc.proto.CommitTSRequest;
@@ -39,6 +41,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     CausalityClock currentState;
     Map<Timestamp, Date> pendingTS;
     String siteId;
+    
+    Map<String,Set<CommitRecord>> ops;
 
     public DCSequencerServer(String siteId) {
         this.siteId = siteId;
@@ -50,6 +54,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         currentState = ClockFactory.newClock();
         clockGen = new IncrementalTimestampGenerator(siteId);
         pendingTS = new HashMap<Timestamp, Date>();
+        ops = new HashMap<String,Set<CommitRecord>>();
     }
 
     public void start() {
@@ -58,6 +63,18 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         this.endpoint = Networking.Networking.rpcBind(DCConstants.SEQUENCER_PORT, null);
         this.endpoint.setHandler(this);
         DCConstants.DCLogger.info("Sequencer ready...");
+    }
+    
+    private void addToOps( CommitRecord record) {
+        synchronized( ops) {
+            Set<CommitRecord> s = ops.get(record.baseTimestamp.getIdentifier());
+            if( s == null) {
+                s = new TreeSet<CommitRecord>();
+                ops.put(record.baseTimestamp.getIdentifier(), s);
+            }
+            s.add(record);
+            
+        }
     }
 
     public static void main(String[] args) {
@@ -132,5 +149,20 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         } else {
             conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk));
         }
+        addToOps( new CommitRecord( request.getObjectUpdateGroups(), request.getBaseTimestamp()));
+    }
+}
+
+class CommitRecord implements Comparable<CommitRecord>
+{
+    List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
+    Timestamp baseTimestamp;
+    public CommitRecord(List<CRDTObjectOperationsGroup<?>> objectUpdateGroups, Timestamp baseTimestamp) {
+        this.objectUpdateGroups = objectUpdateGroups;
+        this.baseTimestamp = baseTimestamp;
+    }
+    @Override
+    public int compareTo(CommitRecord o) {
+        return (int)(baseTimestamp.getCounter() - o.baseTimestamp.getCounter());
     }
 }
