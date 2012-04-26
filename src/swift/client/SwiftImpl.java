@@ -183,6 +183,7 @@ public class SwiftImpl implements Swift, TxnManager {
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
         }
+        logger.info("client stopped");
     }
 
     @Override

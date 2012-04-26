@@ -66,5 +66,6 @@ public class SwiftSocialTest {
         // TODO Fix the testing here
         client.answerFriendRequest("Biene", true);
 
+        clientServer.stop(true);
     }
 }

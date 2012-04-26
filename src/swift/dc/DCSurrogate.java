@@ -208,7 +208,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     private FetchObjectVersionReply handleFetchVersionRequest(FetchObjectVersionRequest request) {
-        DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = " + request.getClientId());
+        DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
+                + request.getUid());
         final ClientPubInfo session = getSession( request.getClientId());
 
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
