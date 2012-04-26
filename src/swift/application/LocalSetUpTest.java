@@ -21,32 +21,12 @@ public class LocalSetUpTest {
     static String sequencerName = "localhost";
 
     public static void main(String[] args) {
-        Thread sequencer = new Thread() {
-            public void run() {
-                DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-                sequencer.start();
-            }
-        };
+        // start sequencer server
+        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
         sequencer.start();
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            // do nothing
-        }
 
-        Thread server = new Thread() {
-            public void run() {
-//              DCServer server = new DCServer(sequencerName);
-//              server.startSurrogServer();
-              DCServer.main( new String[] {sequencerName});
-            }
-        };
-        server.start();
-        try {
-            Thread.sleep(2000);
-        } catch (InterruptedException e) {
-            // do nothing
-        }
+        // start DC server
+        DCServer.main(new String[] { sequencerName });
 
         for (int i = 0; i < 5; i++) {
             final int portId = i + 2000;
