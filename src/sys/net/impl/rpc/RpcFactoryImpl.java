@@ -305,7 +305,8 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
         }
 
         void touch() {
-            this.expiration = Sys.currentTime() + GC_DURATION;
+            if( this.expiration < Double.MAX_VALUE )
+                this.expiration = Sys.currentTime() + GC_DURATION;
         }
         
         boolean isServiceHandler() {
