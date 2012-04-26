@@ -46,7 +46,7 @@ public class SwiftSocial {
         TxnHandle txn = null;
         // FIXME Is login possible in offline mode?
         User user;
-        boolean result;
+        boolean result = false;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
             user = (User) (txn.get(NamingScheme.forLogin(loginName), false, RegisterVersioned.class)).getValue();
@@ -58,28 +58,26 @@ public class SwiftSocial {
             // security breach.
             if (!user.password.equals(passwd)) {
                 logger.info("Wrong password for " + loginName);
-                result = false;
+            } else {
+                // FIXME Add sessions? Local login possible? Cookies?
+                currentUser = user;
+                logger.info(loginName + " successfully logged in");
+                result = true;
             }
-            // FIXME Add sessions? Local login possible? Cookies?
-            currentUser = user;
-            logger.info(loginName + " successfully logged in");
-            result = true;
         } catch (NetworkException e) {
             e.printStackTrace();
             result = false;
         } catch (WrongTypeException e) {
             // should not happen
             e.printStackTrace();
-            result = false;
         } catch (NoSuchObjectException e) {
             logger.info("User " + loginName + " is not known");
-            result = false;
         } catch (VersionNotFoundException e) {
             // should not happen
             e.printStackTrace();
-            result = false;
+        } finally {
+            txn.commit();
         }
-        txn.commit();
         return result;
     }
 
@@ -201,7 +199,7 @@ public class SwiftSocial {
     }
 
     void sendFriendRequest(String receiverName) {
-        logger.info("Sending friend request from " + this.currentUser.loginName + " to " + receiverName);
+        logger.info("Sending friend request from to " + receiverName);
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);

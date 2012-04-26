@@ -54,6 +54,7 @@ public class SwiftSocialTest {
         client.postMessage("Biene", "What a wonderful day!", System.currentTimeMillis());
         Set<Message> report = client.getSiteReport();
         for (Message m : report) {
+            System.out.println("Current status:");
             System.out.println(m);
         }
 
