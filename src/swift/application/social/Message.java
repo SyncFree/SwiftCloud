@@ -1,5 +1,7 @@
 package swift.application.social;
 
+import java.util.Date;
+
 import swift.crdt.interfaces.Copyable;
 
 public class Message implements Copyable, java.io.Serializable {
@@ -21,5 +23,19 @@ public class Message implements Copyable, java.io.Serializable {
 
     public Object copy() {
         return new Message(msg, sender, receiver, date);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(new Date(date));
+        sb.append(", FROM ");
+        sb.append(sender);
+        sb.append(" TO ");
+        sb.append(receiver);
+        sb.append(": ");
+        sb.append(msg);
+        return sb.toString();
+
     }
 }

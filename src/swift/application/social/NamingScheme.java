@@ -22,7 +22,7 @@ public class NamingScheme {
      * @param loginName
      * @return CRDT identifier for user
      */
-    public static CRDTIdentifier forLogin(final String loginName) {
+    public static CRDTIdentifier forUser(final String loginName) {
         return new CRDTIdentifier("users", loginName);
     }
 

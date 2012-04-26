@@ -13,28 +13,18 @@ public class SwiftSocialTest {
     static String sequencerName = "localhost";
 
     public static void main(String[] args) {
-        // Thread sequencer = new Thread() {
-        // public void run() {
         DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
         sequencer.start();
 
         try {
-            Thread.sleep(2000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             // do nothing
         }
 
-        // Thread server = new Thread() {
-        // public void run() {
-        // DCServer server = new DCServer(sequencerName);
-        // server.startSurrogServer();
         DCServer.main(new String[] { sequencerName });
-        // }
-        // };
-        // server.start();
-
         try {
-            Thread.sleep(2000);
+            Thread.sleep(1000);
         } catch (InterruptedException e) {
             // do nothing
         }
@@ -44,27 +34,55 @@ public class SwiftSocialTest {
         Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
 
-        client.addUser("Butterfly", "Red");
+        // Register users
+        client.registerUser("Biene", "Honig");
+        client.registerUser("Butterfly", "Flower");
 
-        client.addUser("Biene", "Honig");
-
+        // Start a session
         boolean successfulLogin = client.login("Biene", "Honig");
         System.out.println("Login successful:" + successfulLogin);
 
         client.postMessage("Biene", "What a wonderful day!", System.currentTimeMillis());
-        Set<Message> report = client.getSiteReport("Biene");
+        client.postMessage("Biene", "Need more chocolate!", System.currentTimeMillis());
+        client.postMessage("Butterfly", "Ready for springtime?", System.currentTimeMillis());
+
+        Set<Message> report = client.getMessagesFor("Biene");
+        System.out.println("Messages:");
         for (Message m : report) {
-            System.out.println("Current status:");
             System.out.println(m);
         }
 
         client.sendFriendRequest("Butterfly");
         Set<String> friends = client.readUserFriends("Biene");
+        System.out.println("Friends:");
         for (String friend : friends) {
             System.out.println(friend);
         }
-        // TODO Fix the testing here
+
+        client.logout("Biene");
+
+        // Start another session with different user
+        successfulLogin = client.login("Butterfly", "Flower");
+        System.out.println("Login successful:" + successfulLogin);
         client.answerFriendRequest("Biene", true);
+
+        report = client.getMessagesFor("Biene");
+        for (Message m : report) {
+            System.out.println("Messages:");
+            System.out.println(m);
+        }
+
+        friends = client.readUserFriends("Butterfly");
+        System.out.println("Friends of Butterfly:");
+        for (String friend : friends) {
+            System.out.println(friend);
+        }
+        friends = client.readUserFriends("Biene");
+        System.out.println("Friends of Biene:");
+        for (String friend : friends) {
+            System.out.println(friend);
+        }
+        client.logout("Butterfly");
 
         clientServer.stop(true);
     }

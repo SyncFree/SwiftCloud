@@ -61,7 +61,7 @@ public class SwiftSocialMain {
         List<String> userData = readInputFromFile(usersFileName);
         for (String line : userData) {
             String[] toks = line.split(";");
-            client.addUser(toks[1], toks[2]);
+            client.registerUser(toks[1], toks[2]);
         }
         System.out.println("Initialization finished");
 
@@ -83,7 +83,7 @@ public class SwiftSocialMain {
                 }
             case READ:
                 if (toks.length == 2) {
-                    client.getSiteReport(toks[1]);
+                    client.getMessagesFor(toks[1]);
                     break;
                 }
             case SEE_FRIENDS:

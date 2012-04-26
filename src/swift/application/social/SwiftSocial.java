@@ -2,6 +2,7 @@ package swift.application.social;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.crdt.RegisterTxnLocal;
@@ -24,7 +25,11 @@ import swift.exceptions.WrongTypeException;
 
 public class SwiftSocial {
 
-    protected static Logger logger = Logger.getLogger("swift.social");
+    private static Logger logger = Logger.getLogger("swift.social");
+    {
+        logger.setLevel(Level.INFO);
+    }
+    // FIXME Add sessions? Local login possible? Cookies?
     private User currentUser;
     private Swift server;
 
@@ -37,36 +42,44 @@ public class SwiftSocial {
         logger.info("Got login request from user " + loginName);
 
         // Check if user is already logged in
-        if (currentUser != null && loginName.equals(currentUser)) {
-            logger.info(loginName + " is already logged in");
-            return true;
+        if (currentUser != null) {
+            if (loginName.equals(currentUser)) {
+                logger.info(loginName + " is already logged in");
+                return true;
+            } else {
+                logger.info("Need to log out user " + currentUser.loginName + " first!");
+                return false;
+            }
         }
 
-        // Check if user is known at all
-        TxnHandle txn = null;
-        // FIXME Is login possible in offline mode?
-        User user;
-        boolean result = false;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
-            user = (User) (txn.get(NamingScheme.forLogin(loginName), false, RegisterVersioned.class)).getValue();
+            // Check if user is known at all
+            // FIXME Is login possible in offline mode?
+
+            TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+            @SuppressWarnings("unchecked")
+            User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class)).getValue();
+
             // Check password
             // FIXME We actually need an external authentification mechanism, as
             // clients cannot be trusted.
             // In Walter, authentification is done on server side, within the
             // data center. Moving password (even if hashed) to the client is a
             // security breach.
-            if (!user.password.equals(passwd)) {
-                logger.info("Wrong password for " + loginName);
+            if (user != null) {
+                if (user.password.equals(passwd)) {
+                    currentUser = user;
+                    logger.info(loginName + " successfully logged in");
+                    txn.commit();
+                    return true;
+                } else {
+                    logger.info("Wrong password for " + loginName);
+                }
             } else {
-                // FIXME Add sessions? Local login possible? Cookies?
-                currentUser = user;
-                logger.info(loginName + " successfully logged in");
-                result = true;
+                logger.info("User has not been registered " + loginName);
             }
         } catch (NetworkException e) {
             e.printStackTrace();
-            result = false;
         } catch (WrongTypeException e) {
             // should not happen
             e.printStackTrace();
@@ -75,10 +88,8 @@ public class SwiftSocial {
         } catch (VersionNotFoundException e) {
             // should not happen
             e.printStackTrace();
-        } finally {
-            txn.commit();
         }
-        return result;
+        return false;
     }
 
     void logout(String loginName) {
@@ -88,14 +99,14 @@ public class SwiftSocial {
     }
 
     // FIXME Return error code?
-    void addUser(String loginName, String passwd) {
+    void registerUser(String loginName, String passwd) {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(loginName), true,
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
             // preguica: either create objects here or set true when accessing
@@ -124,7 +135,7 @@ public class SwiftSocial {
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
-                    NamingScheme.forLogin(this.currentUser.loginName), true, RegisterVersioned.class);
+                    NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class);
             reg.set(currentUser);
         } catch (Exception e) {
             e.printStackTrace();
@@ -135,7 +146,7 @@ public class SwiftSocial {
         }
     }
 
-    Set<Message> getSiteReport(String name) {
+    Set<Message> getMessagesFor(String name) {
         logger.info("Get site report for " + name);
         Set<Message> postings = new HashSet<Message>();
         TxnHandle txn = null;

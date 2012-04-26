@@ -30,7 +30,7 @@ public class User implements Copyable {
     public User(String loginName, String password) {
         this.loginName = loginName;
         this.password = password;
-        this.userId = NamingScheme.forLogin(loginName);
+        this.userId = NamingScheme.forUser(loginName);
         this.birthday = 0;
         this.maritalStatus = 0;
         this.active = true;
