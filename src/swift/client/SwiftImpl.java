@@ -246,7 +246,8 @@ public class SwiftImpl implements Swift, TxnManager {
 
         committedVersion.merge(clock);
         final AbstractTxnHandle commitingTxn = locallyCommittedTxnsQueue.peekFirst();
-        if (commitingTxn != null && clock.includes(commitingTxn.getGlobalTimestamp())) {
+        final Timestamp commitingTxnTimestamp = commitingTxn == null ? null : commitingTxn.getGlobalTimestamp();
+        if (commitingTxnTimestamp != null && clock.includes(commitingTxnTimestamp)) {
             // We observe global visibility (and possibly updates) of locally
             // committed transaction before the CommitUpdatesReply has been
             // received.
