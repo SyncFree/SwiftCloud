@@ -134,7 +134,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     private V value(CausalityClock versionClock) {
         for (QueueEntry<V> e : values) {
-            if (versionClock.getLatest(e.ts.getIdentifier()).includes(e.ts)) {
+            if (versionClock.includes(e.ts)) {
                 return e.value;
             }
         }
