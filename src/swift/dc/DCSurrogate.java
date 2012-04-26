@@ -69,60 +69,101 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     Endpoint sequencerServerEndpoint;
     RpcEndpoint sequencerClientEndpoint;
     DCDataServer dataServer;
-    CausalityClock estimatedDCVersion;       // estimate of current DC state
-    
-    Map<String,ClientPubInfo> sessions;   // map clientId -> ClientPubInfo
-    Map<CRDTIdentifier,Map<String,ClientPubInfo>> cltsObserving;   // map crdtIdentifier -> Map<clientId,ClientPubInfo>
+    CausalityClock estimatedDCVersion; // estimate of current DC state
+
+    Map<String, ClientPubInfo> sessions; // map clientId -> ClientPubInfo
+    Map<CRDTIdentifier, Map<String, ClientPubInfo>> cltsObserving; // map
+                                                                   // crdtIdentifier
+                                                                   // ->
+                                                                   // Map<clientId,ClientPubInfo>
 
     DCSurrogate(RpcEndpoint e, RpcEndpoint seqClt, Endpoint seqSrv, Properties props) {
         this.surrogateId = "s" + System.nanoTime();
         this.endpoint = e;
         this.sequencerServerEndpoint = seqSrv;
         this.sequencerClientEndpoint = seqClt;
-        initData( props);
+        initData(props);
+        initDumping();
         this.endpoint.setHandler(this);
         DCConstants.DCLogger.info("Server ready...");
     }
 
-    private void initData( Properties props) {
-        sessions = new HashMap<String,ClientPubInfo>();
-        cltsObserving = new HashMap<CRDTIdentifier,Map<String,ClientPubInfo>>();
-        estimatedDCVersion = ClockFactory.newClock();
-        dataServer = new DCDataServer( this, props);
+    private void initDumping() {
+        Thread t = new Thread(new Runnable() {
+            public void run() {
+                for (;;) {
+                    try {
+                        long nextTime = Long.MAX_VALUE;
+                        synchronized (sessions) {
+                            CausalityClock clk = getEstimatedDCVersionCopy();
+                            Iterator<ClientPubInfo> it = sessions.values().iterator();
+                            while (it.hasNext()) {
+                                ClientPubInfo c = it.next();
+                                nextTime = Math.min(nextTime, c.dumpNotificationsIfTimeout(clk));
+                            }
+                        }
+                        long waitTime = nextTime == Long.MAX_VALUE ? 5000 : nextTime - System.currentTimeMillis();
+                        if (waitTime > 0)
+                            try {
+                                Thread.sleep(waitTime);
+                            } catch (Exception e) {
+                                // do nothing
+                            }
+
+                    } catch (Exception e) {
+                        // do nothing
+                    }
+
+                }
+            }
+        });
+        t.setDaemon(true);
+        t.setPriority(Thread.currentThread().getPriority() - 1);
+        t.start();
     }
-    
+
+    private void initData(Properties props) {
+        sessions = new HashMap<String, ClientPubInfo>();
+        cltsObserving = new HashMap<CRDTIdentifier, Map<String, ClientPubInfo>>();
+        estimatedDCVersion = ClockFactory.newClock();
+        dataServer = new DCDataServer(this, props);
+    }
+
     String getId() {
         return surrogateId;
     }
-    
+
     CausalityClock getEstimatedDCVersionCopy() {
         synchronized (estimatedDCVersion) {
             return estimatedDCVersion.clone();
         }
     }
-    
+
     /********************************************************************************************
-     * Methods related with notifications from clients 
+     * Methods related with notifications from clients
      *******************************************************************************************/
-    
+
     /**
      * Add client to start observing changes on CRDT id
-     * @param observing fi true, client wants to receive updated; otherwise, notifications
+     * 
+     * @param observing
+     *            fi true, client wants to receive updated; otherwise,
+     *            notifications
      */
     void addToObserving(CRDTIdentifier id, boolean observing, CausalityClock clk, ClientPubInfo session) {
         synchronized (cltsObserving) {
-            Map<String,ClientPubInfo> clts = cltsObserving.get(id);
+            Map<String, ClientPubInfo> clts = cltsObserving.get(id);
             if (clts == null) {
-                clts = new TreeMap<String,ClientPubInfo>();
+                clts = new TreeMap<String, ClientPubInfo>();
                 cltsObserving.put(id, clts);
             }
-            if( clts.size() == 0)
+            if (clts.size() == 0)
                 PubSub.PubSub.subscribe(id.toString(), this);
             clts.put(session.getClientId(), session);
-            if( observing)
-                session.setObserving( clk, id, true);
+            if (observing)
+                session.setObserving(clk, id, true);
             else
-                session.setNotificating( clk, id, true);
+                session.setNotificating(clk, id, true);
         }
     }
 
@@ -131,33 +172,33 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
      */
     void remFromObserving(CRDTIdentifier id, ClientPubInfo session) {
         synchronized (cltsObserving) {
-                Map<String,ClientPubInfo> clts = cltsObserving.get(id);
-                if( clts == null) {
-                    PubSub.PubSub.unsubscribe(id.toString(), this);
-                    return;
-                }
-                clts.remove(session.getClientId());
-                if( clts.size() == 0) {
-                    PubSub.PubSub.unsubscribe(id.toString(), this);
-                    cltsObserving.remove(id);
-                }
+            Map<String, ClientPubInfo> clts = cltsObserving.get(id);
+            if (clts == null) {
+                PubSub.PubSub.unsubscribe(id.toString(), this);
+                return;
+            }
+            clts.remove(session.getClientId());
+            if (clts.size() == 0) {
+                PubSub.PubSub.unsubscribe(id.toString(), this);
+                cltsObserving.remove(id);
+            }
         }
     }
 
     @Override
     public void notify(String group, Object payload) {
-        final DHTSendNotification notification = (DHTSendNotification)payload;
+        final DHTSendNotification notification = (DHTSendNotification) payload;
         final CRDTIdentifier id = notification.getInfo().getId();
-        DCConstants.DCLogger.info( "Surrogate: Notify new updates for:" + notification.getInfo().getId());
-        
+        DCConstants.DCLogger.info("Surrogate: Notify new updates for:" + notification.getInfo().getId());
+
         synchronized (cltsObserving) {
-            Map<String,ClientPubInfo> map = cltsObserving.get( id);
-            if( map == null)
+            Map<String, ClientPubInfo> map = cltsObserving.get(id);
+            if (map == null)
                 return;
-            Iterator<Entry<String,ClientPubInfo>> it = map.entrySet().iterator();
-            while( it.hasNext()) {
-                Entry<String,ClientPubInfo> entry = it.next();
-                entry.getValue().addNotifications( notification.getInfo(), getEstimatedDCVersionCopy());
+            Iterator<Entry<String, ClientPubInfo>> it = map.entrySet().iterator();
+            while (it.hasNext()) {
+                Entry<String, ClientPubInfo> entry = it.next();
+                entry.getValue().addNotifications(notification.getInfo(), getEstimatedDCVersionCopy());
             }
         }
     }
@@ -166,37 +207,42 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         synchronized (sessions) {
             ClientPubInfo session = sessions.get(clientId);
             if (session == null) {
-                session = new ClientPubInfo( clientId);
+                session = new ClientPubInfo(clientId);
                 sessions.put(clientId, session);
             }
             return session;
         }
     }
-    
-    void notifyNewUpdates( ObjectSubscriptionInfo notification) {
-        DCConstants.DCLogger.info( "Notify new updates for:" + notification.getId());
-    }
-    
-//    /**
-//     * Return null if CRDT does not exist
-//     */
-//    <V extends CRDT<V>> CRDTData<V> putCRDT(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clk, CausalityClock prune) {
-//        return dataServer.putCRDT(id, crdt, clk, prune);        // call DHT server
-//    }
 
-    
+    /*
+     * void notifyNewUpdates( ObjectSubscriptionInfo notification) {
+     * DCConstants.DCLogger.info( "Notify new updates for:" +
+     * notification.getId()); }
+     */
+    // /**
+    // * Return null if CRDT does not exist
+    // */
+    // <V extends CRDT<V>> CRDTData<V> putCRDT(CRDTIdentifier id, CRDT<V> crdt,
+    // CausalityClock clk, CausalityClock prune) {
+    // return dataServer.putCRDT(id, crdt, clk, prune); // call DHT server
+    // }
+
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion, CausalityClock trxVersion) {
-        return dataServer.execCRDT(grp, snapshotVersion, trxVersion);       // call DHT server
+    <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
+            CausalityClock trxVersion) {
+        return dataServer.execCRDT(grp, snapshotVersion, trxVersion); // call
+                                                                      // DHT
+                                                                      // server
     }
 
     /**
      * Return null if CRDT does not exist
      * 
-     * @param subscribe Subscription type
+     * @param subscribe
+     *            Subscription type
      */
     CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
-        return dataServer.getCRDT(id, subscribe);    // call DHT server
+        return dataServer.getCRDT(id, subscribe); // call DHT server
     }
 
     @Override
@@ -204,7 +250,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId());
         conn.reply(handleFetchVersionRequest(request));
     }
-    
+
     @Override
     public void onReceive(RpcConnection conn, FetchObjectDeltaRequest request) {
         DCConstants.DCLogger.info("FetchObjectDeltaRequest client = " + request.getClientId());
@@ -214,7 +260,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     private FetchObjectVersionReply handleFetchVersionRequest(FetchObjectVersionRequest request) {
         DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
                 + request.getUid());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
 
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
         CausalityClock estimatedDCVersionCopy = null;
@@ -233,8 +279,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 
         CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType());
         if (crdt == null) {
-            return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, estimatedDCVersionCopy,
-                    ClockFactory.newClock(), estimatedDCVersionCopy);
+            return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
+                    estimatedDCVersionCopy, ClockFactory.newClock(), estimatedDCVersionCopy);
         } else {
             if (request.getSubscriptionType() != SubscriptionType.NONE) {
                 if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
@@ -246,7 +292,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 crdt.clock.merge(estimatedDCVersionCopy);
                 final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                         : FetchStatus.OK;
-                return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock, estimatedDCVersionCopy);
+                return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock,
+                        estimatedDCVersionCopy);
             }
         }
     }
@@ -254,7 +301,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     @Override
     public void onReceive(final RpcConnection conn, GenerateTimestampRequest request) {
         DCConstants.DCLogger.info("GenerateTimestampRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
 
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new GenerateTimestampReplyHandler() {
             @Override
@@ -268,7 +315,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     @Override
     public void onReceive(final RpcConnection conn, KeepaliveRequest request) {
         DCConstants.DCLogger.info("KeepaliveRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
 
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new KeepaliveReplyHandler() {
             @Override
@@ -282,17 +329,17 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     @Override
     public void onReceive(final RpcConnection conn, CommitUpdatesRequest request) {
         DCConstants.DCLogger.info("CommitUpdatesRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
 
         List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp ts = request.getBaseTimestamp();
-        final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency(): ClockFactory.newClock();
+        final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(request.getBaseTimestamp());
         Iterator<CRDTObjectOperationsGroup<?>> it = ops.iterator();
         boolean ok = true;
         while (it.hasNext()) {
-            //TODO: must make this concurrent to be fast
+            // TODO: must make this concurrent to be fast
             CRDTObjectOperationsGroup<?> grp = it.next();
             ok = ok && execCRDT(grp, snapshotClock, trxClock);
             synchronized (estimatedDCVersion) {
@@ -306,47 +353,46 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         synchronized (estimatedDCVersion) {
             estimatedDCVersionCopy = estimatedDCVersion.clone();
         }
-        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok, 
-                        request.getObjectUpdateGroups(), request.getBaseTimestamp()),
-                new CommitTSReplyHandler() {
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok,
+                request.getObjectUpdateGroups(), request.getBaseTimestamp()), new CommitTSReplyHandler() {
+            @Override
+            public void onReceive(RpcConnection conn0, CommitTSReply reply) {
+                DCConstants.DCLogger.info("Commit: received CommitTSRequest");
+                if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                    synchronized (estimatedDCVersion) {
+                        estimatedDCVersion.merge(reply.getCurrVersion());
+                    }
+                    conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
+                } else {
+                    conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.INVALID_OPERATION, ts));
+                }
+            }
+        });
+    }
+
+    private void updateEstimatedDCVersion() {
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new LatestKnownClockRequest("suurogate"),
+                new LatestKnownClockReplyHandler() {
                     @Override
-                    public void onReceive(RpcConnection conn0, CommitTSReply reply) {
-                        DCConstants.DCLogger.info("Commit: received CommitTSRequest");
-                        if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
-                            synchronized (estimatedDCVersion) {
-                                estimatedDCVersion.merge(reply.getCurrVersion());
-                            }
-                            conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
-                        } else {
-                            conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.INVALID_OPERATION, ts));
+                    public void onReceive(RpcConnection conn0, LatestKnownClockReply reply) {
+                        synchronized (estimatedDCVersion) {
+                            estimatedDCVersion.merge(reply.getClock());
                         }
                     }
                 });
     }
 
-    
-    private void updateEstimatedDCVersion() {
-        sequencerClientEndpoint.send(sequencerServerEndpoint, new LatestKnownClockRequest("suurogate"), new LatestKnownClockReplyHandler() {
-            @Override
-            public void onReceive(RpcConnection conn0, LatestKnownClockReply reply) {
-                synchronized( estimatedDCVersion) {
-                    estimatedDCVersion.merge( reply.getClock());
-                }
-            }
-        });
-    }
-    
     @Override
     public void onReceive(final RpcConnection conn, LatestKnownClockRequest request) {
         DCConstants.DCLogger.info("LatestKnownClockRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new LatestKnownClockReplyHandler() {
             @Override
             public void onReceive(RpcConnection conn0, LatestKnownClockReply reply) {
                 DCConstants.DCLogger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
                 conn.reply(reply);
-                synchronized( estimatedDCVersion) {
-                    estimatedDCVersion.merge( reply.getClock());
+                synchronized (estimatedDCVersion) {
+                    estimatedDCVersion.merge(reply.getClock());
                 }
             }
         });
@@ -355,120 +401,136 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     @Override
     public void onReceive(RpcConnection conn, UnsubscribeUpdatesRequest request) {
         DCConstants.DCLogger.info("UnsubscribeUpdatesRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
         remFromObserving(request.getUid(), session);
     }
 
     @Override
     public void onReceive(RpcConnection conn, RecentUpdatesRequest request) {
         DCConstants.DCLogger.info("RecentUpdatesRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
         session.dumpNewUpdates(conn, request);
     }
 
     @Override
     public void onReceive(RpcConnection conn, FastRecentUpdatesRequest request) {
         DCConstants.DCLogger.info("FastRecentUpdatesRequest client = " + request.getClientId());
-        final ClientPubInfo session = getSession( request.getClientId());
+        final ClientPubInfo session = getSession(request.getClientId());
         session.dumpNewUpdates(conn, request, getEstimatedDCVersionCopy());
     }
 
 }
 
-class ClientPubInfo
-{
+class ClientPubInfo {
     private String clientId;
     boolean hasUpdates;
     RpcConnection conn;
-    long requestTime;
-    private Map<CRDTIdentifier,CRDTSessionInfo> subscriptions;
+    long replyTime;
+    private Map<CRDTIdentifier, CRDTSessionInfo> subscriptions;
 
     ClientPubInfo() {
     }
+
     public ClientPubInfo(String clientId) {
         this.clientId = clientId;
         hasUpdates = false;
         conn = null;
-        subscriptions = new TreeMap<CRDTIdentifier,CRDTSessionInfo>();
+        subscriptions = new TreeMap<CRDTIdentifier, CRDTSessionInfo>();
     }
-    public synchronized boolean isObserving( CRDTIdentifier id) {
+
+    public synchronized boolean isObserving(CRDTIdentifier id) {
         CRDTSessionInfo info = subscriptions.get(id);
-        if( info == null)
+        if (info == null)
             return false;
         else
             return info.isObserving();
     }
-    public synchronized boolean isNotificating( CRDTIdentifier id) {
+
+    public synchronized boolean isNotificating(CRDTIdentifier id) {
         CRDTSessionInfo info = subscriptions.get(id);
-        if( info == null)
+        if (info == null)
             return false;
         else
             return info.isNotificating();
     }
+
     public synchronized boolean isNotificatingOrObserving(CRDTIdentifier id) {
         CRDTSessionInfo info = subscriptions.get(id);
-        if( info == null)
+        if (info == null)
             return false;
         else
             return info.isObserving() || info.isNotificating();
     }
-    public synchronized void setObserving( CausalityClock clk, CRDTIdentifier id, boolean set) {
+
+    public synchronized void setObserving(CausalityClock clk, CRDTIdentifier id, boolean set) {
         CRDTSessionInfo info = subscriptions.get(id);
-        if( info == null) {
-            if( ! set)
+        if (info == null) {
+            if (!set)
                 return;
-            info = new CRDTSessionInfo( clk, true, false);
+            info = new CRDTSessionInfo(clk, true, false);
             subscriptions.put(id, info);
         }
         info.setObserving(set);
-        if( ! info.isObserving() && ! info.isNotificating()) {
-            subscriptions.remove( id);
+        if (!info.isObserving() && !info.isNotificating()) {
+            subscriptions.remove(id);
         }
     }
-    public synchronized void setNotificating( CausalityClock clk, CRDTIdentifier id, boolean set) {
+
+    public synchronized void setNotificating(CausalityClock clk, CRDTIdentifier id, boolean set) {
         CRDTSessionInfo info = subscriptions.get(id);
-        if( info == null) {
-            if( ! set)
+        if (info == null) {
+            if (!set)
                 return;
-            info = new CRDTSessionInfo( clk, false, true);
+            info = new CRDTSessionInfo(clk, false, true);
             subscriptions.put(id, info);
         }
         info.setNotificating(set);
-        if( ! info.isObserving() && ! info.isNotificating()) {
-            subscriptions.remove( id);
+        if (!info.isObserving() && !info.isNotificating()) {
+            subscriptions.remove(id);
         }
     }
-    synchronized void dumpNewUpdates( RpcConnection conn, FastRecentUpdatesRequest request, CausalityClock clk) {
+
+    synchronized void dumpNewUpdates(RpcConnection conn, FastRecentUpdatesRequest request, CausalityClock clk) {
         this.conn = conn;
-        requestTime = System.currentTimeMillis();
-        if( hasUpdates)
-            dumpNotifications( clk);
+        replyTime = System.currentTimeMillis() + request.getMaxBlockingTimeMillis();
+        if (hasUpdates)
+            dumpNotifications(clk);
     }
-     
-    synchronized void dumpNewUpdates( RpcConnection conn, RecentUpdatesRequest request) {
-         //TODO: return updates
+
+    synchronized void dumpNewUpdates(RpcConnection conn, RecentUpdatesRequest request) {
+        // TODO: return updates
     }
+
     public synchronized void addNotifications(ObjectSubscriptionInfo info, CausalityClock clk) {
-         CRDTSessionInfo session = subscriptions.get(info.getId());
-         if( session == null)
-             return;
-         session.addNotifications( info);
-         hasUpdates = true;
-         dumpNotifications( clk);
+        CRDTSessionInfo session = subscriptions.get(info.getId());
+        if (session == null)
+            return;
+        session.addNotifications(info);
+        hasUpdates = true;
+        dumpNotifications(clk);
     }
-    
-    private synchronized void dumpNotifications( CausalityClock clk) {
-        if( conn == null)
+
+    synchronized long dumpNotificationsIfTimeout(CausalityClock clk) {
+        if (conn != null && System.currentTimeMillis() > replyTime)
+            dumpNotifications(clk);
+        if (conn == null)
+            return Long.MAX_VALUE;
+        else
+            return replyTime;
+    }
+
+    private synchronized void dumpNotifications(CausalityClock clk) {
+        if (conn == null)
             return;
         List<ObjectSubscriptionInfo> notifications = new ArrayList<ObjectSubscriptionInfo>();
         SubscriptionStatus status = subscriptions.size() == 0 ? SubscriptionStatus.LOST : SubscriptionStatus.ACTIVE;
-        Iterator<Entry<CRDTIdentifier,CRDTSessionInfo>> it = subscriptions.entrySet().iterator();
-        while( it.hasNext()) {
-            Entry<CRDTIdentifier,CRDTSessionInfo> entry = it.next();
-            entry.getValue().addSubscriptionInfo(entry.getKey(),notifications);
+        Iterator<Entry<CRDTIdentifier, CRDTSessionInfo>> it = subscriptions.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<CRDTIdentifier, CRDTSessionInfo> entry = it.next();
+            entry.getValue().addSubscriptionInfo(entry.getKey(), notifications);
         }
-        conn.reply( new FastRecentUpdatesReply( status, notifications, clk));
-        
+        conn.reply(new FastRecentUpdatesReply(status, notifications, clk));
+
         hasUpdates = false;
         conn = null;
     }
@@ -479,60 +541,40 @@ class ClientPubInfo
 }
 
 /*
-class ClientSession
-{
-    String clientId;
-    Map<CRDTIdentifier,CRDTSessionInfo> subscriptions;
-    RpcConnection conn;
-    
-    ClientSession( String clientId) {
-        this.clientId = clientId; 
-        subscriptions = new TreeMap<CRDTIdentifier,CRDTSessionInfo>();
-        updates = new TreeSet<CRDTIdentifier>();
-        notifications = new TreeSet<CRDTIdentifier>();
-        conn = null;
-    }
-    
-    void subscribeUpdates( CRDTIdentifier id) {
-        updates.add(id);
-    }
-    
-    void unsubscribeUpdates( CRDTIdentifier id) {
-        updates.remove(id);
-    }
-    
-    void subscribeNotifications( CRDTIdentifier id) {
-        notifications.add(id);
-    }
-    
-    void unsubscribeNotifications( CRDTIdentifier id) {
-        notifications.remove(id);
-    }
-    
-    void addNotifications(ObjectSubscriptionInfo info) {
-        
-    }
-    
-    void dumpNewUpdates( RpcConnection conn, FastRecentUpdatesRequest request) {
-       //TODO: return notifications
-    }
-    
-    void dumpNewUpdates( RpcConnection conn, RecentUpdatesRequest request) {
-        //TODO: return updates
-    }
-    
-    public boolean equals( Object obj) {
-        return obj instanceof ClientSession && ((ClientSession)obj).clientId.equals(clientId);
-    }
-    
-    public int hashCode() {
-        return clientId.hashCode();
-    }
-}
-*/
+ * class ClientSession { String clientId; Map<CRDTIdentifier,CRDTSessionInfo>
+ * subscriptions; RpcConnection conn;
+ * 
+ * ClientSession( String clientId) { this.clientId = clientId; subscriptions =
+ * new TreeMap<CRDTIdentifier,CRDTSessionInfo>(); updates = new
+ * TreeSet<CRDTIdentifier>(); notifications = new TreeSet<CRDTIdentifier>();
+ * conn = null; }
+ * 
+ * void subscribeUpdates( CRDTIdentifier id) { updates.add(id); }
+ * 
+ * void unsubscribeUpdates( CRDTIdentifier id) { updates.remove(id); }
+ * 
+ * void subscribeNotifications( CRDTIdentifier id) { notifications.add(id); }
+ * 
+ * void unsubscribeNotifications( CRDTIdentifier id) { notifications.remove(id);
+ * }
+ * 
+ * void addNotifications(ObjectSubscriptionInfo info) {
+ * 
+ * }
+ * 
+ * void dumpNewUpdates( RpcConnection conn, FastRecentUpdatesRequest request) {
+ * //TODO: return notifications }
+ * 
+ * void dumpNewUpdates( RpcConnection conn, RecentUpdatesRequest request) {
+ * //TODO: return updates }
+ * 
+ * public boolean equals( Object obj) { return obj instanceof ClientSession &&
+ * ((ClientSession)obj).clientId.equals(clientId); }
+ * 
+ * public int hashCode() { return clientId.hashCode(); } }
+ */
 
-class CRDTSessionInfo
-{
+class CRDTSessionInfo {
     private boolean observing;
     private boolean notificating;
     private boolean hasChanges;
@@ -550,7 +592,7 @@ class CRDTSessionInfo
     }
 
     public void addSubscriptionInfo(CRDTIdentifier id, List<ObjectSubscriptionInfo> notifications) {
-        if( ! hasChanges) {
+        if (!hasChanges) {
             notifications.add(new ObjectSubscriptionInfo(id, oldClock, newClock, updates, false));
         } else {
             notifications.add(new ObjectSubscriptionInfo(id, oldClock, newClock, updates, true));
@@ -561,14 +603,14 @@ class CRDTSessionInfo
     }
 
     public void addNotifications(ObjectSubscriptionInfo info) {
-        if( ! hasChanges) {
+        if (!hasChanges) {
             oldClock = info.getOldClock();
             newClock = info.getNewClock();
             updates.addAll(info.getUpdates());
             hasChanges = true;
         } else {
-            //TODO: check if new clock == old clock
-            newClock.merge( info.getNewClock());
+            // TODO: check if new clock == old clock
+            newClock.merge(info.getNewClock());
             updates.addAll(info.getUpdates());
         }
     }
@@ -592,10 +634,8 @@ class CRDTSessionInfo
     public boolean isHasChanges() {
         return hasChanges;
     }
-    
 
 }
-
 
 class Reply implements RpcMessage {
 
