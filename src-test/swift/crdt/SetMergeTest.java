@@ -261,7 +261,7 @@ public class SetMergeTest {
         }
 
         swift1.prune(i1, swift1.beginTxn().getClock());
-        TesterUtils.printInformtion(i1, swift1.beginTxn());
+        // TesterUtils.printInformtion(i1, swift1.beginTxn());
     }
 
     @Test
@@ -271,5 +271,13 @@ public class SetMergeTest {
 
         registerSingleInsertTxn(1, i1, swift1);
         assertTrue(i1.hasUpdatesSince(updatesSince));
+    }
+
+    @Test
+    public void idemPotentMerge() {
+        registerSingleInsertTxn(15, i1, swift1);
+        SetIntegers iclone = i1.copy();
+        swift1.merge(i1, iclone, swift2);
+        TesterUtils.printInformtion(iclone, swift1.beginTxn());
     }
 }

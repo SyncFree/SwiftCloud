@@ -90,9 +90,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     protected void mergePayload(T other) {
-        pruneImpl(getPruneClock());
-        other.pruneImpl(getPruneClock());
-
         Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> it = other.elems.entrySet().iterator();
         while (it.hasNext()) {
             Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = it.next();

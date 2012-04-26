@@ -8,5 +8,11 @@ package swift.crdt.interfaces;
  * @param <V>
  */
 public interface Copyable {
+    /**
+     * Creates a deep copy of the object.
+     * 
+     * @return object copy
+     */
     Object copy();
+
 }
