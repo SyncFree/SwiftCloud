@@ -597,10 +597,15 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private synchronized void tryDiscardDeadSubscriptionEntry(CRDTIdentifier id) {
-        final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-        if (subscription != null && subscription.txn.getStatus().isTerminated()) {
-            objectUpdateSubscriptions.remove(id);
-        }
+        // FIXME: when to unsubscribe, after transaction is terminated for a
+        // certain time?
+
+        // final UpdateSubscription subscription =
+        // objectUpdateSubscriptions.get(id);
+        // if (subscription != null &&
+        // subscription.txn.getStatus().isTerminated()) {
+        // objectUpdateSubscriptions.remove(id);
+        // }
     }
 
     private synchronized void tryUnsubscribeDiscardedSubscriptionEntry(CRDTIdentifier id) {

@@ -52,9 +52,9 @@ public interface TxnHandle {
      * @param updatesListener
      *            listener that will receive a notification when a newer version
      *            of an object than the returned one is available in the store
-     *            before the client reads this object again or terminates this
-     *            transaction; note that this event may fire even during this
-     *            call; when null, notification is disabled
+     *            before the client reads this object again; note that this
+     *            event may fire even during this call or after the transaction
+     *            has committed; when null, notification is disabled
      * @return transactional view of an object; accepts queries and updates;
      *         note that this view of an object is valid only until the
      *         transaction is committed or rolled back
