@@ -537,16 +537,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
             logger.warning("cannot apply received updates on object " + id + " as it has been evicted from the cache");
-            if (hasSubscriptionEntry(id)) {
-                try {
-                    fetchLatestObject(id, false, BaseCRDT.class, committedVersionCopy, true);
-                } catch (SwiftException e) {
-                    logger.warning("could not fetch the latest version of an object for notifications purposes: "
-                            + e.getMessage());
-                }
-            } else {
-                tryUnsubscribeDiscardedSubscriptionEntry(id);
-            }
+            handleApplyObjectUpdatesWithMissingVersion(id, committedVersionCopy);
             return;
         }
 
@@ -554,16 +545,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
             // Ooops, we missed some update or messages were ordered.
             logger.warning("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
-            if (hasSubscriptionEntry(id)) {
-                try {
-                    fetchLatestObject(id, false, BaseCRDT.class, committedVersionCopy, true);
-                } catch (SwiftException e) {
-                    logger.warning("could not fetch the latest version of an object for notifications purposes: "
-                            + e.getMessage());
-                }
-            } else {
-                tryUnsubscribeDiscardedSubscriptionEntry(id);
-            }
+            handleApplyObjectUpdatesWithMissingVersion(id, committedVersionCopy);
             return;
         }
 
@@ -588,6 +570,20 @@ public class SwiftImpl implements Swift, TxnManager {
             tryDiscardDeadSubscriptionEntry(id);
             // FIXME: perhaps keep subscription for a while and only then try to
             // unsubscribe?
+            tryUnsubscribeDiscardedSubscriptionEntry(id);
+        }
+    }
+
+    private void handleApplyObjectUpdatesWithMissingVersion(final CRDTIdentifier id,
+            final CausalityClock committedVersionCopy) {
+        if (hasSubscriptionEntry(id)) {
+            try {
+                fetchLatestObject(id, false, BaseCRDT.class, committedVersionCopy, true);
+            } catch (SwiftException e) {
+                logger.warning("could not fetch the latest version of an object for notifications purposes: "
+                        + e.getMessage());
+            }
+        } else {
             tryUnsubscribeDiscardedSubscriptionEntry(id);
         }
     }
