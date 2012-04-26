@@ -34,10 +34,8 @@ public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRD
         getTxnHandle().registerOperation(this.id, op);
     }
 
-    /**
-     * @return constant snapshot clock of this local object representation
-     */
-    protected CausalityClock getClock() {
+    @Override
+    public CausalityClock getClock() {
         return clock;
     }
 }

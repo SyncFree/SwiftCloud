@@ -1,6 +1,17 @@
 package swift.crdt.interfaces;
 
+import swift.clocks.CausalityClock;
+
+// WISHME: separate client and system interface (needed for mocks)
 public interface TxnLocalCRDT<V extends CRDT<V>> {
+    /**
+     * Returns the plain object corresponding to the CRDT as given in the
+     * current state of the txn to which is it associated.
+     * 
+     * @return
+     */
+    Object getValue();
+
     /**
      * Returns the TxnHandle to which the CRDT is currently associated.
      * <p>
@@ -12,10 +23,9 @@ public interface TxnLocalCRDT<V extends CRDT<V>> {
     TxnHandle getTxnHandle();
 
     /**
-     * Returns the plain object corresponding to the CRDT as given in the
-     * current state of the txn to which is it associated.
+     * <b>INTERNAL, SYSTEM USE:</b>
      * 
-     * @return
+     * @return constant snapshot clock of this local object representation
      */
-    Object getValue();
+    CausalityClock getClock();
 }

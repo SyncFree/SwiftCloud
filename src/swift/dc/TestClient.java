@@ -7,6 +7,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import sys.Sys;
 
 public class TestClient {
@@ -19,15 +20,14 @@ public class TestClient {
             SwiftImpl server = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT);
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
-            IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class, new ObjectUpdatesListener() {
-
-                @Override
-                public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id) {
-                    System.out.println("NOTIFY: object modified : " + id + "******************************************************");
-                    
-                }
-                
-            });
+            IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
+                    new ObjectUpdatesListener() {
+                        @Override
+                        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+                            System.out.println("NOTIFY: object modified : " + id
+                                    + "******************************************************");
+                        }
+                    });
             System.out.println("(e,1) = " + i1.getValue());
             IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerVersioned.class,
                     new DummyObjectUpdatesListener());
@@ -112,8 +112,8 @@ public class TestClient {
 
     static class DummyObjectUpdatesListener implements ObjectUpdatesListener {
         @Override
-        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id) {
-            System.out.println("Yoohoo, the object has changed!");
+        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+            System.out.println("Yoohoo, the object " + id + " has changed!");
         }
     }
 }

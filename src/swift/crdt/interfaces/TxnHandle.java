@@ -3,9 +3,9 @@ package swift.crdt.interfaces;
 import swift.client.CommitListener;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
-import swift.exceptions.VersionNotFoundException;
-import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.NetworkException;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 /**
@@ -27,8 +27,7 @@ public interface TxnHandle {
      * with no updates listener
      */
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfT)
-            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException;
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;
 
     /**
      * Returns an object of the provided identifier. If object is not in the
