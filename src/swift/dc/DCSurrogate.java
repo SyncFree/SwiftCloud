@@ -76,10 +76,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 
     DCSurrogate(RpcEndpoint e, RpcEndpoint seqClt, Endpoint seqSrv, Properties props) {
         this.surrogateId = "s" + System.nanoTime();
-        initData( props);
         this.endpoint = e;
         this.sequencerServerEndpoint = seqSrv;
         this.sequencerClientEndpoint = seqClt;
+        initData( props);
         this.endpoint.setHandler(this);
         DCConstants.DCLogger.info("Server ready...");
     }
@@ -87,8 +87,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     private void initData( Properties props) {
         sessions = new HashMap<String,ClientPubInfo>();
         cltsObserving = new HashMap<CRDTIdentifier,Map<String,ClientPubInfo>>();
-        dataServer = new DCDataServer( this, props);
         estimatedDCVersion = ClockFactory.newClock();
+        dataServer = new DCDataServer( this, props);
     }
     
     String getId() {
