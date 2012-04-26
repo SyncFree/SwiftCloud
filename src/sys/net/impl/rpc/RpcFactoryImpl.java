@@ -274,7 +274,8 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
         final int timeout;
         final long handlerId;
-        final double expiration;
+        
+        double expiration;
         final RpcHandler handler;
 
         volatile RpcPacket reply;
@@ -303,6 +304,10 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
             }
         }
 
+        void touch() {
+            this.expiration = Sys.currentTime() + GC_DURATION;
+        }
+        
         boolean isServiceHandler() {
             return handlerId < MAX_SERVICE;
         }
@@ -332,7 +337,10 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
     RPC_Handlers getHandler(long handlerId) {
         synchronized (handlers) {
-            return handlers.get(handlerId);
+            RPC_Handlers res = handlers.get(handlerId);
+            if( res != null )
+                res.touch();
+            return res;
         }
     }
 
@@ -343,8 +351,10 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
                 double now = Sys.currentTime();
                 synchronized (handlers) {
                     for (Iterator<RPC_Handlers> it = handlers.values().iterator(); it.hasNext();) {
-                        if (now > it.next().expiration + RPC_Handlers.GC_DURATION) {
+                        RPC_Handlers h = it.next();
+                        if (now > h.expiration + RPC_Handlers.GC_DURATION) {
                             it.remove();
+                            Log.finest("GC'ing reply handler:" + h.handler );
                         }
                     }
                 }
