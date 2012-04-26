@@ -129,6 +129,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
 
     public FastRecentUpdatesReply( SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions,
             CausalityClock estimatedLatestKnownClock) {
+        this.status = status;
         this.subscriptions = subscriptions;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
     }
