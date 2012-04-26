@@ -3,6 +3,8 @@ package swift.application.social;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,42 +17,59 @@ import swift.dc.DCServer;
 import sys.Sys;
 
 public class SwiftSocialMain {
-    static String sequencerName = "localhost";
-    static String inputFileName = "scripts/commands.txt";
+    private static String sequencerName = "localhost";
+    private static String usersFileName = "scripts/add_users.txt";
+    private static String commandsFileName = "scripts/commands.txt";
 
     public static void main(String[] args) {
         startSequencer();
         startDCServer();
-        runClient(inputFileName);
+        runClient(commandsFileName, usersFileName);
     }
 
-    private static void runClient(String inputFileName) {
+    private static List<String> readInputFromFile(final String fileName) {
+        List<String> data = new ArrayList<String>(500);
+        try {
+            FileInputStream fstream = new FileInputStream(fileName);
+            DataInputStream in = new DataInputStream(fstream);
+            BufferedReader br = new BufferedReader(new InputStreamReader(in));
+            String strLine;
+            try {
+                while ((strLine = br.readLine()) != null) {
+                    // read file into memory
+                    data.add(strLine);
+                }
+            } finally {
+                in.close();
+            }
+            return data;
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
+    private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
         int portId = 2001;
         Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
 
-        List<String> commands = new ArrayList<String>(500);
-        try {
-            FileInputStream fstream = new FileInputStream(inputFileName);
-            DataInputStream in = new DataInputStream(fstream);
-            BufferedReader br = new BufferedReader(new InputStreamReader(in));
-            String strLine;
-            while ((strLine = br.readLine()) != null) {
-                // read file into memory
-                commands.add(strLine);
-            }
-            // Close the input stream
-            in.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+        // Initialize user data
+        List<String> userData = readInputFromFile(usersFileName);
+        for (String line : userData) {
+            String[] toks = line.split(";");
+            client.addUser(toks[1], toks[2]);
         }
+        System.out.println("Initialization finished");
 
         // Execute the commands assigned to this thread
+        List<String> commandData = readInputFromFile(inputFileName);
         int n_fail = 0;
-        for (String line : commands) {
+        for (String line : commandData) {
             String[] toks = line.split(";");
-
             switch (Commands.valueOf(toks[0].toUpperCase())) {
             case LOGIN:
                 if (toks.length == 3) {
@@ -61,6 +80,15 @@ public class SwiftSocialMain {
                 if (toks.length == 2) {
                     client.logout(toks[1]);
                     break;
+                }
+            case READ:
+                if (toks.length == 2) {
+                    client.getSiteReport(toks[1]);
+                    break;
+                }
+            case SEE_FRIENDS:
+                if (toks.length == 2) {
+                    client.readUserFriends(toks[1]);
                 }
             case FRIEND:
                 if (toks.length == 2) {

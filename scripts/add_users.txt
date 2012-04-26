@@ -1,6 +1,2 @@
-# adding random users to walter social
-usr_add;yair;"Yair Sovran";01/01/01;"";
-usr_add;jy;"Jinyang Li";01/01/01;"";
-usr_add;marcos;"Marcos Aguilera";01/01/01;"";
-usr_add;russell;"Russell Power";01/01/01;"";
-
+usr_add;K8L30v+x;passwd;"K8L30v+x K8L30v+xson";01/01/01;"";
+usr_add;A67nCvXD;passwd;"A67nCvXD A67nCvXDson";01/01/01;"";

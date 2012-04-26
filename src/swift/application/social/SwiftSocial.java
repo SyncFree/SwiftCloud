@@ -14,9 +14,9 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 // implements the social network functionality
@@ -98,7 +98,8 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forLogin(loginName), true,
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
-            //preguica: either create objects here or set true when accessing them in other methods
+            // preguica: either create objects here or set true when accessing
+            // them in other methods
             txn.get(NamingScheme.forFriends(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forInFriendReq(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forOutFriendReq(loginName), true, SetStrings.class);
@@ -134,14 +135,13 @@ public class SwiftSocial {
         }
     }
 
-    Set<Message> getSiteReport() {
-        logger.info("Get site report for " + this.currentUser.loginName);
+    Set<Message> getSiteReport(String name) {
+        logger.info("Get site report for " + name);
         Set<Message> postings = new HashSet<Message>();
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
-            SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(this.currentUser.loginName),
-                    false, SetMsg.class);
+            SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(name), false, SetMsg.class);
             postings = messages.getValue();
         } catch (Exception e) {
             e.printStackTrace();
@@ -218,14 +218,14 @@ public class SwiftSocial {
         }
     }
 
-    Set<String> readUserFriends() {
-        logger.info("Get friends for " + this.currentUser.loginName);
+    Set<String> readUserFriends(String name) {
+        logger.info("Get friends for " + name);
         Set<String> friendNames = new HashSet<String>();
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
-            SetTxnLocalString friends = (SetTxnLocalString) txn.get(
-                    NamingScheme.forFriends(this.currentUser.loginName), false, SetStrings.class);
+            SetTxnLocalString friends = (SetTxnLocalString) txn.get(NamingScheme.forFriends(name), false,
+                    SetStrings.class);
             friendNames = friends.getValue();
         } catch (Exception e) {
             e.printStackTrace();

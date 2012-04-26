@@ -17,7 +17,7 @@ public class SwiftSocialTest {
         // public void run() {
         DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
         sequencer.start();
-        
+
         try {
             Thread.sleep(2000);
         } catch (InterruptedException e) {
@@ -52,19 +52,19 @@ public class SwiftSocialTest {
         System.out.println("Login successful:" + successfulLogin);
 
         client.postMessage("Biene", "What a wonderful day!", System.currentTimeMillis());
-        Set<Message> report = client.getSiteReport();
+        Set<Message> report = client.getSiteReport("Biene");
         for (Message m : report) {
             System.out.println("Current status:");
             System.out.println(m);
         }
 
         client.sendFriendRequest("Butterfly");
-        Set<String> friends = client.readUserFriends();
+        Set<String> friends = client.readUserFriends("Biene");
         for (String friend : friends) {
             System.out.println(friend);
         }
-
-        // client.answerFriendRequest("Biene", "Butterfly", true);
+        // TODO Fix the testing here
+        client.answerFriendRequest("Biene", true);
 
     }
 }
