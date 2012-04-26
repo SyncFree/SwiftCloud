@@ -112,6 +112,9 @@ public class FastRecentUpdatesReply implements RpcMessage {
         public ObjectSubscriptionInfo clone() {
             return new ObjectSubscriptionInfo(id, oldClock, newClock, updates, dirty);
         }
+        public ObjectSubscriptionInfo cloneNotification() {
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, null, dirty);
+        }
     }
 
     protected SubscriptionStatus status;
@@ -124,16 +127,12 @@ public class FastRecentUpdatesReply implements RpcMessage {
     public FastRecentUpdatesReply() {
     }
 
-    public FastRecentUpdatesReply(SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions,
+    public FastRecentUpdatesReply( SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions,
             CausalityClock estimatedLatestKnownClock) {
-        this.status = status;
         this.subscriptions = subscriptions;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
     }
-
-    /**
-     * @return status of subscription
-     */
+    
     public SubscriptionStatus getStatus() {
         return status;
     }
@@ -160,6 +159,6 @@ public class FastRecentUpdatesReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcConnection conn, RpcHandler handler) {
-        ((RecentUpdatesReplyHandler) handler).onReceive(conn, this);
+        ((FastRecentUpdatesReplyHandler) handler).onReceive(conn, this);
     }
 }

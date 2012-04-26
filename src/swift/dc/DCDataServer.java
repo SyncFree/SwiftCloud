@@ -37,6 +37,7 @@ import sys.dht.api.DHT;
 import sys.dht.api.DHT.Connection;
 import sys.dht.api.DHT.Key;
 import sys.dht.api.StringKey;
+import sys.pubsub.*;
 
 /**
  * Class to maintain data in the server.
@@ -51,7 +52,7 @@ class DCDataServer {
     CausalityClock version;
     String localSurrogateId;
     Observer localSurrogate;
-    
+
     DCNodeDatabase dbServer;
     DHT dhtClient;
 
@@ -65,6 +66,14 @@ class DCDataServer {
         this.localSurrogate = new LocalObserver(surrogate);
         this.localSurrogateId = surrogate.getId();
         initDHT();
+        initNotifier();
+        DCConstants.DCLogger.info("Data server ready...");
+    }
+
+    /**
+     * Start backgorund thread that dumps notifications
+     */
+    void initNotifier() {
         Thread t = new Thread() {
             public void run() {
                 for (;;) {
@@ -79,8 +88,14 @@ class DCDataServer {
                                 }
                             record = notifications.removeFirst();
                         }
-                        if (record != null)
-                            record.to.sendNotification(record.info);
+                        if (record != null) {
+                            if( record.notification) {
+                                PubSub.PubSub.publish(record.info.getId().toString(), new DHTSendNotification(record.info.cloneNotification()));
+                            } else {
+                                PubSub.PubSub.publish(record.info.getId().toString(), new DHTSendNotification(record.info));
+                            }
+                        }
+//                            record.to.sendNotification(record.info);
                     } catch (Exception e) {
                         // do nothing
                     }
@@ -90,9 +105,8 @@ class DCDataServer {
         };
         t.setDaemon(true);
         t.start();
-        DCConstants.DCLogger.info("Data server ready...");
     }
-    
+
     /**
      * Start backgorund thread that dumps to disk
      */
@@ -102,24 +116,24 @@ class DCDataServer {
                 for (;;) {
                     try {
                         DCConstants.DCLogger.info("Dumping changed objects");
-                        
+
                         List<CRDTData<?>> list = null;
-                        synchronized( modified) {
-                            list = new ArrayList<CRDTData<?>>( modified);
+                        synchronized (modified) {
+                            list = new ArrayList<CRDTData<?>>(modified);
                         }
                         Iterator<CRDTData<?>> it = list.iterator();
-                        while( it.hasNext()) {
+                        while (it.hasNext()) {
                             CRDTData<?> obj = it.next();
-                            lock( obj.id);
+                            lock(obj.id);
                             try {
                                 modified.remove(obj);
                             } finally {
-                                unlock( obj.id);
+                                unlock(obj.id);
                             }
                             writeCRDTintoDB(obj);
                         }
-                        
-                        Thread.sleep(1000000);
+
+                        Thread.sleep(DCConstants.SYNC_PERIOD);
                     } catch (Exception e) {
                         // do nothing
                     }
@@ -129,35 +143,36 @@ class DCDataServer {
         };
         t.setDaemon(true);
         t.start();
-        
+
     }
-    
+
     /**
-     * Start 
+     * Start
      */
     void initDHT() {
         DHT_Node.start();
-        
+
         dhtClient = DHT_Node.getStub();
 
         DHT_Node.setHandler(new DHTDataNode.RequestHandler() {
 
             @Override
             public void onReceive(Connection con, Key key, DHTGetCRDT request) {
-                DCConstants.DCLogger.info( "DHT data server: get CRDT : " + request.getId());
-                con.reply(new DHTGetCRDTReply( localGetCRDTObject( new RemoteObserver( request.getSurrogateId(), con), request.getId(), request.getSubscribe())));
+                DCConstants.DCLogger.info("DHT data server: get CRDT : " + request.getId());
+                con.reply(new DHTGetCRDTReply(localGetCRDTObject(new RemoteObserver(request.getSurrogateId(), con),
+                        request.getId(), request.getSubscribe())));
             }
 
             @Override
-            public void onReceive(Connection con, Key key, DHTExecCRDT request) {
-                DCConstants.DCLogger.info( "DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
-                con.reply(new DHTExecCRDTReply( localExecCRDT( new RemoteObserver( request.getSurrogateId(), con), 
+            public void onReceive(Connection con, Key key, DHTExecCRDT<?> request) {
+                DCConstants.DCLogger.info("DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
+                con.reply(new DHTExecCRDTReply(localExecCRDT(new RemoteObserver(request.getSurrogateId(), con),
                         request.getGrp(), request.getSnapshotVersion(), request.getTrxVersion())));
             }
         });
 
     }
-    
+
     void lock(CRDTIdentifier id) {
         synchronized (locks) {
             LockInfo l = locks.get(id);
@@ -193,15 +208,15 @@ class DCDataServer {
         }
     }
 
-    private void initData( Properties props) {
+    private void initData(Properties props) {
         this.db = new HashMap<String, Map<String, CRDTData<?>>>();
         this.locks = new HashMap<CRDTIdentifier, LockInfo>();
         this.notifications = new LinkedList<NotificationRecord>();
         this.modified = new HashSet<CRDTData<?>>();
 
         this.version = ClockFactory.newClock();
-        
-        initDB( props);
+
+        initDB(props);
 
         IntegerVersioned i = new IntegerVersioned();
         CRDTIdentifier id = new CRDTIdentifier("e", "1");
@@ -214,34 +229,37 @@ class DCDataServer {
         localPutCRDT(localSurrogate, id2, i2, i2.getClock(), i2.getPruneClock());
 
     }
-    
+
     /**********************************************************************************************
      * DATABASE FUNCTIONS
      *********************************************************************************************/
-    void initDB( Properties props) {
+    void initDB(Properties props) {
         try {
-            dbServer = (DCNodeDatabase)Class.forName( props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
         } catch (Exception e) {
-            throw new RuntimeException( "Cannot start underlying database", e);
+            throw new RuntimeException("Cannot start underlying database", e);
         }
         dbServer.init(props);
-        
-    }
-    CRDTData<?> readCRDTFromDB( CRDTIdentifier id) {
-        return (CRDTData<?>)dbServer.read( id);
+
     }
 
-    void writeCRDTintoDB( CRDTData<?> data) {
+    CRDTData<?> readCRDTFromDB(CRDTIdentifier id) {
+        return (CRDTData<?>) dbServer.read(id);
     }
+
+    void writeCRDTintoDB(CRDTData<?> data) {
+    }
+
     /**
-     * Returns database entry. If create, creates a new empty database entry.
-     * It assumes that the given entry has been locked.
+     * Returns database entry. If create, creates a new empty database entry. It
+     * assumes that the given entry has been locked.
+     * 
      * @param table
      * @param key
      * @param create
      * @return
      */
-    CRDTData<?> getDatabaseEntry( CRDTIdentifier id) {
+    CRDTData<?> getDatabaseEntry(CRDTIdentifier id) {
         Map<String, CRDTData<?>> m;
         synchronized (db) {
             m = db.get(id.getTable());
@@ -253,24 +271,23 @@ class DCDataServer {
         CRDTData<?> data = null;
         synchronized (m) {
             data = (CRDTData<?>) m.get(id.getKey());
-            if (data != null) 
+            if (data != null)
                 return data;
         }
-        data = readCRDTFromDB( id);
-        synchronized(m) {
-            if( data == null)
-                data = new CRDTData( id);
+        data = readCRDTFromDB(id);
+        synchronized (m) {
+            if (data == null)
+                data = new CRDTData(id);
             m.put(id.getKey(), data);
             return data;
         }
     }
-    
+
     private void setModifiedDatabaseEntry(CRDTData<?> crdt) {
         synchronized (modified) {
             modified.add(crdt);
         }
     }
-    
 
     /**
      * Executes operations in the given CRDT
@@ -279,24 +296,23 @@ class DCDataServer {
      */
     <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
-        final StringKey key = new StringKey( grp.getTargetUID().toString());
-        // FIXME: commented out this non-compiling line:
-        // DHT_Node
-        final Result<Boolean> result = new Result<Boolean>();
-        while( ! result.hasResult()) {
-            dhtClient.send( key, 
-                new DHTExecCRDT( localSurrogateId, grp, snapshotVersion, trxVersion), new DHTExecCRDTReplyHandler() {
-                    @Override
-                    public void onReceive(DHTExecCRDTReply reply) {
-                        result.setResult( reply.isResult());
-                    }
-            });
-            result.waitForResult(2000);
-            // TODO: probably should not continue forever !!! 
-        }
-        return result.getResult();
-        //TODO: if object is local, just execute local object
-//        return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion);
+        final StringKey key = new StringKey(grp.getTargetUID().toString());
+//        if (!DHT_Node.getInstance().isHandledLocally(key)) {
+            final Result<Boolean> result = new Result<Boolean>();
+            while (!result.hasResult()) {
+                dhtClient.send(key, new DHTExecCRDT(localSurrogateId, grp, snapshotVersion, trxVersion),
+                        new DHTExecCRDTReplyHandler() {
+                            @Override
+                            public void onReceive(DHTExecCRDTReply reply) {
+                                result.setResult(reply.isResult());
+                            }
+                        });
+                result.waitForResult(2000);
+                // TODO: probably should not continue forever !!!
+            }
+            return result.getResult();
+ //       } else
+ //           return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion);
     }
 
     // /**
@@ -316,22 +332,22 @@ class DCDataServer {
      * @return null if cannot fulfill request
      */
     CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
-        final StringKey key = new StringKey( id.toString());
-        final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
-        while( ! result.hasResult()) {
-            dhtClient.send( key, 
-                new DHTGetCRDT( localSurrogateId, id, subscribe), new DHTGetCRDTReplyHandler() {
+        final StringKey key = new StringKey(id.toString());
+//        if (!DHT_Node.getInstance().isHandledLocally(key)) {
+            final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
+            while (!result.hasResult()) {
+                dhtClient.send(key, new DHTGetCRDT(localSurrogateId, id, subscribe), new DHTGetCRDTReplyHandler() {
                     @Override
                     public void onReceive(DHTGetCRDTReply reply) {
-                        result.setResult( reply.getObject());
+                        result.setResult(reply.getObject());
                     }
-            });
-            result.waitForResult(2000);
-            // TODO: probably should not continue forever !!! 
-        }
-        return result.getResult();
-        //TODO: if object is local, just execute local object
-//        return localGetCRDTObject(localSurrogate, id, subscribe);
+                });
+                result.waitForResult(2000);
+                // TODO: probably should not continue forever !!!
+            }
+            return result.getResult();
+ //       } else
+ //           return localGetCRDTObject(localSurrogate, id, subscribe);
     }
 
     /**
@@ -342,8 +358,8 @@ class DCDataServer {
         lock(id);
         try {
             @SuppressWarnings("unchecked")
-            CRDTData<V> data = (CRDTData<V>)this.getDatabaseEntry(id);
-            if( data.empty) {
+            CRDTData<V> data = (CRDTData<V>) this.getDatabaseEntry(id);
+            if (data.empty) {
                 data.initValue(crdt, clk, prune);
             } else {
                 data.crdt.merge(crdt);
@@ -376,7 +392,10 @@ class DCDataServer {
                 }
                 CausalityClock prune = ClockFactory.newClock();
                 crdt.init(id, clk, prune, true);
-                data = localPutCRDT(observer, id, crdt, clk, prune); // will merge if object exists
+                data = localPutCRDT(observer, id, crdt, clk, prune); // will
+                                                                     // merge if
+                                                                     // object
+                                                                     // exists
             }
             CausalityClock oldClock = data.clock.clone();
 
@@ -387,7 +406,13 @@ class DCDataServer {
 
             if (data.observers.size() > 0 || data.notifiers.size() > 0) {
                 ObjectSubscriptionInfo info = new ObjectSubscriptionInfo(id, oldClock, data.clock.clone(), grp);
-                Iterator<Observer> it = data.observers.iterator();
+                if( data.observers.size() > 0) {
+                    addNotification(new NotificationRecord( false, info));
+                }
+                if( data.notifiers.size() > 0) {
+                    addNotification(new NotificationRecord( true, info));
+                }
+/*                Iterator<Observer> it = data.observers.iterator();
                 while (it.hasNext()) {
                     Observer o = it.next();
                     addNotification(new NotificationRecord(o, info));
@@ -403,7 +428,7 @@ class DCDataServer {
                             addNotification(new NotificationRecord(o, info));
                     }
                 }
-            }
+*/            }
 
             return true;
         } finally {
@@ -425,9 +450,9 @@ class DCDataServer {
         lock(id);
         try {
             CRDTData<?> data = localGetCRDT(observer, id, subscribe);
-            if( data == null)
+            if (data == null)
                 return null;
-            return new CRDTObject( data);
+            return new CRDTObject(data);
         } finally {
             unlock(id);
         }
@@ -446,20 +471,22 @@ class DCDataServer {
         lock(id);
         try {
             CRDTData<?> data = this.getDatabaseEntry(id);
-            if( data.empty)
+            if (data.empty)
                 return null;
             if (subscribe == SubscriptionType.UPDATES) {
                 data.addObserver(observer);
             } else if (subscribe == SubscriptionType.NOTIFICATION) {
                 data.addNotifier(observer);
             }
-
+            if (observer instanceof RemoteObserver && subscribe != SubscriptionType.NONE) {
+                RemoteObserver observerR = (RemoteObserver)observer;
+                PubSub.PubSub.addRemoteSubscriber(id.toString(), observerR.con.remoteEndpoint());
+            }
             return data;
         } finally {
             unlock(id);
         }
     }
-
 
 }
 
@@ -494,8 +521,8 @@ class DCDataServer {
 // }
 // }
 
-
-interface Observer {
+interface Observer extends Comparable<Observer> {
+    public String getSurrogateId();
     public void sendNotification(ObjectSubscriptionInfo info);
 }
 
@@ -507,6 +534,7 @@ class LocalObserver implements Observer {
     }
 
     public void sendNotification(ObjectSubscriptionInfo info) {
+        DCConstants.DCLogger.info("DHT data server: send local notidication: CRDT : " + info.getId());
         surrogate.notifyNewUpdates(info);
     }
 
@@ -517,20 +545,33 @@ class LocalObserver implements Observer {
     public boolean equals(Object o) {
         return (o instanceof Observer) && surrogate == ((LocalObserver) o).surrogate;
     }
+
+    @Override
+    public int compareTo(Observer o) {
+        if( o == null)
+            return -1;
+        return getSurrogateId().compareTo(o.getSurrogateId());
+    }
+
+    @Override
+    public String getSurrogateId() {
+        return surrogate.getId();
+    }
 }
 
 class RemoteObserver implements Observer {
-    String surrogateId; 
+    String surrogateId;
     Connection con;
-    
+
     public RemoteObserver(String surrogateId, Connection con) {
         this.surrogateId = surrogateId;
         this.con = con;
     }
 
     public void sendNotification(ObjectSubscriptionInfo info) {
-        //TODO: should this be a reply ?
-        con.reply( new DHTSendNotification( info));
+        DCConstants.DCLogger.info("DHT data server: send remote notidication: CRDT : " + info.getId());
+        // TODO: should this be a reply ?
+        con.reply(new DHTSendNotification(info));
     }
 
     public int hashCode() {
@@ -539,6 +580,18 @@ class RemoteObserver implements Observer {
 
     public boolean equals(Object o) {
         return (o instanceof RemoteObserver) && surrogateId.equals(((RemoteObserver) o).surrogateId);
+    }
+
+    @Override
+    public int compareTo(Observer o) {
+        if( o == null)
+            return -1;
+        return getSurrogateId().compareTo(o.getSurrogateId());
+    }
+
+    @Override
+    public String getSurrogateId() {
+        return this.surrogateId;
     }
 }
 
@@ -568,41 +621,45 @@ class LockInfo {
 }
 
 class NotificationRecord {
-    Observer to;
+//    Observer to;
+    boolean notification;
     ObjectSubscriptionInfo info;
 
-    NotificationRecord(Observer to, ObjectSubscriptionInfo info) {
-        this.to = to;
+    NotificationRecord(/*Observer to,*/boolean notification, ObjectSubscriptionInfo info) {
+//        this.to = to;
+        this.notification = notification;
         this.info = info;
     }
 }
 
-class Result<T>
-{
+class Result<T> {
     T obj;
     boolean hasResult;
-    
+
     Result() {
         hasResult = false;
     }
-    
+
     synchronized boolean hasResult() {
         return hasResult;
     }
+
     synchronized T getResult() {
         return obj;
     }
-    synchronized void setResult( T o) {
+
+    synchronized void setResult(T o) {
         obj = o;
         hasResult = true;
         notifyAll();
-        
+
     }
-    synchronized boolean waitForResult( long timeout) {
-        if( ! hasResult) {
+
+    synchronized boolean waitForResult(long timeout) {
+        if (!hasResult) {
             try {
-                wait( timeout);
-            } catch( Exception e) {
+                wait(timeout);
+            } catch (Exception e) {
                 // do nothing
             }
         }

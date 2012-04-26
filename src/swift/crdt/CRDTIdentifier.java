@@ -1,6 +1,7 @@
 package swift.crdt;
 
 import java.io.Serializable;
+import java.util.Comparator;
 
 /**
  * System-wide unique identifier for CRDT object. Identification via table to
@@ -10,9 +11,10 @@ import java.io.Serializable;
  * 
  */
 // TODO: provide custom serializer or Kryo-lize the class
-public class CRDTIdentifier implements Serializable {
+public class CRDTIdentifier implements Serializable, Comparable<CRDTIdentifier> {
     private String table;
     private String key;
+    private transient String id;
 
     public CRDTIdentifier() {
     }
@@ -23,6 +25,12 @@ public class CRDTIdentifier implements Serializable {
         }
         this.table = table;
         this.key = key;
+    }
+    
+    private String getId() {
+        if( id == null)
+            id = "CRDTId(" + table + "," + key + ")";
+        return id;
     }
 
     /**
@@ -55,6 +63,11 @@ public class CRDTIdentifier implements Serializable {
     }
 
     public String toString() {
-        return "CRDTId(" + table + "," + key + ")";
+        return getId();
+    }
+
+    @Override
+    public int compareTo(CRDTIdentifier arg0) {
+        return getId().compareTo(arg0.getId());
     }
 }

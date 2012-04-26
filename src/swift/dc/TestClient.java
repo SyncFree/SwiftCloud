@@ -14,11 +14,20 @@ public class TestClient {
         try {
             Sys.init();
 
-            SwiftImpl server = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT, Integer.MAX_VALUE);
+            SwiftImpl server0 = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT);
+
+            SwiftImpl server = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT);
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
-            IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
-                    new DummyObjectUpdatesListener());
+            IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class, new ObjectUpdatesListener() {
+
+                @Override
+                public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id) {
+                    System.out.println("NOTIFY: object modified : " + id + "******************************************************");
+                    
+                }
+                
+            });
             System.out.println("(e,1) = " + i1.getValue());
             IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerVersioned.class,
                     new DummyObjectUpdatesListener());
@@ -26,10 +35,20 @@ public class TestClient {
             i1.add(1);
             System.out.println("(e,1).add(1)");
             System.out.println("(e,1) = " + i1.getValue());
+
+            TxnHandle handle0 = server0.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
+                    false);
+            IntegerTxnLocal i0 = handle0.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
+            i0.add(1);
+            System.out.println( "Changing (e,1) in other transaction");
+            handle0.commit();
+            Thread.sleep(120000);
+
+            
             handle.commit();
             System.out.println("commit");
 
-            handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+/*            handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
                     new DummyObjectUpdatesListener());
             System.out.println("(e,1) = " + i1.getValue());
@@ -80,9 +99,10 @@ public class TestClient {
             System.out.println("(t,1) = " + i1.getValue());
             handle.commit();
             System.out.println("commit");
-
+*/
             System.out.println("TetsClient ended with success");
 
+            Thread.sleep(1000000);
             server.stop(true);
         } catch (Exception e) {
             e.printStackTrace();

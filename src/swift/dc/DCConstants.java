@@ -14,6 +14,8 @@ public class DCConstants {
     public static final int SEQUENCER_PORT = 9998;
     public static final int SURROGATE_PORT = 9999;
 
+    public static final long SYNC_PERIOD = 1000000;
+
     public static final String DATABASE_CLASS = "DB";    // property for storing the type of database used 
     
     public static final String RIAK_URL = "RIAK:URL";    // property of URL for accessing Riak
