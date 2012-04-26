@@ -3,8 +3,11 @@ package swift.client;
 import java.util.HashMap;
 import java.util.Map;
 
+import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
+import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
+import swift.crdt.operations.CRDTObjectOperationsGroup;
 
 /**
  * Local cache of CRDT objects.
@@ -31,6 +34,14 @@ class InfiniteObjectsCache {
             return null;
         }
         return entry.getObject();
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void recordOnAll(final Timestamp timestamp) {
+        final CRDTObjectOperationsGroup dummyOp = new CRDTObjectOperationsGroup(null, timestamp, null);
+        for (final Entry entry : entries.values()) {
+            entry.object.execute(dummyOp, CRDTOperationDependencyPolicy.IGNORE);
+        }
     }
 
     private static final class Entry {

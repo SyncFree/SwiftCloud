@@ -778,6 +778,8 @@ public class SwiftImpl implements Swift, TxnManager {
                 crdt.execute(opsGroup, CRDTOperationDependencyPolicy.IGNORE);
             }
         }
+        objectsCache.recordOnAll(txn.getGlobalTimestamp());
+
         for (final AbstractTxnHandle dependingTxn : locallyCommittedTxnsQueue) {
             if (dependingTxn != txn) {
                 dependingTxn.includeGlobalDependency(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
