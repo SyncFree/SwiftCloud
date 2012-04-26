@@ -194,6 +194,7 @@ public class SwiftImpl implements Swift, TxnManager {
         assertNoPendingTransaction();
         assertRunning();
 
+        final Timestamp localTimestamp = clientTimestampGenerator.generateNew();
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -210,16 +211,22 @@ public class SwiftImpl implements Swift, TxnManager {
                     throw new NetworkException("timed out to get transcation snapshot point");
                 }
             }
-            final Timestamp localTimestmap = clientTimestampGenerator.generateNew();
             // Invariant: for SI snapshotClock of a new transaction dominates
             // clock of all previous SI transaction (monotonic reads), since
             // commitedVersion only grows.
             final CausalityClock snapshotClock = committedVersion.clone();
-            setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, localTimestmap, snapshotClock));
-            logger.info("SI transaction " + localTimestmap + " started with global snapshot point: " + snapshotClock);
+            setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, localTimestamp, snapshotClock));
+            logger.info("SI transaction " + localTimestamp + " started with global snapshot point: " + snapshotClock);
             return pendingTxn;
+
+        case REPEATABLE_READS:
+            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, localTimestamp));
+            logger.info("REPEATABLE READS transaction " + localTimestamp + " started");
+            return pendingTxn;
+
+        case READ_COMMITTED:
+            // FIXME: implement!
         default:
-            // FIXME: implement other isolation levels.
             throw new UnsupportedOperationException("isolation level " + isolationLevel + " unsupported");
         }
     }
@@ -241,26 +248,59 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     @Override
-    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
-            CausalityClock minVersion, final boolean tryMoreRecent, boolean create, Class<V> classOfV,
+    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectLatestVersionTxnView(AbstractTxnHandle txn,
+            CRDTIdentifier id, CachePolicy cachePolicy, boolean create, Class<V> classOfV,
             final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
-        if (minVersion.hasEventFrom(CLIENT_CLOCK_ID)) {
-            throw new IllegalArgumentException("transaction requested visibility of local transaction");
+
+        TxnLocalCRDT<V> localView;
+        if (cachePolicy == CachePolicy.CACHED) {
+            localView = getCachedObjectForTxn(id, null, classOfV, updatesListener);
+            if (localView != null) {
+                // FIXME subscribe notifications anyway!
+                return localView;
+            }
         }
 
+        // Try to get the latest one.
+        try {
+            fetchLatestObject(id, create, classOfV,
+                    clockWithLocallyCommittedGlobalDependencies(ClockFactory.newClock()), updatesListener != null);
+        } catch (VersionNotFoundException x) {
+            if (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.get(id) == null) {
+                throw x;
+            }
+        } catch (NetworkException x) {
+            if (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.get(id) == null) {
+                throw x;
+            }
+        }
+        // Pass other exceptions through.
+
+        return getCachedObjectForTxn(id, null, classOfV, updatesListener);
+    }
+
+    @Override
+    public synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getObjectVersionTxnView(AbstractTxnHandle txn,
+            CRDTIdentifier id, CausalityClock version, boolean create, Class<V> classOfV,
+            final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
+        assertPendingTransaction(txn);
+        assertIsGlobalClock(version);
+
         // FIXME honor tryMoreRecent and check with commitedVersion
-        TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, minVersion, classOfV, updatesListener);
+        TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView != null) {
+            // FIXME subscribe notifications anyway!
             return localView;
         }
 
-        final CausalityClock clock = clockWithLocalDependencies(minVersion);
+        final CausalityClock clock = clockWithLocallyCommittedGlobalDependencies(version);
         clock.drop(CLIENT_CLOCK_ID);
         fetchLatestObject(id, create, classOfV, clock, updatesListener != null);
 
-        localView = getCachedObjectForTxn(id, minVersion, classOfV, updatesListener);
+        localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView == null) {
             throw new IllegalStateException(
                     "Internal error: just retrieved object unavailable in appropriate version in the cache");
@@ -268,7 +308,13 @@ public class SwiftImpl implements Swift, TxnManager {
         return localView;
     }
 
-    private CausalityClock clockWithLocalDependencies(CausalityClock clock) {
+    private CausalityClock clockWithLocallyCommittedGlobalDependencies(CausalityClock clock) {
+        clock = clockWithLocallyCommittedDependencies(clock);
+        clock.drop(CLIENT_CLOCK_ID);
+        return clock;
+    }
+
+    private CausalityClock clockWithLocallyCommittedDependencies(CausalityClock clock) {
         clock = clock.clone();
         for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
             // Include in clock those dependent transactions that already
@@ -300,7 +346,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // Return the most recent version.
             clock = crdt.getClock();
         }
-        clock = clockWithLocalDependencies(clock);
+        clock = clockWithLocallyCommittedDependencies(clock);
         final CausalityClock globalClock = clock.clone();
         globalClock.drop(CLIENT_CLOCK_ID);
 
@@ -342,7 +388,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 // TODO: Force server subscription too in this case?
                 notifyUpdatesListenerDiscardRecord(id);
             } else {
-                // Assumption: subscription to the store is triggerred
+                // Assumption: subscription to the store is triggered
                 // externally from this method.
                 addUpdatesSubscriptionEntry(pendingTxn, id, crdtView, updatesListener);
             }
@@ -528,17 +574,15 @@ public class SwiftImpl implements Swift, TxnManager {
             final List<CRDTObjectOperationsGroup<?>> ops, final CausalityClock outputClock) {
         final CRDT crdt;
         final CausalityClock crdtClockCopy;
-        final CausalityClock committedVersionCopy;
         synchronized (this) {
             crdt = objectsCache.get(id);
             crdtClockCopy = crdt == null ? null : crdt.getClock().clone();
-            committedVersionCopy = committedVersion.clone();
         }
 
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
             logger.warning("cannot apply received updates on object " + id + " as it has been evicted from the cache");
-            handleApplyObjectUpdatesWithMissingVersion(id, committedVersionCopy);
+            handleApplyObjectUpdatesWithMissingVersion(id, dependencyClock.clone());
             return;
         }
 
@@ -546,7 +590,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
             // Ooops, we missed some update or messages were ordered.
             logger.warning("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
-            handleApplyObjectUpdatesWithMissingVersion(id, committedVersionCopy);
+            handleApplyObjectUpdatesWithMissingVersion(id, dependencyClock.clone());
             return;
         }
 
@@ -576,10 +620,10 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private void handleApplyObjectUpdatesWithMissingVersion(final CRDTIdentifier id,
-            final CausalityClock committedVersionCopy) {
+            final CausalityClock dependencyClock) {
         if (hasSubscriptionEntry(id)) {
             try {
-                fetchLatestObject(id, false, BaseCRDT.class, committedVersionCopy, true);
+                fetchLatestObject(id, false, BaseCRDT.class, dependencyClock, true);
             } catch (SwiftException e) {
                 logger.warning("could not fetch the latest version of an object for notifications purposes: "
                         + e.getMessage());
@@ -795,6 +839,12 @@ public class SwiftImpl implements Swift, TxnManager {
     private void assertRunning() {
         if (stopFlag) {
             throw new IllegalStateException("client is stopped");
+        }
+    }
+
+    private void assertIsGlobalClock(CausalityClock version) {
+        if (version.hasEventFrom(CLIENT_CLOCK_ID)) {
+            throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
     }
 

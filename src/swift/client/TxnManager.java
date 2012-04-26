@@ -20,10 +20,13 @@ import swift.exceptions.WrongTypeException;
 public interface TxnManager {
     AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cp, boolean readOnly) throws NetworkException;
 
-    <V extends CRDT<V>> TxnLocalCRDT<V> getObjectTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
-            CausalityClock minVersion, boolean tryMoreRecent, boolean create, Class<V> classOfV,
-            ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException;
+    <V extends CRDT<V>> TxnLocalCRDT<V> getObjectLatestVersionTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
+            CachePolicy cachePolicy, boolean create, Class<V> classOfV, final ObjectUpdatesListener updatesListener)
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;
+
+    <V extends CRDT<V>> TxnLocalCRDT<V> getObjectVersionTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
+            CausalityClock version, boolean create, Class<V> classOfV, ObjectUpdatesListener updatesListener)
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;
 
     void discardTxn(AbstractTxnHandle txn);
 

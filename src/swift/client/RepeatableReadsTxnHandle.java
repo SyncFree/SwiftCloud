@@ -3,7 +3,6 @@ package swift.client;
 import java.util.HashMap;
 import java.util.Map;
 
-import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
@@ -12,25 +11,22 @@ import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 /**
- * Implementation of {@link IsolationLevel#SNAPSHOT_ISOLATION} transaction,
- * which always read from a consistent snapshot.
+ * Implementation of {@link IsolationLevel#REPEATABLE_READS} transaction, which
+ * always read from a snapshot, possibly inconsistent and provides repeatable
+ * reads.
  * <p>
- * <b>Implementation notes<b>. Each transaction defines a snapshot point which
- * is a set of update transactions visible to this transaction at the beginning
- * of the transaction. This set includes globally committed transaction visible
- * at the beginning of the transaction. {@link TxnManager} includes also all
- * previously locally committed transactions.
+ * It tries to offer the latest available object version, accessing the store
+ * according to the {@link CachePolicy}.
  * 
  * @author mzawirski
  */
-class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle {
-    final CausalityClock visibleTransactionsClock;
+class RepeatableReadsTxnHandle extends AbstractTxnHandle implements TxnHandle {
     final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectViewsCache;
 
     /**
@@ -40,16 +36,10 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      *            cache policy used by this transaction
      * @param localTimestamp
      *            local timestamp used for local operations of this transaction
-     * @param globalVisibleTransactionsClock
-     *            clock representing globally committed update transactions
-     *            visible to this transaction; left unmodified
      */
-    SnapshotIsolationTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final Timestamp localTimestamp,
-            final CausalityClock globalVisibleTransactionsClock) {
+    RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final Timestamp localTimestamp) {
         super(manager, cachePolicy, localTimestamp);
-        this.visibleTransactionsClock = globalVisibleTransactionsClock.clone();
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
-        updateUpdatesDependencyClock(visibleTransactionsClock);
     }
 
     @Override
@@ -58,9 +48,9 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
             VersionNotFoundException, NetworkException {
         TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectViewsCache.get(id);
         if (localView == null) {
-            localView = manager.getObjectVersionTxnView(this, id, visibleTransactionsClock, create, classOfV,
-                    updatesListener);
+            localView = manager.getObjectLatestVersionTxnView(this, id, cachePolicy, create, classOfV, updatesListener);
             objectViewsCache.put(id, localView);
+            updateUpdatesDependencyClock(localView.getClock());
         }
         return (T) localView;
     }

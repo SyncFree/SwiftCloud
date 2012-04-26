@@ -12,7 +12,7 @@ import swift.exceptions.WrongTypeException;
  * Representation of transaction, a basic unit of application interaction with
  * the Swift system. All read of objects accessed through a transaction (
  * {@link #get(CRDTIdentifier, boolean, Class)}) ensure guarantees specified by
- * transaction {@link IsolationLevel}. The fresness of read objects is
+ * transaction {@link IsolationLevel}. The freshness of read objects is
  * determined by {@link CachePolicy}. All updates issued on objects within a
  * transaction become atomically visible to other transactions at some time
  * after commit ({@link #commit(boolean)}).
