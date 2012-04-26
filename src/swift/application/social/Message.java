@@ -8,7 +8,7 @@ public class Message implements Copyable, java.io.Serializable {
     private String receiver;
     private long date;
 
-    // needed for krio
+    /** Do not use: This constructor is required for Kryo */
     public Message() {
     }
 
