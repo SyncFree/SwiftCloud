@@ -192,14 +192,17 @@ public class SwiftSocial {
             SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(
                     NamingScheme.forInFriendReq(this.currentUser.loginName), false, SetStrings.class);
             inFriendReq.remove(requester);
+            SetTxnLocalString outFriendReq = (SetTxnLocalString) txn.get(NamingScheme.forOutFriendReq(requester),
+                    false, SetStrings.class);
+            outFriendReq.remove(this.currentUser.loginName);
             if (accept) {
                 SetTxnLocalString friends = (SetTxnLocalString) txn.get(
                         NamingScheme.forFriends(this.currentUser.loginName), false, SetStrings.class);
                 friends.insert(requester);
+                SetTxnLocalString requesterFriends = (SetTxnLocalString) txn.get(NamingScheme.forFriends(requester),
+                        false, SetStrings.class);
+                requesterFriends.insert(this.currentUser.loginName);
             }
-            SetTxnLocalString outFriendReq = (SetTxnLocalString) txn.get(NamingScheme.forOutFriendReq(requester),
-                    false, SetStrings.class);
-            outFriendReq.remove(this.currentUser.loginName);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
