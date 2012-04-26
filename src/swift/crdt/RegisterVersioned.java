@@ -163,7 +163,11 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     @Override
     protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
-        // TODO: implement
+        for (QueueEntry<V> e : values) {
+            if (!clock.includes(e.ts)) {
+                return true;
+            }
+        }
         return false;
     }
 }

@@ -127,8 +127,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     public boolean hasUpdatesSince(CausalityClock clock) {
         final CMP_CLOCK clockCmp = clock.compareTo(updatesClock);
         final CMP_CLOCK pruneCmp = clock.compareTo(pruneClock);
-        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED
-                || pruneCmp == CMP_CLOCK.CMP_CONCURRENT || pruneCmp == CMP_CLOCK.CMP_DOMINATES) {
+        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_DOMINATES
+                || pruneCmp == CMP_CLOCK.CMP_CONCURRENT || pruneCmp == CMP_CLOCK.CMP_ISDOMINATED) {
             throw new IllegalArgumentException();
         }
         return hasUpdatesSinceImpl(clock);

@@ -1,5 +1,6 @@
 package swift.crdt;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
@@ -9,8 +10,8 @@ import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.operations.RegisterUpdate;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 // TODO: tests for concurrent RegisterUpdates or sequential RegisterUpdates with some interleavings.
@@ -226,4 +227,12 @@ public class RegisterMergeTest {
         assertTrue(result == 13 || result == 23);
     }
 
+    @Test
+    public void testHasUpdateSince() {
+        final CausalityClock updatesSince = i1.getClock().clone();
+        assertFalse(i1.hasUpdatesSince(updatesSince));
+
+        registerSingleUpdateTxn(1, i1, swift1);
+        assertTrue(i1.hasUpdatesSince(updatesSince));
+    }
 }

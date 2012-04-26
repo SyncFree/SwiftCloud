@@ -1,5 +1,6 @@
 package swift.crdt;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
@@ -8,8 +9,8 @@ import org.junit.Test;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.operations.IntegerUpdate;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 public class IntegerMergeTest {
@@ -124,7 +125,7 @@ public class IntegerMergeTest {
         // TesterUtils.printInformtion(i1, swift1.beginTxn());
         assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue() == 3);
     }
-    
+
     @Test(expected = IllegalStateException.class)
     public void prune3() {
         for (int i = 0; i < 5; i++) {
@@ -211,4 +212,12 @@ public class IntegerMergeTest {
         assertTrue(result == 20);
     }
 
+    @Test
+    public void testHasUpdateSince() {
+        final CausalityClock updatesSince = i1.getClock().clone();
+        assertFalse(i1.hasUpdatesSince(updatesSince));
+
+        registerSingleUpdateTxn(1, i1, swift1);
+        assertTrue(i1.hasUpdatesSince(updatesSince));
+    }
 }

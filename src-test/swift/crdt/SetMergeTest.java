@@ -1,5 +1,6 @@
 package swift.crdt;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.HashMap;
@@ -15,8 +16,8 @@ import swift.clocks.ClockFactory;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 public class SetMergeTest {
@@ -261,5 +262,14 @@ public class SetMergeTest {
 
         swift1.prune(i1, swift1.beginTxn().getClock());
         TesterUtils.printInformtion(i1, swift1.beginTxn());
+    }
+
+    @Test
+    public void testHasUpdateSince() {
+        final CausalityClock updatesSince = i1.getClock().clone();
+        assertFalse(i1.hasUpdatesSince(updatesSince));
+
+        registerSingleInsertTxn(1, i1, swift1);
+        assertTrue(i1.hasUpdatesSince(updatesSince));
     }
 }

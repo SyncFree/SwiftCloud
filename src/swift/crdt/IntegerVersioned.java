@@ -225,7 +225,13 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     @Override
     protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
-        // TODO: implement
+        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : updates.entrySet()) {
+            for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
+                if (!clock.includes(set.getSecond())) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 }

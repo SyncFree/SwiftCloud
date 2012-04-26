@@ -185,7 +185,18 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
-        // TODO: implement
+        for (Map<TripleTimestamp, Set<TripleTimestamp>> addsRemoves : elems.values()) {
+            for (final Entry<TripleTimestamp, Set<TripleTimestamp>> addRemoves : addsRemoves.entrySet()) {
+                if (!clock.includes(addRemoves.getKey())) {
+                    return true;
+                }
+                for (final TripleTimestamp removeTimestamp : addRemoves.getValue()) {
+                    if (!clock.includes(removeTimestamp)) {
+                        return true;
+                    }
+                }
+            }
+        }
         return false;
     }
 }
