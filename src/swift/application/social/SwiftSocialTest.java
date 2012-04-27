@@ -1,5 +1,6 @@
 package swift.application.social;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import swift.client.SwiftImpl;
@@ -46,9 +47,16 @@ public class SwiftSocialTest {
         client.postMessage("Biene", "Need more chocolate!", System.currentTimeMillis());
         client.postMessage("Butterfly", "Ready for springtime?", System.currentTimeMillis());
 
-        Set<Message> report = client.getMessagesFor("Biene");
+        Set<Message> messages = new HashSet<Message>();
+        Set<Message> events = new HashSet<Message>();
+
+        client.read("Biene", messages, events);
         System.out.println("Messages:");
-        for (Message m : report) {
+        for (Message m : messages) {
+            System.out.println(m);
+        }
+        System.out.println("Events:");
+        for (Message m : events) {
             System.out.println(m);
         }
 
@@ -66,9 +74,16 @@ public class SwiftSocialTest {
         System.out.println("Login successful:" + successfulLogin);
         client.answerFriendRequest("Biene", true);
 
-        report = client.getMessagesFor("Biene");
-        for (Message m : report) {
-            System.out.println("Messages:");
+        Set<Message> msgs = new HashSet<Message>();
+        Set<Message> evnts = new HashSet<Message>();
+        User user = client.read("Butterfly", msgs, evnts);
+        System.out.println("User : " + user.userInfo());
+        System.out.println("Messages:");
+        for (Message m : msgs) {
+            System.out.println(m);
+        }
+        System.out.println("Events:");
+        for (Message m : evnts) {
             System.out.println(m);
         }
 

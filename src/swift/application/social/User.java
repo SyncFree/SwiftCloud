@@ -16,7 +16,7 @@ public class User implements Copyable {
     long birthday;
     // FIXME: Better format: Enum?
     int maritalStatus;
-    // CRDTIdentifier eventList;
+    CRDTIdentifier eventList;
     CRDTIdentifier msgList;
 
     CRDTIdentifier friendList;
@@ -40,10 +40,10 @@ public class User implements Copyable {
         this.maritalStatus = 0;
         this.active = active;
         this.msgList = NamingScheme.forMessages(loginName);
+        this.eventList = NamingScheme.forEvents(loginName);
         this.friendList = NamingScheme.forFriends(loginName);
         this.inFriendReq = NamingScheme.forInFriendReq(loginName);
         this.outFriendReq = NamingScheme.forOutFriendReq(loginName);
-
     }
 
     @Override
@@ -61,4 +61,12 @@ public class User implements Copyable {
         sb.append(new Date(birthday));
         return sb.toString();
     }
+
+    public String userInfo() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(fullName).append(", born ");
+        sb.append(new Date(birthday));
+        return sb.toString();
+    }
+
 }

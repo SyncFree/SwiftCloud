@@ -110,9 +110,11 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(loginName), true,
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
+            txn.get(NamingScheme.forEvents(loginName), true, SetMsg.class);
             txn.get(NamingScheme.forFriends(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forInFriendReq(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forOutFriendReq(loginName), true, SetStrings.class);
+
             User newUser = new User(loginName, passwd, fullName, birthday, true);
             reg.set(newUser);
             logger.info("Registered user: " + newUser);
@@ -146,14 +148,18 @@ public class SwiftSocial {
         }
     }
 
-    Set<Message> getMessagesFor(String name) {
+    @SuppressWarnings("unchecked")
+    User read(final String name, final Set<Message> messages, final Set<Message> events) {
         logger.info("Get site report for " + name);
-        Set<Message> postings = new HashSet<Message>();
         TxnHandle txn = null;
+        User user = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
-            SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(name), false, SetMsg.class);
-            postings = messages.getValue();
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
+                    RegisterVersioned.class);
+            user = reg.getValue();
+            messages.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forMessages(name), false, SetMsg.class)).getValue());
+            events.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forEvents(name), false, SetMsg.class)).getValue());
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -161,14 +167,13 @@ public class SwiftSocial {
                 txn.commit();
             }
         }
-        return postings;
-
+        return user;
     }
 
     // FIXME return error code?
     void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
-        Message newMsg = new Message(msg, this.currentUser.loginName, receiverName, date);
+        Message newMsg = new Message(msg, this.currentUser.loginName, date);
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);

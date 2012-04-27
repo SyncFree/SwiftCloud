@@ -65,4 +65,15 @@ public class NamingScheme {
     public static CRDTIdentifier forOutFriendReq(final String loginName) {
         return new CRDTIdentifier("outFriendReq", loginName);
     }
+
+    /**
+     * Generates a CRDT identifier for events from login name.
+     * 
+     * @param loginName
+     * @return CRDT identifier for collection of events
+     */
+
+    public static CRDTIdentifier forEvents(String loginName) {
+        return new CRDTIdentifier("events", loginName);
+    }
 }

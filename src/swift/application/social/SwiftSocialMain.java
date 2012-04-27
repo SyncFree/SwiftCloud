@@ -10,6 +10,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 
 import swift.client.SwiftImpl;
@@ -94,7 +95,7 @@ public class SwiftSocialMain {
                 }
             case READ:
                 if (toks.length == 2) {
-                    client.getMessagesFor(toks[1]);
+                    client.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
                     break;
                 }
             case SEE_FRIENDS:
