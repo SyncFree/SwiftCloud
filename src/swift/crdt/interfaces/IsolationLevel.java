@@ -10,6 +10,10 @@ public enum IsolationLevel {
     /**
      * Transaction reads from a consistent snapshot defined at the beginning of
      * the transaction.
+     * <p>
+     * Note that snapshots of different transactions are only partially ordered,
+     * not totally ordered. I.e., formally this is Non-Mononotonic Snapshot
+     * Isolation.
      */
     SNAPSHOT_ISOLATION,
     /**
@@ -23,5 +27,12 @@ public enum IsolationLevel {
      * Transaction reads from committed transactions. Reading the same object
      * twice may yield different results.
      */
-    READ_COMMITTED
+    // TODO: implement
+    READ_COMMITTED,
+    /**
+     * Transaction reads may observe only partial results of some transaction.
+     * Reading the same object twice may yield different results.
+     */
+    // TODO: implement
+    READ_UNCOMMITTED;
 }

@@ -237,7 +237,8 @@ public class SwiftImpl implements Swift, TxnManager {
             return pendingTxn;
 
         case READ_COMMITTED:
-            // FIXME: implement!
+        case READ_UNCOMMITTED:
+            // TODO: implement!
         default:
             throw new UnsupportedOperationException("isolation level " + isolationLevel + " unsupported");
         }
