@@ -22,7 +22,7 @@ import sys.Sys;
 
 public class SwiftSocialMain {
     private static String sequencerName = "localhost";
-    private static String usersFileName = "scripts/add_users.txt";
+    private static String usersFileName = "scripts/users.txt";
     private static String commandsFileName = "scripts/commands.txt";
 
     public static void main(String[] args) {
@@ -111,10 +111,12 @@ public class SwiftSocialMain {
             case STATUS:
                 if (toks.length == 2) {
                     client.updateStatus(toks[1], System.currentTimeMillis());
+                    break;
                 }
             case POST:
                 if (toks.length == 3) {
                     client.postMessage(toks[1], toks[2], System.currentTimeMillis());
+                    break;
                 }
             default:
                 System.out.println("Can't parse command line :" + line);
