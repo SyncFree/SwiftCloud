@@ -234,4 +234,15 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         }
         return false;
     }
+
+    @Override
+    public IntegerVersioned copy() {
+        IntegerVersioned copy = new IntegerVersioned();
+        copy.updates.putAll(this.updates);
+        copy.currentValue = this.currentValue;
+        copy.pruneVector.putAll(this.pruneVector);
+        copy.pruneValue = this.pruneValue;
+        copyBase(copy);
+        return copy;
+    }
 }

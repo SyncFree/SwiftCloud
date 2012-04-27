@@ -157,7 +157,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         for (QueueEntry<V> e : values) {
             copyObj.values.add(e.copy());
         }
-        copyObj.init(id, getClock().clone(), getPruneClock().clone(), registeredInStore);
+        copyBase(copyObj);
         return copyObj;
     }
 
@@ -170,4 +170,5 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         }
         return false;
     }
+
 }

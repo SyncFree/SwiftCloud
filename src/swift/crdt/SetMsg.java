@@ -24,4 +24,12 @@ public class SetMsg extends SetVersioned<Message, SetMsg> {
     protected void execute(CRDTOperation<SetMsg> op) {
         op.applyTo(this);
     }
+
+    @Override
+    public SetMsg copy() {
+        SetMsg copy = new SetMsg();
+        copyLoad(copy);
+        copyBase(copy);
+        return copy;
+    }
 }

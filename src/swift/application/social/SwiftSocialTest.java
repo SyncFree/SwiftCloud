@@ -7,16 +7,14 @@ import java.util.TreeSet;
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
-import swift.dc.DCSequencerServer;
-import swift.dc.DCServer;
 import sys.Sys;
 
 public class SwiftSocialTest {
     static String sequencerName = "localhost";
 
     public static void main(String[] args) {
-        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-        sequencer.start();
+        // DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
+        // sequencer.start();
 
         try {
             Thread.sleep(1000);
@@ -24,7 +22,7 @@ public class SwiftSocialTest {
             // do nothing
         }
 
-        DCServer.main(new String[] { sequencerName });
+        // DCServer.main(new String[] { sequencerName });
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {

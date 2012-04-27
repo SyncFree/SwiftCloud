@@ -24,4 +24,12 @@ public class SetStrings extends SetVersioned<String, SetStrings> {
     protected void execute(CRDTOperation<SetStrings> op) {
         op.applyTo(this);
     }
+
+    @Override
+    public SetStrings copy() {
+        SetStrings copy = new SetStrings();
+        copyLoad(copy);
+        copyBase(copy);
+        return copy;
+    }
 }

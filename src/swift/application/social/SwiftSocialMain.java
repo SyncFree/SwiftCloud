@@ -79,48 +79,50 @@ public class SwiftSocialMain {
 
         // Execute the commands assigned to this thread
         List<String> commandData = readInputFromFile(inputFileName);
-        int n_fail = 0;
-        for (String line : commandData) {
-            String[] toks = line.split(";");
-            switch (Commands.valueOf(toks[0].toUpperCase())) {
-            case LOGIN:
-                if (toks.length == 3) {
-                    client.login(toks[1], toks[2]);
-                    break;
+        while (true) {
+            int n_fail = 0;
+            for (String line : commandData) {
+                String[] toks = line.split(";");
+                switch (Commands.valueOf(toks[0].toUpperCase())) {
+                case LOGIN:
+                    if (toks.length == 3) {
+                        client.login(toks[1], toks[2]);
+                        break;
+                    }
+                case LOGOUT:
+                    if (toks.length == 2) {
+                        client.logout(toks[1]);
+                        break;
+                    }
+                case READ:
+                    if (toks.length == 2) {
+                        client.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
+                        break;
+                    }
+                case SEE_FRIENDS:
+                    if (toks.length == 2) {
+                        client.readFriendList(toks[1]);
+                        break;
+                    }
+                case FRIEND:
+                    if (toks.length == 2) {
+                        client.befriend(toks[1]);
+                        break;
+                    }
+                case STATUS:
+                    if (toks.length == 2) {
+                        client.updateStatus(toks[1], System.currentTimeMillis());
+                        break;
+                    }
+                case POST:
+                    if (toks.length == 3) {
+                        client.postMessage(toks[1], toks[2], System.currentTimeMillis());
+                        break;
+                    }
+                default:
+                    System.out.println("Can't parse command line :" + line);
+                    n_fail++;
                 }
-            case LOGOUT:
-                if (toks.length == 2) {
-                    client.logout(toks[1]);
-                    break;
-                }
-            case READ:
-                if (toks.length == 2) {
-                    client.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
-                    break;
-                }
-            case SEE_FRIENDS:
-                if (toks.length == 2) {
-                    client.readFriendList(toks[1]);
-                    break;
-                }
-            case FRIEND:
-                if (toks.length == 2) {
-                    client.befriend(toks[1]);
-                    break;
-                }
-            case STATUS:
-                if (toks.length == 2) {
-                    client.updateStatus(toks[1], System.currentTimeMillis());
-                    break;
-                }
-            case POST:
-                if (toks.length == 3) {
-                    client.postMessage(toks[1], toks[2], System.currentTimeMillis());
-                    break;
-                }
-            default:
-                System.out.println("Can't parse command line :" + line);
-                n_fail++;
             }
         }
 

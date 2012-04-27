@@ -157,4 +157,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
         return null;
     }
+
+    protected void copyBase(V object) {
+        object.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
+    }
 }

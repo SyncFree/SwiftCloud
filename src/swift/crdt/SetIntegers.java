@@ -23,4 +23,12 @@ public class SetIntegers extends SetVersioned<Integer, SetIntegers> {
     protected void execute(CRDTOperation<SetIntegers> op) {
         op.applyTo(this);
     }
+
+    @Override
+    public SetIntegers copy() {
+        SetIntegers copy = new SetIntegers();
+        copyLoad(copy);
+        copyBase(copy);
+        return copy;
+    }
 }

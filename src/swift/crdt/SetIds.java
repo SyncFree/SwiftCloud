@@ -23,4 +23,12 @@ public class SetIds extends SetVersioned<CRDTIdentifier, SetIds> {
     protected void execute(CRDTOperation<SetIds> op) {
         op.applyTo(this);
     }
+
+    @Override
+    public SetIds copy() {
+        SetIds copy = new SetIds();
+        copyLoad(copy);
+        copyBase(copy);
+        return copy;
+    }
 }

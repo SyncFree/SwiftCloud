@@ -196,4 +196,8 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         }
         return false;
     }
+
+    protected void copyLoad(SetVersioned<V, T> copy) {
+        copy.elems = new HashMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>>(this.elems);
+    }
 }
