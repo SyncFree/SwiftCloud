@@ -1,5 +1,6 @@
 package swift.application.social;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
@@ -53,11 +54,11 @@ public class SwiftSocial {
             }
         }
 
+        TxnHandle txn = null;
         try {
             // Check if user is known at all
             // FIXME Is login possible in offline mode?
-
-            TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
             @SuppressWarnings("unchecked")
             User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class)).getValue();
 
@@ -72,6 +73,8 @@ public class SwiftSocial {
                     currentUser = user;
                     logger.info(loginName + " successfully logged in");
                     txn.commitAsync(null);
+                    txn = null;
+
                     return true;
                 } else {
                     logger.info("Wrong password for " + loginName);
@@ -89,7 +92,12 @@ public class SwiftSocial {
         } catch (VersionNotFoundException e) {
             // should not happen
             e.printStackTrace();
+        } finally {
+            if (txn != null) {
+                txn.rollback();
+            }
         }
+
         return false;
     }
 
@@ -101,7 +109,8 @@ public class SwiftSocial {
 
     // FIXME Return error code?
     @SuppressWarnings("unchecked")
-    void registerUser(String loginName, String passwd, String fullName, long birthday) {
+    void registerUser(final String loginName, final String passwd, final String fullName, final long birthday,
+            final long date) {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
@@ -118,12 +127,17 @@ public class SwiftSocial {
 
             User newUser = new User(loginName, passwd, fullName, birthday, true);
             reg.set(newUser);
+            Message newEvt = new Message(fullName + " has registered!", loginName, date);
+            writeMessage(txn, newEvt, NamingScheme.forEvents(loginName));
             logger.info("Registered user: " + newUser);
+            txn.commit();
+            txn = null;
+            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
             }
         }
     }
@@ -140,17 +154,20 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
                     NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class);
             reg.set(currentUser);
+            txn.commitAsync(null);
+            txn = null;
+            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
             }
         }
     }
 
     @SuppressWarnings("unchecked")
-    User read(final String name, final Set<Message> messages, final Set<Message> events) {
+    User read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
@@ -159,13 +176,17 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
                     RegisterVersioned.class);
             user = reg.getValue();
-            messages.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forMessages(name), false, SetMsg.class)).getValue());
-            events.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forEvents(name), false, SetMsg.class)).getValue());
+            msgs.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forMessages(name), false, SetMsg.class)).getValue());
+            evnts.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forEvents(name), false, SetMsg.class)).getValue());
+            txn.commitAsync(null);
+            txn = null;
+
+            return user;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
             }
         }
         return user;
@@ -175,17 +196,46 @@ public class SwiftSocial {
     void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
+        Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
+                this.currentUser.loginName, date);
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
-            SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(NamingScheme.forMessages(receiverName), false,
-                    SetMsg.class);
-            messages.insert(newMsg);
+            writeMessage(txn, newMsg, NamingScheme.forMessages(receiverName));
+            writeMessage(txn, newEvt, NamingScheme.forEvents(currentUser.loginName));
+            // TODO Use stored Ids
+            txn.commitAsync(null);
+            txn = null;
+
+            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
+            }
+        }
+    }
+
+    void updateStatus(String msg, long date) {
+        logger.info("Update status for " + this.currentUser.loginName);
+        Message newMsg = new Message(msg, this.currentUser.loginName, date);
+        Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+            writeMessage(txn, newMsg, NamingScheme.forMessages(currentUser.loginName));
+            writeMessage(txn, newEvt, NamingScheme.forEvents(currentUser.loginName));
+            // TODO Use stored Ids
+            txn.commitAsync(null);
+            txn = null;
+            // TODO Broadcast update to friends
+            return;
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (txn != null) {
+                txn.rollback();
             }
         }
     }
@@ -208,12 +258,16 @@ public class SwiftSocial {
                 SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(NamingScheme.forFriends(requester), false,
                         SetIds.class);
                 requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
+                txn.commitAsync(null);
+                txn = null;
+
+                return;
             }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
             }
         }
     }
@@ -229,11 +283,39 @@ public class SwiftSocial {
             SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(
                     NamingScheme.forOutFriendReq(this.currentUser.loginName), false, SetIds.class);
             outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
+            txn.commitAsync(null);
+            txn = null;
+
+            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
+            }
+        }
+    }
+
+    void befriend(String receiverName) {
+        logger.info("Befriending " + receiverName);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT, false);
+            SetTxnLocalId friends = (SetTxnLocalId) txn.get(NamingScheme.forFriends(this.currentUser.loginName), false,
+                    SetIds.class);
+            friends.insert(NamingScheme.forUser(receiverName));
+            SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(NamingScheme.forFriends(receiverName), false,
+                    SetIds.class);
+            requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
+            txn.commitAsync(null);
+            txn = null;
+
+            return;
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (txn != null) {
+                txn.rollback();
             }
         }
     }
@@ -251,13 +333,23 @@ public class SwiftSocial {
                         .getValue();
                 friends.add(new Friend(u.fullName, f));
             }
+            txn.commitAsync(null);
+            txn = null;
+            return friends;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commitAsync(null);
+                txn.rollback();
             }
         }
         return friends;
     }
+
+    private void writeMessage(TxnHandle txn, Message msg, CRDTIdentifier set) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
+        SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(set, false, SetMsg.class);
+        messages.insert(msg);
+    }
+
 }

@@ -1,7 +1,9 @@
 package swift.application.social;
 
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.Swift;
@@ -36,8 +38,8 @@ public class SwiftSocialTest {
         SwiftSocial client = new SwiftSocial(clientServer);
 
         // Register users
-        client.registerUser("Biene", "Honig", "Anne Biene", 0);
-        client.registerUser("Butterfly", "Flower", "Hugo Butterfly", 0);
+        client.registerUser("Biene", "Honig", "Anne Biene", 0, System.currentTimeMillis());
+        client.registerUser("Butterfly", "Flower", "Hugo Butterfly", 0, System.currentTimeMillis());
 
         // Start a session
         boolean successfulLogin = client.login("Biene", "Honig");
@@ -74,8 +76,8 @@ public class SwiftSocialTest {
         System.out.println("Login successful:" + successfulLogin);
         client.answerFriendRequest("Biene", true);
 
-        Set<Message> msgs = new HashSet<Message>();
-        Set<Message> evnts = new HashSet<Message>();
+        Collection<Message> msgs = new TreeSet<Message>();
+        Collection<Message> evnts = new TreeSet<Message>();
         User user = client.read("Butterfly", msgs, evnts);
         System.out.println("User : " + user.userInfo());
         System.out.println("Messages:");

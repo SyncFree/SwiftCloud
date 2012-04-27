@@ -2,7 +2,7 @@ package swift.application.social;
 
 import java.util.Date;
 
-public class Message implements Cloneable, java.io.Serializable {
+public class Message implements Cloneable, java.io.Serializable, Comparable<Message> {
     private static final long serialVersionUID = 1L;
     private String msg;
     private String sender;
@@ -48,6 +48,11 @@ public class Message implements Cloneable, java.io.Serializable {
         sb.append(", FROM ").append(sender);
         sb.append(": ").append(msg);
         return sb.toString();
+    }
+
+    @Override
+    public int compareTo(Message other) {
+        return new Long(date).compareTo(other.date);
     }
 
 }

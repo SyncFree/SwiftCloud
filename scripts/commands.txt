@@ -9,4 +9,5 @@ see_friends;A67nCvXD;
 read;K8L30v+x;
 read;K8L30v+x;
 read;A67nCvXD;
+friend;K8L30v+x;
 logout;A67nCvXD;

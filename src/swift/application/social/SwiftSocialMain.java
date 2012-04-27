@@ -73,7 +73,7 @@ public class SwiftSocialMain {
             } catch (ParseException e) {
                 System.err.println("Could not parse the birthdate: " + toks[4]);
             }
-            client.registerUser(toks[1], toks[2], toks[3], birthday);
+            client.registerUser(toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
         }
         System.out.println("Initialization finished");
 
@@ -105,7 +105,7 @@ public class SwiftSocialMain {
                 }
             case FRIEND:
                 if (toks.length == 2) {
-                    client.sendFriendRequest(toks[1]);
+                    client.befriend(toks[1]);
                     break;
                 }
             case STATUS:
