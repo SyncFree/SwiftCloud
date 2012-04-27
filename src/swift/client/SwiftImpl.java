@@ -352,8 +352,24 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (clock == null) {
-            // Return the most recent version.
-            clock = crdt.getClock();
+            // Return the latest committed version or, if unavailable, old
+            // cached version if it is all committed.
+            switch (crdt.getClock().compareTo(committedVersion)) {
+            case CMP_ISDOMINATED:
+            case CMP_EQUALS:
+                clock = crdt.getClock().clone();
+                break;
+            case CMP_DOMINATES:
+                clock = committedVersion.clone();
+                break;
+            case CMP_CONCURRENT:
+                // FIXME: consider intersection of both!
+                // need to think a bit if it is safe or not?
+                return null;
+            default:
+                throw new UnsupportedOperationException();
+            }
+
         }
         clock = clockWithLocallyCommittedDependencies(clock);
         final CausalityClock globalClock = clock.clone();
