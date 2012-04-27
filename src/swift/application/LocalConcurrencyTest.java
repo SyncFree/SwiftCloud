@@ -19,7 +19,7 @@ import sys.Sys;
  * @author annettebieniusa
  * 
  */
-public class LocalSetUpTest {
+public class LocalConcurrencyTest {
     static String sequencerName = "localhost";
 
     public static void main(String[] args) {

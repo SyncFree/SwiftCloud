@@ -11,6 +11,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.client.proto.CommitUpdatesReply;
@@ -83,6 +84,10 @@ public class SwiftImpl implements Swift, TxnManager {
     public static int DEFAULT_NOTIFICATION_BLOCKING_TIME_MILLIS = 2 * 60 * 1000;
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
+
+    {
+        logger.setLevel(Level.WARNING);
+    }
 
     /**
      * Creates new instance of Swift using provided network settings and
