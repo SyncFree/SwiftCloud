@@ -19,7 +19,7 @@ import sys.Sys;
  */
 public class ClientIsolationLevelsStressTest {
     private static final int TRANSACTIONS_PER_CLIENT = 100;
-    private static final int CLIENTS_NUMBER = 2;
+    private static final int CLIENTS_NUMBER = 10;
     static String sequencerName = "localhost";
 
     public static void main(String[] args) {
