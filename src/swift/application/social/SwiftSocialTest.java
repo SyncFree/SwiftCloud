@@ -61,9 +61,9 @@ public class SwiftSocialTest {
         }
 
         client.sendFriendRequest("Butterfly");
-        Set<String> friends = client.readUserFriends("Biene");
+        Set<Friend> friends = client.readFriendList("Biene");
         System.out.println("Friends:");
-        for (String friend : friends) {
+        for (Friend friend : friends) {
             System.out.println(friend);
         }
 
@@ -87,14 +87,14 @@ public class SwiftSocialTest {
             System.out.println(m);
         }
 
-        friends = client.readUserFriends("Butterfly");
+        friends = client.readFriendList("Butterfly");
         System.out.println("Friends of Butterfly:");
-        for (String friend : friends) {
+        for (Friend friend : friends) {
             System.out.println(friend);
         }
-        friends = client.readUserFriends("Biene");
+        friends = client.readFriendList("Biene");
         System.out.println("Friends of Biene:");
-        for (String friend : friends) {
+        for (Friend friend : friends) {
             System.out.println(friend);
         }
         client.logout("Butterfly");

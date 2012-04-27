@@ -5,12 +5,13 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import swift.crdt.CRDTIdentifier;
 import swift.crdt.RegisterTxnLocal;
 import swift.crdt.RegisterVersioned;
+import swift.crdt.SetIds;
 import swift.crdt.SetMsg;
-import swift.crdt.SetStrings;
+import swift.crdt.SetTxnLocalId;
 import swift.crdt.SetTxnLocalMsg;
-import swift.crdt.SetTxnLocalString;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -111,9 +112,9 @@ public class SwiftSocial {
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
             txn.get(NamingScheme.forEvents(loginName), true, SetMsg.class);
-            txn.get(NamingScheme.forFriends(loginName), true, SetStrings.class);
-            txn.get(NamingScheme.forInFriendReq(loginName), true, SetStrings.class);
-            txn.get(NamingScheme.forOutFriendReq(loginName), true, SetStrings.class);
+            txn.get(NamingScheme.forFriends(loginName), true, SetIds.class);
+            txn.get(NamingScheme.forInFriendReq(loginName), true, SetIds.class);
+            txn.get(NamingScheme.forOutFriendReq(loginName), true, SetIds.class);
 
             User newUser = new User(loginName, passwd, fullName, birthday, true);
             reg.set(newUser);
@@ -194,19 +195,19 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
-            SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(
-                    NamingScheme.forInFriendReq(this.currentUser.loginName), false, SetStrings.class);
-            inFriendReq.remove(requester);
-            SetTxnLocalString outFriendReq = (SetTxnLocalString) txn.get(NamingScheme.forOutFriendReq(requester),
-                    false, SetStrings.class);
-            outFriendReq.remove(this.currentUser.loginName);
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(
+                    NamingScheme.forInFriendReq(this.currentUser.loginName), false, SetIds.class);
+            inFriendReq.remove(NamingScheme.forUser(requester));
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(NamingScheme.forOutFriendReq(requester), false,
+                    SetIds.class);
+            outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
             if (accept) {
-                SetTxnLocalString friends = (SetTxnLocalString) txn.get(
-                        NamingScheme.forFriends(this.currentUser.loginName), false, SetStrings.class);
-                friends.insert(requester);
-                SetTxnLocalString requesterFriends = (SetTxnLocalString) txn.get(NamingScheme.forFriends(requester),
-                        false, SetStrings.class);
-                requesterFriends.insert(this.currentUser.loginName);
+                SetTxnLocalId friends = (SetTxnLocalId) txn.get(NamingScheme.forFriends(this.currentUser.loginName),
+                        false, SetIds.class);
+                friends.insert(NamingScheme.forUser(requester));
+                SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(NamingScheme.forFriends(requester), false,
+                        SetIds.class);
+                requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -222,12 +223,12 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
-            SetTxnLocalString inFriendReq = (SetTxnLocalString) txn.get(NamingScheme.forInFriendReq(receiverName),
-                    false, SetStrings.class);
-            inFriendReq.insert(this.currentUser.loginName);
-            SetTxnLocalString outFriendReq = (SetTxnLocalString) txn.get(
-                    NamingScheme.forOutFriendReq(this.currentUser.loginName), false, SetStrings.class);
-            outFriendReq.remove(this.currentUser.loginName);
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(NamingScheme.forInFriendReq(receiverName), false,
+                    SetIds.class);
+            inFriendReq.insert(NamingScheme.forUser(this.currentUser.loginName));
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(
+                    NamingScheme.forOutFriendReq(this.currentUser.loginName), false, SetIds.class);
+            outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -237,15 +238,19 @@ public class SwiftSocial {
         }
     }
 
-    Set<String> readUserFriends(String name) {
-        logger.info("Get friends for " + name);
-        Set<String> friendNames = new HashSet<String>();
+    Set<Friend> readFriendList(String name) {
+        logger.info("Get friends of " + name);
+        Set<Friend> friends = new HashSet<Friend>();
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
-            SetTxnLocalString friends = (SetTxnLocalString) txn.get(NamingScheme.forFriends(name), false,
-                    SetStrings.class);
-            friendNames = friends.getValue();
+            Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) txn
+                    .get(NamingScheme.forFriends(name), false, SetIds.class)).getValue();
+            for (CRDTIdentifier f : friendIds) {
+                User u = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class))
+                        .getValue();
+                friends.add(new Friend(u.fullName, f));
+            }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -253,7 +258,6 @@ public class SwiftSocial {
                 txn.commit();
             }
         }
-        return friendNames;
+        return friends;
     }
-
 }

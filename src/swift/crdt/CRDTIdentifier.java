@@ -9,7 +9,7 @@ import java.io.Serializable;
  * @author annettebieniusa
  * 
  */
-public class CRDTIdentifier implements Serializable, Comparable<CRDTIdentifier> {
+public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTIdentifier> {
     private String table;
     private String key;
     private transient String id;
@@ -68,5 +68,10 @@ public class CRDTIdentifier implements Serializable, Comparable<CRDTIdentifier> 
     @Override
     public int compareTo(CRDTIdentifier arg0) {
         return getId().compareTo(arg0.getId());
+    }
+
+    @Override
+    public CRDTIdentifier clone() {
+        return new CRDTIdentifier(table, key);
     }
 }

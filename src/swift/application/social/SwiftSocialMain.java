@@ -100,7 +100,7 @@ public class SwiftSocialMain {
                 }
             case SEE_FRIENDS:
                 if (toks.length == 2) {
-                    client.readUserFriends(toks[1]);
+                    client.readFriendList(toks[1]);
                     break;
                 }
             case FRIEND:
