@@ -54,7 +54,9 @@ public interface TxnHandle {
      * case.
      * <p>
      * When {@link ObjectUpdatesListener} is provided, client subscribes updates
-     * on an object.
+     * on an object. Note that this subscription may expire if notification has
+     * already been delivered and object has not been accessed recently by any
+     * transaction running in the client.
      * 
      * @param id
      *            identifier of an object

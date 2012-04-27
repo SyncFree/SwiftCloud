@@ -49,6 +49,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
@@ -132,28 +133,36 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private boolean stopFlag;
     private boolean stopGracefully;
+
     private final String clientId;
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
-    private final CommitterThread committerThread;
+
     // Cache of objects.
     // Invariant: if object is in the cache, it must include all updates
     // of locally and globally committed locally-originating transactions.
     private final InfiniteObjectsCache objectsCache;
+
     // Invariant: committedVersion only grows.
     private final CausalityClock committedVersion;
+    private IncrementalTimestampGenerator clientTimestampGenerator;
+
     // Invariant: there is at most one pending (open) transaction.
     private AbstractTxnHandle pendingTxn;
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
     private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
+    // Thread sequentially committing transactions from the queue.
+    private final CommitterThread committerThread;
     // Local dependencies of a pending transaction.
     private final LinkedList<AbstractTxnHandle> pendingTxnLocalDependencies;
+
+    // Update subscriptions stuff.
     private final Map<CRDTIdentifier, UpdateSubscription> objectUpdateSubscriptions;
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
     private final ExecutorService notificationsSubscriberExecutor;
-    private IncrementalTimestampGenerator clientTimestampGenerator;
+
     private final int timeoutMillis;
     private final int notificationTimeoutMillis;
 
@@ -272,9 +281,6 @@ public class SwiftImpl implements Swift, TxnManager {
         if (cachePolicy == CachePolicy.CACHED) {
             localView = getCachedObjectForTxn(id, null, classOfV, updatesListener);
             if (localView != null) {
-                if (updatesListener != null) {
-                    asyncSubscribeObjectUpdates(id);
-                }
                 return localView;
             }
         }
@@ -307,9 +313,6 @@ public class SwiftImpl implements Swift, TxnManager {
 
         TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView != null) {
-            if (updatesListener != null) {
-                asyncSubscribeObjectUpdates(id);
-            }
             return localView;
         }
 
@@ -409,13 +412,9 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         final TxnLocalCRDT<V> crdtView = crdtReturned.getTxnLocalCopy(clock, pendingTxn);
         if (updatesListener != null) {
-            if (crdtReturned.hasUpdatesSince(clock)) {
-                // TODO: Force server subscription too in this case?
-                notifyUpdatesListenerDiscardRecord(id);
-            } else {
-                // Assumption: subscription to the store is triggered
-                // externally from this method.
-                addUpdatesSubscriptionEntry(pendingTxn, id, crdtView, updatesListener);
+            final UpdateSubscription subscription = addUpdateSubscription(crdtReturned, crdtView, updatesListener);
+            if (subscription.hasListener() && crdtReturned.hasUpdatesSince(clock)) {
+                notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
             }
         }
         return crdtView;
@@ -459,7 +458,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching object version timed out");
         }
-        processFetchObjectReply(id, create, classOfV, replyRef.get());
+        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates);
     }
 
     @SuppressWarnings("unchecked")
@@ -484,12 +483,12 @@ public class SwiftImpl implements Swift, TxnManager {
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching newer object version timed out");
         }
-        processFetchObjectReply(id, create, classOfV, replyRef.get());
+        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates);
     }
 
     private <V extends CRDT<V>> void processFetchObjectReply(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final FetchObjectVersionReply fetchReply) throws NoSuchObjectException, WrongTypeException,
-            VersionNotFoundException {
+            final FetchObjectVersionReply fetchReply, boolean requestedSubscribeUpdates) throws NoSuchObjectException,
+            WrongTypeException, VersionNotFoundException {
         final V crdt;
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
@@ -519,22 +518,28 @@ public class SwiftImpl implements Swift, TxnManager {
         synchronized (this) {
             updateCommittedVersion(fetchReply.getEstimatedLatestKnownClock());
 
-            final V cachedCRDT;
+            final V cacheCRDT;
             try {
-                cachedCRDT = (V) objectsCache.get(id);
+                cacheCRDT = (V) objectsCache.get(id);
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
 
-            if (cachedCRDT == null) {
+            if (cacheCRDT == null) {
                 objectsCache.add(crdt);
             } else {
-                cachedCRDT.merge(crdt);
-                final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-                // FIXME: hasUpdatesSince is COSTLY! combine its logic with
-                // merge()?
-                if (subscription != null && cachedCRDT.hasUpdatesSince(subscription.readVersion)) {
-                    notifyUpdatesListenerDiscardRecord(id);
+                cacheCRDT.merge(crdt);
+
+                UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
+                if (requestedSubscribeUpdates && subscription == null) {
+                    // Add temporary subscription entry without specifying full
+                    // information on what value has been read.
+                    subscription = addUpdateSubscription(cacheCRDT, null, null);
+                }
+
+                if (subscription != null && subscription.hasListener()
+                        && cacheCRDT.hasUpdatesSince(subscription.readVersion)) {
+                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
                 }
             }
         }
@@ -586,72 +591,77 @@ public class SwiftImpl implements Swift, TxnManager {
     /**
      * @return true if subscription should be continued for this object
      */
-    private void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
+    private synchronized void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
             final List<CRDTObjectOperationsGroup<?>> ops, final CausalityClock outputClock) {
-        final CRDT crdt;
-        final CausalityClock crdtClockCopy;
-        synchronized (this) {
-            crdt = objectsCache.get(id);
-            crdtClockCopy = crdt == null ? null : crdt.getClock().clone();
+        final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
+        if (subscription == null) {
+            removeUpdateSubscriptionAsyncUnsubscribe(id);
         }
 
+        final CRDT crdt = objectsCache.get(id);
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
-            logger.warning("cannot apply received updates on object " + id + " as it has been evicted from the cache");
-            handleApplyObjectUpdatesWithMissingVersion(id);
-            return;
-        }
-
-        final CMP_CLOCK clkCmp = crdtClockCopy.compareTo(dependencyClock);
-        if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
-            // Ooops, we missed some update or messages were ordered.
-            logger.warning("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
-            handleApplyObjectUpdatesWithMissingVersion(id);
-            return;
-        }
-
-        synchronized (this) {
-            UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-            for (final CRDTObjectOperationsGroup<?> op : ops) {
-                if (!crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
-                    // Already applied update.
-                    continue;
-                }
-                if (subscription != null) {
-                    if (subscription.readVersion.includes(op.getBaseTimestamp())) {
-                        logger.warning("Client invariant broken: applied unknown operation, yet previously read");
-                    } else {
-                        notifyUpdatesListenerDiscardRecord(id);
-                        subscription = null;
-                    }
+            logger.info("cannot apply received updates on object " + id + " as it has been evicted from the cache");
+            if (subscription != null) {
+                if (subscription.hasListener()) {
+                    // There still listener waiting, make some efforts to fire
+                    // the notification.
+                    asyncSubscribeObjectUpdates(id);
+                } else {
+                    // Stop subscription for object evicted from the cache.
+                    removeUpdateSubscriptionAsyncUnsubscribe(id);
                 }
             }
-            crdt.getClock().merge(outputClock);
-
-            tryDiscardDeadSubscriptionEntry(id);
-            // FIXME: unsubscribe or not?
-            // tryUnsubscribeDiscardedSubscriptionEntry(id);
+            return;
         }
+
+        final CMP_CLOCK clkCmp = crdt.getClock().compareTo(dependencyClock);
+        if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
+            // Ooops, we missed some update or messages were ordered.
+            logger.info("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
+            if (subscription != null) {
+                asyncSubscribeObjectUpdates(id);
+            }
+            return;
+        }
+
+        for (final CRDTObjectOperationsGroup<?> op : ops) {
+            if (!crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
+                // Already applied update.
+                continue;
+            }
+            if (subscription != null && subscription.hasListener()) {
+                if (subscription.readVersion.includes(op.getBaseTimestamp())) {
+                    logger.warning("Client invariant broken: applied unknown operation, yet previously read");
+                } else {
+                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+                }
+            }
+        }
+        crdt.getClock().merge(outputClock);
     }
 
-    private void handleApplyObjectUpdatesWithMissingVersion(final CRDTIdentifier id) {
-        if (hasSubscriptionEntry(id)) {
-            asyncSubscribeObjectUpdates(id);
-        } else {
-            // Client has already been notified, do not make more efforts.
-            tryUnsubscribeDiscardedSubscriptionEntry(id);
+    private synchronized UpdateSubscription addUpdateSubscription(final CRDT<?> crdt, final TxnLocalCRDT<?> localView,
+            ObjectUpdatesListener listener) {
+        final UpdateSubscription updateSubscription = new UpdateSubscription(pendingTxn, localView, listener);
+        // Overwriting old entry and even subscribing again is fine, the
+        // interface specifies clearly that the latest get() matters.
+        final UpdateSubscription oldSubscription = objectUpdateSubscriptions.put(crdt.getUID(), updateSubscription);
+        if (oldSubscription == null && crdt.isRegisteredInStore()) {
+            // If object is not in the store yet, wait until
+            // applyGloballyCommittedTxn() with actual subscription.
+            asyncSubscribeObjectUpdates(crdt.getUID());
         }
-    }
-
-    private synchronized void addUpdatesSubscriptionEntry(final AbstractTxnHandle txn, final CRDTIdentifier id,
-            final TxnLocalCRDT<?> localView, ObjectUpdatesListener listener) {
-        objectUpdateSubscriptions.put(id, new UpdateSubscription(txn, localView, listener));
+        return updateSubscription;
     }
 
     private void asyncSubscribeObjectUpdates(final CRDTIdentifier id) {
         notificationsSubscriberExecutor.execute(new Runnable() {
             @Override
             public void run() {
+                if (!objectUpdateSubscriptions.containsKey(id)) {
+                    return;
+                }
                 try {
                     fetchLatestObject(id, false, BaseCRDT.class, true);
                 } catch (SwiftException x) {
@@ -662,26 +672,19 @@ public class SwiftImpl implements Swift, TxnManager {
         });
     }
 
-    private synchronized boolean hasSubscriptionEntry(final CRDTIdentifier id) {
-        return objectUpdateSubscriptions.containsKey(id);
-    }
-
-    private synchronized void tryDiscardDeadSubscriptionEntry(CRDTIdentifier id) {
-        // FIXME: when to unsubscribe, after transaction is terminated for a
-        // certain time?
-
-        // final UpdateSubscription subscription =
-        // objectUpdateSubscriptions.get(id);
-        // if (subscription != null &&
-        // subscription.txn.getStatus().isTerminated()) {
-        // objectUpdateSubscriptions.remove(id);
-        // }
-    }
-
-    private synchronized void tryUnsubscribeDiscardedSubscriptionEntry(CRDTIdentifier id) {
-        if (!hasSubscriptionEntry(id)) {
-            localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(clientId, id));
-        }
+    private synchronized void removeUpdateSubscriptionAsyncUnsubscribe(final CRDTIdentifier id) {
+        objectUpdateSubscriptions.remove(id);
+        notificationsSubscriberExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                if (objectUpdateSubscriptions.containsKey(id)) {
+                    return;
+                }
+                if (!localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(clientId, id))) {
+                    logger.warning("could not unsuscribe object updates");
+                }
+            }
+        });
     }
 
     @Override
@@ -805,6 +808,11 @@ public class SwiftImpl implements Swift, TxnManager {
                 logger.warning("object evicted from the local cache before global commit");
             } else {
                 crdt.execute(opsGroup, CRDTOperationDependencyPolicy.IGNORE);
+                // Subscribe updates if they were requested.
+                final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
+                if (subscription != null && opsGroup.hasCreationState()) {
+                    asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
+                }
             }
         }
         objectsCache.recordOnAll(txn.getGlobalTimestamp());
@@ -819,7 +827,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // need to replace timestamps in pending transaction too.
         }
         for (final UpdateSubscription subscription : objectUpdateSubscriptions.values()) {
-            subscription.replaceTimestamp(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
+            subscription.replaceReadVersionTimestamp(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
         }
         committedVersion.record(txn.getGlobalTimestamp());
     }
@@ -842,16 +850,14 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private synchronized void notifyUpdatesListenerDiscardRecord(final CRDTIdentifier id) {
-        final UpdateSubscription subscription = objectUpdateSubscriptions.remove(id);
-        if (!subscription.txn.getStatus().isTerminated()) {
-            notificationsCallbacksExecutor.execute(new Runnable() {
-                @Override
-                public void run() {
-                    subscription.listener.onObjectUpdate(subscription.txn, id, subscription.crdtView);
-                }
-            });
-        }
+    private void notifyUpdatesListener(final ObjectUpdatesListener listener, final TxnHandle txn,
+            final CRDTIdentifier id, final TxnLocalCRDT<?> crdtView) {
+        notificationsCallbacksExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                listener.onObjectUpdate(txn, id, crdtView);
+            }
+        });
     }
 
     private void assertNoPendingTransaction() {
@@ -926,6 +932,13 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
+    /**
+     * Client representation of updates subscription. When listener is not null,
+     * the listener is awaiting for notification on update that occurred after
+     * the readVersion.
+     * 
+     * @author mzawirski
+     */
     private static class UpdateSubscription {
         public ObjectUpdatesListener listener;
         private AbstractTxnHandle txn;
@@ -933,13 +946,50 @@ public class SwiftImpl implements Swift, TxnManager {
         private CausalityClock readVersion;
 
         public UpdateSubscription(AbstractTxnHandle txn, TxnLocalCRDT<?> crdtView, final ObjectUpdatesListener listener) {
-            this.txn = txn;
-            this.crdtView = crdtView;
-            this.listener = listener;
-            this.readVersion = crdtView.getClock().clone();
+            // This comparison is a bit hackish, perhaps we should support it
+            // better at API level.
+            if (listener != TxnHandle.DUMMY_UPDATES_SUBSCRIBER) {
+                this.txn = txn;
+                this.crdtView = crdtView;
+                this.listener = listener;
+                this.readVersion = crdtView.getClock().clone();
+            }
+            // else: only subscribe updates, but do not bother with notifying on
+            // updates
         }
 
-        public void replaceTimestamp(Timestamp localTimestamp, Timestamp globalTimestamp) {
+        public boolean hasListener() {
+            return listener != null;
+        }
+
+        // FIXME: it seems more reasonable to call it after we make sure the
+        // triggering update is included in committedVersion!
+        public Runnable generateListenerNotification(final CRDTIdentifier id) {
+            if (!hasListener()) {
+                return null;
+            }
+
+            final ObjectUpdatesListener listenerRef = this.listener;
+            final AbstractTxnHandle txnRef = this.txn;
+            final TxnLocalCRDT<?> crdtRef = this.crdtView;
+            txn = null;
+            crdtView = null;
+            listener = null;
+            readVersion = null;
+
+            return new Runnable() {
+                @Override
+                public void run() {
+                    listenerRef.onObjectUpdate(txnRef, id, crdtRef);
+                }
+            };
+        }
+
+        public void replaceReadVersionTimestamp(Timestamp localTimestamp, Timestamp globalTimestamp) {
+            if (!hasListener()) {
+                return;
+            }
+
             // Objects in cache always use global timestamp, so we need to map
             // stuff.
             if (readVersion.includes(localTimestamp)) {
