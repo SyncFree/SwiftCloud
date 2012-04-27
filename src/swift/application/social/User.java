@@ -14,8 +14,6 @@ public class User implements Copyable {
 
     String fullName;
     long birthday;
-    // FIXME: Better format: Enum?
-    int maritalStatus;
     CRDTIdentifier eventList;
     CRDTIdentifier msgList;
 
@@ -37,7 +35,6 @@ public class User implements Copyable {
         this.password = password;
         this.userId = NamingScheme.forUser(loginName);
         this.birthday = birthday;
-        this.maritalStatus = 0;
         this.active = active;
         this.msgList = NamingScheme.forMessages(loginName);
         this.eventList = NamingScheme.forEvents(loginName);
