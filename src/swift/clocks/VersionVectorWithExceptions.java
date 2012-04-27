@@ -147,7 +147,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
             Pair oldP = p;
             p = it.previous();
             if( v >= p.from && v <= p.to)
-                return true;
+                return false;
             if (v == p.to + 1) {
                 p.to = p.to + 1;
                 if (oldP != null && oldP.mergeBack(p)) {
