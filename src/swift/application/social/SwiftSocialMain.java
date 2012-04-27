@@ -6,7 +6,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import swift.client.SwiftImpl;
@@ -61,7 +64,15 @@ public class SwiftSocialMain {
         List<String> userData = readInputFromFile(usersFileName);
         for (String line : userData) {
             String[] toks = line.split(";");
-            client.registerUser(toks[1], toks[2]);
+            long birthday = 0;
+            try {
+                SimpleDateFormat formatter = new SimpleDateFormat("dd/mm/yy");
+                Date dateStr = formatter.parse(toks[4]);
+                birthday = dateStr.getTime();
+            } catch (ParseException e) {
+                System.err.println("Could not parse the birthdate: " + toks[4]);
+            }
+            client.registerUser(toks[1], toks[2], toks[3], birthday);
         }
         System.out.println("Initialization finished");
 
@@ -89,11 +100,15 @@ public class SwiftSocialMain {
             case SEE_FRIENDS:
                 if (toks.length == 2) {
                     client.readUserFriends(toks[1]);
+                    break;
                 }
             case FRIEND:
                 if (toks.length == 2) {
                     client.sendFriendRequest(toks[1]);
+                    break;
                 }
+            case STATUS:
+            case POST:
             default:
                 System.out.println("Can't parse command line :" + line);
                 n_fail++;
@@ -103,24 +118,12 @@ public class SwiftSocialMain {
     }
 
     private static void startDCServer() {
-        // Thread server = new Thread() {
-        // public void run() {
-        // DCServer server = new DCServer(sequencerName);
-        // server.startSurrogServer();
         DCServer.main(new String[] { sequencerName });
-        // }
-        // };
-        // server.start();
     }
 
     private static void startSequencer() {
-        // Thread sequencer = new Thread() {
-        // public void run() {
         DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
         sequencer.start();
-        // }
-        // };
-        // sequencer.start();
     }
 
 }

@@ -99,7 +99,8 @@ public class SwiftSocial {
     }
 
     // FIXME Return error code?
-    void registerUser(String loginName, String passwd) {
+    @SuppressWarnings("unchecked")
+    void registerUser(String loginName, String passwd, String fullName, long birthday) {
         logger.info("Got registration request for " + loginName);
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
@@ -109,13 +110,12 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(loginName), true,
                     RegisterVersioned.class);
             txn.get(NamingScheme.forMessages(loginName), true, SetMsg.class);
-            // preguica: either create objects here or set true when accessing
-            // them in other methods
             txn.get(NamingScheme.forFriends(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forInFriendReq(loginName), true, SetStrings.class);
             txn.get(NamingScheme.forOutFriendReq(loginName), true, SetStrings.class);
-            User newUser = new User(loginName, passwd);
+            User newUser = new User(loginName, passwd, fullName, birthday, true);
             reg.set(newUser);
+            logger.info("Registered user: " + newUser);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {

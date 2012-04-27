@@ -35,8 +35,8 @@ public class SwiftSocialTest {
         SwiftSocial client = new SwiftSocial(clientServer);
 
         // Register users
-        client.registerUser("Biene", "Honig");
-        client.registerUser("Butterfly", "Flower");
+        client.registerUser("Biene", "Honig", "Anne Biene", 0);
+        client.registerUser("Butterfly", "Flower", "Hugo Butterfly", 0);
 
         // Start a session
         boolean successfulLogin = client.login("Biene", "Honig");

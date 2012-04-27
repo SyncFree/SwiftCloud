@@ -1,5 +1,7 @@
 package swift.application.social;
 
+import java.util.Date;
+
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Copyable;
 
@@ -24,16 +26,19 @@ public class User implements Copyable {
     // TODO Add photos?
     // CRDTIdentifier photoAlbumList;
 
+    /** DO NOT USE: Empty constructor needed for Kryo */
     public User() {
     }
 
-    public User(String loginName, String password) {
+    public User(final String loginName, final String password, final String fullName, final long birthday,
+            boolean active) {
         this.loginName = loginName;
+        this.fullName = fullName;
         this.password = password;
         this.userId = NamingScheme.forUser(loginName);
-        this.birthday = 0;
+        this.birthday = birthday;
         this.maritalStatus = 0;
-        this.active = true;
+        this.active = active;
         this.msgList = NamingScheme.forMessages(loginName);
         this.friendList = NamingScheme.forFriends(loginName);
         this.inFriendReq = NamingScheme.forInFriendReq(loginName);
@@ -43,10 +48,17 @@ public class User implements Copyable {
 
     @Override
     public Object copy() {
-        User copyObj = new User(loginName, password);
-        copyObj.birthday = birthday;
-        copyObj.maritalStatus = maritalStatus;
-        copyObj.active = active;
+        User copyObj = new User(loginName, password, fullName, birthday, active);
         return copyObj;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(loginName).append(", ");
+        sb.append(password).append("; ");
+        sb.append(fullName).append(", ");
+        sb.append(new Date(birthday));
+        return sb.toString();
     }
 }
