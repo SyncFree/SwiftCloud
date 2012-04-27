@@ -8,6 +8,7 @@ import java.io.Serializable;
  * 
  * @author nmp
  */
+// TODO: Create read-only (parent) interface or decorator.
 public interface CausalityClock extends Serializable {
     enum CMP_CLOCK {
         CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT
