@@ -23,6 +23,20 @@ import swift.exceptions.WrongTypeException;
 // WISHME: separate client and system interface (needed for mocks)
 public interface TxnHandle {
     /**
+     * ObjectUpdatesListener that can be used in calls to
+     * {@link #get(CRDTIdentifier, boolean, Class, ObjectUpdatesListener)},
+     * forcing client to subscribe updates on an object. Note that application
+     * requiring notification on updates can implement
+     * {@link ObjectUpdatesListener} directly.
+     */
+    ObjectUpdatesListener DUMMY_UPDATES_SUBSCRIBER = new ObjectUpdatesListener() {
+        @Override
+        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+            // no-op
+        }
+    };
+
+    /**
      * See {@link #get(CRDTIdentifier, boolean, Class, ObjectUpdatesListener)}
      * with no updates listener
      */
@@ -38,6 +52,9 @@ public interface TxnHandle {
      * in the local cache of the client according to transaction's isolation
      * level and cache policy, as it requires communication with server in such
      * case.
+     * <p>
+     * When {@link ObjectUpdatesListener} is provided, client subscribes updates
+     * on an object.
      * 
      * @param id
      *            identifier of an object
