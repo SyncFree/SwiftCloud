@@ -84,7 +84,7 @@ public class SwiftImplTest extends EasyMockSupport {
     }
 
     private SwiftImpl createSwift() {
-        return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new InfiniteObjectsCache(),
+        return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new TimeBoundedObjectsCache(120 * 1000),
                 SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }
 

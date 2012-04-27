@@ -69,7 +69,7 @@ import sys.net.api.rpc.RpcEndpoint;
  * @author mzawirski
  */
 public class SwiftImpl implements Swift, TxnManager {
-    // TODO: cache eviction and pruning
+    // TODO: make sure pruning is supported properly, prune in the cache too?
     // TODO: server failover
 
     // WISHME: This class uses very coarse-grained locking, but given the
@@ -81,8 +81,9 @@ public class SwiftImpl implements Swift, TxnManager {
     // WISHME: decouple "object store" from the rest of transactions and
     // notifications processing
 
-    public static int DEFAULT_TIMEOUT_MILLIS = 10 * 1000;
-    public static int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
+    public static final int DEFAULT_TIMEOUT_MILLIS = 10 * 1000;
+    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
+    public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -104,7 +105,8 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort) {
         return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
-                new InfiniteObjectsCache(), DEFAULT_TIMEOUT_MILLIS, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+                new TimeBoundedObjectsCache(DEFAULT_CACHE_EVICTION_MILLIS), DEFAULT_TIMEOUT_MILLIS,
+                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }
 
     /**
@@ -123,7 +125,8 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort, int timeoutMillis) {
         return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
-                new InfiniteObjectsCache(), timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+                new TimeBoundedObjectsCache(DEFAULT_CACHE_EVICTION_MILLIS), timeoutMillis,
+                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }
 
     private static String generateClientId() {
@@ -141,7 +144,7 @@ public class SwiftImpl implements Swift, TxnManager {
     // Cache of objects.
     // Invariant: if object is in the cache, it must include all updates
     // of locally and globally committed locally-originating transactions.
-    private final InfiniteObjectsCache objectsCache;
+    private final TimeBoundedObjectsCache objectsCache;
 
     // Invariant: committedVersion only grows.
     private final CausalityClock committedVersion;
@@ -166,7 +169,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private final int timeoutMillis;
     private final int notificationTimeoutMillis;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache,
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeBoundedObjectsCache objectsCache,
             int timeoutMillis, final int notificationTimeoutMillis) {
         this.clientId = generateClientId();
         this.timeoutMillis = timeoutMillis;
@@ -286,9 +289,9 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         // Try to get the latest one.
-        final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.get(id) == null);
+        final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.getAndTouch(id) == null);
         try {
-            fetchLatestObject(id, create, classOfV, updatesListener != null);
+            fetchLatestObject(id, create, classOfV, updatesListener != null, true);
         } catch (VersionNotFoundException x) {
             if (fetchRequired) {
                 throw x;
@@ -316,7 +319,7 @@ public class SwiftImpl implements Swift, TxnManager {
             return localView;
         }
 
-        fetchLatestObject(id, create, classOfV, updatesListener != null);
+        fetchLatestObject(id, create, classOfV, updatesListener != null, true);
 
         localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView == null) {
@@ -346,7 +349,7 @@ public class SwiftImpl implements Swift, TxnManager {
             VersionNotFoundException {
         V crdt;
         try {
-            crdt = (V) objectsCache.get(id);
+            crdt = (V) objectsCache.getAndTouch(id);
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }
@@ -421,13 +424,13 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private <V extends CRDT<V>> void fetchLatestObject(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final boolean subscribeUpdates) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            final boolean subscribeUpdates, final boolean clientTriggered) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
         final V crdt;
         final CausalityClock minVersion;
         synchronized (this) {
             try {
-                crdt = (V) objectsCache.get(id);
+                crdt = (V) objectsCache.getWithoutTouch(id);
             } catch (ClassCastException x) {
                 throw new WrongTypeException(x.getMessage());
             }
@@ -436,16 +439,16 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (crdt == null) {
-            fetchLatestObjectFromScratch(id, create, classOfV, minVersion, subscribeUpdates);
+            fetchLatestObjectFromScratch(id, create, classOfV, minVersion, subscribeUpdates, clientTriggered);
         } else {
-            fetchLatestObjectByRefresh(id, create, classOfV, crdt, minVersion, subscribeUpdates);
+            fetchLatestObjectByRefresh(id, create, classOfV, crdt, minVersion, subscribeUpdates, clientTriggered);
         }
     }
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void fetchLatestObjectFromScratch(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            CausalityClock minVersion, boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException,
-            VersionNotFoundException, NetworkException {
+            CausalityClock minVersion, boolean subscribeUpdates, boolean clientTriggered) throws NoSuchObjectException,
+            WrongTypeException, VersionNotFoundException, NetworkException {
         final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
         localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, minVersion, subscriptionType),
@@ -458,13 +461,13 @@ public class SwiftImpl implements Swift, TxnManager {
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching object version timed out");
         }
-        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates);
+        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, clientTriggered);
     }
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void fetchLatestObjectByRefresh(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            V cachedCrdt, CausalityClock minVersion, boolean subscribeUpdates) throws NoSuchObjectException,
-            WrongTypeException, VersionNotFoundException, NetworkException {
+            V cachedCrdt, CausalityClock minVersion, boolean subscribeUpdates, boolean clientTriggered)
+            throws NoSuchObjectException, WrongTypeException, VersionNotFoundException, NetworkException {
         final CausalityClock oldCrdtClock;
         synchronized (this) {
             oldCrdtClock = cachedCrdt.getClock().clone();
@@ -483,12 +486,12 @@ public class SwiftImpl implements Swift, TxnManager {
         if (replyRef.get() == null) {
             throw new NetworkException("Fetching newer object version timed out");
         }
-        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates);
+        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, clientTriggered);
     }
 
     private <V extends CRDT<V>> void processFetchObjectReply(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final FetchObjectVersionReply fetchReply, boolean requestedSubscribeUpdates) throws NoSuchObjectException,
-            WrongTypeException, VersionNotFoundException {
+            final FetchObjectVersionReply fetchReply, boolean requestedSubscribeUpdates, boolean clientTriggered)
+            throws NoSuchObjectException, WrongTypeException, VersionNotFoundException {
         final V crdt;
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
@@ -520,7 +523,11 @@ public class SwiftImpl implements Swift, TxnManager {
 
             final V cacheCRDT;
             try {
-                cacheCRDT = (V) objectsCache.get(id);
+                if (clientTriggered) {
+                    cacheCRDT = (V) objectsCache.getAndTouch(id);
+                } else {
+                    cacheCRDT = (V) objectsCache.getWithoutTouch(id);
+                }
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
@@ -598,7 +605,7 @@ public class SwiftImpl implements Swift, TxnManager {
             removeUpdateSubscriptionAsyncUnsubscribe(id);
         }
 
-        final CRDT crdt = objectsCache.get(id);
+        final CRDT crdt = objectsCache.getWithoutTouch(id);
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
             logger.info("cannot apply received updates on object " + id + " as it has been evicted from the cache");
@@ -663,7 +670,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     return;
                 }
                 try {
-                    fetchLatestObject(id, false, BaseCRDT.class, true);
+                    fetchLatestObject(id, false, BaseCRDT.class, true, false);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
                             + x.getMessage());
@@ -717,6 +724,7 @@ public class SwiftImpl implements Swift, TxnManager {
             addLocallyCommittedTransaction(txn);
         }
         setPendingTxn(null);
+        objectsCache.evictOutdated();
     }
 
     private void addLocallyCommittedTransaction(AbstractTxnHandle txn) {
@@ -803,7 +811,7 @@ public class SwiftImpl implements Swift, TxnManager {
         txn.markGloballyCommitted();
         for (final CRDTObjectOperationsGroup opsGroup : txn.getAllGlobalOperations()) {
             // Try to apply changes in a cached copy of an object.
-            final CRDT<?> crdt = objectsCache.get(opsGroup.getTargetUID());
+            final CRDT<?> crdt = objectsCache.getWithoutTouch(opsGroup.getTargetUID());
             if (crdt == null) {
                 logger.warning("object evicted from the local cache before global commit");
             } else {
