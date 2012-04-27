@@ -73,8 +73,6 @@ public class SwiftSocial {
                     currentUser = user;
                     logger.info(loginName + " successfully logged in");
                     txn.commitAsync(null);
-                    txn = null;
-
                     return true;
                 } else {
                     logger.info("Wrong password for " + loginName);
@@ -93,7 +91,7 @@ public class SwiftSocial {
             // should not happen
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -131,12 +129,10 @@ public class SwiftSocial {
             writeMessage(txn, newEvt, NamingScheme.forEvents(loginName));
             logger.info("Registered user: " + newUser);
             txn.commit();
-            txn = null;
-            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -155,12 +151,10 @@ public class SwiftSocial {
                     NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class);
             reg.set(currentUser);
             txn.commitAsync(null);
-            txn = null;
-            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -179,13 +173,10 @@ public class SwiftSocial {
             msgs.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forMessages(name), false, SetMsg.class)).getValue());
             evnts.addAll(((SetTxnLocalMsg) txn.get(NamingScheme.forEvents(name), false, SetMsg.class)).getValue());
             txn.commitAsync(null);
-            txn = null;
-
-            return user;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -205,13 +196,10 @@ public class SwiftSocial {
             writeMessage(txn, newEvt, NamingScheme.forEvents(currentUser.loginName));
             // TODO Use stored Ids
             txn.commitAsync(null);
-            txn = null;
-
-            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -228,13 +216,11 @@ public class SwiftSocial {
             writeMessage(txn, newEvt, NamingScheme.forEvents(currentUser.loginName));
             // TODO Use stored Ids
             txn.commitAsync(null);
-            txn = null;
             // TODO Broadcast update to friends
-            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -259,14 +245,11 @@ public class SwiftSocial {
                         SetIds.class);
                 requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
                 txn.commitAsync(null);
-                txn = null;
-
-                return;
             }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -284,13 +267,10 @@ public class SwiftSocial {
                     NamingScheme.forOutFriendReq(this.currentUser.loginName), false, SetIds.class);
             outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
             txn.commitAsync(null);
-            txn = null;
-
-            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -308,13 +288,10 @@ public class SwiftSocial {
                     SetIds.class);
             requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             txn.commitAsync(null);
-            txn = null;
-
-            return;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -334,12 +311,10 @@ public class SwiftSocial {
                 friends.add(new Friend(u.fullName, f));
             }
             txn.commitAsync(null);
-            txn = null;
-            return friends;
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }

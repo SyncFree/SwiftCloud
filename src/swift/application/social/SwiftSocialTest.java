@@ -1,7 +1,6 @@
 package swift.application.social;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -45,12 +44,12 @@ public class SwiftSocialTest {
         boolean successfulLogin = client.login("Biene", "Honig");
         System.out.println("Login successful:" + successfulLogin);
 
-        client.postMessage("Biene", "What a wonderful day!", System.currentTimeMillis());
-        client.postMessage("Biene", "Need more chocolate!", System.currentTimeMillis());
+        client.updateStatus("What a wonderful day!", System.currentTimeMillis());
+        client.updateStatus("Need more chocolate!", System.currentTimeMillis());
         client.postMessage("Butterfly", "Ready for springtime?", System.currentTimeMillis());
 
-        Set<Message> messages = new HashSet<Message>();
-        Set<Message> events = new HashSet<Message>();
+        Set<Message> messages = new TreeSet<Message>();
+        Set<Message> events = new TreeSet<Message>();
 
         client.read("Biene", messages, events);
         System.out.println("Messages:");
