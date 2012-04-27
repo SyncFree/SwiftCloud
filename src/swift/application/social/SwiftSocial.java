@@ -71,7 +71,7 @@ public class SwiftSocial {
                 if (user.password.equals(passwd)) {
                     currentUser = user;
                     logger.info(loginName + " successfully logged in");
-                    txn.commit();
+                    txn.commitAsync(null);
                     return true;
                 } else {
                     logger.info("Wrong password for " + loginName);
@@ -123,7 +123,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
     }
@@ -144,7 +144,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
     }
@@ -165,7 +165,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
         return user;
@@ -185,7 +185,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
     }
@@ -213,7 +213,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
     }
@@ -233,7 +233,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
     }
@@ -255,7 +255,7 @@ public class SwiftSocial {
             e.printStackTrace();
         } finally {
             if (txn != null) {
-                txn.commit();
+                txn.commitAsync(null);
             }
         }
         return friends;
