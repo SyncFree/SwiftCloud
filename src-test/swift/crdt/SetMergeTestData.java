@@ -64,7 +64,7 @@ public class SetMergeTestData {
 
     @Test
     public void idemPotentMerge() {
-        registerSingleInsertTxn(new Message("Blub", "Blah", "Autsch", System.currentTimeMillis()), i1, swift1);
+        registerSingleInsertTxn(new Message("Blub", "Blah", System.currentTimeMillis()), i1, swift1);
         SetMsg iclone = i1.copy();
         swift1.merge(i1, iclone, swift2);
         TesterUtils.printInformtion(iclone, swift1.beginTxn());

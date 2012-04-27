@@ -220,4 +220,13 @@ public class IntegerMergeTest {
         registerSingleUpdateTxn(1, i1, swift1);
         assertTrue(i1.hasUpdatesSince(updatesSince));
     }
+
+    @Test
+    public void mergeIdemPotent() {
+        registerSingleUpdateTxn(10, i1, swift1);
+        IntegerVersioned icopy = i1.copy();
+        swift1.merge(i1, icopy, swift1);
+        int result = getTxnLocal(i1, swift1.beginTxn()).getValue();
+        assertTrue(result == 10);
+    }
 }
