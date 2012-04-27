@@ -1,11 +1,17 @@
 package swift.client;
 
 import static org.easymock.EasyMock.expectLastCall;
+
+import java.util.Collections;
+import java.util.LinkedList;
+
 import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.isA;
 import static org.easymock.EasyMock.same;
+import static org.easymock.EasyMock.anyInt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
 
 import org.easymock.EasyMockSupport;
@@ -18,6 +24,11 @@ import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
+import swift.client.proto.FastRecentUpdatesReply;
+import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
+import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
+import swift.client.proto.FastRecentUpdatesReplyHandler;
+import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.client.proto.FetchObjectVersionReplyHandler;
@@ -68,15 +79,21 @@ public class SwiftImplTest extends EasyMockSupport {
     public void setUp() {
         mockLocalEndpoint = createMock(RpcEndpoint.class);
         mockServerEndpoint = createMock(Endpoint.class);
-        swiftImpl = new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new InfiniteObjectsCache(),
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS);
         serverClock = ClockFactory.newClock();
         serverTimestampGen = new IncrementalTimestampGenerator("server");
     }
 
+    private SwiftImpl createSwift() {
+        return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new InfiniteObjectsCache(),
+                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+    }
+
     @After
     public void tearDown() {
-        swiftImpl.stop(true);
+        if (swiftImpl != null) {
+            swiftImpl.stop(true);
+            swiftImpl = null;
+        }
     }
 
     @Test
@@ -136,9 +153,28 @@ public class SwiftImplTest extends EasyMockSupport {
                 return true;
             }
         });
+
+        mockLocalEndpoint.send(same(mockServerEndpoint), isA(FastRecentUpdatesRequest.class),
+                isA(FastRecentUpdatesReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
+        expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
+            @Override
+            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+                final FastRecentUpdatesRequest request = (FastRecentUpdatesRequest) m;
+                assertFalse(request.getClientId().isEmpty());
+                assertTrue(request.getMaxBlockingTimeMillis() > 0
+                        && request.getMaxBlockingTimeMillis() <= SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+
+                ((FastRecentUpdatesReplyHandler) replyHandler).onReceive(
+                        null,
+                        new FastRecentUpdatesReply(SubscriptionStatus.ACTIVE, Collections
+                                .<ObjectSubscriptionInfo> emptyList(), ClockFactory.newClock()));
+                return true;
+            }
+        }).anyTimes();
         replayAll();
 
         // Actual test: execute 1 transaction creating and updating object A.
+        swiftImpl = createSwift();
         final AbstractTxnHandle txn = swiftImpl.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT,
                 true);
         final IntegerTxnLocal crdtA = txn.get(idCrdtA, true, IntegerVersioned.class);

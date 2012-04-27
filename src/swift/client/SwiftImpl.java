@@ -81,7 +81,7 @@ public class SwiftImpl implements Swift, TxnManager {
     // notifications processing
 
     public static int DEFAULT_TIMEOUT_MILLIS = 10 * 1000;
-    public static int DEFAULT_NOTIFICATION_BLOCKING_TIME_MILLIS = 2 * 60 * 1000;
+    public static int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -103,7 +103,7 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort) {
         return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
-                new InfiniteObjectsCache(), DEFAULT_TIMEOUT_MILLIS, DEFAULT_NOTIFICATION_BLOCKING_TIME_MILLIS);
+                new InfiniteObjectsCache(), DEFAULT_TIMEOUT_MILLIS, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }
 
     /**
@@ -122,7 +122,7 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort, int timeoutMillis) {
         return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
-                new InfiniteObjectsCache(), timeoutMillis, DEFAULT_NOTIFICATION_BLOCKING_TIME_MILLIS);
+                new InfiniteObjectsCache(), timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }
 
     private static String generateClientId() {
@@ -155,13 +155,13 @@ public class SwiftImpl implements Swift, TxnManager {
     private final ExecutorService notificationsSubscriberExecutor;
     private IncrementalTimestampGenerator clientTimestampGenerator;
     private final int timeoutMillis;
-    private final int notificationsBlockingTimeMillis;
+    private final int notificationTimeoutMillis;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, InfiniteObjectsCache objectsCache,
-            int timeoutMillis, final int notificationsBlockingTimeMillis) {
+            int timeoutMillis, final int notificationTimeoutMillis) {
         this.clientId = generateClientId();
         this.timeoutMillis = timeoutMillis;
-        this.notificationsBlockingTimeMillis = notificationsBlockingTimeMillis;
+        this.notificationTimeoutMillis = notificationTimeoutMillis;
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
@@ -531,13 +531,13 @@ public class SwiftImpl implements Swift, TxnManager {
     private void fetchSubscribedNotifications() {
         final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
         localEndpoint.send(serverEndpoint,
-                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationsBlockingTimeMillis - timeoutMillis)),
+                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
                 new FastRecentUpdatesReplyHandler() {
                     @Override
                     public void onReceive(RpcConnection conn, FastRecentUpdatesReply reply) {
                         replyRef.set(reply);
                     }
-                }, notificationsBlockingTimeMillis);
+                }, notificationTimeoutMillis);
         final FastRecentUpdatesReply notifications = replyRef.get();
         if (notifications == null) {
             logger.warning("server timed out on subscriptions information request");
