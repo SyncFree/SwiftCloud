@@ -1,5 +1,7 @@
 package swift.application;
 
+import java.util.Random;
+
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
@@ -48,12 +50,13 @@ public class LocalSetUpTest {
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
-            System.out.println("(e,1) = " + i1.getValue());
             IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerVersioned.class);
-            System.out.println("(e,2) = " + i2.getValue());
-            i1.add(1);
-            System.out.println("(e,1).add(1)");
-            System.out.println("(e,1) = " + i1.getValue());
+            Random random = new Random();
+            for (int i = 0; i < 5; i++) {
+                i1.add(1);
+                Thread.sleep(random.nextInt(500));
+                i2.add(1);
+            }
             handle.commit();
             System.out.println("commit");
 
