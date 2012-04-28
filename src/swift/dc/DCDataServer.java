@@ -389,6 +389,8 @@ class DCDataServer {
                 CausalityClock clk = grp.getDependency();
                 if (clk == null) {
                     clk = ClockFactory.newClock();
+                } else {
+                    clk = clk.clone();
                 }
                 CausalityClock prune = ClockFactory.newClock();
                 crdt.init(id, clk, prune, true);
