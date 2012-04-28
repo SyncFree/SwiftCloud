@@ -20,6 +20,9 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     private String siteid;
     private long counter;
 
+    /**
+     * Do not use: Empty constructor needed by Kryo
+     */
     public Timestamp() {
     }
 
@@ -80,16 +83,15 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     }
 
     /**
-     * Returns the size of this object in bytes
      * 
-     * @return
+     * @return size of the timestamp (in bytes)
      */
     public int size() {
         return (Long.SIZE / Byte.SIZE) + siteid.length();
     }
 
     /**
-     * @return the site identifier
+     * @return site identifier for the timestamp
      */
     public String getIdentifier() {
         return siteid;

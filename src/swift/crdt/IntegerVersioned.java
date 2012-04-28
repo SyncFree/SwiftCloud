@@ -115,7 +115,6 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
                 v.addAll(e.getValue());
             }
         }
-
         currentValue = pruneValue + getAggregateOfUpdates();
     }
 
@@ -135,7 +134,6 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
                 itSites.remove();
             }
         }
-
     }
 
     @Override

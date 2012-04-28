@@ -19,7 +19,7 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
     }
 
     public CRDTIdentifier(String table, String key) {
-        if (table == null || "".equals(table) | key == null | "".equals(key)) {
+        if (table == null || "".equals(table) || key == null || "".equals(key)) {
             throw new NullPointerException("CRDTIdentifier cannot have empty table or key");
         }
         this.table = table;
@@ -27,8 +27,9 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
     }
 
     private String getId() {
-        if (id == null)
+        if (id == null) {
             id = "CRDTId(" + table + "," + key + ")";
+        }
         return id;
     }
 
@@ -61,6 +62,7 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
         return table.equals(other.table) && key.equals(other.key);
     }
 
+    @Override
     public String toString() {
         return getId();
     }
