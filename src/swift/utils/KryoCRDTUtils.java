@@ -51,9 +51,6 @@ import com.esotericsoftware.kryo.Kryo;
  * @author mzawirski
  */
 public class KryoCRDTUtils {
-    // Chosen randomly by Marek (promise).
-    public final static int CRDT_FIRST_ID = 39021321;
-
     /**
      * Needs to be called exactly only once per JVM!
      */
