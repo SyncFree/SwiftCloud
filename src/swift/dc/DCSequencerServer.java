@@ -61,21 +61,26 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     List<Endpoint> serversEP;
     List<String> sequencers;
     List<Endpoint> sequencersEP;
+    String sequencerShadow;
+    Endpoint sequencerShadowEP;
     String siteId;
     int port;
+    boolean isBackup;
 
     Map<String, LinkedList<CommitRecord>> ops;
     LinkedList<SeqCommitUpdatesRequest> pendingOps;     // ops received from other sites that need to be executed locally
 
 
-    public DCSequencerServer(String siteId, List<String> servers, List<String> sequencers) {
-        this( siteId, DCConstants.SEQUENCER_PORT, servers, sequencers);
+    public DCSequencerServer(String siteId, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup) {
+        this( siteId, DCConstants.SEQUENCER_PORT, servers, sequencers, sequencerShadow, isBackup);
     }
-    public DCSequencerServer(String siteId, int port, List<String> servers, List<String> sequencers) {
+    public DCSequencerServer(String siteId, int port, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup) {
         this.siteId = siteId;
         this.servers = servers;
         this.sequencers = sequencers;
         this.port = port;
+        this.sequencerShadow = sequencerShadow;
+        this.isBackup = isBackup;
         init();
     }
 
@@ -152,11 +157,33 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
         this.endpoint = Networking.Networking.rpcBind(port, null);
         this.endpoint.setHandler(this);
-        synchronizer();
 
-        DCConstants.DCLogger.info("Sequencer ready...");
+        if( sequencerShadow != null) {
+            String s = sequencerShadow;
+            int pos = s.indexOf(":");
+            if( pos != -1) {
+                int port = Integer.parseInt( s.substring(pos + 1));
+                s = s.substring(0, pos);
+                sequencerShadowEP = Networking.resolve(s, port);
+            } else
+                sequencerShadowEP = Networking.resolve(s, DCConstants.SEQUENCER_PORT);
+        }
+        if( ! isBackup)
+            synchronizer();
+
+        if( isBackup)
+            DCConstants.DCLogger.info("Sequencer backup ready...");
+        else
+            DCConstants.DCLogger.info("Sequencer ready...");
     }
 
+    private boolean upgradeToPrimary() {
+        //TODO: code to move this to primary
+        DCConstants.DCLogger.warning("Sequencer backup upgrading to primary...");
+//        synchronizer();
+        return false;
+    }
+    
     /**
      * Synchronizes state with other sequencers
      */
@@ -309,6 +336,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     @Override
     public void onReceive(RpcConnection conn, GenerateTimestampRequest request) {
         DCConstants.DCLogger.info("sequencer: generatetimestamprequest");
+        if( isBackup && ! upgradeToPrimary())
+            return;
         conn.reply(new GenerateTimestampReply(generateNewId(), DCConstants.DEFAULT_TRXIDTIME));
         cleanPendingTS();
     }
@@ -316,6 +345,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     @Override
     public void onReceive(RpcConnection conn, KeepaliveRequest request) {
         DCConstants.DCLogger.info("sequencer: keepaliverequest");
+        if( isBackup && ! upgradeToPrimary())
+            return;
         boolean success = refreshId(request.getTimestamp());
         conn.reply(new KeepaliveReply(success, success, DCConstants.DEFAULT_TRXIDTIME));
         cleanPendingTS();
@@ -331,6 +362,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      */
     public void onReceive(RpcConnection conn, LatestKnownClockRequest request) {
         DCConstants.DCLogger.info("sequencer: latestknownclockrequest:" + currentClockCopy());
+        if( isBackup && ! upgradeToPrimary())
+            return;
         conn.reply(new LatestKnownClockReply(currentClockCopy()));
     }
 
@@ -344,20 +377,90 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     @Override
     public void onReceive(RpcConnection conn, CommitTSRequest request) {
         DCConstants.DCLogger.info("sequencer: commitTSRequest:" + request.getTimestamp()+":nops=" + request.getObjectUpdateGroups().size());
+        if( isBackup && ! upgradeToPrimary())
+            return;
         boolean ok = false;
         CausalityClock clk = null;
         CausalityClock nuClk = null;
         synchronized( this) {
             ok = commitTS(request.getVersion(), request.getTimestamp(), request.getCommit());
             clk = currentClockCopy();
+            if( ! ok) {
+                conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk));
+                return;
+            }
             nuClk = notUsedCopy();
         }
-        if (ok) {
-            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk));
-        } else {
-            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk));
+        
+        conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk));
+        if( ! isBackup && sequencerShadowEP != null) {
+            final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(request.getBaseTimestamp(), 
+                                request.getObjectUpdateGroups(), clk, nuClk);
+            endpoint.send(sequencerShadowEP, msg, new RpcHandler() {
+                                @Override
+                                public void onReceive(RpcMessage m) {
+                                    // do nothing
+                                }
+
+                                @Override
+                                public void onReceive(RpcConnection conn, RpcMessage m) {
+                                    // do nothing
+                                }
+
+                                @Override
+                                public void onFailure() {
+                                    //TODO: handle suspected sequencer backup failure
+                                }
+
+                                @Override
+                                public void onFailure(Endpoint dst, RpcMessage m) {
+                                    //TODO: handle suspected sequencer backup failure
+                                }
+            }, 0);
         }
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getBaseTimestamp()));
+        execPending();
+    }
+
+    @Override
+    public void onReceive(RpcConnection conn, final SeqCommitUpdatesRequest request) {
+        DCConstants.DCLogger.info("sequencer: received commit record:" + request.getBaseTimestamp() +":nops=" + request.getObjectUpdateGroups().size());
+        if( isBackup) {
+            this.addToOps(new CommitRecord( request.getDcNotUsed(), request.getObjectUpdateGroups(), request.getBaseTimestamp()));
+            conn.reply(new SeqCommitUpdatesReply());
+            synchronized( this) {
+                currentState.merge(request.getDcNotUsed());
+                currentState.record(request.getBaseTimestamp());
+            }
+            return;
+        }
+
+        this.addToOps(new CommitRecord( request.getDcNotUsed(), request.getObjectUpdateGroups(), request.getBaseTimestamp()));
+        conn.reply(new SeqCommitUpdatesReply());
+        if( ! isBackup && sequencerShadowEP != null) {
+            endpoint.send(sequencerShadowEP, request, new RpcHandler() {
+                                @Override
+                                public void onReceive(RpcMessage m) {
+                                    // do nothing
+                                }
+
+                                @Override
+                                public void onReceive(RpcConnection conn, RpcMessage m) {
+                                    // do nothing
+                                }
+
+                                @Override
+                                public void onFailure() {
+                                    //TODO: handle suspected sequencer backup failure
+                                }
+
+                                @Override
+                                public void onFailure(Endpoint dst, RpcMessage m) {
+                                    //TODO: handle suspected sequencer backup failure
+                                }
+            }, 0);
+        }
+        addPending( request);
         execPending();
     }
 
@@ -365,6 +468,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         List<String> sequencers = new ArrayList<String>();
         List<String> servers = new ArrayList<String>();
         int port = DCConstants.SEQUENCER_PORT;
+        boolean isBackup = false;
+        String sequencerShadow = null;
         String siteId = "X";
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("-name")) {
@@ -373,31 +478,21 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                 for (; i < args.length; i++) {
                     if (args[i+1].startsWith("-"))
                         break;
-                    servers.add(args[++i]);
+                    servers.add(args[i+1]);
                 }
             } else if (args[i].equals("-sequencers")) {
                 for (; i < args.length; i++) {
                     if (args[i+1].startsWith("-"))
                         break;
-                    sequencers.add(args[++i]);
+                    sequencers.add(args[i+1]);
                 }
             } else if (args[i].equals("-port")) {
                 port = Integer.parseInt( args[++i]);
             }
         }
-        new DCSequencerServer(siteId, port, servers, sequencers).start();
+        new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup).start();
     }
 
-    @Override
-    public void onReceive(RpcConnection conn, SeqCommitUpdatesRequest request) {
-        DCConstants.DCLogger.info("sequencer: received commit record:" + request.getBaseTimestamp() +":nops=" + request.getObjectUpdateGroups().size());
-
-        this.addToOps(new CommitRecord( request.getDcNotUsed(), request.getObjectUpdateGroups(), request.getBaseTimestamp()));
-        conn.reply(new SeqCommitUpdatesReply());
-
-        addPending( request);
-        execPending();
-    }
 
 }
 

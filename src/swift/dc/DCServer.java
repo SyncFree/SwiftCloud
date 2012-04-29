@@ -2,6 +2,8 @@ package swift.dc;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 import sys.Sys;
@@ -38,7 +40,16 @@ public class DCServer {
     public static void main(String[] args) {
         Properties props = new Properties();
         props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+
+        String sequencerNode = "localhost";
+        for (int i = 0; i < args.length; i++) {
+            if (args[i].equals("-sequencer")) {
+                sequencerNode = args[++i];
+            } else if (args[i].startsWith("-prop:")) {
+                props.setProperty( args[i].substring(6), args[++i]);
+            }
+        }
         
-        new DCServer(args.length == 0 ? "localhost" : args[0], props).startSurrogServer( );
+        new DCServer(sequencerNode, props).startSurrogServer( );
     }
 }
