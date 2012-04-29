@@ -445,7 +445,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (updatesListener != null) {
             final UpdateSubscription subscription = addUpdateSubscription(crdtReturned, crdtView, updatesListener);
             if (subscription.hasListener()) {
-                handleObjectUpdatesTryNotify(id, subscription, crdtReturned.getUpdateTimestampsSince(clock));
+                handleObjectNewVersionTryNotify(id, subscription, crdtReturned);
             }
         }
         return crdtView;
@@ -573,8 +573,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 }
 
                 if (subscription != null && subscription.hasListener()) {
-                    handleObjectUpdatesTryNotify(id, subscription,
-                            cacheCRDT.getUpdateTimestampsSince(subscription.readVersion));
+                    handleObjectNewVersionTryNotify(id, subscription, cacheCRDT);
                 }
             }
         }
@@ -695,6 +694,24 @@ public class SwiftImpl implements Swift, TxnManager {
             }
             ids.add(entry.getValue());
         }
+    }
+
+    private <V extends CRDT<V>> void handleObjectNewVersionTryNotify(CRDTIdentifier id,
+            final UpdateSubscription subscription, final V newCrdtVersion) {
+        final Set<Timestamp> recentUpdates;
+        try {
+            recentUpdates = newCrdtVersion.getUpdateTimestampsSince(subscription.readVersion);
+        } catch (IllegalArgumentException x) {
+            // Object has been pruned since then, look at the values.
+            // This is a very bizzare case.
+            logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
+            final TxnLocalCRDT<V> newView = newCrdtVersion.getTxnLocalCopy(committedVersion, subscription.txn);
+            if (!newView.equals(subscription.crdtView.getValue())) {
+                notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+            }
+            return;
+        }
+        handleObjectUpdatesTryNotify(id, subscription, recentUpdates);
     }
 
     private synchronized UpdateSubscription addUpdateSubscription(final CRDT<?> crdt, final TxnLocalCRDT<?> localView,
