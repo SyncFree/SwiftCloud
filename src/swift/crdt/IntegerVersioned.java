@@ -239,7 +239,8 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         return copy;
     }
 
-    private static class UpdatesPerSite {
+    // public for sake of Kryo...
+    public static class UpdatesPerSite {
         public final Set<Pair<Integer, TripleTimestamp>> updates;
 
         /** Do not use: Constructor only to be used by Kryo serialization */

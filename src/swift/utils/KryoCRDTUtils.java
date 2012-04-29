@@ -88,7 +88,9 @@ public class KryoCRDTUtils {
 
         kryo.register(CRDTIdentifier.class);
         kryo.register(IntegerVersioned.class);
+        kryo.register(IntegerVersioned.UpdatesPerSite.class);
         kryo.register(RegisterVersioned.class);
+        kryo.register(RegisterVersioned.QueueEntry.class);
         kryo.register(SetIds.class);
         kryo.register(SetIntegers.class);
         kryo.register(SetMsg.class);

@@ -17,7 +17,8 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVersioned<V>> {
     private static final long serialVersionUID = 1L;
 
-    private static class QueueEntry<V extends Copyable> implements Comparable<QueueEntry<V>>, Serializable {
+    // public for sake of Kryo...
+    public static class QueueEntry<V extends Copyable> implements Comparable<QueueEntry<V>>, Serializable {
         TripleTimestamp ts;
         CausalityClock c;
         V value;
