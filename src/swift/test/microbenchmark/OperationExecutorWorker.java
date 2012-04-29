@@ -88,9 +88,9 @@ public class OperationExecutorWorker implements MicroBenchmarkWorker {
                     for (int i = 0; i < txSize; i++) {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
                         txh.get(identifiers[randomIndex], false, IntegerVersioned.class);
+                        readOps++;
                     }
                     txh.commit();
-                    readOps++;
                     break;
                 }
                 default:

@@ -50,7 +50,25 @@ public class MicroBenchmark implements WorkerManager {
 
         startDCServer();
         startSequencer();
-        MicroBenchmark mb = new MicroBenchmark(true, 200, 3, 3, 0.3, 1000 * 1, 5);
+
+        int sampleSize, maxTxSize, execTime, numRuns, numWorkers;
+        double updateRatio;
+
+        if (args.length != 6) {
+            System.out
+                    .println("[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS]");
+            return;
+        } else {
+            sampleSize = Integer.parseInt(args[0]);
+            maxTxSize = Integer.parseInt(args[1]);
+            numWorkers = Integer.parseInt(args[2]);
+            updateRatio = Double.parseDouble(args[3]);
+            execTime = Integer.parseInt(args[4]);
+            numRuns = Integer.parseInt(args[5]);
+        }
+
+        MicroBenchmark mb = new MicroBenchmark(true, sampleSize, maxTxSize, numWorkers, updateRatio, 1000 * execTime,
+                numRuns);
         try {
             mb.doIt();
         } catch (InterruptedException e) {
@@ -104,7 +122,7 @@ public class MicroBenchmark implements WorkerManager {
     @Override
     public void onWorkerStart(MicroBenchmarkWorker worker) {
         stopSemaphore.release();
-        System.out.println(worker.getWorkerID() + " STARTED");
+        // System.out.println(worker.getWorkerID() + " STARTED");
     }
 
     @Override
@@ -116,7 +134,7 @@ public class MicroBenchmark implements WorkerManager {
             results.put(worker.getWorkerID(), workerRuns);
         }
         workerRuns.add(worker.getResults());
-        System.out.println(worker.getWorkerID() + " STOPPED");
+        // System.out.println(worker.getWorkerID() + " STOPPED");
         stopSemaphore.release();
 
     }
@@ -132,6 +150,11 @@ public class MicroBenchmark implements WorkerManager {
 
     // TODO: Need refactoring to become generic
     private void printResults() {
+
+        double totalExecutedTransactions = 0;
+        double totalWriteOps = 0;
+        double totalReadOps = 0;
+
         for (Entry<String, List<ResultHandler>> workerResults : results.entrySet()) {
             String worker = workerResults.getKey();
             if (worker.equals("INITIALIZER"))
@@ -152,9 +175,18 @@ public class MicroBenchmark implements WorkerManager {
 
             results += "Executed Transactions:\t" + numExecutedTransactions + " W:\t" + writeOps + "\tR:\t" + readOps
                     + "\n";
-            results += "Throughput(Tx/min):\t" + numExecutedTransactions / ((executionTime/1000) / 60d) + "\n";
+            results += "Throughput(Tx/min):\t" + numExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
             System.out.println(results);
+
+            totalExecutedTransactions += numExecutedTransactions;
+            totalWriteOps += writeOps;
+            totalReadOps += readOps;
         }
+        String results = "Total Results:\n";
+        results += "Executed Transactions:\t" + totalExecutedTransactions + " W:\t" + totalWriteOps + "\tR:\t"
+                + totalReadOps + "\n";
+        results += "Throughput(Tx/min):\t" + totalExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
+        System.out.println(results);
     }
 
 }
