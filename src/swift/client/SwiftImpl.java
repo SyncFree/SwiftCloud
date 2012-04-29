@@ -146,6 +146,7 @@ public class SwiftImpl implements Swift, TxnManager {
     // Cache of objects.
     // Invariant: if object is in the cache, it must include all updates
     // of locally and globally committed locally-originating transactions.
+    // FIXME: what about concurrent fetch and local commit!?
     private final TimeBoundedObjectsCache objectsCache;
 
     // Invariant: committedVersion only grows.

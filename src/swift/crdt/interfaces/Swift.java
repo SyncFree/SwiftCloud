@@ -9,9 +9,8 @@ import swift.exceptions.NetworkException;
  */
 public interface Swift {
     /**
-     * Starts a new transaction, observing the results of previously locally
-     * committed transactions (read-your-writes) and all their dependencies
-     * (monotonic-reads), and some external transactions committed to the store,
+     * Starts a new transaction, observing the results of locally committed
+     * transactions, and some external transactions committed to the store,
      * depending on cache and isolation options.
      * 
      * @param isolationLevel
