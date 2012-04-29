@@ -18,7 +18,7 @@ import swift.exceptions.IncompatibleTypeException;
  * @author nmp
  */
 public class VersionVectorWithExceptions implements CausalityClock {
-    static class Pair {
+    public static class Pair {
         long from; // inclusive
         long to; // inclusive
 

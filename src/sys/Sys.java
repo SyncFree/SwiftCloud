@@ -2,6 +2,7 @@ package sys;
 
 import java.util.Random;
 
+import swift.utils.KryoCRDTUtils;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.catadupa.KryoCatadupa;
@@ -38,6 +39,7 @@ public class Sys {
 		scheduler.start();
 		NetworkingImpl.init();
 		KryoCatadupa.init();
+        KryoCRDTUtils.init();
 	}
 
 	public void setDatacenter( String datacenter ) {
