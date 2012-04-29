@@ -3,6 +3,7 @@ package swift.crdt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -269,8 +270,9 @@ public class SetMergeTest {
         final CausalityClock updatesSince = i1.getClock().clone();
         assertTrue(i1.getUpdateTimestampsSince(updatesSince).isEmpty());
 
-        registerSingleInsertTxn(1, i1, swift1);
-        assertEquals(1, i1.getUpdateTimestampsSince(updatesSince).size());
+        final TripleTimestamp ts = registerSingleInsertTxn(1, i1, swift1);
+        registerSingleRemoveTxn(1, Collections.singleton(ts), i1, swift1);
+        assertEquals(2, i1.getUpdateTimestampsSince(updatesSince).size());
     }
 
     @Test
