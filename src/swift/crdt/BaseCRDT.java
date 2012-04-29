@@ -9,7 +9,7 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
-import swift.clocks.TripleTimestamp;
+import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperation;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
@@ -143,7 +143,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     }
 
     @Override
-    public Set<TripleTimestamp> getUpdateTimestampsSince(CausalityClock clock) {
+    public Set<Timestamp> getUpdateTimestampsSince(CausalityClock clock) {
         final CMP_CLOCK pruneCmp = clock.compareTo(pruneClock);
         if (pruneCmp == CMP_CLOCK.CMP_CONCURRENT || pruneCmp == CMP_CLOCK.CMP_ISDOMINATED) {
             throw new IllegalArgumentException();
@@ -152,7 +152,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         return getUpdateTimestampsSinceImpl(clock);
     }
 
-    protected abstract Set<TripleTimestamp> getUpdateTimestampsSinceImpl(CausalityClock clock);
+    protected abstract Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock);
 
     // TODO Implement copy mechanisms for each CRDT!
     public V copy() {

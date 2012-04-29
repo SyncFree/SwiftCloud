@@ -217,12 +217,12 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    protected Set<TripleTimestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        final Set<TripleTimestamp> result = new HashSet<TripleTimestamp>();
+    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
+        final Set<Timestamp> result = new HashSet<Timestamp>();
         for (Entry<String, UpdatesPerSite> entry : updates.entrySet()) {
             for (Pair<Integer, TripleTimestamp> set : entry.getValue().updates) {
                 if (!clock.includes(set.getSecond())) {
-                    result.add(set.getSecond());
+                    result.add(set.getSecond().cloneBaseTimestamp());
                 }
             }
         }

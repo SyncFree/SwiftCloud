@@ -181,16 +181,16 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    protected Set<TripleTimestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        final Set<TripleTimestamp> result = new HashSet<TripleTimestamp>();
+    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
+        final Set<Timestamp> result = new HashSet<Timestamp>();
         for (Map<TripleTimestamp, Set<TripleTimestamp>> addsRemoves : elems.values()) {
             for (final Entry<TripleTimestamp, Set<TripleTimestamp>> addRemoves : addsRemoves.entrySet()) {
                 if (!clock.includes(addRemoves.getKey())) {
-                    result.add(addRemoves.getKey());
+                    result.add(addRemoves.getKey().cloneBaseTimestamp());
                 }
                 for (final TripleTimestamp removeTimestamp : addRemoves.getValue()) {
                     if (!clock.includes(removeTimestamp)) {
-                        result.add(removeTimestamp);
+                        result.add(removeTimestamp.cloneBaseTimestamp());
                     }
                 }
             }

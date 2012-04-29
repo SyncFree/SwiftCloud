@@ -165,11 +165,11 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
     }
 
     @Override
-    protected Set<TripleTimestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        final Set<TripleTimestamp> result = new HashSet<TripleTimestamp>();
+    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
+        final Set<Timestamp> result = new HashSet<Timestamp>();
         for (QueueEntry<V> e : values) {
             if (!clock.includes(e.ts)) {
-                result.add(e.ts);
+                result.add(e.ts.cloneBaseTimestamp());
             }
         }
         return result;

@@ -62,6 +62,10 @@ public class TripleTimestamp extends Timestamp {
         return new TripleTimestamp(getIdentifier(), getCounter(), secondaryCounter);
     }
 
+    public Timestamp cloneBaseTimestamp() {
+        return new Timestamp(getIdentifier(), getCounter());
+    }
+
     /**
      * Creates a copy of this timestamp using a different base timestamp
      * (identifiers and counter).

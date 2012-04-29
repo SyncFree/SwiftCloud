@@ -5,7 +5,6 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.clocks.TripleTimestamp;
 import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
@@ -179,7 +178,7 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      *             or clock is dominated or concurrent to
      *             {@link #getPruneClock()}
      */
-    Set<TripleTimestamp> getUpdateTimestampsSince(final CausalityClock clock);
+    Set<Timestamp> getUpdateTimestampsSince(final CausalityClock clock);
 
     /**
      * @return a deep copy of this object
