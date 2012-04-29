@@ -81,6 +81,8 @@ public class SwiftImpl implements Swift, TxnManager {
     // WISHME: decouple "object store" from the rest of transactions and
     // notifications processing
 
+    // WISHME: subscribe updates of frequently accessed objects
+
     public static final int DEFAULT_TIMEOUT_MILLIS = 10 * 1000;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
