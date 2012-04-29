@@ -18,7 +18,8 @@ import swift.utils.Pair;
 
 public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private static final long serialVersionUID = 1L;
-    private Map<String, Set<Pair<Integer, TripleTimestamp>>> updates;
+    // Map of site id to updates
+    private Map<String, UpdatesPerSite> updates;
     // Current value with respect to the updatesClock
     private int currentValue;
 
@@ -27,7 +28,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private int pruneValue;
 
     public IntegerVersioned() {
-        this.updates = new HashMap<String, Set<Pair<Integer, TripleTimestamp>>>();
+        this.updates = new HashMap<String, UpdatesPerSite>();
         this.pruneVector = new HashMap<String, Pair<Integer, TripleTimestamp>>();
     }
 
@@ -44,33 +45,27 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     private int filterUpdates(CausalityClock clk) {
         int retValue = 0;
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : updates.entrySet()) {
-            for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
-                if (clk.includes(set.getSecond())) {
-                    retValue += set.getFirst();
-                }
-            }
+        for (Entry<String, UpdatesPerSite> entry : updates.entrySet()) {
+            retValue += entry.getValue().filterUpdates(clk);
         }
         return retValue;
     }
 
     public void applyUpdate(int n, TripleTimestamp ts) {
         String siteId = ts.getIdentifier();
-        Set<Pair<Integer, TripleTimestamp>> v = updates.get(siteId);
+        UpdatesPerSite v = updates.get(siteId);
         if (v == null) {
-            v = new HashSet<Pair<Integer, TripleTimestamp>>();
+            v = new UpdatesPerSite();
             updates.put(siteId, v);
         }
-        v.add(new Pair<Integer, TripleTimestamp>(n, ts));
+        v.add(n, ts);
         currentValue += n;
     }
 
     private int getAggregateOfUpdates() {
         int changes = 0;
-        for (Set<Pair<Integer, TripleTimestamp>> v : updates.values()) {
-            for (Pair<Integer, TripleTimestamp> vi : v) {
-                changes += vi.getFirst();
-            }
+        for (UpdatesPerSite v : updates.values()) {
+            changes += v.getUpates();
         }
         return changes;
     }
@@ -106,23 +101,23 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         cleanUpdatesFromPruned(updates);
         cleanUpdatesFromPruned(other.updates);
 
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> e : other.updates.entrySet()) {
-            Set<Pair<Integer, TripleTimestamp>> v = updates.get(e.getKey());
+        for (Entry<String, UpdatesPerSite> e : other.updates.entrySet()) {
+            UpdatesPerSite v = updates.get(e.getKey());
             if (v == null) {
                 v = e.getValue();
-                updates.put(e.getKey(), new HashSet<Pair<Integer, TripleTimestamp>>(e.getValue()));
+                updates.put(e.getKey(), new UpdatesPerSite(e.getValue()));
             } else {
-                v.addAll(e.getValue());
+                v.updates.addAll(e.getValue().updates);
             }
         }
         currentValue = pruneValue + getAggregateOfUpdates();
     }
 
-    private void cleanUpdatesFromPruned(Map<String, Set<Pair<Integer, TripleTimestamp>>> up) {
+    private void cleanUpdatesFromPruned(Map<String, UpdatesPerSite> updates2) {
 
-        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = up.entrySet().iterator();
+        Iterator<Entry<String, UpdatesPerSite>> itSites = updates2.entrySet().iterator();
         while (itSites.hasNext()) {
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
+            Entry<String, UpdatesPerSite> updatesPerSite = itSites.next();
             Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
             while (addTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
@@ -149,9 +144,9 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     private int rollbackUpdates(Timestamp rollbackEvent) {
         int delta = 0;
-        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = updates.entrySet().iterator();
+        Iterator<Entry<String, UpdatesPerSite>> itSites = updates.entrySet().iterator();
         while (itSites.hasNext()) {
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
+            Entry<String, UpdatesPerSite> updatesPerSite = itSites.next();
             Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
             while (addTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
@@ -160,7 +155,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
                     delta += ts.getFirst();
                 }
             }
-            if (updatesPerSite.getValue().isEmpty()) {
+            if (updatesPerSite.getValue().updates.isEmpty()) {
                 itSites.remove();
             }
         }
@@ -175,12 +170,12 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     @Override
     protected void pruneImpl(CausalityClock c) {
         int sumOfDeltas = 0;
-        Iterator<Entry<String, Set<Pair<Integer, TripleTimestamp>>>> itSites = updates.entrySet().iterator();
+        Iterator<Entry<String, UpdatesPerSite>> itSites = updates.entrySet().iterator();
         while (itSites.hasNext()) {
             int delta = 0;
             TripleTimestamp pruneMax = null;
 
-            Entry<String, Set<Pair<Integer, TripleTimestamp>>> updatesPerSite = itSites.next();
+            Entry<String, UpdatesPerSite> updatesPerSite = itSites.next();
             Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
             while (addTSit.hasNext()) {
                 Pair<Integer, TripleTimestamp> ts = addTSit.next();
@@ -193,7 +188,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
                 }
             }
 
-            if (updatesPerSite.getValue().isEmpty()) {
+            if (updatesPerSite.getValue().updates.isEmpty()) {
                 itSites.remove();
             }
 
@@ -223,8 +218,8 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     @Override
     protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
-        for (Entry<String, Set<Pair<Integer, TripleTimestamp>>> entry : updates.entrySet()) {
-            for (Pair<Integer, TripleTimestamp> set : entry.getValue()) {
+        for (Entry<String, UpdatesPerSite> entry : updates.entrySet()) {
+            for (Pair<Integer, TripleTimestamp> set : entry.getValue().updates) {
                 if (!clock.includes(set.getSecond())) {
                     return true;
                 }
@@ -242,5 +237,48 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         copy.pruneValue = this.pruneValue;
         copyBase(copy);
         return copy;
+    }
+
+    private static class UpdatesPerSite {
+        public final Set<Pair<Integer, TripleTimestamp>> updates;
+
+        /** Do not use: Constructor only to be used by Kryo serialization */
+        public UpdatesPerSite() {
+            this.updates = new HashSet<Pair<Integer, TripleTimestamp>>();
+        }
+
+        public boolean isEmpty() {
+            return updates.isEmpty();
+        }
+
+        public UpdatesPerSite(UpdatesPerSite value) {
+            this.updates = new HashSet<Pair<Integer, TripleTimestamp>>(value.updates);
+        }
+
+        public Iterator<Pair<Integer, TripleTimestamp>> iterator() {
+            return updates.iterator();
+        }
+
+        public int getUpates() {
+            int acc = 0;
+            for (Pair<Integer, TripleTimestamp> v : updates) {
+                acc += v.getFirst();
+            }
+            return acc;
+        }
+
+        public void add(int n, TripleTimestamp ts) {
+            updates.add(new Pair<Integer, TripleTimestamp>(n, ts));
+        }
+
+        public int filterUpdates(CausalityClock clk) {
+            int acc = 0;
+            for (Pair<Integer, TripleTimestamp> v : updates) {
+                if (clk.includes(v.getSecond())) {
+                    acc += v.getFirst();
+                }
+            }
+            return acc;
+        }
     }
 }

@@ -23,7 +23,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         V value;
 
         /**
-         * Only to be used by Kryo serialization.
+         * Do not use: Empty constructor only to be used by Kryo serialization.
          */
         public QueueEntry() {
         }
