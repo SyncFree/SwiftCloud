@@ -16,6 +16,7 @@ import org.easymock.EasyMock;
 import org.easymock.EasyMockSupport;
 import org.easymock.IArgumentMatcher;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import swift.clocks.CausalityClock;
@@ -35,8 +36,8 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 /**
@@ -46,6 +47,7 @@ import swift.exceptions.WrongTypeException;
  * 
  * @author mzawirski
  */
+@Ignore
 public class TxnHandleImplTest extends EasyMockSupport {
 
     private TxnManager mockManager;
