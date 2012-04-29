@@ -14,7 +14,8 @@ public class DCConstants {
     public static final int SEQUENCER_PORT = 9998;
     public static final int SURROGATE_PORT = 9999;
 
-    public static final long SYNC_PERIOD = 1000000;
+    public static final long INTERSEQ_RETRY = 5000;       //period for retyring re-sending data between sequencers
+    public static final long SYNC_PERIOD = 10000;       //period for dumping objects to storage
 
     public static final String DATABASE_CLASS = "DB"; // property for storing
                                                       // the type of database

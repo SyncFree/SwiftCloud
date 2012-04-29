@@ -1,5 +1,8 @@
 package swift.client.proto;
 
+import swift.dc.proto.SeqCommitUpdatesReply;
+import swift.dc.proto.SeqCommitUpdatesReplyHandler;
+import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcHandler;
 
@@ -39,6 +42,16 @@ public interface  BaseServer extends RpcHandler {
      *            request to serve
      */
     void onReceive(RpcConnection conn, LatestKnownClockRequest request);
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link SeqCommitUpdatesReplyHandler} and expects
+     *            {@link SeqCommitUpdatesReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcConnection conn, SeqCommitUpdatesRequest request);
+
     
 
 }

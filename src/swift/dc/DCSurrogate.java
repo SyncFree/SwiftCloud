@@ -49,6 +49,7 @@ import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
 import swift.dc.proto.CommitTSRequest;
 import swift.dc.proto.DHTSendNotification;
+import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcConnection;
@@ -328,7 +329,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 
     @Override
     public void onReceive(final RpcConnection conn, CommitUpdatesRequest request) {
-        DCConstants.DCLogger.info("CommitUpdatesRequest client = " + request.getClientId());
+        DCConstants.DCLogger.info("CommitUpdatesRequest client = " + request.getClientId() + ":ts=" + request.getBaseTimestamp()+":nops=" + request.getObjectUpdateGroups().size());
         final ClientPubInfo session = getSession(request.getClientId());
 
         List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
@@ -417,6 +418,46 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         DCConstants.DCLogger.info("FastRecentUpdatesRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
         session.dumpNewUpdates(conn, request, getEstimatedDCVersionCopy());
+    }
+
+    @Override
+    public void onReceive(RpcConnection conn, SeqCommitUpdatesRequest request) {
+        DCConstants.DCLogger.info("SeqCommitUpdatesRequest timestamp = " + request.getBaseTimestamp());
+
+        List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
+        final Timestamp ts = request.getBaseTimestamp();
+        final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
+        final CausalityClock trxClock = snapshotClock.clone();
+        trxClock.record(request.getBaseTimestamp());
+        Iterator<CRDTObjectOperationsGroup<?>> it = ops.iterator();
+        boolean ok = true;
+        while (it.hasNext()) {
+            // TODO: must make this concurrent to be fast
+            CRDTObjectOperationsGroup<?> grp = it.next();
+            ok = ok && execCRDT(grp, snapshotClock, trxClock);
+            synchronized (estimatedDCVersion) {
+                estimatedDCVersion.merge(grp.getDependency());
+            }
+        }
+        final boolean txResult = ok;
+        // TODO: handle failure
+
+        CausalityClock estimatedDCVersionCopy = null;
+        synchronized (estimatedDCVersion) {
+            estimatedDCVersionCopy = estimatedDCVersion.clone();
+        }
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok,
+                request.getObjectUpdateGroups(), request.getBaseTimestamp()), new CommitTSReplyHandler() {
+            @Override
+            public void onReceive(RpcConnection conn0, CommitTSReply reply) {
+                DCConstants.DCLogger.info("Commit: received CommitTSRequest");
+                if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                    synchronized (estimatedDCVersion) {
+                        estimatedDCVersion.merge(reply.getCurrVersion());
+                    }
+                }
+            }
+        });
     }
 
 }

@@ -133,8 +133,9 @@ public class SwiftSocialMain {
     }
 
     private static void startSequencer() {
-        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-        sequencer.start();
+        DCSequencerServer.main( new String[] { "-name", sequencerName});
+//        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
+//        sequencer.start();
     }
 
 }

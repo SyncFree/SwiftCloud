@@ -1,5 +1,6 @@
 package swift.client.proto;
 
+import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.net.api.rpc.RpcConnection;
 
 /**

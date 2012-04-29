@@ -24,8 +24,9 @@ public class LocalConcurrencyTest {
 
     public static void main(String[] args) {
         // start sequencer server
-        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-        sequencer.start();
+        DCSequencerServer.main( new String[] { "-name", sequencerName});
+//      DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
+//      sequencer.start();
 
         // start DC server
         DCServer.main(new String[] { sequencerName });
