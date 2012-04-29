@@ -1,6 +1,6 @@
 package swift.crdt;
 
-import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
@@ -213,12 +213,12 @@ public class IntegerMergeTest {
     }
 
     @Test
-    public void testHasUpdateSince() {
+    public void testGetUpdateTimestampsSince() {
         final CausalityClock updatesSince = i1.getClock().clone();
-        assertFalse(i1.hasUpdatesSince(updatesSince));
+        assertTrue(i1.getUpdateTimestampsSince(updatesSince).isEmpty());
 
         registerSingleUpdateTxn(1, i1, swift1);
-        assertTrue(i1.hasUpdatesSince(updatesSince));
+        assertEquals(1, i1.getUpdateTimestampsSince(updatesSince).size());
     }
 
     @Test

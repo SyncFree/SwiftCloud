@@ -1,9 +1,11 @@
 package swift.crdt.interfaces;
 
 import java.io.Serializable;
+import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
@@ -166,17 +168,18 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     boolean isRegisteredInStore();
 
     /**
-     * Checks whether an object executed any updates since provided clock.
+     * Looks for any updates on the crdt since provided clock.
      * 
      * @param clock
      *            clock to look for updates
-     * @return true if object
+     * @return set of timestamps of operations on object since clock, can be
+     *         empty
      * @throws IllegalArgumentException
      *             when clock dominates or is concurrent to {@link #getClock()},
      *             or clock is dominated or concurrent to
      *             {@link #getPruneClock()}
      */
-    boolean hasUpdatesSince(final CausalityClock clock);
+    Set<TripleTimestamp> getUpdateTimestampsSince(final CausalityClock clock);
 
     /**
      * @return a deep copy of this object

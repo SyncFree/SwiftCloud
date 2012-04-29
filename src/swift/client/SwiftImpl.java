@@ -2,10 +2,14 @@ package swift.client;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,7 +53,6 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
-import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
@@ -164,7 +167,11 @@ public class SwiftImpl implements Swift, TxnManager {
     private final LinkedList<AbstractTxnHandle> pendingTxnLocalDependencies;
 
     // Update subscriptions stuff.
+    // id -> update subscription information
     private final Map<CRDTIdentifier, UpdateSubscription> objectUpdateSubscriptions;
+    // map from tripletimestamp of an uncommitted update to an object that may
+    // await notification.
+    private final Map<Timestamp, CRDTIdentifier> uncommittedUpdatesObjectsToNotify;
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
     private final ExecutorService notificationsSubscriberExecutor;
@@ -187,6 +194,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committerThread = new CommitterThread();
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
+        this.uncommittedUpdatesObjectsToNotify = new HashMap<Timestamp, CRDTIdentifier>();
         this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(1);
         this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(1);
         this.notificationsThread = new NotoficationsProcessorThread();
@@ -273,6 +281,19 @@ public class SwiftImpl implements Swift, TxnManager {
             // committed transaction before the CommitUpdatesReply has been
             // received.
             applyGloballyCommittedTxn(commitingTxn);
+        }
+
+        // Go through updates to notify and see if any become committed.
+        final Iterator<Entry<Timestamp, CRDTIdentifier>> iter = uncommittedUpdatesObjectsToNotify.entrySet().iterator();
+        while (iter.hasNext()) {
+            final Entry<Timestamp, CRDTIdentifier> entry = iter.next();
+            if (committedVersion.includes(entry.getKey())) {
+                iter.remove();
+                final UpdateSubscription subscription = objectUpdateSubscriptions.get(entry.getValue());
+                if (subscription != null && subscription.hasListener()) {
+                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(entry.getValue()));
+                }
+            }
         }
     }
 
@@ -419,8 +440,8 @@ public class SwiftImpl implements Swift, TxnManager {
         final TxnLocalCRDT<V> crdtView = crdtReturned.getTxnLocalCopy(clock, pendingTxn);
         if (updatesListener != null) {
             final UpdateSubscription subscription = addUpdateSubscription(crdtReturned, crdtView, updatesListener);
-            if (subscription.hasListener() && crdtReturned.hasUpdatesSince(clock)) {
-                notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+            if (subscription.hasListener()) {
+                handleObjectUpdatesTryNotify(id, subscription, crdtReturned.getUpdateTimestampsSince(clock));
             }
         }
         return crdtView;
@@ -547,9 +568,9 @@ public class SwiftImpl implements Swift, TxnManager {
                     subscription = addUpdateSubscription(cacheCRDT, null, null);
                 }
 
-                if (subscription != null && subscription.hasListener()
-                        && cacheCRDT.hasUpdatesSince(subscription.readVersion)) {
-                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+                if (subscription != null && subscription.hasListener()) {
+                    handleObjectUpdatesTryNotify(id, subscription,
+                            cacheCRDT.getUpdateTimestampsSince(subscription.readVersion));
                 }
             }
         }
@@ -643,14 +664,27 @@ public class SwiftImpl implements Swift, TxnManager {
                 continue;
             }
             if (subscription != null && subscription.hasListener()) {
-                if (subscription.readVersion.includes(op.getBaseTimestamp())) {
-                    logger.warning("Client invariant broken: applied unknown operation, yet previously read");
-                } else {
-                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
-                }
+                handleObjectUpdatesTryNotify(id, subscription, Collections.singleton(op.getBaseTimestamp()));
             }
         }
         crdt.getClock().merge(outputClock);
+    }
+
+    private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id, UpdateSubscription subscription,
+            Collection<? extends Timestamp> updateTimestamps) {
+        Map<Timestamp, CRDTIdentifier> uncommittedUpdates = new HashMap<Timestamp, CRDTIdentifier>();
+        for (final Timestamp ts : updateTimestamps) {
+            if (!subscription.readVersion.includes(ts)) {
+                if (committedVersion.includes(ts)) {
+                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+                    return;
+                }
+                uncommittedUpdates.put(ts, id);
+            }
+        }
+        // There was no committed timestamp we could notify about, so put
+        // them the queue of updates to notify when they are committed.
+        uncommittedUpdatesObjectsToNotify.putAll(uncommittedUpdates);
     }
 
     private synchronized UpdateSubscription addUpdateSubscription(final CRDT<?> crdt, final TxnLocalCRDT<?> localView,
@@ -863,16 +897,6 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private void notifyUpdatesListener(final ObjectUpdatesListener listener, final TxnHandle txn,
-            final CRDTIdentifier id, final TxnLocalCRDT<?> crdtView) {
-        notificationsCallbacksExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                listener.onObjectUpdate(txn, id, crdtView);
-            }
-        });
-    }
-
     private void assertNoPendingTransaction() {
         if (pendingTxn != null) {
             throw new IllegalStateException("Only one transaction can be executing at the time");
@@ -977,7 +1001,7 @@ public class SwiftImpl implements Swift, TxnManager {
         // triggering update is included in committedVersion!
         public Runnable generateListenerNotification(final CRDTIdentifier id) {
             if (!hasListener()) {
-                return null;
+                throw new IllegalStateException("Trying to notify already notified updates listener");
             }
 
             final ObjectUpdatesListener listenerRef = this.listener;

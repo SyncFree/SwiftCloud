@@ -1,7 +1,9 @@
 package swift.crdt;
 
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -163,13 +165,14 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
     }
 
     @Override
-    protected boolean hasUpdatesSinceImpl(CausalityClock clock) {
+    protected Set<TripleTimestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
+        final Set<TripleTimestamp> result = new HashSet<TripleTimestamp>();
         for (QueueEntry<V> e : values) {
             if (!clock.includes(e.ts)) {
-                return true;
+                result.add(e.ts);
             }
         }
-        return false;
+        return result;
     }
 
 }
