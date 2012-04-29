@@ -1,11 +1,11 @@
 package swift.dc;
 
+import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import sys.Sys;
@@ -21,7 +21,7 @@ public class TestClient {
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
-                    new ObjectUpdatesListener() {
+                    new AbstractObjectUpdatesListener() {
                         @Override
                         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
                             System.out.println("NOTIFY: object modified : " + id
@@ -109,7 +109,7 @@ public class TestClient {
         System.exit(0);
     }
 
-    static class DummyObjectUpdatesListener implements ObjectUpdatesListener {
+    static class DummyObjectUpdatesListener extends AbstractObjectUpdatesListener {
         @Override
         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             System.out.println("Yoohoo, the object " + id + " has changed!");

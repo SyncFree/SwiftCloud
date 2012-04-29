@@ -23,4 +23,14 @@ public interface ObjectUpdatesListener {
      *            previous value of an object
      */
     void onObjectUpdate(final TxnHandle txn, final CRDTIdentifier id, final TxnLocalCRDT<?> previousValue);
+
+    // TODO: add shouldContinueSubscription() method to simplify GC?
+
+    /**
+     * @return true if this listener only forces object updates subscription and
+     *         it is not interested in actual
+     *         {@link #onObjectUpdate(TxnHandle, CRDTIdentifier, TxnLocalCRDT)}
+     *         calls.
+     */
+    boolean isSubscriptionOnly();
 }

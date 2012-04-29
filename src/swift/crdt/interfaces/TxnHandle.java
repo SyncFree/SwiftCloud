@@ -29,10 +29,15 @@ public interface TxnHandle {
      * requiring notification on updates can implement
      * {@link ObjectUpdatesListener} directly.
      */
-    ObjectUpdatesListener DUMMY_UPDATES_SUBSCRIBER = new ObjectUpdatesListener() {
+    ObjectUpdatesListener UPDATES_SUBSCRIBER = new ObjectUpdatesListener() {
         @Override
         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             // no-op
+        }
+
+        @Override
+        public boolean isSubscriptionOnly() {
+            return true;
         }
     };
 

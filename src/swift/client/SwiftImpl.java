@@ -613,9 +613,11 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.info("cannot apply received updates on object " + id + " as it has been evicted from the cache");
             if (subscription != null) {
                 if (subscription.hasListener()) {
-                    // There still listener waiting, make some efforts to fire
-                    // the notification.
-                    asyncSubscribeObjectUpdates(id);
+                    if (!ops.isEmpty()) {
+                        // There still listener waiting, make some efforts to
+                        // fire the notification.
+                        asyncSubscribeObjectUpdates(id);
+                    }
                 } else {
                     // Stop subscription for object evicted from the cache.
                     removeUpdateSubscriptionAsyncUnsubscribe(id);
@@ -628,7 +630,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
             // Ooops, we missed some update or messages were ordered.
             logger.info("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
-            if (subscription != null) {
+            if (subscription != null && !ops.isEmpty()) {
                 asyncSubscribeObjectUpdates(id);
             }
             return;
@@ -956,9 +958,7 @@ public class SwiftImpl implements Swift, TxnManager {
         private CausalityClock readVersion;
 
         public UpdateSubscription(AbstractTxnHandle txn, TxnLocalCRDT<?> crdtView, final ObjectUpdatesListener listener) {
-            // This comparison is a bit hackish, perhaps we should support it
-            // better at API level.
-            if (listener != TxnHandle.DUMMY_UPDATES_SUBSCRIBER) {
+            if (!listener.isSubscriptionOnly()) {
                 this.txn = txn;
                 this.crdtView = crdtView;
                 this.listener = listener;

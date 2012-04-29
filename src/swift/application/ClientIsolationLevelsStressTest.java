@@ -62,9 +62,9 @@ public class ClientIsolationLevelsStressTest {
                 TxnHandle txn = client.beginTxn(i % 2 == 0 ? IsolationLevel.SNAPSHOT_ISOLATION
                         : IsolationLevel.REPEATABLE_READS, CachePolicy.STRICTLY_MOST_RECENT, false);
                 IntegerTxnLocal i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerVersioned.class,
-                        TxnHandle.DUMMY_UPDATES_SUBSCRIBER);
+                        TxnHandle.UPDATES_SUBSCRIBER);
                 IntegerTxnLocal i2 = txn.get(new CRDTIdentifier("tests", "2"), true, swift.crdt.IntegerVersioned.class,
-                        TxnHandle.DUMMY_UPDATES_SUBSCRIBER);
+                        TxnHandle.UPDATES_SUBSCRIBER);
 
                 // Play with 2 integer counters a bit.
                 final int i1OldValue = i1.getValue();
