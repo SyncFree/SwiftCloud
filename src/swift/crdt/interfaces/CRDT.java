@@ -56,13 +56,15 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     /**
      * Merges the object with other object state of the same type.
      * <p>
-     * In the outcome, updates and clock of provided object are reflected in
-     * this object.
-     * 
-     * TODO: specify pruneClock behavior
+     * In the outcome, updates and clocks of provided object are reflected in
+     * this object. Pruning is also unioned, the output pruneClock is merge of
+     * the two clocks.
      * 
      * @param crdt
      *            object state to merge with
+     * @throws IllegalStateException
+     *             when clock of one of the crdts is concurrent with or
+     *             dominated by prune clock of one of the crdts
      */
     void merge(CRDT<V> crdt);
 
@@ -89,19 +91,23 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * dating from before pruningPoint inclusive.
      * <p>
      * After this call returns, snapshots prior or concurrent to pruningPoint
-     * will be undefined and should not be requested. Clock of an object is
-     * unaffected.
+     * will be undefined and should not be requested. Pruning point clock is
+     * merged into the clock of an object if checkVersionClock is disabled.
      * 
      * @param pruningPoint
      *            clock up to which data clean-up is performed; without
      *            exceptions
+     * @param checkVersionClock
+     *            when true, pruningPoint is checked against {@link #getClock()}
      * @throws IllegalStateException
      *             when the provided clock is not greater than or equal to the
      *             existing pruning point
      * @throws IllegalArgumentException
-     *             provided clock has disallowed exceptions
+     *             provided clock has disallowed exceptions or checkVersionClock
+     *             has been specified and {@link #getClock()} is concurrent or
+     *             dominated by pruningPoint
      */
-    void prune(CausalityClock pruningPoint);
+    void prune(CausalityClock pruningPoint, boolean checkVersionClock);
 
     /**
      * Remove the effects of the transaction associated to the timestamp.
@@ -112,6 +118,8 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * @param ts
      *            time stamp of transaction that is rolled back.
      */
+    // FIXME: Drop the method? It seems with current protocol usage, we cannot
+    // rollback like that, it would break everything.
     void rollback(Timestamp ts);
 
     /**

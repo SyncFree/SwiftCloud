@@ -35,7 +35,7 @@ public class SwiftTester implements Swift {
     }
 
     public <V extends CRDT<V>> void prune(V local, CausalityClock c) {
-        local.prune(c.clone());
+        local.prune(c.clone(), true);
     }
 
     @Override

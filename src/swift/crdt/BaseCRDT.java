@@ -39,30 +39,46 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     }
 
     @Override
-    public void prune(CausalityClock pruningPoint) {
+    public void prune(CausalityClock pruningPoint, boolean checkVersionClock) {
         assertGreaterEqualsPruneClock(pruningPoint);
+        if (checkVersionClock
+                && updatesClock.compareTo(pruningPoint).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
+            throw new IllegalStateException("Cannot prune concurrently or later than updates clock of this version");
+        }
+
+        updatesClock.merge(pruningPoint);
         pruneClock.merge(pruningPoint);
         pruneImpl(pruningPoint);
     }
 
     protected abstract void pruneImpl(CausalityClock pruningPoint);
 
+    @Override
     public void merge(CRDT<V> otherObject) {
+        // FIXME: it's more involved than that!
+        // if
+        // (updatesClock.compareTo(otherObject.getPruneClock()).is(CMP_CLOCK.CMP_CONCURRENT,
+        // CMP_CLOCK.CMP_ISDOMINATED)) {
+        // throw new IllegalStateException(
+        // "Cannot merge with an object version that pruned concurrently with or later to this version");
+        // }
+        // if
+        // (otherObject.getClock().compareTo(pruneClock).is(CMP_CLOCK.CMP_CONCURRENT,
+        // CMP_CLOCK.CMP_ISDOMINATED)) {
+        // throw new IllegalStateException(
+        // "Cannot merge with an object version lower or concurrent with pruning point of this version");
+        // }
+
         mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
+        pruneClock.merge(otherObject.getPruneClock());
         registeredInStore |= otherObject.isRegisteredInStore();
-        // pruneClock is preserved
-        // FIXME: if otherObject has non-versioned updates that we do not have
-        // in verisoned form, we must raise the pruneClock :-(
     }
 
     protected abstract void mergePayload(V otherObject);
 
     @Override
     public boolean execute(CRDTObjectOperationsGroup<V> ops, final CRDTOperationDependencyPolicy dependenciesPolicy) {
-        if (pruneClock.includes(ops.getBaseTimestamp())) {
-            throw new IllegalStateException("Operations group origin prior to the pruning point");
-        }
         final CausalityClock dependencyClock = ops.getDependency();
         if (dependenciesPolicy == CRDTOperationDependencyPolicy.CHECK) {
             final CMP_CLOCK dependencyCmp = updatesClock.compareTo(dependencyClock);
@@ -72,6 +88,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         } else if (dependenciesPolicy == CRDTOperationDependencyPolicy.RECORD_BLINDLY) {
             updatesClock.merge(dependencyClock);
         }
+        // Otherwise: IGNORE
+
         if (!updatesClock.record(ops.getBaseTimestamp())) {
             // Operations group is already included in the state.
             return false;
