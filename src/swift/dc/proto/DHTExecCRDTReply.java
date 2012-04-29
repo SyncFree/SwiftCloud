@@ -1,5 +1,6 @@
 package swift.dc.proto;
 
+import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.dc.*;
 import sys.dht.api.DHT;
 
@@ -9,17 +10,16 @@ import sys.dht.api.DHT;
  * 
  */
 public class DHTExecCRDTReply implements DHT.Reply {
+    ExecCRDTResult result;
 
-    boolean result;
+    public DHTExecCRDTReply(ExecCRDTResult result) {
+        this.result = result;
+    }
 
     /**
      * Needed for Kryo serialization
      */
     public DHTExecCRDTReply() {
-    }
-
-    public DHTExecCRDTReply(boolean result) {
-        this.result = result;
     }
 
     @Override
@@ -30,7 +30,7 @@ public class DHTExecCRDTReply implements DHT.Reply {
             ((DHTExecCRDTReplyHandler) handler).onReceive(this);
     }
 
-    public boolean isResult() {
+    public ExecCRDTResult getResult() {
         return result;
     }
 

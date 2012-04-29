@@ -229,7 +229,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     // }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> boolean execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
+    <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
         return dataServer.execCRDT(grp, snapshotVersion, trxVersion); // call
                                                                       // DHT
@@ -338,14 +338,18 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(request.getBaseTimestamp());
         Iterator<CRDTObjectOperationsGroup<?>> it = ops.iterator();
+        final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; 
         boolean ok = true;
+        int pos = 0;
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
             CRDTObjectOperationsGroup<?> grp = it.next();
-            ok = ok && execCRDT(grp, snapshotClock, trxClock);
+            results[pos] = execCRDT(grp, snapshotClock, trxClock);
+            ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(grp.getDependency());
             }
+            pos++;
         }
         final boolean txResult = ok;
         // TODO: handle failure
@@ -364,6 +368,19 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                         estimatedDCVersion.merge(reply.getCurrVersion());
                     }
                     conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
+                    for( int i = 0; i < results.length; i++) {
+                        ExecCRDTResult result = results[i];
+                        if( result == null)
+                            continue;
+                        if( result.hasNotification()) {
+                            if( results[i].isNotificationOnly()) {
+                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification()));
+                            } else {
+                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo()));
+                            }
+                            
+                        }
+                    }
                 } else {
                     conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.INVALID_OPERATION, ts));
                 }
@@ -430,14 +447,18 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(request.getBaseTimestamp());
         Iterator<CRDTObjectOperationsGroup<?>> it = ops.iterator();
+        final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; 
         boolean ok = true;
+        int pos = 0;
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
             CRDTObjectOperationsGroup<?> grp = it.next();
-            ok = ok && execCRDT(grp, snapshotClock, trxClock);
+            results[pos] = execCRDT(grp, snapshotClock, trxClock);
+            ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(grp.getDependency());
             }
+            pos++;
         }
         final boolean txResult = ok;
         // TODO: handle failure
@@ -454,6 +475,19 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
                     synchronized (estimatedDCVersion) {
                         estimatedDCVersion.merge(reply.getCurrVersion());
+                    }
+                    for( int i = 0; i < results.length; i++) {
+                        ExecCRDTResult result = results[i];
+                        if( result == null)
+                            continue;
+                        if( result.hasNotification()) {
+                            if( results[i].isNotificationOnly()) {
+                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification()));
+                            } else {
+                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo()));
+                            }
+                            
+                        }
                     }
                 }
             }

@@ -28,6 +28,7 @@ public class DCConstants {
 
     public static final int DEFAULT_TRXIDTIME = 5000;
     static {
-        DCLogger.setLevel(Level.WARNING);
+//        DCLogger.setLevel(Level.WARNING);
+        DCLogger.setLevel(Level.INFO);
     }
 }
