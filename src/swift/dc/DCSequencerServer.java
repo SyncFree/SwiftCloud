@@ -475,19 +475,23 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             if (args[i].equals("-name")) {
                 siteId = args[++i];
             } else if (args[i].equals("-servers")) {
-                for (; i < args.length; i++) {
+                for (; i + 1 < args.length; i++) {
                     if (args[i+1].startsWith("-"))
                         break;
                     servers.add(args[i+1]);
                 }
             } else if (args[i].equals("-sequencers")) {
-                for (; i < args.length; i++) {
+                for (; i  + 1 < args.length; i++) {
                     if (args[i+1].startsWith("-"))
                         break;
                     sequencers.add(args[i+1]);
                 }
             } else if (args[i].equals("-port")) {
                 port = Integer.parseInt( args[++i]);
+            } else if (args[i].equals("-backup")) {
+                isBackup = true;
+            } else if (args[i].equals("-sequencerShadow")) {
+                sequencerShadow = args[++i];
             }
         }
         new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup).start();

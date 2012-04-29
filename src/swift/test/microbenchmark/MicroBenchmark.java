@@ -144,8 +144,9 @@ public class MicroBenchmark implements WorkerManager {
     }
 
     private static void startSequencer() {
-        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-        sequencer.start();
+        DCSequencerServer.main( new String[] { "-name", sequencerName});
+//        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
+//        sequencer.start();
     }
 
     // TODO: Need refactoring to become generic

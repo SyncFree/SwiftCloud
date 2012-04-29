@@ -13,11 +13,12 @@ import sys.Sys;
 public class TestClient {
     public static void main(String[] args) {
         try {
+            String host = args.length > 0 ? args[0] : "localhost";
             Sys.init();
 
-            SwiftImpl server0 = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT);
+            SwiftImpl server0 = SwiftImpl.newInstance(0, host, DCConstants.SURROGATE_PORT);
 
-            SwiftImpl server = SwiftImpl.newInstance(0, "localhost", DCConstants.SURROGATE_PORT);
+            SwiftImpl server = SwiftImpl.newInstance(0, host, DCConstants.SURROGATE_PORT);
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
