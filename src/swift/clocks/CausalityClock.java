@@ -11,7 +11,24 @@ import java.io.Serializable;
 // TODO: Create read-only (parent) interface or decorator.
 public interface CausalityClock extends Serializable {
     enum CMP_CLOCK {
-        CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT
+        CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT;
+
+        /**
+         * Syntactic sugar for frequent checks if comparison result is one of
+         * the desired cases.
+         * 
+         * @param expectedResults
+         *            one of the expected comparison results
+         * @return true when the result is one of expectedResults
+         */
+        public boolean is(final CMP_CLOCK... expectedResults) {
+            for (final CMP_CLOCK cmp : expectedResults) {
+                if (this == cmp) {
+                    return true;
+                }
+            }
+            return false;
+        }
     };
 
     /**
