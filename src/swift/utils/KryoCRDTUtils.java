@@ -1,6 +1,7 @@
 package swift.utils;
 
 import static sys.net.api.Networking.Networking;
+import swift.client.proto.ClientRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
@@ -21,6 +22,7 @@ import swift.client.proto.UnsubscribeUpdatesRequest;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.clocks.VersionVectorWithExceptions;
+import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.RegisterVersioned;
@@ -29,6 +31,7 @@ import swift.crdt.SetIntegers;
 import swift.crdt.SetMsg;
 import swift.crdt.SetStrings;
 import swift.crdt.SetVersioned;
+import swift.crdt.operations.BaseOperation;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
 import swift.crdt.operations.IntegerUpdate;
 import swift.crdt.operations.RegisterUpdate;
@@ -57,6 +60,7 @@ public class KryoCRDTUtils {
     public static void init() {
         final Kryo kryo = ((KryoSerializer) Networking.serializer()).kryo();
 
+        kryo.register(ClientRequest.class);
         kryo.register(CommitUpdatesRequest.class);
         kryo.register(CommitUpdatesReply.class);
         kryo.register(CommitUpdatesReply.CommitStatus.class);
@@ -84,6 +88,7 @@ public class KryoCRDTUtils {
         kryo.register(VersionVectorWithExceptions.Pair.class);
 
         kryo.register(CRDTIdentifier.class);
+        kryo.register(BaseCRDT.class);
         kryo.register(IntegerVersioned.class);
         kryo.register(IntegerVersioned.UpdatesPerSite.class);
         kryo.register(RegisterVersioned.class);
@@ -95,6 +100,7 @@ public class KryoCRDTUtils {
         kryo.register(SetVersioned.class);
 
         kryo.register(CRDTObjectOperationsGroup.class);
+        kryo.register(BaseOperation.class);
         kryo.register(IntegerUpdate.class);
         kryo.register(RegisterUpdate.class);
         kryo.register(SetInsert.class);
