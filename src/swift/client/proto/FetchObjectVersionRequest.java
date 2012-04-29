@@ -13,6 +13,7 @@ import sys.net.api.rpc.RpcHandler;
 public class FetchObjectVersionRequest extends ClientRequest {
     protected CRDTIdentifier uid;
     protected CausalityClock version;
+    protected boolean strictUnprunedVersion;
     protected SubscriptionType subscriptionType;
 
     /**
@@ -21,19 +22,12 @@ public class FetchObjectVersionRequest extends ClientRequest {
     public FetchObjectVersionRequest() {
     }
 
-    /**
-     * @deprecated
-     */
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            boolean subscribeUpdates) {
-        this(clientId, uid, version, subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE);
-    }
-
-    public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            SubscriptionType subscribeUpdates) {
+            final boolean strictUnprunedVersion, SubscriptionType subscribeUpdates) {
         super(clientId);
         this.uid = uid;
         this.version = version;
+        this.strictUnprunedVersion = strictUnprunedVersion;
         this.subscriptionType = subscribeUpdates;
     }
 
@@ -49,6 +43,14 @@ public class FetchObjectVersionRequest extends ClientRequest {
      */
     public CausalityClock getVersion() {
         return version;
+    }
+
+    /**
+     * @return true strictly this (unpruned) version needs to be available in
+     *         the reply; otherwise a more recent version is acceptable
+     */
+    public boolean isStrictAvailableVersion() {
+        return strictUnprunedVersion;
     }
 
     /**

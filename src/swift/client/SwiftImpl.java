@@ -73,7 +73,6 @@ import sys.net.api.rpc.RpcEndpoint;
  * @author mzawirski
  */
 public class SwiftImpl implements Swift, TxnManager {
-    // TODO: make sure pruning is supported properly, prune in the cache too?
     // TODO: server failover
 
     // WISHME: This class uses very coarse-grained locking, but given the
@@ -318,8 +317,10 @@ public class SwiftImpl implements Swift, TxnManager {
 
         // Try to get the latest one.
         final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.getAndTouch(id) == null);
+        final CausalityClock globalVersion = clockWithLocallyCommittedDependencies(committedVersion);
+        globalVersion.drop(CLIENT_CLOCK_ID);
         try {
-            fetchLatestObject(id, create, classOfV, updatesListener != null, true);
+            fetchObjectVersion(id, create, classOfV, globalVersion, false, updatesListener != null, true);
         } catch (VersionNotFoundException x) {
             if (fetchRequired) {
                 throw x;
@@ -331,7 +332,12 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         // Pass other exceptions through.
 
-        return getCachedObjectForTxn(id, null, classOfV, updatesListener);
+        localView = getCachedObjectForTxn(id, null, classOfV, updatesListener);
+        if (localView == null) {
+            // It should not happen normally.
+            throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
+        }
+        return localView;
     }
 
     @Override
@@ -347,12 +353,14 @@ public class SwiftImpl implements Swift, TxnManager {
             return localView;
         }
 
-        fetchLatestObject(id, create, classOfV, updatesListener != null, true);
+        final CausalityClock globalVersion = clockWithLocallyCommittedDependencies(version);
+        globalVersion.drop(CLIENT_CLOCK_ID);
+        fetchObjectVersion(id, create, classOfV, globalVersion, true, updatesListener != null, true);
 
         localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView == null) {
-            throw new IllegalStateException(
-                    "Internal error: just retrieved object unavailable in appropriate version in the cache");
+            // It should not happen normally.
+            throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
         }
         return localView;
     }
@@ -373,8 +381,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @SuppressWarnings("unchecked")
     private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(CRDTIdentifier id,
-            CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException,
-            VersionNotFoundException {
+            CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException {
         V crdt;
         try {
             crdt = (V) objectsCache.getAndTouch(id);
@@ -409,16 +416,10 @@ public class SwiftImpl implements Swift, TxnManager {
         final CausalityClock globalClock = clock.clone();
         globalClock.drop(CLIENT_CLOCK_ID);
 
-        final CMP_CLOCK clockCmp = crdt.getClock().compareTo(globalClock);
-        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
+        if (crdt.getClock().compareTo(globalClock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)
+                || globalClock.compareTo(crdt.getPruneClock()).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
+            // No appropriate version found.
             return null;
-        }
-
-        final CMP_CLOCK pruneCmp = globalClock.compareTo(crdt.getPruneClock());
-        if (pruneCmp == CMP_CLOCK.CMP_ISDOMINATED || pruneCmp == CMP_CLOCK.CMP_CONCURRENT) {
-            throw new VersionNotFoundException("version consistent with current snapshot is not available in the store");
-            // TODO: Or just in the cache? return to it if server returns pruned
-            // crdt.
         }
 
         final V crdtReturned;
@@ -451,75 +452,84 @@ public class SwiftImpl implements Swift, TxnManager {
         return crdtView;
     }
 
-    private <V extends CRDT<V>> void fetchLatestObject(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final boolean subscribeUpdates, final boolean clientTriggered) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
+    private <V extends CRDT<V>> void fetchObjectVersion(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            final CausalityClock version, final boolean strictUnprunedVersion, final boolean subscribeUpdates,
+            final boolean txnTriggered) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+            NetworkException {
         final V crdt;
-        final CausalityClock minVersion;
         synchronized (this) {
             try {
                 crdt = (V) objectsCache.getWithoutTouch(id);
             } catch (ClassCastException x) {
                 throw new WrongTypeException(x.getMessage());
             }
-            minVersion = clockWithLocallyCommittedDependencies(committedVersion);
-            minVersion.drop(CLIENT_CLOCK_ID);
         }
 
         if (crdt == null) {
-            fetchLatestObjectFromScratch(id, create, classOfV, minVersion, subscribeUpdates, clientTriggered);
+            fetchObjectFromScratch(id, create, classOfV, version, strictUnprunedVersion, subscribeUpdates, txnTriggered);
         } else {
-            fetchLatestObjectByRefresh(id, create, classOfV, crdt, minVersion, subscribeUpdates, clientTriggered);
+            fetchObjectByRefresh(id, create, classOfV, crdt, version, strictUnprunedVersion, subscribeUpdates,
+                    txnTriggered);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void fetchLatestObjectFromScratch(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            CausalityClock minVersion, boolean subscribeUpdates, boolean clientTriggered) throws NoSuchObjectException,
-            WrongTypeException, VersionNotFoundException, NetworkException {
-        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
-        final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, minVersion, subscriptionType),
-                new FetchObjectVersionReplyHandler() {
-                    @Override
-                    public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                        replyRef.set(reply);
-                    }
-                }, timeoutMillis);
-        if (replyRef.get() == null) {
-            throw new NetworkException("Fetching object version timed out");
-        }
-        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, clientTriggered);
-    }
-
-    @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void fetchLatestObjectByRefresh(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            V cachedCrdt, CausalityClock minVersion, boolean subscribeUpdates, boolean clientTriggered)
+    private <V extends CRDT<V>> void fetchObjectFromScratch(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            CausalityClock version, boolean strictUnprunedVersion, boolean subscribeUpdates, boolean txnTriggered)
             throws NoSuchObjectException, WrongTypeException, VersionNotFoundException, NetworkException {
+        final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
+        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
+        do {
+            replyRef.set(null);
+            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, version,
+                    strictUnprunedVersion, subscriptionType), new FetchObjectVersionReplyHandler() {
+                @Override
+                public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                    replyRef.set(reply);
+                }
+            }, timeoutMillis);
+            if (replyRef.get() == null) {
+                throw new NetworkException("Fetching object version timed out");
+            }
+        } while (!processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, txnTriggered));
+        // TODO Give up after several retries?
+    }
+
+    @SuppressWarnings("unchecked")
+    private <V extends CRDT<V>> void fetchObjectByRefresh(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            V cachedCrdt, CausalityClock version, boolean strictUnrpunedVersion, boolean subscribeUpdates,
+            boolean txnTriggered) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
+            NetworkException {
         final CausalityClock oldCrdtClock;
         synchronized (this) {
             oldCrdtClock = cachedCrdt.getClock().clone();
         }
 
         // WISHME: we should replace it with deltas or operations list
-        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, oldCrdtClock, minVersion,
-                subscriptionType), new FetchObjectVersionReplyHandler() {
-            @Override
-            public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
-                replyRef.set(reply);
+        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
+        do {
+            replyRef.set(null);
+            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, oldCrdtClock, version,
+                    strictUnrpunedVersion, subscriptionType), new FetchObjectVersionReplyHandler() {
+                @Override
+                public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                    replyRef.set(reply);
+                }
+            }, timeoutMillis);
+            if (replyRef.get() == null) {
+                throw new NetworkException("Fetching newer object version timed out");
             }
-        }, timeoutMillis);
-        if (replyRef.get() == null) {
-            throw new NetworkException("Fetching newer object version timed out");
-        }
-        processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, clientTriggered);
+        } while (!processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, txnTriggered));
+        // TODO Give up after several retries?
     }
 
-    private <V extends CRDT<V>> void processFetchObjectReply(CRDTIdentifier id, boolean create, Class<V> classOfV,
+    /**
+     * @return when the request was successful
+     */
+    private <V extends CRDT<V>> boolean processFetchObjectReply(CRDTIdentifier id, boolean create, Class<V> classOfV,
             final FetchObjectVersionReply fetchReply, boolean requestedSubscribeUpdates, boolean clientTriggered)
-            throws NoSuchObjectException, WrongTypeException, VersionNotFoundException {
+            throws NoSuchObjectException, WrongTypeException {
         final V crdt;
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
@@ -560,28 +570,38 @@ public class SwiftImpl implements Swift, TxnManager {
                 throw new WrongTypeException(e.getMessage());
             }
 
-            if (cacheCRDT == null) {
+            if (cacheCRDT == null
+                    || crdt.getClock().compareTo(cacheCRDT.getClock())
+                            .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+                // If clock >= cacheCrdt.clock, it 1) does not make sense to
+                // merge, 2) received version may have desirable pruneClock.
                 objectsCache.add(crdt);
             } else {
-                cacheCRDT.merge(crdt);
-
-                UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-                if (requestedSubscribeUpdates && subscription == null) {
-                    // Add temporary subscription entry without specifying full
-                    // information on what value has been read.
-                    subscription = addUpdateSubscription(cacheCRDT, null, null);
+                try {
+                    cacheCRDT.merge(crdt);
+                } catch (IllegalStateException x) {
+                    logger.warning("cannot merge in received object version due to concurrent pruning, retrying fetch");
+                    // It should happen only temporarily during failover etc.
+                    return false;
                 }
+            }
+            UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
+            if (requestedSubscribeUpdates && subscription == null) {
+                // Add temporary subscription entry without specifying full
+                // information on what value has been read.
+                subscription = addUpdateSubscription(crdt, null, null);
+            }
 
-                if (subscription != null && subscription.hasListener()) {
-                    handleObjectNewVersionTryNotify(id, subscription, cacheCRDT);
-                }
+            if (subscription != null && subscription.hasListener()) {
+                handleObjectNewVersionTryNotify(id, subscription, cacheCRDT);
             }
         }
 
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
-            // TODO: retry if version <= minVerson?
-            throw new VersionNotFoundException("requested version not found in the store");
+            logger.warning("requested object version not found in the store, retrying fetch");
+            return false;
         }
+        return true;
     }
 
     private void fetchSubscribedNotifications() {
@@ -732,11 +752,16 @@ public class SwiftImpl implements Swift, TxnManager {
         notificationsSubscriberExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                if (!objectUpdateSubscriptions.containsKey(id)) {
-                    return;
+                final CausalityClock version;
+                synchronized (this) {
+                    if (!objectUpdateSubscriptions.containsKey(id)) {
+                        return;
+                    }
+                    version = clockWithLocallyCommittedDependencies(committedVersion);
+                    version.drop(CLIENT_CLOCK_ID);
                 }
                 try {
-                    fetchLatestObject(id, false, BaseCRDT.class, true, false);
+                    fetchObjectVersion(id, false, BaseCRDT.class, version, false, true, false);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
                             + x.getMessage());
@@ -1010,7 +1035,7 @@ public class SwiftImpl implements Swift, TxnManager {
         private CausalityClock readVersion;
 
         public UpdateSubscription(AbstractTxnHandle txn, TxnLocalCRDT<?> crdtView, final ObjectUpdatesListener listener) {
-            if (!listener.isSubscriptionOnly()) {
+            if (listener != null && !listener.isSubscriptionOnly()) {
                 this.txn = txn;
                 this.crdtView = crdtView;
                 this.listener = listener;
