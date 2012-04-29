@@ -7,15 +7,19 @@ import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.api.StringKey;
 import sys.dht.catadupa.Catadupa;
+import sys.dht.catadupa.SeedDB;
 import sys.dht.catadupa.Catadupa.Scope;
 import sys.dht.test.msgs.StoreData;
 import sys.dht.test.msgs.StoreDataReply;
+import sys.net.api.Networking;
 import sys.pubsub.PubSub;
 import sys.utils.Log;
 import sys.utils.Threading;
 
 import static sys.Sys.*;
 import static sys.pubsub.PubSub.*;
+
+import static sys.net.api.Networking.*;
 
 /* 
  * An example of the server-side of the DHT. As such, this will instantiate a
@@ -44,6 +48,9 @@ public class Server {
         Log.setLevel("sys", Level.FINE);
 
         sys.Sys.init();
+
+        SeedDB.addSeedNode( Networking.resolve("10.0.0.1", 10001) ) ;
+        
         Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(3));
         System.err.println(Sys.getDatacenter());
 
