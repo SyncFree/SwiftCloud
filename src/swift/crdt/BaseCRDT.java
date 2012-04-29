@@ -1,10 +1,7 @@
 package swift.crdt;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import static sys.net.api.Networking.Networking;
+
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
@@ -16,6 +13,10 @@ import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
+import sys.net.impl.KryoSerializer;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.ObjectBuffer;
 
 public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
@@ -154,29 +155,12 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     protected abstract Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock);
 
-    // TODO Implement copy mechanisms for each CRDT!
     public V copy() {
-        try {
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
-            oos.writeObject(this);
-            oos.flush();
-            oos.close();
-            bos.close();
-            byte[] byteData = bos.toByteArray();
-
-            ByteArrayInputStream bais = new ByteArrayInputStream(byteData);
-            @SuppressWarnings("unchecked")
-            V object = (V) new ObjectInputStream(bais).readObject();
-            object.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
-            return object;
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            // this should not happen!
-            e.printStackTrace();
-        }
-        return null;
+        final Kryo kryo = ((KryoSerializer) Networking.serializer()).kryo();
+        final ObjectBuffer objectBuffer = new ObjectBuffer(kryo);
+        final V copy = (V) objectBuffer.readClassAndObject(objectBuffer.writeClassAndObject(this));
+        copy.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
+        return copy;
     }
 
     protected void copyBase(V object) {
