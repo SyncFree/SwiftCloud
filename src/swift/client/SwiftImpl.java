@@ -792,6 +792,7 @@ public class SwiftImpl implements Swift, TxnManager {
     public synchronized void discardTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
         setPendingTxn(null);
+        logger.info("local transaction " + txn.getLocalTimestamp() + " rolled back");
     }
 
     @Override
