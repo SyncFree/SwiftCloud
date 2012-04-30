@@ -25,7 +25,7 @@ import sys.Sys;
 public class PingSpeedTest {
     private static String sequencerName = "localhost";
     private static String dcName = "localhost";
-    private static int iterations = 20;
+    static int iterations = 200000;
 
     public static void main(String[] args) {
         System.out.println("PingSpeedTest start!");
@@ -58,7 +58,7 @@ public class PingSpeedTest {
         client2.start();
     }
 
-    private static void client1Code(SwiftImpl server) {
+    protected static void client1Code(SwiftImpl server) {
         try {
             NanoTimeCollector timer = new NanoTimeCollector();
             timer.start();
@@ -98,15 +98,15 @@ public class PingSpeedTest {
         }
     }
 
-    private static void increment(SwiftImpl server) throws NetworkException, WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException {
+    protected static void increment(SwiftImpl server) throws NetworkException, WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException {
         TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
         IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
         i1.add(1);
         handle.commit();
     }
 
-    private static void client2Code(SwiftImpl server) {
+    protected static void client2Code(SwiftImpl server) {
         try {
             int expected = 1;
             while (true) {
@@ -116,7 +116,7 @@ public class PingSpeedTest {
                 if (i1.getValue() == expected) {
                     i1.add(1);
                     handle.commit();
-                    if (expected / 2 < iterations) {
+                    if (expected / 2 < iterations - 1) {
                         // wait for the system to settle down and finish
                         // internals
                         expected += 2;
