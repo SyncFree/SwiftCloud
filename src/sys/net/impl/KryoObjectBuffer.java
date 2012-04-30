@@ -246,8 +246,10 @@ public class KryoObjectBuffer {
 			try {
 				kryo.writeClassAndObject(buffer, object);
 				break;
+			} catch( SerializationException ex ) { //For some reason, Kryo throws this exception, instead of the one below... 
+                if (!resizeBuffer(false))
+                    throw ex;
 			} catch (BufferOverflowException ex) {
-			    ex.printStackTrace();
 				if (!resizeBuffer(false))
 					throw ex;
 			}
@@ -358,7 +360,7 @@ public class KryoObjectBuffer {
 		buffer = newBuffer;
 		bytes = newArray;
 
-		if (DEBUG)
+		if (DEBUG || true )
 			debug("kryo", "Resized ObjectBuffer to: " + newCapacity);
 		return true;
 	}
