@@ -23,22 +23,23 @@ import sys.Sys;
  * 
  */
 public class PingSpeedTest {
-    static String sequencerName = "localhost";
+    private static String sequencerName = "localhost";
+    private static String dcName = "localhost";
+    private static int iterations = 5;
 
     public static void main(String[] args) {
+        System.out.println("PingSpeedTest start!");
         // start sequencer server
-        DCSequencerServer.main( new String[] { "-name", sequencerName});
-//      DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-//      sequencer.start();
+        DCSequencerServer.main(new String[] { "-name", sequencerName });
 
         // start DC server
-        DCServer.main(new String[] { sequencerName });
+        DCServer.main(new String[] { dcName });
 
         final int portId = 2000;
         Thread client1 = new Thread("client1") {
             public void run() {
                 Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
+                SwiftImpl clientServer = SwiftImpl.newInstance(portId, dcName, DCConstants.SURROGATE_PORT);
                 client1Code(clientServer);
                 clientServer.stop(true);
             }
@@ -49,7 +50,7 @@ public class PingSpeedTest {
         Thread client2 = new Thread("client2") {
             public void run() {
                 Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(portId2, "localhost", DCConstants.SURROGATE_PORT);
+                SwiftImpl clientServer = SwiftImpl.newInstance(portId2, dcName, DCConstants.SURROGATE_PORT);
                 client2Code(clientServer);
                 clientServer.stop(true);
             }
@@ -68,7 +69,7 @@ public class PingSpeedTest {
             handle.commit();
             int expected = 2;
 
-            while (true) {
+            while (expected / 2 < iterations) {
                 TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                         false);
                 IntegerTxnLocal i = txn.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
@@ -77,6 +78,8 @@ public class PingSpeedTest {
                     txn.commit();
 
                     System.out.println("Ping time: " + pingTime);
+
+                    // wait for the system to settle down and finish internals
                     Thread.sleep(1000);
                     expected += 2;
                     timer.start();
@@ -84,10 +87,9 @@ public class PingSpeedTest {
                 } else {
                     // System.out.println("Value " + i.getValue());
                     txn.rollback();
-
                 }
             }
-
+            System.out.println("Average :" + timer.getTotalDuration() / iterations);
         } catch (Exception e) {
             e.printStackTrace();
         }

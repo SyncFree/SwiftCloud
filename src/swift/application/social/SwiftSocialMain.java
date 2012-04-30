@@ -21,6 +21,8 @@ import swift.dc.DCServer;
 import sys.Sys;
 
 public class SwiftSocialMain {
+    private static int lengthInputFile = 500;
+    private static int portId = 2001;
     private static String sequencerName = "localhost";
     private static String usersFileName = "scripts/users.txt";
     private static String commandsFileName = "scripts/commands.txt";
@@ -32,7 +34,7 @@ public class SwiftSocialMain {
     }
 
     private static List<String> readInputFromFile(final String fileName) {
-        List<String> data = new ArrayList<String>(500);
+        List<String> data = new ArrayList<String>(lengthInputFile);
         try {
             FileInputStream fstream = new FileInputStream(fileName);
             DataInputStream in = new DataInputStream(fstream);
@@ -57,7 +59,6 @@ public class SwiftSocialMain {
 
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
-        int portId = 2001;
         Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
 
@@ -133,9 +134,7 @@ public class SwiftSocialMain {
     }
 
     private static void startSequencer() {
-        DCSequencerServer.main( new String[] { "-name", sequencerName});
-//        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-//        sequencer.start();
+        DCSequencerServer.main(new String[] { "-name", sequencerName });
     }
 
 }
