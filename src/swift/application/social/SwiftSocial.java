@@ -3,7 +3,6 @@ package swift.application.social;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.crdt.CRDTIdentifier;
@@ -28,9 +27,7 @@ import swift.exceptions.WrongTypeException;
 public class SwiftSocial {
 
     private static Logger logger = Logger.getLogger("swift.social");
-    {
-        logger.setLevel(Level.INFO);
-    }
+
     // FIXME Add sessions? Local login possible? Cookies?
     private User currentUser;
     private Swift server;

@@ -1,6 +1,5 @@
 package swift.dc;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -27,8 +26,4 @@ public class DCConstants {
                                                         // accessing Riak
 
     public static final int DEFAULT_TRXIDTIME = 5000;
-    static {
-//        DCLogger.setLevel(Level.WARNING);
-        DCLogger.setLevel(Level.INFO);
-    }
 }
