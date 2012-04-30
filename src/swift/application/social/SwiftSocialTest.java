@@ -13,7 +13,6 @@ import sys.Sys;
 
 public class SwiftSocialTest {
     private static String sequencerName = "localhost";
-    private static int portId = 2001;
 
     public static void main(String[] args) {
         DCSequencerServer.main(new String[] { "-name", sequencerName });
@@ -32,7 +31,7 @@ public class SwiftSocialTest {
         }
 
         Sys.init();
-        Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
+        Swift clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
 
         // Register users

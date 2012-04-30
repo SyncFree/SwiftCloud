@@ -22,7 +22,6 @@ import sys.Sys;
 
 public class SwiftSocialMain {
     private static int lengthInputFile = 500;
-    private static int portId = 2001;
     private static String sequencerName = "localhost";
     private static String usersFileName = "scripts/users.txt";
     private static String commandsFileName = "scripts/commands.txt";
@@ -59,7 +58,7 @@ public class SwiftSocialMain {
 
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
-        Swift clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
+        Swift clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer);
 
         // Initialize user data
