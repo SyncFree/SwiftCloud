@@ -1,4 +1,4 @@
-package swift;
+package swift.benchmarks;
 
 import static org.junit.Assert.assertEquals;
 import static sys.net.api.Networking.Networking;
