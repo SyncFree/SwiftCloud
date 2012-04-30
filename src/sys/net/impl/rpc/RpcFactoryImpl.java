@@ -324,13 +324,13 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
         void setReply(RpcPacket reply) {
             this.reply = reply;
             synchronized (this) {
-                Threading.notifyOn(this);
+                Threading.notifyAllOn(this);
             }
         }
 
         boolean blockForReply() {
             while (isSynchronous() && reply == null) {
-                Threading.synchronizedWaitOn(this, 50);
+                Threading.synchronizedWaitOn(this, 5);
             }
             return reply != null;
         }
