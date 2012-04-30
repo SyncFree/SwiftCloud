@@ -7,8 +7,6 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
-import swift.dc.DCSequencerServer;
-import swift.dc.DCServer;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -22,40 +20,33 @@ import sys.Sys;
  * @author annettebieniusa
  * 
  */
-public class PingSpeedTest {
-    private static String sequencerName = "localhost";
-    private static String dcName = "localhost";
-    private static int iterations = 20;
+public class PingSpeedBenchmark {
+    private static String sequencerName;
+    private static String dcName;
+    private static int iterations;
+    private static int clientId;
+    private static int portId;
 
     public static void main(String[] args) {
-        System.out.println("PingSpeedTest start!");
-        // start sequencer server
-        DCSequencerServer.main(new String[] { "-name", sequencerName });
+        if (args.length != 6) {
+            System.out.println("[number of iterations] [client id (1|2)] [sequencer] [port]");
+            return;
+        } else {
+            iterations = Integer.parseInt(args[1]);
+            clientId = Integer.parseInt(args[2]);
+            sequencerName = args[3];
+            portId = Integer.parseInt(args[4]);
+        }
 
-        // start DC server
-        DCServer.main(new String[] { dcName });
+        Sys.init();
+        SwiftImpl clientServer = SwiftImpl.newInstance(portId, dcName, DCConstants.SURROGATE_PORT);
 
-        final int portId = 2000;
-        Thread client1 = new Thread("client1") {
-            public void run() {
-                Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(portId, dcName, DCConstants.SURROGATE_PORT);
-                client1Code(clientServer);
-                clientServer.stop(true);
-            }
-        };
-        client1.start();
-
-        final int portId2 = 2002;
-        Thread client2 = new Thread("client2") {
-            public void run() {
-                Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(portId2, dcName, DCConstants.SURROGATE_PORT);
-                client2Code(clientServer);
-                clientServer.stop(true);
-            }
-        };
-        client2.start();
+        if (clientId == 1) {
+            client1Code(clientServer);
+        } else if (clientId == 2) {
+            client2Code(clientServer);
+        }
+        clientServer.stop(true);
     }
 
     private static void client1Code(SwiftImpl server) {
@@ -93,6 +84,7 @@ public class PingSpeedTest {
                     txn.rollback();
                 }
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -116,13 +108,7 @@ public class PingSpeedTest {
                 if (i1.getValue() == expected) {
                     i1.add(1);
                     handle.commit();
-                    if (expected / 2 < iterations) {
-                        // wait for the system to settle down and finish
-                        // internals
-                        expected += 2;
-                    } else {
-                        break;
-                    }
+                    expected += 2;
                 } else {
                     handle.rollback();
                 }
