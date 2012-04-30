@@ -26,6 +26,8 @@ public class PingSpeedTest {
     private static String sequencerName = "localhost";
     private static String dcName = "localhost";
     static int iterations = 200000;
+    static IsolationLevel isolationLevel = IsolationLevel.SNAPSHOT_ISOLATION;
+    static CachePolicy cachePolicy = CachePolicy.STRICTLY_MOST_RECENT;
 
     public static void main(String[] args) {
         System.out.println("PingSpeedTest start!");
@@ -60,23 +62,22 @@ public class PingSpeedTest {
 
     protected static void client1Code(SwiftImpl server) {
         try {
+            System.out.println("Ping time");
             NanoTimeCollector timer = new NanoTimeCollector();
             timer.start();
-            TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
-                    false);
+            TxnHandle handle = server.beginTxn(isolationLevel, cachePolicy, false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), true, swift.crdt.IntegerVersioned.class);
             i1.add(1);
             handle.commit();
             int expected = 2;
 
             while (true) {
-                TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
-                        false);
+                TxnHandle txn = server.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i = txn.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
                     txn.commit();
-                    System.out.println("Ping time: " + pingTime);
+                    System.out.println(pingTime);
 
                     if (expected / 2 < iterations) {
                         // wait for the system to settle down and finish
