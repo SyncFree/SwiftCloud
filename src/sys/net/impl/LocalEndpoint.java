@@ -131,6 +131,7 @@ public class LocalEndpoint extends AbstractEndpoint {
                             new TcpConnectionImpl(LocalEndpoint.this, ss.accept());
                         }
                     } catch (IOException x) {
+                        x.printStackTrace();
                     }
                 }
             }).start();
@@ -188,6 +189,7 @@ class TcpConnectionImpl implements TcpConnection {
     TcpConnection connect() {
         try {
             sock = new Socket();
+            sock.setTcpNoDelay(true);
             sock.connect(remote.tcpAddress(), CONNECTION_TIMEOUT);
             dis = new DataInputStream(sock.getInputStream());
             dos = new DataOutputStream(sock.getOutputStream());
@@ -244,6 +246,7 @@ class TcpConnectionImpl implements TcpConnection {
 
     void prepareIncomingConnection() {
         try {
+            sock.setTcpNoDelay(true);
             dis = new DataInputStream(sock.getInputStream());
             dos = new DataOutputStream(sock.getOutputStream());
 
