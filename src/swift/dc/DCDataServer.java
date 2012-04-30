@@ -115,7 +115,7 @@ class DCDataServer {
             public void run() {
                 for (;;) {
                     try {
-                        DCConstants.DCLogger.info("Dumping changed objects");
+//                        DCConstants.DCLogger.info("Dumping changed objects");
 
                         List<CRDTData<?>> list = null;
                         synchronized (modified) {

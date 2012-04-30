@@ -103,6 +103,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         for( ; ; ) {
             SeqCommitUpdatesRequest req = null;
             synchronized( pendingOps) {
+                long curTime = System.currentTimeMillis();
                 Iterator<SeqCommitUpdatesRequest> it = pendingOps.iterator();
                 while( it.hasNext()) {
                     SeqCommitUpdatesRequest req0 = it.next();
@@ -110,6 +111,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                         it.remove();
                         continue;
                     }
+                    if( curTime < req0.lastSent + 2000)
+                        continue;
                     CMP_CLOCK cmp = currentState.compareTo(req0.getObjectUpdateGroups().get(0).getDependency());
                     if( cmp == CMP_CLOCK.CMP_DOMINATES || cmp == CMP_CLOCK.CMP_EQUALS) {
                         req = req0;
@@ -120,13 +123,16 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             if( req == null)
                 break;
             SeqCommitUpdatesRequest req1 = req;
-            if( serversEP.size() > 0)
+            if( serversEP.size() > 0) {
                 endpoint.send( serversEP.get(req1.hashCode() % servers.size()), req1);
+                req.lastSent = System.currentTimeMillis();
+            }
         }
     }
     
     void addPending(SeqCommitUpdatesRequest request) {
         synchronized( pendingOps) {
+            request.lastSent = Long.MIN_VALUE;
             pendingOps.addLast(request);
         }
         synchronized( this) {

@@ -25,6 +25,7 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     protected Timestamp baseTimestamp;
     CausalityClock dcReceived;
     CausalityClock dcNotUsed;
+    public transient long lastSent;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -60,7 +61,7 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
 
     @Override
     public void deliverTo(RpcConnection conn, RpcHandler handler) {
-        ((SequencerServer) handler).onReceive(conn, this);
+        ((BaseServer) handler).onReceive(conn, this);
     }
 
     public CausalityClock getDcReceived() {
