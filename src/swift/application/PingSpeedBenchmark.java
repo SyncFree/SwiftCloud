@@ -20,9 +20,9 @@ public class PingSpeedBenchmark {
     private static Logger logger = Logger.getLogger("swift.application");
 
     public static void main(String[] args) {
-        if (args.length != 5) {
+        if (args.length != 6) {
             System.out
-                    .println("Usage: [surrogate address] [number of iterations] [client id (1|2)] [isolationLevel] [cachePolicy] [notifications]");
+                    .println("Usage: [surrogate address] [number of iterations] [client id (1|2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
             return;
         } else {
             dcName = args[0];
@@ -30,6 +30,7 @@ public class PingSpeedBenchmark {
             clientId = Integer.parseInt(args[2]);
             PingSpeedTest.isolationLevel = IsolationLevel.valueOf(args[3]);
             PingSpeedTest.cachePolicy = CachePolicy.valueOf(args[4]);
+            PingSpeedTest.notifications = Boolean.parseBoolean(args[5]);
         }
 
         System.out.print("PingSpeedBenchmark ");
