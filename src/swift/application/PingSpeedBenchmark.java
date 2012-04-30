@@ -22,12 +22,12 @@ public class PingSpeedBenchmark {
     public static void main(String[] args) {
         if (args.length != 5) {
             System.out
-                    .println("Usage: [number of iterations] [client id (1|2)] [sequencer] [isolationLevel] [cachePolicy] [notifications]");
+                    .println("Usage: [surrogate address] [number of iterations] [client id (1|2)] [isolationLevel] [cachePolicy] [notifications]");
             return;
         } else {
-            PingSpeedTest.iterations = Integer.parseInt(args[0]);
-            clientId = Integer.parseInt(args[1]);
-            dcName = args[2];
+            dcName = args[0];
+            PingSpeedTest.iterations = Integer.parseInt(args[1]);
+            clientId = Integer.parseInt(args[2]);
             PingSpeedTest.isolationLevel = IsolationLevel.valueOf(args[3]);
             PingSpeedTest.cachePolicy = CachePolicy.valueOf(args[4]);
         }
