@@ -37,22 +37,20 @@ public class PingSpeedTest {
         // start DC server
         DCServer.main(new String[] { dcName });
 
-        final int portId = 2000;
         Thread client1 = new Thread("client1") {
             public void run() {
                 Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(portId, dcName, DCConstants.SURROGATE_PORT);
+                SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
                 client1Code(clientServer);
                 clientServer.stop(true);
             }
         };
         client1.start();
 
-        final int portId2 = 2002;
         Thread client2 = new Thread("client2") {
             public void run() {
                 Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(portId2, dcName, DCConstants.SURROGATE_PORT);
+                SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
                 client2Code(clientServer);
                 clientServer.stop(true);
             }

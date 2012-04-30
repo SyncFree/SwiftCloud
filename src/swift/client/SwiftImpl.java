@@ -96,26 +96,20 @@ public class SwiftImpl implements Swift, TxnManager {
      * Creates new instance of Swift using provided network settings and
      * otherwise default settings.
      * 
-     * @param localPort
-     *            port to bind local RPC endpoint
      * @param serverHostname
      *            hostname of storage server
      * @param serverPort
      *            TCP port of storage server
      * @return instance of Swift client
      */
-    public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort) {
-        return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
-                new TimeBoundedObjectsCache(DEFAULT_CACHE_EVICTION_MILLIS), DEFAULT_TIMEOUT_MILLIS,
-                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+    public static SwiftImpl newInstance(String serverHostname, int serverPort) {
+        return newInstance(serverHostname, serverPort, DEFAULT_TIMEOUT_MILLIS);
     }
 
     /**
      * Creates new instance of Swift using provided network and timeout settings
      * and default cache parameters.
      * 
-     * @param localPort
-     *            port to bind local RPC endpoint
      * @param serverHostname
      *            hostname of storage server
      * @param serverPort
@@ -124,8 +118,8 @@ public class SwiftImpl implements Swift, TxnManager {
      *            timeout for server replies in milliseconds
      * @return instance of Swift client
      */
-    public static SwiftImpl newInstance(int localPort, String serverHostname, int serverPort, int timeoutMillis) {
-        return new SwiftImpl(Networking.rpcBind(localPort, null), Networking.resolve(serverHostname, serverPort),
+    public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis) {
+        return new SwiftImpl(Networking.rpcBind(0, null), Networking.resolve(serverHostname, serverPort),
                 new TimeBoundedObjectsCache(DEFAULT_CACHE_EVICTION_MILLIS), timeoutMillis,
                 DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }

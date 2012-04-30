@@ -24,20 +24,19 @@ public class LocalConcurrencyTest {
 
     public static void main(String[] args) {
         // start sequencer server
-        DCSequencerServer.main( new String[] { "-name", sequencerName});
-//      DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-//      sequencer.start();
+        DCSequencerServer.main(new String[] { "-name", sequencerName });
+        // DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
+        // sequencer.start();
 
         // start DC server
         DCServer.main(new String[] { sequencerName });
 
         Thread[] threads = new Thread[5];
         for (int i = 0; i < 5; i++) {
-            final int portId = i + 2000;
             Thread client = new Thread("client" + i) {
                 public void run() {
                     Sys.init();
-                    SwiftImpl clientServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
+                    SwiftImpl clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
                     clientCode(clientServer);
                     clientServer.stop(true);
                 }
@@ -45,8 +44,7 @@ public class LocalConcurrencyTest {
             threads[i] = client;
             client.start();
         }
-        final int portId = 2020;
-        SwiftImpl checkServer = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
+        SwiftImpl checkServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
         boolean done = false;
         while (!done) {
             done = check(checkServer);

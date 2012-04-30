@@ -23,7 +23,7 @@ public class TestGetNotifyClient {
             
             Sys.init();
 
-            SwiftImpl server = SwiftImpl.newInstance(0, serverNode, DCConstants.SURROGATE_PORT);
+            SwiftImpl server = SwiftImpl.newInstance(serverNode, DCConstants.SURROGATE_PORT);
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier(table, key), false, swift.crdt.IntegerVersioned.class,

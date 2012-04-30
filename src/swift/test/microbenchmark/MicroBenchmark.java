@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.concurrent.Semaphore;
 
 import swift.client.SwiftImpl;
@@ -31,7 +31,6 @@ public class MicroBenchmark implements WorkerManager {
 
     public static final String TABLE_NAME = "BENCHMARK";
     private static String sequencerName = "localhost";
-    private static int portId = 2001;
 
     public MicroBenchmark(boolean initialize, int numObjects, int maxTxSize, int numWorkers, double updateRatio,
             int executionTime, int runs) {
@@ -82,7 +81,7 @@ public class MicroBenchmark implements WorkerManager {
 
         if (initialize) {
             stopSemaphore = new Semaphore(-1);
-            Swift client = SwiftImpl.newInstance(portId++, "localhost", DCConstants.SURROGATE_PORT);
+            Swift client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
             MicroBenchmarkWorker initializer = new DBInitializerWorker(this, identifiers, random, client);
             new Thread(initializer).start();
             try {
@@ -100,7 +99,7 @@ public class MicroBenchmark implements WorkerManager {
             List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
             stopSemaphore = new Semaphore(-numWorkers + 1);
             for (int i = 0; i < numWorkers; i++) {
-                Swift client = SwiftImpl.newInstance(portId++, "localhost", DCConstants.SURROGATE_PORT);
+                Swift client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
                 OperationExecutorWorker worker = new OperationExecutorWorker(this, "worker" + i, identifiers,
                         updateRatio, random, client, maxTxSize);
                 new Thread(worker).start();

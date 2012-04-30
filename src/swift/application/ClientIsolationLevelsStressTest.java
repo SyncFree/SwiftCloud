@@ -24,9 +24,9 @@ public class ClientIsolationLevelsStressTest {
 
     public static void main(String[] args) {
         // start sequencer server
-        DCSequencerServer.main( new String[] { "-name", sequencerName});
-//        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-//        sequencer.start();
+        DCSequencerServer.main(new String[] { "-name", sequencerName });
+        // DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
+        // sequencer.start();
 
         // start DC server
         DCServer.main(new String[] { sequencerName });
@@ -34,11 +34,11 @@ public class ClientIsolationLevelsStressTest {
         Sys.init();
         final Thread[] clientThreads = new Thread[CLIENTS_NUMBER];
         for (int i = 0; i < clientThreads.length; i++) {
-            final int portId = i + 2000;
+            final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftImpl client = SwiftImpl.newInstance(portId, "localhost", DCConstants.SURROGATE_PORT);
-                    runTransactions(client, portId);
+                    SwiftImpl client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+                    runTransactions(client, id);
                     client.stop(true);
                 }
             };
