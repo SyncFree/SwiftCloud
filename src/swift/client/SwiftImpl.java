@@ -2,6 +2,7 @@ package swift.client;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -147,9 +148,9 @@ public class SwiftImpl implements Swift, TxnManager {
     private final Endpoint serverEndpoint;
 
     // Cache of objects.
-    // Invariant: if object is in the cache, it must include all updates
-    // of locally and globally committed locally-originating transactions.
-    // FIXME: what about concurrent fetch and local commit!?
+    // Best-effort invariant: if object is in the cache, it must include all
+    // updates of locally and globally committed locally-originating
+    // transactions.
     private final TimeBoundedObjectsCache objectsCache;
 
     // Invariant: committedVersion only grows.
@@ -203,6 +204,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @Override
     public void stop(boolean waitForCommit) {
+        logger.info("stopping client");
         synchronized (this) {
             stopFlag = true;
             stopGracefully = waitForCommit;
@@ -210,11 +212,17 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         try {
             committerThread.join();
+            for (final CRDTIdentifier id : new ArrayList<CRDTIdentifier>(objectUpdateSubscriptions.keySet())) {
+                removeUpdateSubscriptionAsyncUnsubscribe(id);
+            }
+            notificationsSubscriberExecutor.shutdown();
+            notificationsCallbacksExecutor.shutdown();
             // No need to close notifications threads in theory, but it brakes
             // the connection uncleanly.
-            notificationsSubscriberExecutor.shutdown();
-            notificationsThread.join();
-            notificationsCallbacksExecutor.shutdown();
+            if (stopGracefully) {
+                // notificationsThread.interrupt();
+                notificationsThread.join();
+            }
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
         }
