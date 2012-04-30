@@ -93,16 +93,17 @@ public class RPCBenchmark {
         integer.execute(opGroup2, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 
         System.out.println("Waiting 10s...");
+        // (to select JVM using VisualVM profiler)
         try {
             Thread.sleep(1000);
         } catch (InterruptedException x) {
         }
-        System.out.println("Starting the test 10s...");
+        System.out.println("Starting the test...");
     }
 
     @After
     public void tearDown() throws Exception {
-        // TODO: how to close this stuf!?
+        // TODO: how to close this stuff?
     }
 
     @Test
@@ -115,12 +116,15 @@ public class RPCBenchmark {
             }
         };
 
+        final long startTime = System.currentTimeMillis();
         final int RPCS_NUMBER = 1000;
         for (int i = 0; i < RPCS_NUMBER; i++) {
             clientEndpoint.send(clientToServerEndpoint, new FetchObjectVersionRequest("client", objectId,
                     causalityClock1, true, SubscriptionType.NONE), countingReplyHandler);
         }
         assertEquals(RPCS_NUMBER, receivedAcks.get());
+        final long duration = System.currentTimeMillis() - startTime;
+        System.out.println("1000 ping RPCs executed in " + duration + "ms");
     }
 
     private class RpcServer implements SwiftServer {
