@@ -173,18 +173,22 @@ public class PingSpeedTest {
         try {
             int expected = 1;
             // Need cache policy MOST_RECENT for first read
-            TxnHandle handle = swift.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
-            IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class,
-                    new ObjectUpdatesListenerIncr2(expected + 2, swift));
-            if (i1.getValue() == expected) {
-                i1.add(1);
-                handle.commit();
-            } else {
-                handle.rollback();
+            while (true) {
+                TxnHandle handle = swift.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
+                IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class,
+                        new ObjectUpdatesListenerIncr2(expected + 2, swift));
+                if (i1.getValue() == expected) {
+                    i1.add(1);
+                    handle.commit();
+                    break;
+                } else {
+                    handle.rollback();
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
+
     }
 
     static class ObjectUpdatesListenerIncr1 extends AbstractObjectUpdatesListener {
