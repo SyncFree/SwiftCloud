@@ -161,9 +161,9 @@ public class SwiftMicroBenchmark implements WorkerManager {
             double readOps = 0;
             int runCounter = 1;
             for (ResultHandler run : workerResults.getValue()) {
-                if (run instanceof RiakOperationExecutorResultHandler) {
+                if (run instanceof SwiftOperationExecutorResultHandler) {
                     System.out.println("RUN " + runCounter++);
-                    RiakOperationExecutorResultHandler wr = (RiakOperationExecutorResultHandler) run;
+                    SwiftOperationExecutorResultHandler wr = (SwiftOperationExecutorResultHandler) run;
                     System.out.println(run.toString());
                     numExecutedTransactions += wr.getNumExecutedTransactions() / workerResults.getValue().size();
                     writeOps += wr.getWriteOps() / workerResults.getValue().size();
