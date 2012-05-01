@@ -270,7 +270,7 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
     class RPC_Handlers {
         static final long MAX_SERVICE = 1L << 16;
 
-        final static double GC_DURATION = 300.0;
+        final static double GC_DURATION = 5.0;
 
         final int timeout;
         final long handlerId;
@@ -324,7 +324,7 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
         void setReply(RpcPacket reply) {
             this.reply = reply;
             synchronized (this) {
-                Threading.notifyAllOn(this);
+                Threading.notifyOn(this);
             }
         }
 
@@ -346,14 +346,14 @@ public class RpcFactoryImpl implements RpcFactory, MessageHandler {
     }
 
     void gcHandlers() {
-        new PeriodicTask(0, RPC_Handlers.GC_DURATION / 5) {
+        new PeriodicTask(0, RPC_Handlers.GC_DURATION / 10) {
             @Override
             public void run() {
                 double now = Sys.currentTime();
                 synchronized (handlers) {
                     for (Iterator<RPC_Handlers> it = handlers.values().iterator(); it.hasNext();) {
                         RPC_Handlers h = it.next();
-                        if (now > h.expiration + RPC_Handlers.GC_DURATION) {
+                        if (now > h.expiration ) {
                             it.remove();
                             Log.finest("GC'ing reply handler:" + h.handler );
                         }
