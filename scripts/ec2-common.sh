@@ -17,6 +17,7 @@ run_cmd() {
 	shift
 	cmd=$*
 	echo "Running command on $server"
+	echo "$cmd"
 	ssh -i $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
 }
 
@@ -26,6 +27,7 @@ run_cmd_bg() {
 	shift
 	cmd=$*
 	echo "Running command on $server and detaching"
+	echo "$cmd"
 	ssh -fi $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
 }
 

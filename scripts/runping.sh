@@ -34,7 +34,7 @@ echo "starting client 1"
 run_cmd_bg $C1 $CMD $DC1 10 1 REPEATABLE_READS CACHED true
 
 echo "starting client 2"
-run_cmd_bg $C2 $CMD $DC1 10 2 REPEATABLE_READS CACHED true
+run_cmd_bg $C2 $CMD $DC2 10 2 REPEATABLE_READS CACHED true
 
 echo "running ... hit enter when you think its finished"
 read dummy
