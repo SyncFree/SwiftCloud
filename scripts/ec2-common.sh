@@ -39,7 +39,7 @@ swift_app_cmd() {
 		if [ ! -f "$JAR" ]; then
 			echo "$JAR not found" && exit 1;
 		fi;
-		java -cp $JAR -Djava.util.logging.config.file=$PROPS $class $java_args
+		java -cp $JAR -Djava.util.logging.config.file=$PROPS $class $java_args 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)
 EOF
 )
 }
