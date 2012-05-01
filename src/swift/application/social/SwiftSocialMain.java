@@ -14,6 +14,8 @@ import java.util.HashSet;
 import java.util.List;
 
 import swift.client.SwiftImpl;
+import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -59,7 +61,8 @@ public class SwiftSocialMain {
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
         Swift clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
-        SwiftSocial client = new SwiftSocial(clientServer);
+        SwiftSocial client = new SwiftSocial(clientServer, IsolationLevel.SNAPSHOT_ISOLATION,
+                CachePolicy.STRICTLY_MOST_RECENT, false);
 
         // Initialize user data
         List<String> userData = readInputFromFile(usersFileName);

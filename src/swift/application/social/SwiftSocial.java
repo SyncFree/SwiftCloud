@@ -14,6 +14,7 @@ import swift.crdt.SetTxnLocalId;
 import swift.crdt.SetTxnLocalMsg;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -31,9 +32,16 @@ public class SwiftSocial {
     // FIXME Add sessions? Local login possible? Cookies?
     private User currentUser;
     private Swift server;
+    private final IsolationLevel isolationLevel;
+    private final CachePolicy cachePolicy;
+    private final ObjectUpdatesListener updatesSubscriber;
 
-    public SwiftSocial(Swift clientServer) {
+    public SwiftSocial(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
+            boolean subscribeUpdates) {
         server = clientServer;
+        this.isolationLevel = isolationLevel;
+        this.cachePolicy = cachePolicy;
+        this.updatesSubscriber = subscribeUpdates ? TxnHandle.UPDATES_SUBSCRIBER : null;
     }
 
     // FIXME Return type integer encoding error msg?
@@ -55,9 +63,10 @@ public class SwiftSocial {
         try {
             // Check if user is known at all
             // FIXME Is login possible in offline mode?
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+            txn = server.beginTxn(isolationLevel, cachePolicy, true);
             @SuppressWarnings("unchecked")
-            User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class)).getValue();
+            User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class,
+                    updatesSubscriber)).getValue();
 
             // Check password
             // FIXME We actually need an external authentification mechanism, as
@@ -111,19 +120,19 @@ public class SwiftSocial {
 
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+            txn = server.beginTxn(isolationLevel, CachePolicy.STRICTLY_MOST_RECENT, false);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(loginName), true,
-                    RegisterVersioned.class);
+                    RegisterVersioned.class, updatesSubscriber);
 
             User newUser = new User(loginName, passwd, fullName, birthday, true);
             reg.set(newUser);
 
             // Construct the associated sets with messages, friends etc.
-            txn.get(newUser.msgList, true, SetMsg.class);
-            txn.get(newUser.eventList, true, SetMsg.class);
-            txn.get(newUser.friendList, true, SetIds.class);
-            txn.get(newUser.inFriendReq, true, SetIds.class);
-            txn.get(newUser.outFriendReq, true, SetIds.class);
+            txn.get(newUser.msgList, true, SetMsg.class, updatesSubscriber);
+            txn.get(newUser.eventList, true, SetMsg.class, updatesSubscriber);
+            txn.get(newUser.friendList, true, SetIds.class, updatesSubscriber);
+            txn.get(newUser.inFriendReq, true, SetIds.class, updatesSubscriber);
+            txn.get(newUser.outFriendReq, true, SetIds.class, updatesSubscriber);
 
             // Create registration event for user
             Message newEvt = new Message(fullName + " has registered!", loginName, date);
@@ -147,9 +156,9 @@ public class SwiftSocial {
         this.currentUser.birthday = birthday;
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
-                    NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class);
+                    NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class, updatesSubscriber);
             reg.set(currentUser);
             txn.commitAsync(null);
         } catch (Exception e) {
@@ -167,12 +176,12 @@ public class SwiftSocial {
         TxnHandle txn = null;
         User user = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
+            txn = server.beginTxn(isolationLevel, cachePolicy, true);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
                     RegisterVersioned.class);
             user = reg.getValue();
-            msgs.addAll(((SetTxnLocalMsg) txn.get(user.msgList, false, SetMsg.class)).getValue());
-            evnts.addAll(((SetTxnLocalMsg) txn.get(user.eventList, false, SetMsg.class)).getValue());
+            msgs.addAll(((SetTxnLocalMsg) txn.get(user.msgList, false, SetMsg.class, updatesSubscriber)).getValue());
+            evnts.addAll(((SetTxnLocalMsg) txn.get(user.eventList, false, SetMsg.class, updatesSubscriber)).getValue());
             txn.commitAsync(null);
         } catch (Exception e) {
             e.printStackTrace();
@@ -192,7 +201,7 @@ public class SwiftSocial {
                 this.currentUser.loginName, date);
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
             User receiver = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
             writeMessage(txn, newMsg, receiver.msgList);
@@ -213,7 +222,7 @@ public class SwiftSocial {
         Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
             writeMessage(txn, newMsg, currentUser.msgList);
             writeMessage(txn, newEvt, currentUser.eventList);
             txn.commitAsync(null);
@@ -231,22 +240,26 @@ public class SwiftSocial {
         logger.info("Answered friend request from " + this.currentUser.loginName + " for " + requester);
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain data of requesting user
             User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(requester), false,
                     RegisterVersioned.class)).getValue();
 
             // Remove information for request
-            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(currentUser.inFriendReq, false, SetIds.class);
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(currentUser.inFriendReq, false, SetIds.class,
+                    updatesSubscriber);
             inFriendReq.remove(NamingScheme.forUser(requester));
-            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(other.outFriendReq, false, SetIds.class);
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(other.outFriendReq, false, SetIds.class,
+                    updatesSubscriber);
             outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
 
             // Befriend if accepted
             if (accept) {
-                SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class);
+                SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
+                        updatesSubscriber);
                 friends.insert(NamingScheme.forUser(requester));
-                SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(other.friendList, false, SetIds.class);
+                SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(other.friendList, false, SetIds.class,
+                        updatesSubscriber);
                 requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             }
             txn.commitAsync(null);
@@ -263,15 +276,17 @@ public class SwiftSocial {
         logger.info("Sending friend request from to " + receiverName);
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain data of friend
             User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
 
             // Add data for request
-            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(other.inFriendReq, false, SetIds.class);
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(other.inFriendReq, false, SetIds.class,
+                    updatesSubscriber);
             inFriendReq.insert(NamingScheme.forUser(currentUser.loginName));
-            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(currentUser.outFriendReq, false, SetIds.class);
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(currentUser.outFriendReq, false, SetIds.class,
+                    updatesSubscriber);
             outFriendReq.insert(NamingScheme.forUser(receiverName));
 
             txn.commitAsync(null);
@@ -288,17 +303,19 @@ public class SwiftSocial {
         logger.info("Befriending " + receiverName);
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT, false);
+            txn = server.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
             // Obtain new friend's data
             User friend = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
 
             // Register him as my friend
-            SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class);
+            SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
+                    updatesSubscriber);
             friends.insert(NamingScheme.forUser(receiverName));
 
             // Register me as his friend
-            SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(friend.friendList, false, SetIds.class);
+            SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(friend.friendList, false, SetIds.class,
+                    updatesSubscriber);
             requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             txn.commitAsync(null);
         } catch (Exception e) {
@@ -315,15 +332,16 @@ public class SwiftSocial {
         Set<Friend> friends = new HashSet<Friend>();
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, true);
+            txn = server.beginTxn(isolationLevel, cachePolicy, true);
             // Obtain user data
-            User user = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class))
-                    .getValue();
+            User user = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class,
+                    updatesSubscriber)).getValue();
 
-            Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) txn.get(user.friendList, false, SetIds.class)).getValue();
+            Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) txn.get(user.friendList, false, SetIds.class,
+                    updatesSubscriber)).getValue();
             for (CRDTIdentifier f : friendIds) {
-                User u = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class))
-                        .getValue();
+                User u = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class,
+                        updatesSubscriber)).getValue();
                 friends.add(new Friend(u.fullName, f));
             }
             txn.commitAsync(null);
@@ -339,7 +357,7 @@ public class SwiftSocial {
 
     private void writeMessage(TxnHandle txn, Message msg, CRDTIdentifier set) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(set, false, SetMsg.class);
+        SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(set, false, SetMsg.class, updatesSubscriber);
         messages.insert(msg);
     }
 
