@@ -29,7 +29,8 @@ run_cmd_bg() {
 	ssh -fi $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
 }
 
-# run_swift_app <class> <args>
+# swift_app_cmd <class> <args>
+# output in CMD
 swift_app_cmd() {
 	class=$1
 	shift

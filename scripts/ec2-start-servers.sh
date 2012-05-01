@@ -2,6 +2,12 @@
 # ec2-start-servers <server1 server2 ...>
 . scripts/ec2-common.sh
 
+if [ -z "$*" ]; then
+        echo "ec2-start-servers.sh <ec2-instance1 ec2-instance2 ...>"
+        echo "Starts multi-dc Swift store configuration on provided ec2 hosts."
+	exit 1
+fi
+
 # start <server1 server2 ...>
 start() {
 	servers=$*
