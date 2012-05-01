@@ -12,7 +12,7 @@ import sys.net.api.SerializerException;
 import com.esotericsoftware.kryo.Kryo;
 
 public class KryoSerializer implements Serializer {
-    private static int INITIAL_BUFFER_CAPACITY = 8 * 1024;
+    private static int INITIAL_BUFFER_CAPACITY = 1 * 1024;
 
     private KryoObjectBuffer outgoing;
     private KryoObjectBuffer incoming;
