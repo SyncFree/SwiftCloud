@@ -45,28 +45,41 @@ public class PingSpeedTest {
             public void run() {
                 Sys.init();
                 SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
-                if (notifications) {
-                    client1CodeNotifications(clientServer);
-                } else {
-                    client1Code(clientServer);
-                }
-
+                runClient1(clientServer);
             }
         };
         client1.start();
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         Thread client2 = new Thread("client2") {
             public void run() {
                 Sys.init();
                 SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
-                if (notifications) {
-                    client2CodeNotifications(clientServer);
-                } else {
-                    client2Code(clientServer);
-                }
+                runClient2(clientServer);
             }
         };
         client2.start();
+    }
+
+    static void runClient1(SwiftImpl swift) {
+        if (notifications) {
+            client1CodeNotifications(swift);
+        } else {
+            client1Code(swift);
+        }
+    }
+
+    static void runClient2(SwiftImpl swift) {
+        if (notifications) {
+            client2CodeNotifications(swift);
+        } else {
+            client2Code(swift);
+        }
     }
 
     protected static void client1Code(SwiftImpl swift) {
@@ -89,12 +102,11 @@ public class PingSpeedTest {
                     txn.commit();
                     System.out.println(pingTime);
                     if (expected / 2 < iterations) {
-                        // wait for the system to settle down and finish
-                        // internals
+                        // wait for the system to settle down
                         Thread.sleep(1000);
                         expected += 2;
                         timer.start();
-                        increment(swift);
+                        increment(swift, null);
                     } else {
                         break;
                     }
@@ -119,8 +131,6 @@ public class PingSpeedTest {
                     i1.add(1);
                     handle.commit();
                     if (expected / 2 < iterations - 1) {
-                        // wait for the system to settle down and finish
-                        // internals
                         expected += 2;
                     } else {
                         break;
@@ -134,10 +144,10 @@ public class PingSpeedTest {
         }
     }
 
-    protected static void increment(SwiftImpl swift) throws NetworkException, WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException {
+    protected static void increment(SwiftImpl swift, ObjectUpdatesListenerIncr1 listener) throws NetworkException,
+            WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
-        IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class);
+        IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class, listener);
         i1.add(1);
         handle.commit();
     }
@@ -147,11 +157,12 @@ public class PingSpeedTest {
             System.out.println("Ping time");
             NanoTimeCollector timer = new NanoTimeCollector();
 
+            int expected = 2;
             timer.start();
             TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
-            IntegerTxnLocal i1 = handle.get(j, true, swift.crdt.IntegerVersioned.class, new ObjectUpdatesListenerIncr1(
-                    2, swift, timer));
-            i1.add(1);
+            IntegerTxnLocal i = handle.get(j, true, swift.crdt.IntegerVersioned.class, new ObjectUpdatesListenerIncr1(
+                    expected, swift, timer));
+            i.add(1);
             handle.commit();
         } catch (Exception e) {
             e.printStackTrace();
@@ -161,23 +172,16 @@ public class PingSpeedTest {
     protected static void client2CodeNotifications(SwiftImpl swift) {
         try {
             int expected = 1;
+            // Need cache policy MOST_RECENT for first read
             TxnHandle handle = swift.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
             IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class,
-                    new ObjectUpdatesListenerIncr2(1, swift));
+                    new ObjectUpdatesListenerIncr2(expected + 2, swift));
             if (i1.getValue() == expected) {
                 i1.add(1);
                 handle.commit();
-                if (expected / 2 < iterations - 1) {
-                    // wait for the system to settle down and finish
-                    // internals
-                    expected += 2;
-                } else {
-                    return;
-                }
             } else {
                 handle.rollback();
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -198,18 +202,17 @@ public class PingSpeedTest {
         public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             try {
                 TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, false);
-                IntegerTxnLocal i = txn.get(id, false, swift.crdt.IntegerVersioned.class, this);
+                IntegerTxnLocal i = txn.get(id, true, swift.crdt.IntegerVersioned.class, this);
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
                     txn.commit();
                     System.out.println(pingTime);
                     if (expected / 2 < iterations) {
-                        // wait for the system to settle down and finish
-                        // internals
+                        // wait for the system to settle down
                         Thread.sleep(1000);
                         expected += 2;
                         timer.start();
-                        increment(swift);
+                        increment(swift, this);
                     } else {
                         swift.stop(true);
                     }
@@ -240,8 +243,6 @@ public class PingSpeedTest {
                     i1.add(1);
                     handle.commit();
                     if (expected / 2 < iterations - 1) {
-                        // wait for the system to settle down and finish
-                        // internals
                         expected += 2;
                     } else {
                         swift.stop(true);

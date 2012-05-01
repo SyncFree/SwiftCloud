@@ -41,15 +41,14 @@ public class PingSpeedBenchmark {
 
         logger.info("Initializing the system");
         Sys.init();
-        SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+        SwiftImpl swift = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
 
         if (clientId == 1) {
             logger.info("Starting client 1");
-            PingSpeedTest.client1Code(clientServer);
+            PingSpeedTest.runClient1(swift);
         } else if (clientId == 2) {
             logger.info("Starting client 2");
-            PingSpeedTest.client2Code(clientServer);
+            PingSpeedTest.runClient2(swift);
         }
-        clientServer.stop(true);
     }
 }
