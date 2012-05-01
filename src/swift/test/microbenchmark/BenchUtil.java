@@ -1,10 +1,15 @@
 package swift.test.microbenchmark;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
+import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.Swift;
+import swift.dc.DCConstants;
 
 public class BenchUtil {
 
@@ -15,6 +20,8 @@ public class BenchUtil {
             ' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
     public static final int NUM_CHARS = CHARS.length;
+
+    private static Map<String, Integer> addressPort = new HashMap<String, Integer>();
 
     public static String[] generateValues(int valuesSize, int valueLength, long randomSeed, double valueLengthDeviation) {
         String[] values = new String[valuesSize];
@@ -58,5 +65,16 @@ public class BenchUtil {
         }
         return operations;
 
+    }
+
+    public static synchronized Swift getNewSwiftInterface(String serverLocation, int serverPort) {
+        Integer port = addressPort.get(serverLocation);
+        if (port == null) {
+            port = serverPort;
+            addressPort.put(serverLocation, port);
+        }
+        Swift client = SwiftImpl.newInstance(port++, serverLocation, DCConstants.SURROGATE_PORT);
+        addressPort.put(serverLocation, port);
+        return client;
     }
 }

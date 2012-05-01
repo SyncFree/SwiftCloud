@@ -39,12 +39,14 @@ public class DBInitializerWorker implements MicroBenchmarkWorker {
         startTime = System.currentTimeMillis();
         try {
             TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
-                    false);
+                    false);           
             for (int i = 0; i < identifiers.length; i++) {
+
                 IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
                 integer.add(random.nextInt());
+
             }
-            txh.commit();
+            txh.commit();            
 
         } catch (NetworkException e) {
             e.printStackTrace();

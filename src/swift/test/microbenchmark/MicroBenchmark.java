@@ -17,6 +17,7 @@ import swift.dc.DCServer;
 import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
 import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
+import sys.Sys;
 
 public class MicroBenchmark implements WorkerManager {
 
@@ -30,7 +31,8 @@ public class MicroBenchmark implements WorkerManager {
     private static final int /* valueLength = 20, valueLengthDeviation = 0 , */randomSeed = 1;
 
     public static final String TABLE_NAME = "BENCHMARK";
-    private static String sequencerName = "localhost";
+    private static String serverLocation = "localhost";
+    private static int portId = 2001;
 
     public MicroBenchmark(boolean initialize, int numObjects, int maxTxSize, int numWorkers, double updateRatio,
             int executionTime, int runs) {
@@ -47,13 +49,15 @@ public class MicroBenchmark implements WorkerManager {
 
     public static void main(String[] args) {
 
-        startDCServer();
-        startSequencer();
-
         int sampleSize, maxTxSize, execTime, numRuns, numWorkers;
         double updateRatio;
+        boolean populate = false;
+        if (args.length == 7) {
+            if (args[6].equals("-p"))
+                populate = true;
+        }
 
-        if (args.length != 6) {
+        if (args.length < 6 || args.length > 7) {
             System.out
                     .println("[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS]");
             return;
@@ -65,9 +69,9 @@ public class MicroBenchmark implements WorkerManager {
             execTime = Integer.parseInt(args[4]);
             numRuns = Integer.parseInt(args[5]);
         }
-
-        MicroBenchmark mb = new MicroBenchmark(true, sampleSize, maxTxSize, numWorkers, updateRatio, 1000 * execTime,
-                numRuns);
+        Sys.init();
+        MicroBenchmark mb = new MicroBenchmark(populate, sampleSize, maxTxSize, numWorkers, updateRatio,
+                1000 * execTime, numRuns);
         try {
             mb.doIt();
         } catch (InterruptedException e) {
@@ -81,14 +85,14 @@ public class MicroBenchmark implements WorkerManager {
 
         if (initialize) {
             stopSemaphore = new Semaphore(-1);
-            Swift client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+            Swift client = BenchUtil.getNewSwiftInterface(serverLocation, portId);
             MicroBenchmarkWorker initializer = new DBInitializerWorker(this, identifiers, random, client);
             new Thread(initializer).start();
             try {
                 stopSemaphore.acquire();
                 // FIXME: Blocks here
                 // System.out.println("STOP CLIENT");
-                // client.stop(true);
+                // client.stop(false);
                 // System.out.println("CLIENT STOPPED");
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -99,7 +103,7 @@ public class MicroBenchmark implements WorkerManager {
             List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
             stopSemaphore = new Semaphore(-numWorkers + 1);
             for (int i = 0; i < numWorkers; i++) {
-                Swift client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+                Swift client = BenchUtil.getNewSwiftInterface(serverLocation, portId);
                 OperationExecutorWorker worker = new OperationExecutorWorker(this, "worker" + i, identifiers,
                         updateRatio, random, client, maxTxSize);
                 new Thread(worker).start();
@@ -136,16 +140,6 @@ public class MicroBenchmark implements WorkerManager {
         // System.out.println(worker.getWorkerID() + " STOPPED");
         stopSemaphore.release();
 
-    }
-
-    private static void startDCServer() {
-        DCServer.main(new String[] { sequencerName });
-    }
-
-    private static void startSequencer() {
-        DCSequencerServer.main( new String[] { "-name", sequencerName});
-//        DCSequencerServer sequencer = new DCSequencerServer(sequencerName);
-//        sequencer.start();
     }
 
     // TODO: Need refactoring to become generic
