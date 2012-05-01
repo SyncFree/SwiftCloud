@@ -21,8 +21,6 @@ public class BenchUtil {
 
     public static final int NUM_CHARS = CHARS.length;
 
-    private static Map<String, Integer> addressPort = new HashMap<String, Integer>();
-
     public static String[] generateValues(int valuesSize, int valueLength, long randomSeed, double valueLengthDeviation) {
         String[] values = new String[valuesSize];
         Random rand = new Random(randomSeed);
@@ -68,13 +66,7 @@ public class BenchUtil {
     }
 
     public static synchronized Swift getNewSwiftInterface(String serverLocation, int serverPort) {
-        Integer port = addressPort.get(serverLocation);
-        if (port == null) {
-            port = serverPort;
-            addressPort.put(serverLocation, port);
-        }
-        Swift client = SwiftImpl.newInstance(port++, serverLocation, DCConstants.SURROGATE_PORT);
-        addressPort.put(serverLocation, port);
+        Swift client = SwiftImpl.newInstance(serverLocation, serverPort);
         return client;
     }
 }

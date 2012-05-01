@@ -85,8 +85,8 @@ public class MicroBenchmark implements WorkerManager {
 
         if (initialize) {
             stopSemaphore = new Semaphore(-1);
-            Swift client = BenchUtil.getNewSwiftInterface(serverLocation, portId);
-            MicroBenchmarkWorker initializer = new DBInitializerWorker(this, identifiers, random, client);
+            Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
+            MicroBenchmarkWorker initializer = new SwiftInitializerWorker(this, identifiers, random, client);
             new Thread(initializer).start();
             try {
                 stopSemaphore.acquire();
@@ -103,8 +103,8 @@ public class MicroBenchmark implements WorkerManager {
             List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
             stopSemaphore = new Semaphore(-numWorkers + 1);
             for (int i = 0; i < numWorkers; i++) {
-                Swift client = BenchUtil.getNewSwiftInterface(serverLocation, portId);
-                OperationExecutorWorker worker = new OperationExecutorWorker(this, "worker" + i, identifiers,
+                Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
+                SwiftExecutorWorker worker = new SwiftExecutorWorker(this, "worker" + i, identifiers,
                         updateRatio, random, client, maxTxSize);
                 new Thread(worker).start();
                 workers.add(worker);

@@ -31,7 +31,7 @@ import swift.test.microbenchmark.objects.StringCopyable;
 import sys.Sys;
 import sys.dht.catadupa.crdts.ORSet;
 
-public class OperationExecutorWorker implements MicroBenchmarkWorker {
+public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
     private WorkerManager manager;
     private Swift clientServer;
@@ -45,7 +45,7 @@ public class OperationExecutorWorker implements MicroBenchmarkWorker {
     protected long startTime, endTime;
     protected int numExecutedTransactions, writeOps, readOps;
 
-    public OperationExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
+    public SwiftExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
             double updateRatio, Random random, Swift clientServer, int maxTxSize) {
         this.manager = manager;
         this.identifiers = identifiers;
@@ -136,7 +136,7 @@ class OperationExecutorResultHandler implements ResultHandler {
     String workerID;
     int numExecutedTransactions, writeOps, readOps;
 
-    public OperationExecutorResultHandler(OperationExecutorWorker worker) {
+    public OperationExecutorResultHandler(SwiftExecutorWorker worker) {
         executionTime = (worker.endTime - worker.startTime) / 1000d;
         workerID = worker.getWorkerID();
         readOps = worker.readOps;

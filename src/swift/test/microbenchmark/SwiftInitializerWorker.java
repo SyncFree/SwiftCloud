@@ -17,7 +17,7 @@ import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
 import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
 
-public class DBInitializerWorker implements MicroBenchmarkWorker {
+public class SwiftInitializerWorker implements MicroBenchmarkWorker {
 
     private WorkerManager manager;
     private Swift clientServer;
@@ -26,7 +26,7 @@ public class DBInitializerWorker implements MicroBenchmarkWorker {
 
     protected long startTime, endTime;
 
-    public DBInitializerWorker(WorkerManager manager, CRDTIdentifier[] identifiers, Random random, Swift clientServer) {
+    public SwiftInitializerWorker(WorkerManager manager, CRDTIdentifier[] identifiers, Random random, Swift clientServer) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.random = random;
@@ -82,7 +82,7 @@ class DBInitializerResultHandler implements ResultHandler {
 
     double executionTime;
 
-    public DBInitializerResultHandler(DBInitializerWorker worker) {
+    public DBInitializerResultHandler(SwiftInitializerWorker worker) {
         executionTime = (worker.endTime - worker.startTime) / 1000d;
     }
 
