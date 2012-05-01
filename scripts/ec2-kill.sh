@@ -18,5 +18,11 @@ stop() {
         done
 }
 
-stop $*
+if [ -z "$*" ]; then
+  echo "no servers specified on commandline, killing $EC2_ALL"
+  servers=$EC2_ALL
+else
+  servers=$*
+fi
 
+stop $servers

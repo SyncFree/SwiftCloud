@@ -9,8 +9,8 @@ else
   servers=$*
 fi
 
-if [ ! -f $JAR ]; then
-	echo "$JAR not found" && exit 1
+if [ ! -f "$JAR" ]; then
+	echo "file $JAR not found" && exit 1
 fi
 
 

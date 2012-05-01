@@ -36,8 +36,8 @@ swift_app_cmd() {
 	shift
 	java_args=$*
 	CMD=$(cat <<EOF
-		if [ ! -f $JAR ]; then
-			echo $JAR not found && exit 1;
+		if [ ! -f "$JAR" ]; then
+			echo "$JAR not found" && exit 1;
 		fi;
 		java -cp $JAR -Djava.util.logging.config.file=$PROPS $class $java_args
 EOF
@@ -60,7 +60,7 @@ run_swift_app_detach() {
 # copy_to <local_file> <server> <remote_file>
 copy_to() {
 	echo "Copying to $2..."
-	scp -i $EC2_IDENTITY_FILE "$1" "$EC2_USER@$2:$3"
+	rsync -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
 }
 
 # copy_from <server> <remote file> <local file>
