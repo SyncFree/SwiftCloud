@@ -9,6 +9,12 @@ if [ -z "$*" ]; then
 	exit 1
 fi
 
+if [ "$1" == all ]; then
+  servers=$EC2_ALL
+else
+  servers=$*
+fi
+
 # stop <server1 server2 ...>
 stop() {
         servers=$*
@@ -18,11 +24,5 @@ stop() {
         done
 }
 
-if [ -z "$*" ]; then
-  echo "no servers specified on commandline, killing $EC2_ALL"
-  servers=$EC2_ALL
-else
-  servers=$*
-fi
-
+echo "killing: $servers"
 stop $servers
