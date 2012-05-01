@@ -6,6 +6,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import com.basho.riak.client.IRiakClient;
+import com.basho.riak.client.RiakException;
+import com.basho.riak.client.RiakFactory;
+import com.basho.riak.client.raw.pbc.PBClientConfig;
+import com.basho.riak.client.raw.pbc.PBClusterConfig;
+
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Swift;
@@ -59,14 +65,29 @@ public class BenchUtil {
     public static CRDTIdentifier[] generateOpIdentifiers(int size) {
         CRDTIdentifier[] operations = new CRDTIdentifier[size];
         for (int i = 0; i < operations.length; i++) {
-            operations[i] = new CRDTIdentifier(MicroBenchmark.TABLE_NAME, "OBJECT" + i);
+            operations[i] = new CRDTIdentifier(SwiftMicroBenchmark.TABLE_NAME, "OBJECT" + i);
+        }
+        return operations;
+
+    }
+    
+    public static Integer[] generateIntegers(int size) {
+        Integer[] operations = new Integer[size];
+        for (int i = 0; i < operations.length; i++) {
+            operations[i] = new Integer(i);
         }
         return operations;
 
     }
 
-    public static synchronized Swift getNewSwiftInterface(String serverLocation, int serverPort) {
+    public static Swift getNewSwiftInterface(String serverLocation, int serverPort) {
         Swift client = SwiftImpl.newInstance(serverLocation, serverPort);
         return client;
+    }
+
+    public static IRiakClient getNewRiakClient(String address, int port) throws RiakException {
+        
+        return RiakFactory.pbcClient(address, port);
+        
     }
 }

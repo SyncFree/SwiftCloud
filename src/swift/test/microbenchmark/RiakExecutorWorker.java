@@ -1,10 +1,19 @@
 package swift.test.microbenchmark;
 
+import java.io.ObjectInputStream;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Random;
 
 import org.apache.http.ReasonPhraseCatalog;
 import org.codehaus.jackson.Versioned;
+
+import com.basho.riak.client.IRiakClient;
+import com.basho.riak.client.IRiakObject;
+import com.basho.riak.client.RiakRetryFailedException;
+import com.basho.riak.client.cap.UnresolvedConflictException;
+import com.basho.riak.client.convert.ConversionException;
+import com.esotericsoftware.kryo.Kryo;
 
 import swift.application.social.User;
 import swift.crdt.CRDTIdentifier;
@@ -31,22 +40,23 @@ import swift.test.microbenchmark.objects.StringCopyable;
 import sys.Sys;
 import sys.dht.catadupa.crdts.ORSet;
 
-public class SwiftExecutorWorker implements MicroBenchmarkWorker {
+public class RiakExecutorWorker implements MicroBenchmarkWorker {
 
     private WorkerManager manager;
-    private Swift clientServer;
-    private CRDTIdentifier[] identifiers;
+    private IRiakClient clientServer;
+    private Integer[] identifiers;
     private double updateRatio;
     private String workerID;
     private int maxTxSize;
     private Random random;
     private boolean stop;
+    private Kryo kryo;
 
     protected long startTime, endTime;
     protected int numExecutedTransactions, writeOps, readOps;
 
-    public SwiftExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
-            double updateRatio, Random random, Swift clientServer, int maxTxSize) {
+    public RiakExecutorWorker(WorkerManager manager, String workerID, Integer[] identifiers, double updateRatio,
+            Random random, IRiakClient clientServer, int maxTxSize) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.updateRatio = updateRatio;
@@ -54,6 +64,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
         this.random = random;
         this.clientServer = clientServer;
         this.maxTxSize = maxTxSize;
+        kryo = new Kryo();
 
     }
 
@@ -61,50 +72,59 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     public void run() {
         manager.onWorkerStart(this);
         startTime = System.currentTimeMillis();
+
         while (!stop) {
             try {
                 OpType operationType = (random.nextDouble() > updateRatio) ? OpType.READ_ONLY : OpType.UPDATE;
-
+                ByteBuffer bb = ByteBuffer.allocate(1024);
                 switch (operationType) {
 
                 case UPDATE: {
-                    TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
-                            CachePolicy.STRICTLY_MOST_RECENT, false);
                     int randomIndex = (int) Math.floor(random.nextDouble() * identifiers.length);
-                    IntegerTxnLocal integerCRDT = txh.get(identifiers[randomIndex], false, IntegerVersioned.class);
+                    IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
+                            .fetch("object" + randomIndex).execute();
+                    bb = ByteBuffer.wrap(riakObj.getValue());
+                    Integer objValue = (Integer) kryo.readObject(bb, Integer.class);
+
                     if (random.nextDouble() > 0.5) {
-                        integerCRDT.add(10);
+                        objValue += 10;
                     } else {
-                        integerCRDT.sub(10);
+                        objValue -= 10;
                     }
-                    txh.commit();
+                    bb.clear();
+                    kryo.writeObject(bb, objValue);
+                    bb.flip();
+                    riakObj.setValue(bb.array());
+                    clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store(riakObj);
                     writeOps++;
                     break;
                 }
                 case READ_ONLY: {
                     int txSize = (int) Math.ceil(random.nextDouble() * maxTxSize);
-                    TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
-                            CachePolicy.STRICTLY_MOST_RECENT, true);
                     for (int i = 0; i < txSize; i++) {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
-                        txh.get(identifiers[randomIndex], false, IntegerVersioned.class);
+                        IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
+                                .fetch("object" + randomIndex).execute();
+                        bb = ByteBuffer.wrap(riakObj.getValue());
+                        Integer objValue = (Integer) kryo.readObject(bb, Integer.class);
                         readOps++;
                     }
-                    txh.commit();
                     break;
                 }
                 default:
                     break;
                 }
+                bb.clear();
                 numExecutedTransactions++;
 
-            } catch (NetworkException e) {
+            } catch (UnresolvedConflictException e) {
+                // TODO Auto-generated catch block
                 e.printStackTrace();
-            } catch (WrongTypeException e) {
+            } catch (RiakRetryFailedException e) {
+                // TODO Auto-generated catch block
                 e.printStackTrace();
-            } catch (NoSuchObjectException e) {
-                e.printStackTrace();
-            } catch (VersionNotFoundException e) {
+            } catch (ConversionException e) {
+                // TODO Auto-generated catch block
                 e.printStackTrace();
             }
         }
@@ -115,7 +135,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
     @Override
     public ResultHandler getResults() {
-        return new SwiftOperationExecutorResultHandler(this);
+        return new RiakOperationExecutorResultHandler(this);
     }
 
     @Override
@@ -130,13 +150,13 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     }
 }
 
-class SwiftOperationExecutorResultHandler implements ResultHandler {
+class RiakOperationExecutorResultHandler implements ResultHandler {
 
     private double executionTime;
     private String workerID;
     private int numExecutedTransactions, writeOps, readOps;
 
-    public SwiftOperationExecutorResultHandler(SwiftExecutorWorker worker) {
+    public RiakOperationExecutorResultHandler(RiakExecutorWorker worker) {
         executionTime = (worker.endTime - worker.startTime);
         workerID = worker.getWorkerID();
         readOps = worker.readOps;
@@ -146,7 +166,7 @@ class SwiftOperationExecutorResultHandler implements ResultHandler {
 
     @Override
     public String toString() {
-        String results = workerID + " Results:\n";
+        String results = workerID+" Results:\n";
         results += "Execution Time:\t" + executionTime + "s" + "\n";
         results += "Executed Transactions:\t" + numExecutedTransactions + " W:\t" + writeOps + "\tR:\t" + readOps
                 + "\n";

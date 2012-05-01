@@ -8,6 +8,10 @@ import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
 
+import com.basho.riak.client.IRiakClient;
+import com.basho.riak.client.RiakException;
+import com.basho.riak.client.http.RiakClient;
+
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Swift;
@@ -19,7 +23,7 @@ import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
 import sys.Sys;
 
-public class MicroBenchmark implements WorkerManager {
+public class RiakMicroBenchmark implements WorkerManager {
 
     private boolean initialize;
     private Semaphore stopSemaphore;
@@ -34,7 +38,7 @@ public class MicroBenchmark implements WorkerManager {
     private static String serverLocation = "localhost";
     private static int portId = 2001;
 
-    public MicroBenchmark(boolean initialize, int numObjects, int maxTxSize, int numWorkers, double updateRatio,
+    public RiakMicroBenchmark(boolean initialize, int numObjects, int maxTxSize, int numWorkers, double updateRatio,
             int executionTime, int runs) {
         this.initialize = initialize;
         this.random = new Random(randomSeed);
@@ -59,7 +63,7 @@ public class MicroBenchmark implements WorkerManager {
 
         if (args.length < 6 || args.length > 7) {
             System.out
-                    .println("[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS]");
+                    .println("[SAMPLE SIZE]\t[MAX TX SIZE]\t[NUM WORKERS]\t[UPDATE RATIO]\t[EXECUTION TIME SECONDS]\t[NUM RUNS]");
             return;
         } else {
             sampleSize = Integer.parseInt(args[0]);
@@ -69,24 +73,29 @@ public class MicroBenchmark implements WorkerManager {
             execTime = Integer.parseInt(args[4]);
             numRuns = Integer.parseInt(args[5]);
         }
+        System.out.println("SAMPLE SIZE " + sampleSize + " MAX_TX_SIZE " + maxTxSize + " NUM_WORKERS " + numWorkers
+                + " UPDATE_RATIO " + updateRatio + " EXECUTION_TIME_SECONDS " + execTime + " NUM_RUNS " + numRuns);
+
         Sys.init();
-        MicroBenchmark mb = new MicroBenchmark(populate, sampleSize, maxTxSize, numWorkers, updateRatio,
+        RiakMicroBenchmark mb = new RiakMicroBenchmark(populate, sampleSize, maxTxSize, numWorkers, updateRatio,
                 1000 * execTime, numRuns);
         try {
             mb.doIt();
         } catch (InterruptedException e) {
             e.printStackTrace();
+        } catch (RiakException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
 
     }
 
-    public void doIt() throws InterruptedException {
-        CRDTIdentifier[] identifiers = BenchUtil.generateOpIdentifiers(numObjects);
-
+    public void doIt() throws InterruptedException, RiakException {
+        Integer[] identifiers = BenchUtil.generateIntegers(numObjects);
+        IRiakClient client = BenchUtil.getNewRiakClient("127.0.0.1", 8087);
         if (initialize) {
             stopSemaphore = new Semaphore(-1);
-            Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
-            MicroBenchmarkWorker initializer = new SwiftInitializerWorker(this, identifiers, random, client);
+            MicroBenchmarkWorker initializer = new RiakInitializerWorker(this, identifiers, random, client);
             new Thread(initializer).start();
             try {
                 stopSemaphore.acquire();
@@ -98,14 +107,12 @@ public class MicroBenchmark implements WorkerManager {
                 e.printStackTrace();
             }
         }
-
         for (int r = 0; r < runs; r++) {
             List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
             stopSemaphore = new Semaphore(-numWorkers + 1);
             for (int i = 0; i < numWorkers; i++) {
-                Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
-                SwiftExecutorWorker worker = new SwiftExecutorWorker(this, "worker" + i, identifiers,
-                        updateRatio, random, client, maxTxSize);
+                RiakExecutorWorker worker = new RiakExecutorWorker(this, "worker" + i, identifiers, updateRatio,
+                        random, client, maxTxSize);
                 new Thread(worker).start();
                 workers.add(worker);
 
@@ -154,29 +161,26 @@ public class MicroBenchmark implements WorkerManager {
             if (worker.equals("INITIALIZER"))
                 continue;
 
-            String results = worker + " Results:\n";
             double numExecutedTransactions = 0;
             double writeOps = 0;
             double readOps = 0;
+            int runCounter = 1;
             for (ResultHandler run : workerResults.getValue()) {
-                if (run instanceof OperationExecutorResultHandler) {
-                    OperationExecutorResultHandler wr = (OperationExecutorResultHandler) run;
-                    numExecutedTransactions += wr.numExecutedTransactions / workerResults.getValue().size();
-                    writeOps += wr.writeOps / workerResults.getValue().size();
-                    readOps += wr.readOps / workerResults.getValue().size();
+                if (run instanceof RiakOperationExecutorResultHandler) {
+                    System.out.println("RUN " + runCounter++);
+                    RiakOperationExecutorResultHandler wr = (RiakOperationExecutorResultHandler) run;
+                    System.out.println(run.toString());
+                    numExecutedTransactions += wr.getNumExecutedTransactions() / workerResults.getValue().size();
+                    writeOps += wr.getWriteOps() / workerResults.getValue().size();
+                    readOps += wr.getReadOps() / workerResults.getValue().size();
                 }
             }
-
-            results += "Executed Transactions:\t" + numExecutedTransactions + " W:\t" + writeOps + "\tR:\t" + readOps
-                    + "\n";
-            results += "Throughput(Tx/min):\t" + numExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
-            System.out.println(results);
 
             totalExecutedTransactions += numExecutedTransactions;
             totalWriteOps += writeOps;
             totalReadOps += readOps;
         }
-        String results = "Total Results:\n";
+        String results = "Mean Total Results:\n";
         results += "Executed Transactions:\t" + totalExecutedTransactions + " W:\t" + totalWriteOps + "\tR:\t"
                 + totalReadOps + "\n";
         results += "Throughput(Tx/min):\t" + totalExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
