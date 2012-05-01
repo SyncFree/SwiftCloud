@@ -54,6 +54,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
 
     protected long startTime, endTime;
     protected int numExecutedTransactions, writeOps, readOps;
+    private RawDataCollector rawData;
 
     public RiakExecutorWorker(WorkerManager manager, String workerID, Integer[] identifiers, double updateRatio,
             Random random, IRiakClient clientServer, int maxTxSize) {
@@ -65,6 +66,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
         this.clientServer = clientServer;
         this.maxTxSize = maxTxSize;
         kryo = new Kryo();
+        rawData = manager.getNewRawDataCollector(workerID);
 
     }
 
@@ -80,6 +82,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                 switch (operationType) {
 
                 case UPDATE: {
+                    long txStartTime = System.nanoTime();
                     int randomIndex = (int) Math.floor(random.nextDouble() * identifiers.length);
                     IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
                             .fetch("object" + randomIndex).execute();
@@ -96,10 +99,13 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                     bb.flip();
                     riakObj.setValue(bb.array());
                     clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store(riakObj);
+                    long txEndTime = System.nanoTime();
+                    rawData.registerOperation(txEndTime - txStartTime, 1, 1, txStartTime);
                     writeOps++;
                     break;
                 }
                 case READ_ONLY: {
+                    long txStartTime = System.nanoTime();
                     int txSize = (int) Math.ceil(random.nextDouble() * maxTxSize);
                     for (int i = 0; i < txSize; i++) {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
@@ -109,6 +115,8 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                         Integer objValue = (Integer) kryo.readObject(bb, Integer.class);
                         readOps++;
                     }
+                    long txEndTime = System.nanoTime();
+                    rawData.registerOperation(txEndTime - txStartTime, 0, txSize, txStartTime);
                     break;
                 }
                 default:
@@ -148,6 +156,11 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
     public String getWorkerID() {
         return workerID;
     }
+
+    @Override
+    public RawDataCollector getRawData() {
+        return rawData;
+    }
 }
 
 class RiakOperationExecutorResultHandler implements ResultHandler {
@@ -155,6 +168,7 @@ class RiakOperationExecutorResultHandler implements ResultHandler {
     private double executionTime;
     private String workerID;
     private int numExecutedTransactions, writeOps, readOps;
+    private RawDataCollector rawData;
 
     public RiakOperationExecutorResultHandler(RiakExecutorWorker worker) {
         executionTime = (worker.endTime - worker.startTime);
@@ -162,12 +176,13 @@ class RiakOperationExecutorResultHandler implements ResultHandler {
         readOps = worker.readOps;
         writeOps = worker.writeOps;
         numExecutedTransactions = (int) worker.numExecutedTransactions;
+        this.rawData = worker.getRawData();
     }
 
     @Override
     public String toString() {
-        String results = workerID+" Results:\n";
-        results += "Execution Time:\t" + executionTime + "s" + "\n";
+        String results = workerID + " Results:\n";
+        results += "Execution Time:\t" + executionTime + "ms" + "\n";
         results += "Executed Transactions:\t" + numExecutedTransactions + " W:\t" + writeOps + "\tR:\t" + readOps
                 + "\n";
         results += "Throughput(Tx/min):\t" + numExecutedTransactions / ((executionTime) / (1000 * 60d)) + "\n";
@@ -198,6 +213,11 @@ class RiakOperationExecutorResultHandler implements ResultHandler {
     public String getWorkerID() {
         // TODO Auto-generated method stub
         return workerID;
+    }
+
+    @Override
+    public String getRawResults() {
+        return rawData.RawData();
     }
 
 }

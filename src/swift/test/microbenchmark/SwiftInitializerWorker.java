@@ -39,14 +39,14 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
         startTime = System.currentTimeMillis();
         try {
             TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
-                    false);           
+                    false);
             for (int i = 0; i < identifiers.length; i++) {
 
                 IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
                 integer.add(random.nextInt());
 
             }
-            txh.commit();            
+            txh.commit();
 
         } catch (NetworkException e) {
             e.printStackTrace();
@@ -76,6 +76,12 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
     public String getWorkerID() {
         return "INITIALIZER";
     }
+
+    @Override
+    public RawDataCollector getRawData() {
+        return null;
+    }
+
 }
 
 class DBInitializerResultHandler implements ResultHandler {
@@ -91,6 +97,41 @@ class DBInitializerResultHandler implements ResultHandler {
         String results = "***DB initializer Results***\n";
         results += "Execution Time:\t" + executionTime + "s";
         return results;
+    }
+
+    @Override
+    public double getExecutionTime() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public int getNumExecutedTransactions() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public int getWriteOps() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public int getReadOps() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public String getWorkerID() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public String getRawResults() {
+        return "Initializer";
     }
 
 }

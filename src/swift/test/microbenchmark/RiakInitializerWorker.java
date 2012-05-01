@@ -72,6 +72,11 @@ public class RiakInitializerWorker implements MicroBenchmarkWorker {
     public String getWorkerID() {
         return "INITIALIZER";
     }
+
+    @Override
+    public RawDataCollector getRawData() {
+       return null;
+    }
 }
 
 class RiakInitializerResultHandler implements ResultHandler {
@@ -112,6 +117,11 @@ class RiakInitializerResultHandler implements ResultHandler {
     @Override
     public String getWorkerID() {
         return "RIAKINITIALIZER";
+    }
+
+    @Override
+    public String getRawResults() {
+        return "INITIALIZER";
     }
 
 }

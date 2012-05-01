@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
+import java.util.logging.Logger;
 
 import com.basho.riak.client.IRiakClient;
 import com.basho.riak.client.RiakException;
@@ -31,10 +32,12 @@ public class RiakMicroBenchmark implements WorkerManager {
     private double updateRatio;
     private int numObjects, maxTxSize, numWorkers, executionTime, runs;
     private Map<String, List<ResultHandler>> results;
+    private static Logger logger = Logger.getLogger("swift.benchmark");
 
     private static final int /* valueLength = 20, valueLengthDeviation = 0 , */randomSeed = 1;
 
     public static final String TABLE_NAME = "BENCHMARK";
+    private static final int ESTIMATED_THGPT_MILLIS = 1;
     private static String serverLocation = "localhost";
     private static int portId = 2001;
 
@@ -98,35 +101,51 @@ public class RiakMicroBenchmark implements WorkerManager {
             MicroBenchmarkWorker initializer = new RiakInitializerWorker(this, identifiers, random, client);
             new Thread(initializer).start();
             try {
+                logger.info("START POPULATOR");
                 stopSemaphore.acquire();
-                // FIXME: Blocks here
-                // System.out.println("STOP CLIENT");
-                // client.stop(false);
-                // System.out.println("CLIENT STOPPED");
+                logger.info("END POPULATOR");
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-        for (int r = 0; r < runs; r++) {
-            List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
-            stopSemaphore = new Semaphore(-numWorkers + 1);
-            for (int i = 0; i < numWorkers; i++) {
-                RiakExecutorWorker worker = new RiakExecutorWorker(this, "worker" + i, identifiers, updateRatio,
-                        random, client, maxTxSize);
-                new Thread(worker).start();
-                workers.add(worker);
 
-            }
-            stopSemaphore.acquire();
-            Thread.sleep(executionTime);
-            stopSemaphore = new Semaphore(-numWorkers + 1);
-            for (MicroBenchmarkWorker w : workers) {
-                w.stop();
-            }
-            stopSemaphore.acquire();
+        for (int r = 0; r < runs; r++) {
+            logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
+            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client);
+            logger.info("START");
+            executeWorkers("Worker", numWorkers, identifiers, executionTime, client);
+            logger.info("END");
+
         }
         printResults();
 
+    }
+
+    private void executeWorkers(String workersName, int numWorkers, Integer[] identifiers, long executionTime,
+            IRiakClient client) throws InterruptedException {
+        List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
+        stopSemaphore = new Semaphore(-numWorkers + 1);
+        for (int i = 0; i < numWorkers; i++) {
+            // client = BenchUtil.getNewSwiftInterface(serverLocation,
+            // DCConstants.SURROGATE_PORT);
+            RiakExecutorWorker worker = new RiakExecutorWorker(this, workersName + i, identifiers, updateRatio, random,
+                    client, maxTxSize);
+            new Thread(worker).start();
+            workers.add(worker);
+
+        }
+        stopSemaphore.acquire();
+        Thread.sleep(executionTime);
+        stopSemaphore = new Semaphore(-numWorkers + 1);
+        for (MicroBenchmarkWorker w : workers) {
+            w.stop();
+
+        }
+        stopSemaphore.acquire();
+        if (!workersName.equals("WARM_UP"))
+            for (MicroBenchmarkWorker w : workers) {
+                System.out.println(w.getRawData().RawData());
+            }
     }
 
     @Override
@@ -137,6 +156,11 @@ public class RiakMicroBenchmark implements WorkerManager {
 
     @Override
     public void onWorkerFinish(MicroBenchmarkWorker worker) {
+        if (worker.getWorkerID().contains("WARM_UP") || worker.getWorkerID().equals("INITIALIZER")) {
+            stopSemaphore.release();
+            return;
+        }
+
         // System.out.println(worker.getResults().toString());
         List<ResultHandler> workerRuns = results.get(worker.getWorkerID());
         if (workerRuns == null) {
@@ -157,10 +181,6 @@ public class RiakMicroBenchmark implements WorkerManager {
         double totalReadOps = 0;
 
         for (Entry<String, List<ResultHandler>> workerResults : results.entrySet()) {
-            String worker = workerResults.getKey();
-            if (worker.equals("INITIALIZER"))
-                continue;
-
             double numExecutedTransactions = 0;
             double writeOps = 0;
             double readOps = 0;
@@ -185,6 +205,12 @@ public class RiakMicroBenchmark implements WorkerManager {
                 + totalReadOps + "\n";
         results += "Throughput(Tx/min):\t" + totalExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
         System.out.println(results);
+    }
+
+    @Override
+    public RawDataCollector getNewRawDataCollector(String workerName) {
+        int initialSize = (int) (maxTxSize * (1 - updateRatio) + 1) * executionTime * ESTIMATED_THGPT_MILLIS;
+        return new RawDataCollector(initialSize, workerName);
     }
 
 }
