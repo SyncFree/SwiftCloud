@@ -15,7 +15,7 @@ start() {
 	# TODO: logging!
 	i=0
 	for server in $servers; do
-		other_servers=${servers##$server}
+		other_servers=${servers//$server/}
 		swift_app_cmd swift.dc.DCSequencerServer -name "X$i" -sequencers $other_servers -servers localhost
 		run_cmd_bg $server $CMD
 		sleep 2
