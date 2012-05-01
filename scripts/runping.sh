@@ -1,6 +1,6 @@
 #! /bin/sh -e
 
-DEPLOY=
+DEPLOY=true
 
 . ./scripts/ec2-common.sh
 

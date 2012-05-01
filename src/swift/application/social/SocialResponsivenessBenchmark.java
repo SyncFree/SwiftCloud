@@ -6,12 +6,11 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
@@ -21,15 +20,15 @@ import swift.dc.DCConstants;
 import sys.Sys;
 
 /**
- * Executing SwiftSocial operations, based on data model of WaltSocial prototype
- * [Sovran et al. OSDI 2011].
+ * Benchmark of SwiftSocial responsiveness, based on data model derived from
+ * WaltSocial prototype [Sovran et al. OSDI 2011].
  */
-public class SwiftSocialMain {
+public class SocialResponsivenessBenchmark {
     private static final long DELAY_AFTER_INIT = 3000;
     private static int lengthInputFile = 500;
     private static String dcName;
     private static String usersFileName;
-    private static String commandsFileName;
+    private static String commandsFileName = "scripts/commands.txt";
     private static IsolationLevel isolationLevel;
     private static CachePolicy cachePolicy;
     private static boolean subscribeUpdates;
@@ -38,7 +37,8 @@ public class SwiftSocialMain {
         if (args.length != 5 && args.length != 6) {
             System.out
                     .println("Usage: <surrogate addr> <isolationLevel> <cachePolicy> <subscribe updates (true|false)>");
-            System.out.println("       <commands filename> [users filename to initialize]");
+            System.out
+                    .println("       <commands filename> <think time avg> <think time stdev> <cache time eviction ms>");
             return;
         } else {
             dcName = args[0];
@@ -55,7 +55,7 @@ public class SwiftSocialMain {
         runClient(commandsFileName, usersFileName);
     }
 
-    public static List<String> readInputFromFile(final String fileName) {
+    private static List<String> readInputFromFile(final String fileName) {
         List<String> data = new ArrayList<String>(lengthInputFile);
         try {
             FileInputStream fstream = new FileInputStream(fileName);
@@ -79,20 +79,10 @@ public class SwiftSocialMain {
         return null;
     }
 
-    private static void runClient(final String inputFileName, final String usersFileName) {
+    private static void runClient(final String inputFileName) {
         Sys.init();
         Swift clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates);
-
-        if (usersFileName != null) {
-            initUsers(client, usersFileName);
-            clientServer.stop(true);
-            try {
-                Thread.sleep(DELAY_AFTER_INIT);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
 
         // Execute the commands assigned to this thread
         List<String> commandData = readInputFromFile(inputFileName);
@@ -145,22 +135,25 @@ public class SwiftSocialMain {
 
     }
 
-    public static void initUsers(SwiftSocial client, final String usersFileName) {
-        // Initialize user data
-        List<String> userData = readInputFromFile(usersFileName);
-        for (String line : userData) {
-            String[] toks = line.split(";");
-            long birthday = 0;
-            try {
-                SimpleDateFormat formatter = new SimpleDateFormat("dd/mm/yy");
-                Date dateStr = formatter.parse(toks[4]);
-                birthday = dateStr.getTime();
-            } catch (ParseException e) {
-                System.err.println("Could not parse the birthdate: " + toks[4]);
+    private static Map<String, List<String>> readUsersCommands(final String fileName) {
+        final List<String> cmds = readInputFromFile(fileName);
+        final Map<String, List<String>> usersCmds = new HashMap<String, List<String>>();
+
+        List<String> userCmds = null;
+        for (final String cmd : cmds) {
+            final String[] toks = cmd.split(";");
+            final Commands cmdType = Commands.valueOf(toks[0].toUpperCase());
+            switch (cmdType) {
+            case LOGIN:
+                userCmds = new ArrayList<String>();
+                usersCmds.put(toks[1], userCmds);
+                break;
+            case LOGOUT:
+                userCmds.add(cmd);
+                break;
             }
-            client.registerUser(toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
         }
-        System.out.println("Initialization finished");
+        return usersCmds;
     }
 
     // private static void startDCServer() {

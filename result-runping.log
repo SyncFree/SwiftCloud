@@ -1,0 +1,4 @@
+Running command on ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
+cat stdout.txt
+PingSpeedBenchmark ec2-176-34-73-193.eu-west-1.compute.amazonaws.com 10 1 REPEATABLE_READS CACHED true 
+Ping time
