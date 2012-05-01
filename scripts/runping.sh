@@ -1,7 +1,5 @@
 #! /bin/sh -e
 
-DEPLOY=true
-
 . ./scripts/ec2-common.sh
 
 if [ ! -f "$JAR" ]; then
@@ -15,10 +13,7 @@ DC2=$EC2_US_SERVER
 
 echo "deploying ping test"
 if [ -n "$DEPLOY" ]; then
-  deploy_swift_on $C1
-  deploy_swift_on $C2
-  deploy_swift_on $DC1
-  deploy_swift_on $DC2
+  deploy_swift_on_many $C1 $C2 $DC1 $DC2
 fi
 
 echo "starting sequencers and DC servers"

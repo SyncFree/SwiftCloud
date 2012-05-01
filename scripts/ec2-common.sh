@@ -10,6 +10,7 @@ export EC2_US_CLIENT=ec2-184-72-10-67.us-west-1.compute.amazonaws.com
 export EC2_ALL="$EC2_EU_SERVER1 $EC2_EU_SERVER2 $EC2_US_SERVER $EC2_US_CLIENT"
 export JAR=swiftcloud.jar
 export PROPS=deployment_logging.properties
+export SWIFT_FILES="$JAR $PROPS"
 
 # run_cmd <server> <cmd>
 run_cmd() {
@@ -77,5 +78,18 @@ deploy_swift_on() {
 	server=$1
 	copy_to $JAR $server $JAR
 	copy_to stuff/$PROPS $server $PROPS	
+}
+
+deploy_swift_on_many() {
+	echo "Installing swift on: $*"
+	primary=$1
+	echo "Installing on primary: $primary"
+	deploy_swift_on $primary
+	shift
+	for server in $*; do
+		for f in $SWIFT_FILES; do
+			run_cmd $primary rsync -e ssh $f $server:$f
+		done
+	done
 }
 
