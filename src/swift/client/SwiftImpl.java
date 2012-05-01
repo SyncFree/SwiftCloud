@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -717,6 +718,7 @@ public class SwiftImpl implements Swift, TxnManager {
         for (final Entry<Timestamp, CRDTIdentifier> entry : uncommittedUpdates.entrySet()) {
             Set<CRDTIdentifier> ids = uncommittedUpdatesObjectsToNotify.get(entry.getKey());
             if (ids == null) {
+                ids = new HashSet<CRDTIdentifier>();
                 uncommittedUpdatesObjectsToNotify.put(entry.getKey(), ids);
             }
             ids.add(entry.getValue());
