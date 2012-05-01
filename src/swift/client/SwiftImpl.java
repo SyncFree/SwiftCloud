@@ -618,6 +618,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         logger.fine("notifications received for " + notifications.getSubscriptions().size() + " objects");
+
         updateCommittedVersion(notifications.getEstimatedLatestKnownClock());
         if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
             // Process notifications.
@@ -644,6 +645,11 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     private synchronized void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
             final List<CRDTObjectOperationsGroup<?>> ops, final CausalityClock outputClock) {
+        if (stopFlag) {
+            logger.info("Update received after client has been stopped -> ignoring");
+            return;
+        }
+
         final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
         if (subscription == null) {
             removeUpdateSubscriptionAsyncUnsubscribe(id);
@@ -692,6 +698,11 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id, UpdateSubscription subscription,
             Collection<? extends Timestamp> updateTimestamps) {
+        if (stopFlag) {
+            logger.info("Update received after client has been stopped -> ignoring");
+            return;
+        }
+
         Map<Timestamp, CRDTIdentifier> uncommittedUpdates = new HashMap<Timestamp, CRDTIdentifier>();
         for (final Timestamp ts : updateTimestamps) {
             if (!subscription.readVersion.includes(ts)) {
@@ -713,8 +724,13 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private <V extends CRDT<V>> void handleObjectNewVersionTryNotify(CRDTIdentifier id,
+    private synchronized <V extends CRDT<V>> void handleObjectNewVersionTryNotify(CRDTIdentifier id,
             final UpdateSubscription subscription, final V newCrdtVersion) {
+        if (stopFlag) {
+            logger.info("Update received after client has been stopped -> ignoring");
+            return;
+        }
+
         final Set<Timestamp> recentUpdates;
         try {
             recentUpdates = newCrdtVersion.getUpdateTimestampsSince(subscription.readVersion);
@@ -746,6 +762,11 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private void asyncSubscribeObjectUpdates(final CRDTIdentifier id) {
+        if (stopFlag) {
+            logger.info("Update received after client has been stopped -> ignoring");
+            return;
+        }
+
         notificationsSubscriberExecutor.execute(new Runnable() {
             @Override
             public void run() {
