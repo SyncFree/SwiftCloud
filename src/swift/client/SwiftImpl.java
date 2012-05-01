@@ -914,10 +914,14 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         objectsCache.recordOnAll(txn.getGlobalTimestamp());
 
-        for (final AbstractTxnHandle dependingTxn : locallyCommittedTxnsQueue) {
-            if (dependingTxn != txn) {
-                dependingTxn.includeGlobalDependency(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
-            }
+        final Iterator<AbstractTxnHandle> localTxnIter = locallyCommittedTxnsQueue.iterator();
+        if (localTxnIter.next() != txn) {
+            throw new IllegalStateException("Internal error: committed transaction was not the first from the queue");
+        }
+        localTxnIter.remove();
+        while (localTxnIter.hasNext()) {
+            final AbstractTxnHandle dependingTxn = localTxnIter.next();
+            dependingTxn.includeGlobalDependency(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
             // pendingTxn will map timestamp later inside commitToStore().
 
             // TODO [tricky]: to implement IsolationLevel.READ_COMMITTED we may
@@ -993,10 +997,6 @@ public class SwiftImpl implements Swift, TxnManager {
                 }
                 commitToStore(nextToCommit);
                 applyGloballyCommittedTxn(nextToCommit);
-                // Clean up after nextToCommit.
-                if (locallyCommittedTxnsQueue.removeFirst() != nextToCommit) {
-                    throw new IllegalStateException("internal error, concurrently commiting transactions?");
-                }
             }
         }
     }
