@@ -27,7 +27,7 @@ import sys.Sys;
 public class PingSpeedTest {
     private static String sequencerName = "localhost";
     private static String dcName = "localhost";
-    static int iterations = 5;
+    static int iterations = 10;
     static IsolationLevel isolationLevel = IsolationLevel.REPEATABLE_READS;
     static CachePolicy cachePolicy = CachePolicy.CACHED;
     static boolean notifications = true;
@@ -69,20 +69,20 @@ public class PingSpeedTest {
         client2.start();
     }
 
-    protected static void client1Code(SwiftImpl server) {
+    protected static void client1Code(SwiftImpl swift) {
         try {
             System.out.println("Ping time");
             NanoTimeCollector timer = new NanoTimeCollector();
 
             timer.start();
-            TxnHandle handle = server.beginTxn(isolationLevel, cachePolicy, false);
+            TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
             IntegerTxnLocal i1 = handle.get(j, true, swift.crdt.IntegerVersioned.class);
             i1.add(1);
             handle.commit();
             int expected = 2;
 
             while (true) {
-                TxnHandle txn = server.beginTxn(isolationLevel, cachePolicy, false);
+                TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i = txn.get(j, false, swift.crdt.IntegerVersioned.class);
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
@@ -94,7 +94,7 @@ public class PingSpeedTest {
                         Thread.sleep(1000);
                         expected += 2;
                         timer.start();
-                        increment(server);
+                        increment(swift);
                     } else {
                         break;
                     }
@@ -103,17 +103,17 @@ public class PingSpeedTest {
                     txn.rollback();
                 }
             }
-            server.stop(true);
+            swift.stop(true);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    protected static void client2Code(SwiftImpl server) {
+    protected static void client2Code(SwiftImpl swift) {
         try {
             int expected = 1;
             while (true) {
-                TxnHandle handle = server.beginTxn(isolationLevel, cachePolicy, false);
+                TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class);
                 if (i1.getValue() == expected) {
                     i1.add(1);
@@ -134,23 +134,23 @@ public class PingSpeedTest {
         }
     }
 
-    protected static void increment(SwiftImpl server) throws NetworkException, WrongTypeException,
+    protected static void increment(SwiftImpl swift) throws NetworkException, WrongTypeException,
             NoSuchObjectException, VersionNotFoundException {
-        TxnHandle handle = server.beginTxn(isolationLevel, cachePolicy, false);
+        TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
         IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class);
         i1.add(1);
         handle.commit();
     }
 
-    protected static void client1CodeNotifications(SwiftImpl server) {
+    protected static void client1CodeNotifications(SwiftImpl swift) {
         try {
             System.out.println("Ping time");
             NanoTimeCollector timer = new NanoTimeCollector();
 
             timer.start();
-            TxnHandle handle = server.beginTxn(isolationLevel, cachePolicy, false);
+            TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
             IntegerTxnLocal i1 = handle.get(j, true, swift.crdt.IntegerVersioned.class, new ObjectUpdatesListenerIncr1(
-                    2, server, timer));
+                    2, swift, timer));
             i1.add(1);
             handle.commit();
         } catch (Exception e) {
@@ -158,12 +158,12 @@ public class PingSpeedTest {
         }
     }
 
-    protected static void client2CodeNotifications(SwiftImpl server) {
+    protected static void client2CodeNotifications(SwiftImpl swift) {
         try {
             int expected = 1;
-            TxnHandle handle = server.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
+            TxnHandle handle = swift.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
             IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class,
-                    new ObjectUpdatesListenerIncr2(1, server));
+                    new ObjectUpdatesListenerIncr2(1, swift));
             if (i1.getValue() == expected) {
                 i1.add(1);
                 handle.commit();
@@ -185,19 +185,19 @@ public class PingSpeedTest {
 
     static class ObjectUpdatesListenerIncr1 extends AbstractObjectUpdatesListener {
         int expected;
-        SwiftImpl server;
+        SwiftImpl swift;
         NanoTimeCollector timer;
 
-        ObjectUpdatesListenerIncr1(int expected, SwiftImpl server, NanoTimeCollector timer) {
+        ObjectUpdatesListenerIncr1(int expected, SwiftImpl swift, NanoTimeCollector timer) {
             this.expected = expected;
-            this.server = server;
+            this.swift = swift;
             this.timer = timer;
         }
 
         @Override
         public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             try {
-                TxnHandle txn = server.beginTxn(isolationLevel, cachePolicy, false);
+                TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i = txn.get(id, false, swift.crdt.IntegerVersioned.class, this);
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
@@ -209,9 +209,9 @@ public class PingSpeedTest {
                         Thread.sleep(1000);
                         expected += 2;
                         timer.start();
-                        increment(server);
+                        increment(swift);
                     } else {
-                        server.stop(true);
+                        swift.stop(true);
                     }
                 } else {
                     txn.rollback();
@@ -224,17 +224,17 @@ public class PingSpeedTest {
 
     static class ObjectUpdatesListenerIncr2 extends AbstractObjectUpdatesListener {
         int expected;
-        SwiftImpl server;
+        SwiftImpl swift;
 
-        ObjectUpdatesListenerIncr2(int expected, SwiftImpl server) {
+        ObjectUpdatesListenerIncr2(int expected, SwiftImpl swift) {
             this.expected = expected;
-            this.server = server;
+            this.swift = swift;
         }
 
         @Override
         public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             try {
-                TxnHandle handle = server.beginTxn(isolationLevel, cachePolicy, false);
+                TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class, this);
                 if (i1.getValue() == expected) {
                     i1.add(1);
@@ -244,7 +244,7 @@ public class PingSpeedTest {
                         // internals
                         expected += 2;
                     } else {
-                        server.stop(true);
+                        swift.stop(true);
                     }
                 } else {
                     handle.rollback();
