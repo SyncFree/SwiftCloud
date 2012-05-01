@@ -39,7 +39,7 @@ public class DCRiakDatabase implements DCNodeDatabase {
     }
 
     @Override
-    public CRDTData<?> read(CRDTIdentifier id) {
+    public synchronized CRDTData<?> read(CRDTIdentifier id) {
         try {
             RiakResponse response = riak.fetch( id.getTable(), id.getKey());
             DCConstants.DCLogger.info("RIAK.get " + id + ": response:" + response.hasValue());
@@ -71,7 +71,7 @@ public class DCRiakDatabase implements DCNodeDatabase {
     }
 
     @Override
-    public boolean write(CRDTIdentifier id, CRDTData<?> data) {
+    public synchronized boolean write(CRDTIdentifier id, CRDTData<?> data) {
         try {
             DCConstants.DCLogger.info("RIAK.store " + id + ": what:" + data.getId());
             
@@ -93,7 +93,7 @@ public class DCRiakDatabase implements DCNodeDatabase {
     }
 
     @Override
-    public Object readSysData(String table, String key) {
+    public synchronized Object readSysData(String table, String key) {
         try{
         DCConstants.DCLogger.info("RIAK.SYSget " + table + ": response:" + key);
         RiakResponse response = riak.fetch(table, key);
@@ -117,7 +117,7 @@ public class DCRiakDatabase implements DCNodeDatabase {
     }
 
     @Override
-    public boolean writeSysData(String table, String key, Object data) {
+    public synchronized boolean writeSysData(String table, String key, Object data) {
         try {
             DCConstants.DCLogger.info("RIAK.SYSstore " + table + ": what:" + key);
             
