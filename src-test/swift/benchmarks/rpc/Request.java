@@ -16,7 +16,7 @@ public class Request implements RpcMessage {
 	Request() {
 	}
 
-	Request( int val ) {
+	public Request( int val ) {
 	    this.val = val;
 	}
 

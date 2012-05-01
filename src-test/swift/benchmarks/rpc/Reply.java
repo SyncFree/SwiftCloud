@@ -16,7 +16,7 @@ public class Reply implements RpcMessage {
 	Reply() {
 	}
 
-	Reply( int val) {
+	public Reply( int val) {
 	    this.val = val;
     }
 
