@@ -1,6 +1,5 @@
 package sys.net.impl;
 
-import static sys.net.api.Networking.Networking;
 import static sys.utils.Log.Log;
 
 import java.io.DataInputStream;
@@ -10,6 +9,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 import java.util.logging.Level;
 
 import sys.net.api.Endpoint;
@@ -164,6 +164,11 @@ class TcpConnectionImpl implements TcpConnection {
 
     TcpConnectionImpl(AbstractEndpoint local, Socket sock) {
         this.sock = sock;
+        try {
+            sock.setTcpNoDelay(true);
+        } catch (SocketException e) {
+            Log.warning("Could not set TCP NO DELAY: " + e.getMessage());
+        }
         this.local = local;
         prepareIncomingConnection();
     }
