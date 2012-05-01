@@ -206,12 +206,11 @@ public class SwiftImpl implements Swift, TxnManager {
             }
             notificationsSubscriberExecutor.shutdown();
             notificationsCallbacksExecutor.shutdown();
-            // No need to close notifications threads in theory, but it brakes
-            // the connection uncleanly.
-            if (stopGracefully) {
-                // notificationsThread.interrupt();
-                notificationsThread.join();
-            }
+            // Do not wait for notifications thread, as it is hard to interrupt
+            // pending notification reply.
+            // if (stopGracefully) {
+            // notificationsThread.join();
+            // }
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
         }
@@ -1025,6 +1024,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private class NotoficationsProcessorThread extends Thread {
         public NotoficationsProcessorThread() {
             super("SwiftNotificationsProcessorThread");
+            setDaemon(true);
         }
 
         @Override
