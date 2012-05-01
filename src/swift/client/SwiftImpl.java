@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.client.proto.CommitUpdatesReply;
@@ -684,8 +685,16 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info("applying received updates on object " + id);
+        }
+
         for (final CRDTObjectOperationsGroup<?> op : ops) {
             if (!crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("update " + op.getBaseTimestamp() + " was already included in the state of object "
+                            + id);
+                }
                 // Already applied update.
                 continue;
             }
@@ -722,6 +731,9 @@ public class SwiftImpl implements Swift, TxnManager {
                 uncommittedUpdatesObjectsToNotify.put(entry.getKey(), ids);
             }
             ids.add(entry.getValue());
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("Update on object " + id + " visible, but not committed, delaying notification");
+            }
         }
     }
 
@@ -1088,6 +1100,7 @@ public class SwiftImpl implements Swift, TxnManager {
             return new Runnable() {
                 @Override
                 public void run() {
+                    logger.info("Notifying on update on object " + id);
                     listenerRef.onObjectUpdate(txnRef, id, crdtRef);
                 }
             };
