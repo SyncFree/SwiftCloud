@@ -32,6 +32,11 @@ public class CRDTData<V extends CRDT<V>> {
     transient Set<Observer> observers;
     transient Set<Observer> notifiers;
     transient Object dbInfo;
+    
+    CRDTData() {
+        observers = new TreeSet<Observer>();
+        notifiers = new TreeSet<Observer>();
+    }
 
     CRDTData(CRDTIdentifier id) {
         this.id = id;
@@ -88,5 +93,31 @@ public class CRDTData<V extends CRDT<V>> {
 
     public void setDbInfo(Object dbInfo) {
         this.dbInfo = dbInfo;
+    }
+    public void mergeInto( CRDTData<?> d) {
+        empty = true;
+        crdt.merge((CRDT<V>)d.crdt);
+        clock.merge(d.clock);
+        pruneClock.merge(d.pruneClock);
+    }
+
+    public boolean isEmpty() {
+        return empty;
+    }
+
+    public CRDT<V> getCrdt() {
+        return crdt;
+    }
+
+    public CRDTIdentifier getId() {
+        return id;
+    }
+
+    public CausalityClock getClock() {
+        return clock;
+    }
+
+    public CausalityClock getPruneClock() {
+        return pruneClock;
     }
 }

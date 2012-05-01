@@ -10,6 +10,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeSet;
@@ -26,7 +27,9 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
+import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.dc.db.DCNodeDatabase;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
 import swift.dc.proto.CommitTSRequest;
@@ -64,24 +67,28 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     String sequencerShadow;
     Endpoint sequencerShadowEP;
     String siteId;
+    Properties props;
     int port;
     boolean isBackup;
+    DCNodeDatabase dbServer;
 
     Map<String, LinkedList<CommitRecord>> ops;
     LinkedList<SeqCommitUpdatesRequest> pendingOps;     // ops received from other sites that need to be executed locally
 
 
-    public DCSequencerServer(String siteId, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup) {
-        this( siteId, DCConstants.SEQUENCER_PORT, servers, sequencers, sequencerShadow, isBackup);
+    public DCSequencerServer(String siteId, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup, Properties props) {
+        this( siteId, DCConstants.SEQUENCER_PORT, servers, sequencers, sequencerShadow, isBackup, props);
     }
-    public DCSequencerServer(String siteId, int port, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup) {
+    public DCSequencerServer(String siteId, int port, List<String> servers, List<String> sequencers, String sequencerShadow, boolean isBackup, Properties props) {
         this.siteId = siteId;
         this.servers = servers;
         this.sequencers = sequencers;
         this.port = port;
         this.sequencerShadow = sequencerShadow;
         this.isBackup = isBackup;
+        this.props = props;
         init();
+        initDB( props);
     }
 
     protected synchronized CausalityClock receivedMessagesCopy() {
@@ -99,6 +106,16 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         pendingOps = new LinkedList<SeqCommitUpdatesRequest>();
     }
     
+    void initDB(Properties props) {
+        try {
+            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Cannot start underlying database", e);
+        }
+        dbServer.init(props);
+
+    }
+
     void execPending() {
         for( ; ; ) {
             SeqCommitUpdatesRequest req = null;
@@ -278,12 +295,15 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         //TODO: remove this if anti-entropy is to be used
         if( ! record.baseTimestamp.getIdentifier().equals(siteId))
             return;
+        
+        dbServer.writeSysData("SYS_TABLE", record.baseTimestamp.getIdentifier(), record);
         LinkedList<CommitRecord> s = null;
         synchronized (ops) {
             s = ops.get(record.baseTimestamp.getIdentifier());
             if (s == null) {
                 s = new LinkedList<CommitRecord>();
-                ops.put(record.baseTimestamp.getIdentifier(), s);
+                if( record.acked.nextClearBit(0) < sequencers.size())
+                    ops.put(record.baseTimestamp.getIdentifier(), s);
             }
         }
         synchronized( this) {
@@ -471,6 +491,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     public static void main(String[] args) {
+        Properties props = new Properties();
+        props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
         List<String> sequencers = new ArrayList<String>();
         List<String> servers = new ArrayList<String>();
         int port = DCConstants.SEQUENCER_PORT;
@@ -498,9 +520,11 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                 isBackup = true;
             } else if (args[i].equals("-sequencerShadow")) {
                 sequencerShadow = args[++i];
+            } else if (args[i].startsWith("-prop:")) {
+                props.setProperty( args[i].substring(6), args[++i]);
             }
         }
-        new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup).start();
+        new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup, props).start();
     }
 
 

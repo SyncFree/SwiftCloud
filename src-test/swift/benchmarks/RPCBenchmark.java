@@ -117,15 +117,16 @@ public class RPCBenchmark {
         };
 
         final long startTime = System.currentTimeMillis();
-        final int RPCS_NUMBER = 1000;
+        final int RPCS_NUMBER = 20000;
         for (int i = 0; i < RPCS_NUMBER; i++) {
             clientEndpoint.send(clientToServerEndpoint, new FetchObjectVersionRequest("client", objectId,
                     causalityClock1, true, SubscriptionType.NONE), countingReplyHandler);
         }
         assertEquals(RPCS_NUMBER, receivedAcks.get());
         final long duration = System.currentTimeMillis() - startTime;
-        System.out.println("1000 ping RPCs executed in " + duration + "ms");
+        System.out.println("10000 ping RPCs executed in " + duration + "ms");
     }
+
 
     private class RpcServer implements SwiftServer {
         @Override

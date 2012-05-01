@@ -7,7 +7,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 public class VersionVectorWithExceptionsTest {
-    private VersionVectorWithExceptions clock;
+    private VersionVectorWithExceptionsOld clock;
     private Timestamp tsA1;
     private Timestamp tsA2;
     private Timestamp tsB1;
@@ -15,7 +15,7 @@ public class VersionVectorWithExceptionsTest {
 
     @Before
     public void setUp() {
-        clock = new VersionVectorWithExceptions();
+        clock = new VersionVectorWithExceptionsOld();
         final IncrementalTimestampGenerator siteAGen = new IncrementalTimestampGenerator("a");
         final IncrementalTimestampGenerator siteBGen = new IncrementalTimestampGenerator("b");
         tsA1 = siteAGen.generateNew();

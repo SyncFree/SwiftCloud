@@ -27,4 +27,18 @@ public class DevNullNodeDatabase implements DCNodeDatabase {
         return true;
     }
 
+    @Override
+    public boolean ramOnly() {
+        return true;
+    }
+
+    @Override
+    public Object readSysData(String table, String key) {
+        return null;
+    }
+
+    @Override
+    public boolean writeSysData(String table, String key, Object data) {
+        return true;
+    }
 }

@@ -126,7 +126,9 @@ class DCDataServer {
                             CRDTData<?> obj = it.next();
                             lock(obj.id);
                             try {
-                                modified.remove(obj);
+                                synchronized (modified) {
+                                    modified.remove(obj);
+                                }
                             } finally {
                                 unlock(obj.id);
                             }
@@ -217,6 +219,8 @@ class DCDataServer {
         this.version = ClockFactory.newClock();
 
         initDB(props);
+        
+        if( dbServer.ramOnly()) {
 
         IntegerVersioned i = new IntegerVersioned();
         CRDTIdentifier id = new CRDTIdentifier("e", "1");
@@ -227,7 +231,7 @@ class DCDataServer {
         CRDTIdentifier id2 = new CRDTIdentifier("e", "2");
         i2.init(id2, version.clone(), version.clone(), true);
         localPutCRDT(localSurrogate, id2, i2, i2.getClock(), i2.getPruneClock());
-
+        }
     }
 
     /**********************************************************************************************
@@ -248,6 +252,12 @@ class DCDataServer {
     }
 
     void writeCRDTintoDB(CRDTData<?> data) {
+        lock(data.id);
+        try {
+            dbServer.write(data.id,data);
+        } finally {
+            unlock( data.id);
+        }
     }
 
     /**
@@ -405,7 +415,8 @@ class DCDataServer {
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectOperationsGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
             data.clock = data.crdt.getClock();
-
+            setModifiedDatabaseEntry( data);
+            
             ExecCRDTResult result = null;
             if (data.observers.size() > 0 || data.notifiers.size() > 0) {
                 if( data.observers.size() > 0) {

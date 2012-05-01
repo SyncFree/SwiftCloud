@@ -19,10 +19,11 @@ public class DCConstants {
     public static final String DATABASE_CLASS = "DB"; // property for storing
                                                       // the type of database
                                                       // used
+    public static final String DATABASE_SYSTEM_TABLE = "SYS_TABLE"; // name of system table
 
-    public static final String RIAK_URL = "RIAK:URL"; // property of URL for
+    public static final String RIAK_URL = "RIAK_URL"; // property of URL for
                                                       // accessing Riak
-    public static final String RIAK_PORT = "RIAK:PORT"; // property of port for
+    public static final String RIAK_PORT = "RIAK_PORT"; // property of port for
                                                         // accessing Riak
 
     public static final int DEFAULT_TRXIDTIME = 5000;
