@@ -1,14 +1,13 @@
-Running command on ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
-cat stdout.txt
-PingSpeedBenchmark ec2-176-34-73-193.eu-west-1.compute.amazonaws.com 10 1 REPEATABLE_READS CACHED true 
-Ping time
-2255585168
-321424420
-274914649
-277888573
-290907579
-309691660
-284583374
-342815817
-301989284
-271964967
+#Running command on ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
+#PingSpeedBenchmark ec2-176-34-73-193.eu-west-1.compute.amazonaws.com 10 1 #REPEATABLE_READS CACHED true 
+#Ping time
+#3227694112
+507565742
+350083509
+346078613
+346345422
+353573004
+343842228
+370500887
+343897594
+344866578
