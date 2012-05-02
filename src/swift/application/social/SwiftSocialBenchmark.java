@@ -14,13 +14,13 @@ import swift.dc.DCConstants;
 import sys.Sys;
 
 /**
- * Benchmark of SwiftSocial responsiveness, based on data model derived from
- * WaltSocial prototype [Sovran et al. OSDI 2011].
+ * Benchmark of SwiftSocial, based on data model derived from WaltSocial
+ * prototype [Sovran et al. OSDI 2011].
  * <p>
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.
  */
-public class SocialResponsivenessBenchmark {
+public class SwiftSocialBenchmark {
     private static String dcName;
     private static String fileName = "scripts/commands.txt";
     private static IsolationLevel isolationLevel;
@@ -30,14 +30,16 @@ public class SocialResponsivenessBenchmark {
     private static boolean asyncCommit;
     private static int firstSession;
     private static int sessionsNumber;
-    private static Integer cacheEvictionTimeMillis;
+    private static long cacheEvictionTimeMillis;
     private static boolean inputUsernames;
+    private static long thinkTime;
 
     public static void main(String[] args) {
-        if (args.length != 7 && args.length != 9) {
+        if (args.length != 8 && args.length != 10) {
             System.out
                     .println("Usage: <surrogate addr> <isolationLevel> <cachePolicy> <cache time eviction ms> <subscribe updates (true|false)> <async commit (true|false)>");
-            System.out.println("       <input filename> [index of first session to run] [sessions number to run]");
+            System.out
+                    .println("       <think time ms> <input filename> [index of first session to run] [sessions number to run]");
             System.out.println("When 2 last options are supplied, input is treated as list of session commands.");
             System.out.println("Without 2 last options, input is treated as list of users to populate db.");
             return;
@@ -45,13 +47,14 @@ public class SocialResponsivenessBenchmark {
             dcName = args[0];
             isolationLevel = IsolationLevel.valueOf(args[1]);
             cachePolicy = CachePolicy.valueOf(args[2]);
-            cacheEvictionTimeMillis = Integer.valueOf(args[3]);
+            cacheEvictionTimeMillis = Long.valueOf(args[3]);
             subscribeUpdates = Boolean.parseBoolean(args[4]);
             asyncCommit = Boolean.parseBoolean(args[5]);
-            fileName = args[6];
-            if (args.length == 9) {
-                firstSession = Integer.valueOf(args[7]);
-                sessionsNumber = Integer.valueOf(args[8]);
+            thinkTime = Long.valueOf(args[6]);
+            fileName = args[7];
+            if (args.length == 10) {
+                firstSession = Integer.valueOf(args[8]);
+                sessionsNumber = Integer.valueOf(args[9]);
                 inputUsernames = false;
             } else {
                 inputUsernames = true;
@@ -156,6 +159,15 @@ public class SocialResponsivenessBenchmark {
             final long txnExecTime = now - txnStartTime;
             final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
             bufferedOutput.println(log);
+
+            // TODO: Do not wait constant time, use a random distribution.
+            if (thinkTime > 0) {
+                try {
+                    Thread.sleep(thinkTime);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
         swiftCLient.stop(true);
 
