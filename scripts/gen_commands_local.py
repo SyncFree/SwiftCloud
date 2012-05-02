@@ -6,12 +6,6 @@ activities = ["Running Experiments", "Drinking Coffee" , "Sleeping"]
 allUsers = []
 friends_of = []
 
-commands_per_user_biased=5
-commands_per_user=2
-friends_per_user=1
-number_of_sites = 1
-sessions_per_site = 1
-
 def doStatusLine(user,friends):
   return 'status;"{0}";\n'.format(activities[random.randint(0, len(activities)-1)])
 
@@ -42,38 +36,42 @@ def doMixedLine(user):
   return 0
 
 # A mixed load
-def doMixed():
+def doMixed(friends_per_user, commands_per_user_biased, commands_per_user, total_commands, number_of_sites, sessions_per_site):
   mix = []
   
+  print "Number of sites: " + str(number_of_sites)
   for sites in range(0,number_of_sites):
-      #for j in range(0,sessions_per_site)  
-   userName = allUsers[random.randint(0,len(allUsers) - 1)]
-   for sessions in range(0,sessions_per_site): 
+    print "generating output for site " + str(sites)
+    if len(sys.argv) == 9:
+          outFile = sys.argv[8]+"-"+str(sites)
+          fOut = open(outFile, 'w')
+    else:
+          fOut = sys.stdout
+                      
+    for sessions in range(0,sessions_per_site): 
+        userName = allUsers[random.randint(0,len(allUsers) - 1)]
     
     #generate the friends for that user
-    for i in range(0,friends_per_user):
-       friends_of.append(allUsers[random.randint(0,len(allUsers)-1)])      
+        for i in range(0,friends_per_user):
+           friends_of.append(allUsers[random.randint(0,len(allUsers)-1)])      
     
-    for k, v in commands.items():
-      for i in range(0,v[1]):
-        mix.append(v[0])
+        for k, v in commands.items():
+           for i in range(0,v[1]):
+               mix.append(v[0])
     
-    if len(sys.argv) == 6:
-        outFile = sys.argv[5]+"-"+str(sites)
-        fOut = open(outFile, 'w')
-    else:
-        fOut = sys.stdout
             
-    #login
-    fOut.write('login;{0};passwd;\n'.format(userName))
-    #operations on friends
-    for i in range(0, commands_per_user_biased):
-      fOut.write(mix[random.randint(0, len(mix)-1)](userName,friends_of))
-    #operations on all users
-    for i in range(0, commands_per_user):
-      fOut.write(doReadLine(userName,allUsers))
-    #logout
-    fOut.write('logout;{0};\n'.format(userName))
+        #login
+        fOut.write('login;{0};passwd;\n'.format(userName))
+        #operations on friends
+        for j in range(0, total_commands):
+            for i in range(0, commands_per_user_biased):
+                fOut.write(mix[random.randint(0, len(mix)-1)](userName,friends_of))
+        #operations on all users
+            for i in range(0, commands_per_user):
+                fOut.write(doReadLine(userName,allUsers))
+        #logout
+        fOut.write('logout;{0};\n'.format(userName))
+    fOut.close()
 
 # How to distribute the operations
 commands = {
@@ -92,18 +90,24 @@ def readUsers(usersFile):
 
 def main():
   numUsers=0
-  if (len(sys.argv) != 5 and len(sys.argv) != 6):
-    print "Usage ", sys.argv[0],"<users_file> <number_of_friends> <ops_per_session_biased> <ops_per_session_random>  [<out_file>]"
+  if (len(sys.argv) != 8 and len(sys.argv) != 9):
+    print "Usage ", sys.argv[0],"<users_file> <number_of_friends> <ops_per_session_biased> <ops_per_session_random> <totoal_ops> <num_sites> <sessions_per_site> [<out_file>]"
     sys.exit()
   
   fName = sys.argv[1]
-  number_of_friends=int(sys.argv[2])
-  ops_per_session_biased=int(sys.argv[3])
-  ops_per_session_random=int(sys.argv[4])
-  
+  friends_per_user = int(sys.argv[2])
+  commands_per_user_biased = int(sys.argv[3])
+  commands_per_user = int(sys.argv[4])
+  total_commands = int(sys.argv[5])
+  number_of_sites = int(sys.argv[6])
+  sessions_per_site = int(sys.argv[6])
+
+
+  print "sites: " + str(number_of_sites)
+
   random.seed(time.time())
   readUsers(fName)
-  doMixed()
+  doMixed(friends_per_user, commands_per_user_biased, commands_per_user, total_commands, number_of_sites, sessions_per_site)
 
 if __name__ == "__main__":
   main()
