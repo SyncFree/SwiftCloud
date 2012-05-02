@@ -27,7 +27,7 @@ export EC2_ASIA_TOKYO=ec2-54-248-17-129.ap-northeast-1.compute.amazonaws.com
 
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
-export EC2_ALL="$EC2_EU1 $EC_EU2 $EC_US_OREGON $EC_US_NORTHCALIFORNIA"
+export EC2_ALL="$EC2_EU1 $EC2_EU2 $EC2_US_OREGON $EC2_US_NORTHCALIFORNIA $EC2_ASIA_TOKYO $EC2_ASIA_SINGAPORE"
 export JAR=swiftcloud.jar
 export PROPS=deployment_logging.properties
 export SWIFT_FILES="$JAR $PROPS"
