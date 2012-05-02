@@ -20,7 +20,7 @@ echo "set yrange [0:]" >> ${grun}
 echo "set style histogram errorbars linewidth 3 gap 1" >> ${grun} 
 echo "set style fill solid 0.3 border -1" >> ${grun}
 echo  "set bars front" >> ${grun}
-echo -n "plot \"${data}\" using 2:5:6:xtic(1) notitle" >> ${grun}
+echo -n "plot \"${data}\" using 3:6:7:xtic(1) notitle" >> ${grun}
 
 gnuplot ${grun}
 epstopdf ${epsrun}
