@@ -17,9 +17,11 @@ import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
+import swift.exceptions.SwiftException;
 import sys.Sys;
 
 /**
@@ -92,7 +94,7 @@ public class SwiftSocialMain {
         SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
 
         if (usersFileName != null) {
-            initUsers(client, usersFileName);
+            initUsers(clientServer, client, usersFileName);
             clientServer.stop(true);
             try {
                 Thread.sleep(DELAY_AFTER_INIT);
@@ -152,20 +154,26 @@ public class SwiftSocialMain {
 
     }
 
-    public static void initUsers(SwiftSocial client, final String usersFileName) {
-        // Initialize user data
-        List<String> userData = readInputFromFile(usersFileName);
-        for (String line : userData) {
-            String[] toks = line.split(";");
-            long birthday = 0;
-            try {
-                SimpleDateFormat formatter = new SimpleDateFormat("dd/mm/yy");
-                Date dateStr = formatter.parse(toks[4]);
-                birthday = dateStr.getTime();
-            } catch (ParseException e) {
-                System.err.println("Could not parse the birthdate: " + toks[4]);
+    public static void initUsers(Swift swiftClient, SwiftSocial client, final String usersFileName) {
+        try {
+            final TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
+            // Initialize user data
+            List<String> userData = readInputFromFile(usersFileName);
+            for (String line : userData) {
+                String[] toks = line.split(";");
+                long birthday = 0;
+                try {
+                    SimpleDateFormat formatter = new SimpleDateFormat("dd/mm/yy");
+                    Date dateStr = formatter.parse(toks[4]);
+                    birthday = dateStr.getTime();
+                } catch (ParseException e) {
+                    System.err.println("Could not parse the birthdate: " + toks[4]);
+                }
+                client.registerUser(txn, toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
             }
-            client.registerUser(toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
+            txn.commit();
+        } catch (SwiftException e1) {
+            e1.printStackTrace();
         }
         System.out.println("Initialization finished");
     }

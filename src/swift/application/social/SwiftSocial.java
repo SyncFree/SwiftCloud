@@ -123,24 +123,7 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, CachePolicy.STRICTLY_MOST_RECENT, false);
-            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(loginName), true,
-                    RegisterVersioned.class, updatesSubscriber);
-
-            User newUser = new User(loginName, passwd, fullName, birthday, true);
-            reg.set(newUser);
-
-            // Construct the associated sets with messages, friends etc.
-            txn.get(newUser.msgList, true, SetMsg.class, updatesSubscriber);
-            txn.get(newUser.eventList, true, SetMsg.class, updatesSubscriber);
-            txn.get(newUser.friendList, true, SetIds.class, updatesSubscriber);
-            txn.get(newUser.inFriendReq, true, SetIds.class, updatesSubscriber);
-            txn.get(newUser.outFriendReq, true, SetIds.class, updatesSubscriber);
-
-            // Create registration event for user
-            Message newEvt = new Message(fullName + " has registered!", loginName, date);
-            writeMessage(txn, newEvt, newUser.eventList);
-            txn.commit();
-
+            User newUser = registerUser(txn, loginName, passwd, fullName, birthday, date);
             logger.info("Registered user: " + newUser);
         } catch (Exception e) {
             e.printStackTrace();
@@ -149,6 +132,32 @@ public class SwiftSocial {
                 txn.rollback();
             }
         }
+    }
+
+    User registerUser(final TxnHandle txn, final String loginName, final String passwd, final String fullName,
+            final long birthday, final long date) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
+        // FIXME How do we guarantee unique login names?
+        // WalterSocial suggests using dedicated (non-replicated) login server.
+
+        RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(loginName), true,
+                RegisterVersioned.class, null);
+
+        User newUser = new User(loginName, passwd, fullName, birthday, true);
+        reg.set(newUser);
+
+        // Construct the associated sets with messages, friends etc.
+        txn.get(newUser.msgList, true, SetMsg.class, null);
+        txn.get(newUser.eventList, true, SetMsg.class, null);
+        txn.get(newUser.friendList, true, SetIds.class, null);
+        txn.get(newUser.inFriendReq, true, SetIds.class, null);
+        txn.get(newUser.outFriendReq, true, SetIds.class, null);
+
+        // Create registration event for user
+        Message newEvt = new Message(fullName + " has registered!", loginName, date);
+        writeMessage(txn, newEvt, newUser.eventList);
+
+        return newUser;
     }
 
     void updateUser(boolean status, String fullName, long birthday) {
