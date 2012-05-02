@@ -125,16 +125,17 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             SeqCommitUpdatesRequest req = null;
             synchronized (pendingOps) {
                 long curTime = System.currentTimeMillis();
+                CausalityClock currentStateCopy = currentClockCopy();
                 Iterator<SeqCommitUpdatesRequest> it = pendingOps.iterator();
                 while (it.hasNext()) {
                     SeqCommitUpdatesRequest req0 = it.next();
-                    if (currentState.includes(req0.getBaseTimestamp())) {
+                    if (currentStateCopy.includes(req0.getBaseTimestamp())) {
                         it.remove();
                         continue;
                     }
                     if (curTime < req0.lastSent + 2000)
                         continue;
-                    CMP_CLOCK cmp = currentState.compareTo(req0.getObjectUpdateGroups().get(0).getDependency());
+                    CMP_CLOCK cmp = currentStateCopy.compareTo(req0.getObjectUpdateGroups().get(0).getDependency());
                     if (cmp == CMP_CLOCK.CMP_DOMINATES || cmp == CMP_CLOCK.CMP_EQUALS) {
                         req = req0;
                         break;
@@ -305,8 +306,10 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         // TODO: remove this if anti-entropy is to be used
         if (!record.baseTimestamp.getIdentifier().equals(siteId))
             return;
+        synchronized (this) {
         if (receivedMessages.includes(record.baseTimestamp))
             return;
+        }
 
         dbServer.writeSysData("SYS_TABLE", record.baseTimestamp.getIdentifier(), record);
         LinkedList<CommitRecord> s = null;
