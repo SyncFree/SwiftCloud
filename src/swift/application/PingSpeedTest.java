@@ -207,6 +207,7 @@ public class PingSpeedTest {
             try {
                 TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i = txn.get(id, true, swift.crdt.IntegerVersioned.class, this);
+                DCConstants.DCLogger.info("PING 1 NOTIFICATION : " + i.getValue());
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
                     txn.commit();
@@ -243,6 +244,7 @@ public class PingSpeedTest {
             try {
                 TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
                 IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class, this);
+                DCConstants.DCLogger.info("PING 2 NOTIFICATION : " + i1.getValue());
                 if (i1.getValue() == expected) {
                     i1.add(1);
                     handle.commit();

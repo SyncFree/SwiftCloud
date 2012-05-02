@@ -18,10 +18,17 @@ import sys.Sys;
 public class DCServer {
     DCSurrogate server;
     String sequencerHost;
+    int sequencerPort;
     Properties props;
 
     public DCServer(String sequencerHost, Properties props) {
         this.sequencerHost = sequencerHost;
+        int pos = sequencerHost.indexOf(":");
+        if (pos != -1) {
+            this.sequencerPort = Integer.parseInt(sequencerHost.substring(pos + 1));
+            this.sequencerHost = sequencerHost.substring(0, pos);
+        } else
+            this.sequencerPort = DCConstants.SEQUENCER_PORT;
         this.props = props;
         init();
     }
@@ -30,16 +37,19 @@ public class DCServer {
 
     }
 
-    public void startSurrogServer() {
+    public void startSurrogServer( int portSurrogate) {
         Sys.init();
 
-        server = new DCSurrogate(Networking.Networking.rpcBind(DCConstants.SURROGATE_PORT, null), Networking.rpcBind(0,
-                null), Networking.resolve(sequencerHost, DCConstants.SEQUENCER_PORT), props);
+        server = new DCSurrogate(Networking.Networking.rpcBind(portSurrogate, null), 
+                                Networking.rpcBind(0,null), 
+                                Networking.resolve(sequencerHost, sequencerPort), 
+                                props);
     }
 
     public static void main(String[] args) {
         Properties props = new Properties();
         props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+        int portSurrogate = DCConstants.SURROGATE_PORT;
 
         String sequencerNode = "localhost";
         for (int i = 0; i < args.length; i++) {
@@ -47,9 +57,11 @@ public class DCServer {
                 sequencerNode = args[++i];
             } else if (args[i].startsWith("-prop:")) {
                 props.setProperty( args[i].substring(6), args[++i]);
+            } else if (args[i].equals("-portSurrogate")) {
+                portSurrogate = Integer.parseInt(args[++i]);
             }
         }
         
-        new DCServer(sequencerNode, props).startSurrogServer( );
+        new DCServer(sequencerNode, props).startSurrogServer( portSurrogate);
     }
 }

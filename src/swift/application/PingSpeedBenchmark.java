@@ -1,5 +1,7 @@
 package swift.application;
 
+import static sys.net.api.Networking.Networking;
+
 import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
@@ -16,6 +18,7 @@ import sys.Sys;
  */
 public class PingSpeedBenchmark {
     private static String dcName;
+    private static int dcPort;
     private static int clientId;
     private static Logger logger = Logger.getLogger("swift.application");
 
@@ -26,6 +29,12 @@ public class PingSpeedBenchmark {
             return;
         } else {
             dcName = args[0];
+            int pos = dcName.indexOf(":");
+            if (pos != -1) {
+                dcPort = Integer.parseInt(dcName.substring(pos + 1));
+                dcName = dcName.substring(0, pos);
+            } else
+                dcPort = DCConstants.SURROGATE_PORT;
             PingSpeedTest.iterations = Integer.parseInt(args[1]);
             clientId = Integer.parseInt(args[2]);
             PingSpeedTest.isolationLevel = IsolationLevel.valueOf(args[3]);
@@ -41,7 +50,7 @@ public class PingSpeedBenchmark {
 
         logger.info("Initializing the system");
         Sys.init();
-        SwiftImpl swift = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+        SwiftImpl swift = SwiftImpl.newInstance(dcName, dcPort);
 
         if (clientId == 1) {
             logger.info("Starting client 1");

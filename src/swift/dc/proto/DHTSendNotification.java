@@ -2,6 +2,7 @@ package swift.dc.proto;
 
 import swift.client.proto.SubscriptionType;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
+import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.dc.*;
 import sys.dht.api.DHT;
@@ -15,6 +16,7 @@ import sys.dht.api.DHT.ReplyHandler;
  */
 public class DHTSendNotification implements DHT.Reply {
     ObjectSubscriptionInfo info;
+    CausalityClock estimatedDCVersion;
     
     /**
      * Needed for Kryo serialization
@@ -22,9 +24,10 @@ public class DHTSendNotification implements DHT.Reply {
     public DHTSendNotification() {
     }
 
-    public DHTSendNotification(ObjectSubscriptionInfo info) {
+    public DHTSendNotification(ObjectSubscriptionInfo info, CausalityClock estimatedDCVersion) {
         super();
         this.info = info;
+        this.estimatedDCVersion = estimatedDCVersion;
     }
 
 
@@ -36,6 +39,10 @@ public class DHTSendNotification implements DHT.Reply {
     public void deliverTo(Connection conn, ReplyHandler handler) {
         ((DHTDataNode.ReplyHandler) handler).onReceive(conn, this);
         
+    }
+
+    public CausalityClock getEstimatedDCVersion() {
+        return estimatedDCVersion;
     }
 
 }

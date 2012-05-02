@@ -167,7 +167,13 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         Iterator<String> it = servers.iterator();
         while (it.hasNext()) {
             String s = it.next();
-            serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT));
+            int pos = s.indexOf(":");
+            if (pos != -1) {
+                int port = Integer.parseInt(s.substring(pos + 1));
+                s = s.substring(0, pos);
+                serversEP.add(Networking.resolve(s, port));
+            } else
+                serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT));
         }
         this.sequencersEP = new ArrayList<Endpoint>();
         it = sequencers.iterator();
@@ -299,6 +305,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         // TODO: remove this if anti-entropy is to be used
         if (!record.baseTimestamp.getIdentifier().equals(siteId))
             return;
+        if (receivedMessages.includes(record.baseTimestamp))
+            return;
 
         dbServer.writeSysData("SYS_TABLE", record.baseTimestamp.getIdentifier(), record);
         LinkedList<CommitRecord> s = null;
@@ -347,7 +355,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, boolean commit) {
-        boolean hasTS = pendingTS.remove(t) != null;
+        boolean hasTS = pendingTS.remove(t) != null || ((! t.getIdentifier().equals( this.siteId)) && ! currentState.includes(t));
         currentState.merge(clk);
         currentState.record(t);
         return hasTS;

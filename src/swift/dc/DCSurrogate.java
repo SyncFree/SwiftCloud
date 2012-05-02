@@ -192,6 +192,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final CRDTIdentifier id = notification.getInfo().getId();
         DCConstants.DCLogger.info("Surrogate: Notify new updates for:" + notification.getInfo().getId());
 
+        synchronized (estimatedDCVersion) {
+            estimatedDCVersion.merge(notification.getEstimatedDCVersion());
+        }
+        
         synchronized (cltsObserving) {
             Map<String, ClientPubInfo> map = cltsObserving.get(id);
             if (map == null)
@@ -364,8 +368,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             public void onReceive(RpcConnection conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest");
                 if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                    CausalityClock estimatedDCVersionCopy = null;
                     synchronized (estimatedDCVersion) {
                         estimatedDCVersion.merge(reply.getCurrVersion());
+                        estimatedDCVersionCopy = estimatedDCVersion.clone();
                     }
                     conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
                     for( int i = 0; i < results.length; i++) {
@@ -374,9 +380,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                             continue;
                         if( result.hasNotification()) {
                             if( results[i].isNotificationOnly()) {
-                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification()));
+                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy));
                             } else {
-                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo()));
+                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy));
                             }
                             
                         }
@@ -473,8 +479,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             public void onReceive(RpcConnection conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest");
                 if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                    CausalityClock estimatedDCVersionCopy = null;
                     synchronized (estimatedDCVersion) {
                         estimatedDCVersion.merge(reply.getCurrVersion());
+                        estimatedDCVersionCopy = estimatedDCVersion.clone();
                     }
                     for( int i = 0; i < results.length; i++) {
                         ExecCRDTResult result = results[i];
@@ -482,9 +490,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                             continue;
                         if( result.hasNotification()) {
                             if( results[i].isNotificationOnly()) {
-                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification()));
+                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersion));
                             } else {
-                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo()));
+                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo(), estimatedDCVersion));
                             }
                             
                         }
