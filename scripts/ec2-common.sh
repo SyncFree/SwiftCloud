@@ -13,6 +13,7 @@ export EC2_US_NORTHCALIFORNIA=ec2-184-169-233-51.us-west-1.compute.amazonaws.com
 export EC2_EU1=ec2-79-125-37-63.eu-west-1.compute.amazonaws.com
 export EC2_EU2=ec2-46-51-165-88.eu-west-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE=ec2-122-248-226-204.ap-southeast-1.compute.amazonaws.com
+export EC2_ASIA_TOKYO=ec2-54-248-17-129.ap-northeast-1.compute.amazonaws.com
 
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted

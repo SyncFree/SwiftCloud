@@ -1,8 +1,8 @@
-path <- "/Users/annettebieniusa/Documents/workspace/SwiftCloud/";
-fname <- "result-runping-";
+path <- "/Users/annettebieniusa/Documents/workspace/SwiftCloud/results/";
+fname <- "result-ping-";
 f <- paste(path,fname,sep="");
 
-for (type in c("CACHED")) {
+for (type in c("REPEATABLE_READS-CACHED-true")) {
 	outname <- paste(f,"stats.txt",sep="");
 	out <- file(outname,"a+");
 

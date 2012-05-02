@@ -6,9 +6,9 @@ if [ ! -f "$JAR" ]; then
 	echo "file $JAR not found" && exit 1
 fi
 
-C1=$EC2_EU1
+C1=$EC2_ASIA_SINGAPORE
 C2=$EC2_US_OREGON
-DC1=$EC2_EU2
+DC1=$EC2_ASIA_TOKYO
 DC2=$EC2_US_NORTHCALIFORNIA
 
 DEPLOY=true
@@ -30,10 +30,10 @@ sleep 10
 echo "starting clients"
 swift_app_cmd swift.application.PingSpeedBenchmark
 
-NOTIFICATIONS=true
+NOTIFICATIONS=false
 ISOLATION=REPEATABLE_READS
-CACHING=CACHED
-ITERATIONS=20
+CACHING=STRICTLY_MOST_RECENT
+ITERATIONS=100
 
 echo "starting client 1"
 run_cmd_bg $C1 $CMD $DC1 $ITERATIONS 1 $ISOLATION $CACHING $NOTIFICATIONS
