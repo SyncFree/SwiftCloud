@@ -24,7 +24,7 @@ public class NanoTimeCollector {
      * . Starts the timer
      */
     public void start() {
-        time = System.nanoTime();
+        time = System.currentTimeMillis();
     }
 
     /**
@@ -34,7 +34,7 @@ public class NanoTimeCollector {
      * @return duration since last timer start
      */
     public long stop() {
-        time = System.nanoTime() - time;
+        time = System.currentTimeMillis() - time;
         duration += time;
         total += time;
         iterations++;

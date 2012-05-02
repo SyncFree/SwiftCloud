@@ -100,7 +100,7 @@ public class PingSpeedTest {
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
                     txn.commit();
-                    System.out.println(pingTime / 1000);
+                    System.out.println(pingTime);
                     if (expected / 2 < iterations) {
                         // wait for the system to settle down
                         Thread.sleep(1000);

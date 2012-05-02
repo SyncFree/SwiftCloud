@@ -11,6 +11,8 @@ C2=$EC2_US_CLIENT
 DC1=$EC2_EU_SERVER2
 DC2=$EC2_US_SERVER
 
+DEPLOY=true
+
 echo "deploying ping test"
 if [ -n "$DEPLOY" ]; then
   deploy_swift_on $C1
@@ -29,10 +31,10 @@ echo "starting clients"
 swift_app_cmd swift.application.PingSpeedBenchmark
 
 echo "starting client 1"
-run_cmd_bg $C1 $CMD $DC1 10 1 REPEATABLE_READS CACHED false
+run_cmd_bg $C1 $CMD $DC1 10 1 REPEATABLE_READS CACHED true
 
 echo "starting client 2"
-run_cmd_bg $C2 $CMD $DC2 10 2 REPEATABLE_READS CACHED false
+run_cmd_bg $C2 $CMD $DC1 10 2 REPEATABLE_READS CACHED true
 
 echo "running ... hit enter when you think its finished"
 read dummy
@@ -43,5 +45,6 @@ kill_swift $C2 || true
 kill_swift $DC1 || true
 kill_swift $DC2 || true
 
-echo "collecting client logs"
+echo "collecting client log to result-runping.log"
 run_cmd $C1 "cat stdout.txt" > result-runping.log
+less result-runping.log
