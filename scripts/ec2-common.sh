@@ -53,13 +53,6 @@ kill_swift() {
 	run_cmd $server "killall java && sleep 1 && killall -9 java"
 }
 
-run_swift_app_detach() {
-	server=$1
-	class=$2
-	args=$3
-	run_swift_app $1 $2 $3
-}
-
 # copy_to <local_file> <server> <remote_file>
 copy_to() {
 	echo "Copying to $2..."
@@ -87,9 +80,8 @@ deploy_swift_on_many() {
 	deploy_swift_on $primary
 	shift
 	for server in $*; do
-		for f in $SWIFT_FILES; do
-			run_cmd $primary rsync -e ssh $f $server:$f
-		done
+		echo "Copying from primary to $server"
+		run_cmd $primary rsync -e ssh $SWIFT_FILES $server:
 	done
 }
 
