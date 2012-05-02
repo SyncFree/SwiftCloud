@@ -47,9 +47,10 @@ def doMixed(friends_per_user, commands_per_user_biased, commands_per_user, total
           fOut = open(outFile, 'w')
     else:
           fOut = sys.stdout
-                      
-    for sessions in range(0,sessions_per_site): 
-        partitionSize = (len(allUsers) - 1)/number_of_sites
+
+    partitionSize = (len(allUsers) - 1)/number_of_sites
+    print "Size of user partition: "+ str(partitionSize)
+    for sessions in range(0,partitionSize): 
         userName = allUsers[random.randint(0,partitionSize-1) + partitionSize * site]
     
     #generate the friends for that user
