@@ -71,6 +71,7 @@ public class SwiftSocialBenchmark {
             final List<List<String>> sessions = readSessionsCommands(fileName, 0, Integer.MAX_VALUE);
             final List<Thread> threads = new LinkedList<Thread>();
 
+            System.err.println("Spawning session threads.");
             // Kick off all sessions.
             for (int i = 0; i < sessions.size(); i++) {
                 final int sessionId = i;
@@ -92,6 +93,7 @@ public class SwiftSocialBenchmark {
                     e.printStackTrace();
                 }
             }
+            System.err.println("Session threads completed.");
         }
         System.exit(0);
     }
