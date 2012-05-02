@@ -40,16 +40,17 @@ def doMixed(friends_per_user, commands_per_user_biased, commands_per_user, total
   mix = []
   
   print "Number of sites: " + str(number_of_sites)
-  for sites in range(0,number_of_sites):
-    print "generating output for site " + str(sites)
+  for site in range(0,number_of_sites):
+    print "generating output for site " + str(site)
     if len(sys.argv) == 9:
-          outFile = sys.argv[8]+"-"+str(sites)
+          outFile = sys.argv[8]+"-"+str(site)
           fOut = open(outFile, 'w')
     else:
           fOut = sys.stdout
                       
     for sessions in range(0,sessions_per_site): 
-        userName = allUsers[random.randint(0,len(allUsers) - 1)]
+        partitionSize = (len(allUsers) - 1)/number_of_sites
+        userName = allUsers[random.randint(0,partitionSize-1) + partitionSize * site]
     
     #generate the friends for that user
         for i in range(0,friends_per_user):
