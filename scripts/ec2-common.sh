@@ -1,6 +1,16 @@
 #!/bin/bash
 # Execute from root SwiftCloud directory.
 
+if [ -z $DUMMY ]; then
+	SSH=ssh
+	SCP=scp
+	RSYNC=rsync
+else
+	SSH=echo
+	SCP=echo
+	RSYNC=echo
+fi
+
 export EC2_IDENTITY_FILE=swiftcloud.pem
 export EC2_USER=ubuntu
 export EC2_EU_SERVER1=ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
@@ -29,7 +39,7 @@ run_cmd() {
 	cmd=$*
 	echo "Running command on $server"
 	echo "$cmd"
-	ssh -i $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
+	$SSH -i $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
 }
 
 # run_cmd_bg <server> <cmd>
@@ -39,7 +49,7 @@ run_cmd_bg() {
 	cmd=$*
 	echo "Running command on $server and detaching"
 	echo "$cmd"
-	ssh -fi $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
+	$SSH -fi $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
 }
 
 # swift_app_cmd <java options>
@@ -64,13 +74,13 @@ kill_swift() {
 # copy_to <local_file> <server> <remote_file>
 copy_to() {
 	echo "Copying to $2..."
-	rsync -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
+	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
 }
 
 # copy_from <server> <remote file> <local file>
 copy_from() {
 	echo "Copying from $1..."
-	scp -i $EC2_IDENTITY_FILE "$EC2_USER@$1:$2" "$3"
+	$SCP -i $EC2_IDENTITY_FILE "$EC2_USER@$1:$2" "$3"
 }
 
 # deploy_swift_to <server>

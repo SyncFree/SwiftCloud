@@ -7,20 +7,24 @@ if [ ! -f "$JAR" ]; then
 fi
 
 # TOPOLOGY
-C1=$EC2_EU_SERVER1
-C2=$EC2_US_CLIENT
-CLIENTS="$C1 $C2"
 DC1=$EC2_EU_SERVER2
 DC2=$EC2_US_SERVER
 DCS="$DC1 $DC2"
+INIT_CLIENT=$EC2_EU_SERVER1
+DC1_CLIENTS=$EC2_EU_SERVER1
+DC2_CLIENTS=$EC2_US_CLIENT
+CLIENTS="$DC1_CLIENTS $DC2_CLIENTS"
 MACHINES="$CLIENTS $DCS"
 
-# INPUT DATA
-FILES_LOCAL_PREFIX=scripts/
-USERS_FILE=users.txt
-C1_CMDS_FILE=commands.txt
-C2_CMDS_FILE=commands.txt
-FILES="$USERS_FILE $C1_CMDS_FILE $C2_CMDS_FILE"
+# INPUT DATA PARAMS
+INPUT_USERS=50
+INPUT_SITES=2
+INPUT_USER_FRIENDS=10
+INPUT_USER_BIASED_OPS=5
+INPUT_USER_RANDOM_OPS=2
+INPUT_USER_OPS_GROUPS=100
+FILE_USERS=input/users.txt
+FILE_CMDS_PREFIX=input/commands.txt
 
 # BENCHMARK PARAMS
 NOTIFICATIONS=false
@@ -38,7 +42,7 @@ run_swift_client_initdb() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $input_file true
+	swift_app_cmd swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS users.txt true
 	run_cmd $client $CMD
 }
 
@@ -47,17 +51,24 @@ run_swift_client_bg() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $input_file false
+	swift_app_cmd swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS commands.txt false
 	run_cmd_bg $client $CMD
 }
 
+echo "Generating input data - generating users db"
+scripts/create_users.py 0 $INPUT_USERS $FILE_USERS
+echo "Generating input data - generating commands"
+scripts/gen_commands_local.py $FILE_USERS $INPUT_USER_FRIENDS $INPUT_USER_BIASED_OPS $INPUT_USER_RANDOM_OPS $INPUT_USER_OPS_GROUPS $INPUT_SITES $FILE_CMDS_PREFIX
 
 echo "deploying swift social test"
 if [ -n "$DEPLOY" ]; then
 	deploy_swift_on_many $MACHINES
-	copy_to $FILES_LOCAL_PREFIX$USERS_FILE $C1 $USERS_FILE
-	copy_to $FILES_LOCAL_PREFIX$C1_CMDS_FILE $C1 $C1_CMDS_FILE
-	copy_to $FILES_LOCAL_PREFIX$C2_CMDS_FILE $C2 $C2_CMDS_FILE
+	copy_to $FILE_USERS $INIT_CLIENT users.txt
+	i=0
+	for client in $CLIENTS; do
+		copy_to $FILE_CMDS_PREFIX-$i $client commands.txt
+		i=$(($i+1))
+	done
 fi
 
 echo "starting sequencers and DC servers"
@@ -67,28 +78,32 @@ echo "waiting a bit before initializing database"
 sleep 10
 
 echo "initializing database"
-run_swift_client_initdb $C1 $DC1 $USERS_FILE
+run_swift_client_initdb $INIT_CLIENT $DC1 users.txt
 
 echo "waiting a bit before starting real clients"
 sleep 10
 
-echo "starting client 1"
-run_swift_client_bg $C1 $DC1 $C1_CMDS_FILE
+echo "starting clients connecting to DC1"
+for client in $DC1_CLIENTS; do
+	run_swift_client_bg $client $DC1
+done
 
-echo "starting client 2"
-run_swift_client_bg $C2 $DC2 $C2_CMDS_FILE
+echo "starting clients connecting to DC2"
+for client in $DC2_CLIENTS; do
+	run_swift_client_bg $client $DC2
+done
 
 echo "running ... hit enter when you think its finished"
 read dummy
 
 echo "killing servers and clients"
-kill_swift $C1 || true
-kill_swift $C2 || true
-kill_swift $DC1 || true
-kill_swift $DC2 || true
+for host in $MACHINES; do
+	kill_swift $host || true
+done
 
 echo "collecting client log to result log"
 output_prefix=results/result-social-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT-$THINK_TIME_MS.log
-copy_from $C1 "cat stdout.txt" $output_prefix.client1
-copy_from $C2 "stdout.txt" $output_prefix.client2
-less $output_prefix.client1
+for client in $CLIENTS; do
+	copy_from $client stdout.txt $output_prefix.$client
+done
+
