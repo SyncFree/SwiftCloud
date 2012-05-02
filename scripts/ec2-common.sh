@@ -55,12 +55,20 @@ run_cmd_bg() {
 # swift_app_cmd <java options>
 # output in CMD
 swift_app_cmd() {
-	java_args=$*
+	swift_app_cmd_raw "$* 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)"
+}
+
+swift_app_cmd_nostdout() {
+	swift_app_cmd_raw "$* 2> >(tee stderr.txt 1>&2) > stdout.txt"
+}
+
+swift_app_cmd_raw() {
+	args=$*
 	CMD=$(cat <<EOF
 		if [ ! -f "$JAR" ]; then
 			echo "$JAR not found" && exit 1;
 		fi;
-		java -cp $JAR -Djava.util.logging.config.file=$PROPS $java_args 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)
+		java -cp $JAR -Djava.util.logging.config.file=$PROPS $args
 EOF
 )
 }

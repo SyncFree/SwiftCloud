@@ -22,7 +22,7 @@ INPUT_SITES=2
 INPUT_USER_FRIENDS=10
 INPUT_USER_BIASED_OPS=5
 INPUT_USER_RANDOM_OPS=2
-INPUT_USER_OPS_GROUPS=100
+INPUT_USER_OPS_GROUPS=10
 FILE_USERS=input/users.txt
 FILE_CMDS_PREFIX=input/commands.txt
 
@@ -51,7 +51,7 @@ run_swift_client_bg() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS commands.txt false
+	swift_app_cmd_nostdout swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS commands.txt false
 	run_cmd_bg $client $CMD
 }
 
