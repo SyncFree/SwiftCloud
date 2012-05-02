@@ -35,13 +35,12 @@ public class SwiftSocialBenchmark {
     private static long thinkTime;
 
     public static void main(String[] args) {
-        if (args.length != 8 && args.length != 10) {
+        if (args.length != 9) {
             System.out
                     .println("Usage: <surrogate addr> <isolationLevel> <cachePolicy> <cache time eviction ms> <subscribe updates (true|false)> <async commit (true|false)>");
-            System.out
-                    .println("       <think time ms> <input filename> [index of first session to run] [sessions number to run]");
-            System.out.println("When 2 last options are supplied, input is treated as list of session commands.");
-            System.out.println("Without 2 last options, input is treated as list of users to populate db.");
+            System.out.println("       <think time ms> <input filename> <init database only (true|false)>>");
+            System.out.println("With the last option being true, input is treated as list of users to populate db.");
+            System.out.println("Without the last options, input is treated as list of sessions with commands to run.");
             return;
         } else {
             dcName = args[0];
@@ -52,13 +51,7 @@ public class SwiftSocialBenchmark {
             asyncCommit = Boolean.parseBoolean(args[5]);
             thinkTime = Long.valueOf(args[6]);
             fileName = args[7];
-            if (args.length == 10) {
-                firstSession = Integer.valueOf(args[8]);
-                sessionsNumber = Integer.valueOf(args[9]);
-                inputUsernames = false;
-            } else {
-                inputUsernames = true;
-            }
+            inputUsernames = Boolean.valueOf(args[8]);
         }
         Sys.init();
 
@@ -70,37 +63,38 @@ public class SwiftSocialBenchmark {
             SwiftSocialMain.initUsers(socialClient, fileName);
             swiftClient.stop(true);
             System.out.println("Finished populating db with users.");
-            return;
-        }
+        } else {
 
-        bufferedOutput = new PrintStream(System.out, false);
-        bufferedOutput.println("session_id,command,command_exec_time,time");
+            bufferedOutput = new PrintStream(System.out, false);
+            bufferedOutput.println("session_id,command,command_exec_time,time");
 
-        // Read sessions from assigned range.
-        final List<List<String>> sessions = readSessionsCommands(fileName, firstSession, sessionsNumber);
-        final List<Thread> threads = new LinkedList<Thread>();
+            // Read sessions from assigned range.
+            final List<List<String>> sessions = readSessionsCommands(fileName, 0, Integer.MAX_VALUE);
+            final List<Thread> threads = new LinkedList<Thread>();
 
-        // Kick off all sessions.
-        for (int i = 0; i < sessions.size(); i++) {
-            final int sessionId = firstSession + i;
-            final List<String> commands = sessions.get(i);
-            final Thread sessionThread = new Thread() {
-                public void run() {
-                    runClientSession(sessionId, commands);
+            // Kick off all sessions.
+            for (int i = 0; i < sessions.size(); i++) {
+                final int sessionId = i;
+                final List<String> commands = sessions.get(i);
+                final Thread sessionThread = new Thread() {
+                    public void run() {
+                        runClientSession(sessionId, commands);
+                    }
+                };
+                sessionThread.start();
+                threads.add(sessionThread);
+            }
+
+            // Wait for all sessions.
+            for (final Thread thread : threads) {
+                try {
+                    thread.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            };
-            sessionThread.start();
-            threads.add(sessionThread);
-        }
-
-        // Wait for all sessions.
-        for (final Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
         }
+        System.exit(0);
     }
 
     private static void runClientSession(final int sessionId, final List<String> commands) {
@@ -184,7 +178,7 @@ public class SwiftSocialBenchmark {
     private static List<List<String>> readSessionsCommands(final String fileName, final int firstSession,
             final int sessionsNumber) {
         final List<String> cmds = SwiftSocialMain.readInputFromFile(fileName);
-        final List<List<String>> sessionsCmds = new ArrayList<List<String>>(sessionsNumber);
+        final List<List<String>> sessionsCmds = new ArrayList<List<String>>();
 
         List<String> sessionCmds = new ArrayList<String>();
         for (int currentSession = 0, currentCmd = 0; currentSession < firstSession + sessionsNumber
