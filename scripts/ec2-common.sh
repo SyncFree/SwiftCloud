@@ -7,6 +7,14 @@ export EC2_EU_SERVER1=ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
 export EC2_EU_SERVER2=ec2-176-34-73-193.eu-west-1.compute.amazonaws.com
 export EC2_US_SERVER=ec2-50-112-46-117.us-west-2.compute.amazonaws.com
 export EC2_US_CLIENT=ec2-184-72-10-67.us-west-1.compute.amazonaws.com
+
+export EC2_US_OREGON=ec2-50-112-79-40.us-west-2.compute.amazonaws.com
+export EC2_US_NORTHCALIFORNIA=ec2-184-169-234-135.us-west-1.compute.amazonaws.com
+export EC2_EU1=ec2-46-137-146-226.eu-west-1.compute.amazonaws.com
+export EC2_EU2=ec2-46-137-12-56.eu-west-1.compute.amazonaws.com
+
+
+# CAREFUL: Depending on the settings EC2_ALL needs to be adapted
 export EC2_ALL="$EC2_EU_SERVER1 $EC2_EU_SERVER2 $EC2_US_SERVER $EC2_US_CLIENT"
 export JAR=swiftcloud.jar
 export PROPS=deployment_logging.properties

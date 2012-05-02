@@ -6,10 +6,10 @@ if [ ! -f "$JAR" ]; then
 	echo "file $JAR not found" && exit 1
 fi
 
-C1=$EC2_EU_SERVER1
-C2=$EC2_US_CLIENT
-DC1=$EC2_EU_SERVER2
-DC2=$EC2_US_SERVER
+C1=$EC2_EU1
+C2=$EC2_US_OREGON
+DC1=$EC2_EU2
+DC2=$EC2_US_NORTHCALIFORNIA
 
 DEPLOY=true
 
@@ -30,11 +30,16 @@ sleep 10
 echo "starting clients"
 swift_app_cmd swift.application.PingSpeedBenchmark
 
+NOTIFICATIONS=true
+ISOLATION=REPEATABLE_READS
+CACHING=CACHED
+ITERATIONS=20
+
 echo "starting client 1"
-run_cmd_bg $C1 $CMD $DC1 10 1 REPEATABLE_READS CACHED true
+run_cmd_bg $C1 $CMD $DC1 $ITERATIONS 1 $ISOLATION $CACHING $NOTIFICATIONS
 
 echo "starting client 2"
-run_cmd_bg $C2 $CMD $DC1 10 2 REPEATABLE_READS CACHED true
+run_cmd_bg $C2 $CMD $DC1 $ITERATIONS 2 $ISOLATION $CACHING $NOTIFICATIONS
 
 echo "running ... hit enter when you think its finished"
 read dummy
@@ -45,6 +50,6 @@ kill_swift $C2 || true
 kill_swift $DC1 || true
 kill_swift $DC2 || true
 
-echo "collecting client log to result-runping.log"
-run_cmd $C1 "cat stdout.txt" > result-runping.log
-less result-runping.log
+echo "collecting client log to result log"
+run_cmd $C1 "cat stdout.txt" > results/result-ping-$ISOLATION-$CACHING-$NOTIFICATIONS.log
+less results/result-ping-$ISOLATION-$CACHING-$NOTIFICATIONS.log
