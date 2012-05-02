@@ -367,12 +367,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             @Override
             public void onReceive(RpcConnection conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest");
+                CausalityClock estimatedDCVersionCopy = null;
+                synchronized (estimatedDCVersion) {
+                    estimatedDCVersion.merge(reply.getCurrVersion());
+                    estimatedDCVersionCopy = estimatedDCVersion.clone();
+                }
                 if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
-                    CausalityClock estimatedDCVersionCopy = null;
-                    synchronized (estimatedDCVersion) {
-                        estimatedDCVersion.merge(reply.getCurrVersion());
-                        estimatedDCVersionCopy = estimatedDCVersion.clone();
-                    }
                     conn.reply(new CommitUpdatesReply(CommitUpdatesReply.CommitStatus.COMMITTED, ts));
                     for( int i = 0; i < results.length; i++) {
                         ExecCRDTResult result = results[i];
@@ -478,21 +478,21 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             @Override
             public void onReceive(RpcConnection conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest");
+                CausalityClock estimatedDCVersionCopy = null;
+                synchronized (estimatedDCVersion) {
+                    estimatedDCVersion.merge(reply.getCurrVersion());
+                    estimatedDCVersionCopy = estimatedDCVersion.clone();
+                }
                 if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
-                    CausalityClock estimatedDCVersionCopy = null;
-                    synchronized (estimatedDCVersion) {
-                        estimatedDCVersion.merge(reply.getCurrVersion());
-                        estimatedDCVersionCopy = estimatedDCVersion.clone();
-                    }
                     for( int i = 0; i < results.length; i++) {
                         ExecCRDTResult result = results[i];
                         if( result == null)
                             continue;
                         if( result.hasNotification()) {
                             if( results[i].isNotificationOnly()) {
-                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersion));
+                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy));
                             } else {
-                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo(), estimatedDCVersion));
+                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy));
                             }
                             
                         }
