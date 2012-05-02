@@ -2,7 +2,7 @@ path <- "/Users/annettebieniusa/Documents/workspace/SwiftCloud/results/";
 fname <- "result-ping-";
 f <- paste(path,fname,sep="");
 
-for (type in c("REPEATABLE_READS-CACHED-true")) {
+for (type in c("REPEATABLE_READS-CACHED-true","REPEATABLE_READS-MOST_RECENT-false","REPEATABLE_READS-STRICTLY_MOST_RECENT-false")) {
 	outname <- paste(f,"stats.txt",sep="");
 	out <- file(outname,"a+");
 

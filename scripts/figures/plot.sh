@@ -1,5 +1,5 @@
 #!/bin/bash
-name=result-runping
+name=result-ping
 data=$name-stats.txt
 
 grun=${name}-time.gp
@@ -9,7 +9,7 @@ echo "set term postscript eps enhanced color 22" > ${grun}
 echo "set output \"${epsrun}\"" >> ${grun}
 echo "set size 1,1.1" >> ${grun}
 echo "set xlabel \"Setting\"" >> ${grun}
-echo "set ylabel \"Time [s]\"" >> ${grun}
+echo "set ylabel \"Time [ms]\"" >> ${grun}
 echo "set pointsize 3" >> ${grun}
 
 echo "set style data histograms" >> ${grun}
