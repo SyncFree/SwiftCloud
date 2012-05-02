@@ -8,14 +8,15 @@ export EC2_EU_SERVER2=ec2-176-34-73-193.eu-west-1.compute.amazonaws.com
 export EC2_US_SERVER=ec2-50-112-46-117.us-west-2.compute.amazonaws.com
 export EC2_US_CLIENT=ec2-184-72-10-67.us-west-1.compute.amazonaws.com
 
-export EC2_US_OREGON=ec2-50-112-79-40.us-west-2.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA=ec2-184-169-234-135.us-west-1.compute.amazonaws.com
-export EC2_EU1=ec2-46-137-146-226.eu-west-1.compute.amazonaws.com
-export EC2_EU2=ec2-46-137-12-56.eu-west-1.compute.amazonaws.com
+export EC2_US_OREGON=ec2-50-112-199-43.us-west-2.compute.amazonaws.com
+export EC2_US_NORTHCALIFORNIA=ec2-184-169-233-51.us-west-1.compute.amazonaws.com
+export EC2_EU1=ec2-79-125-37-63.eu-west-1.compute.amazonaws.com
+export EC2_EU2=ec2-46-51-165-88.eu-west-1.compute.amazonaws.com
+export EC2_ASIA_SINGAPORE=ec2-122-248-226-204.ap-southeast-1.compute.amazonaws.com
 
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
-export EC2_ALL="$EC2_EU_SERVER1 $EC2_EU_SERVER2 $EC2_US_SERVER $EC2_US_CLIENT"
+export EC2_ALL="$EC2_EU1 $EC_EU2 $EC_US_OREGON $EC_US_NORTHCALIFORNIA"
 export JAR=swiftcloud.jar
 export PROPS=deployment_logging.properties
 export SWIFT_FILES="$JAR $PROPS"
@@ -50,7 +51,7 @@ swift_app_cmd() {
 		if [ ! -f "$JAR" ]; then
 			echo "$JAR not found" && exit 1;
 		fi;
-		java -cp $JAR -Djava.util.logging.config.file=$PROPS $class $java_args 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)
+		java -Xms1000m -cp $JAR -Djava.util.logging.config.file=$PROPS $class $java_args 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)
 EOF
 )
 }
