@@ -33,21 +33,24 @@ public class SwiftSocialMain {
     private static IsolationLevel isolationLevel;
     private static CachePolicy cachePolicy;
     private static boolean subscribeUpdates;
+    private static boolean asyncCommit;
 
     public static void main(String[] args) {
-        if (args.length != 5 && args.length != 6) {
+        if (args.length != 6 && args.length != 7) {
             System.out
                     .println("Usage: <surrogate addr> <isolationLevel> <cachePolicy> <subscribe updates (true|false)>");
-            System.out.println("       <commands filename> [users filename to initialize]");
+            System.out
+                    .println("       <async. commit (true|false)> <commands filename> [users filename to initialize]");
             return;
         } else {
             dcName = args[0];
             isolationLevel = IsolationLevel.valueOf(args[1]);
             cachePolicy = CachePolicy.valueOf(args[2]);
             subscribeUpdates = Boolean.parseBoolean(args[3]);
-            commandsFileName = args[4];
-            if (args.length == 6) {
-                usersFileName = args[5];
+            asyncCommit = Boolean.parseBoolean(args[4]);
+            commandsFileName = args[5];
+            if (args.length == 7) {
+                usersFileName = args[6];
             } else {
                 usersFileName = null;
             }
@@ -82,7 +85,7 @@ public class SwiftSocialMain {
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
         Swift clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
-        SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates);
+        SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
 
         if (usersFileName != null) {
             initUsers(client, usersFileName);

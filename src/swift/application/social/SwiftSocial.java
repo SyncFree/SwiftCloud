@@ -35,13 +35,15 @@ public class SwiftSocial {
     private final IsolationLevel isolationLevel;
     private final CachePolicy cachePolicy;
     private final ObjectUpdatesListener updatesSubscriber;
+    private final boolean asyncCommit;
 
     public SwiftSocial(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
-            boolean subscribeUpdates) {
+            boolean subscribeUpdates, boolean asyncCommit) {
         server = clientServer;
         this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
         this.updatesSubscriber = subscribeUpdates ? TxnHandle.UPDATES_SUBSCRIBER : null;
+        this.asyncCommit = asyncCommit;
     }
 
     // FIXME Return type integer encoding error msg?
@@ -78,7 +80,7 @@ public class SwiftSocial {
                 if (user.password.equals(passwd)) {
                     currentUser = user;
                     logger.info(loginName + " successfully logged in");
-                    txn.commitAsync(null);
+                    commitTxn(txn);
                     return true;
                 } else {
                     logger.info("Wrong password for " + loginName);
@@ -160,7 +162,7 @@ public class SwiftSocial {
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
                     NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class, updatesSubscriber);
             reg.set(currentUser);
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -182,7 +184,7 @@ public class SwiftSocial {
             user = reg.getValue();
             msgs.addAll(((SetTxnLocalMsg) txn.get(user.msgList, false, SetMsg.class, updatesSubscriber)).getValue());
             evnts.addAll(((SetTxnLocalMsg) txn.get(user.eventList, false, SetMsg.class, updatesSubscriber)).getValue());
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -206,7 +208,7 @@ public class SwiftSocial {
                     RegisterVersioned.class)).getValue();
             writeMessage(txn, newMsg, receiver.msgList);
             writeMessage(txn, newEvt, currentUser.eventList);
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -225,7 +227,7 @@ public class SwiftSocial {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             writeMessage(txn, newMsg, currentUser.msgList);
             writeMessage(txn, newEvt, currentUser.eventList);
-            txn.commitAsync(null);
+            commitTxn(txn);
             // TODO Broadcast update to friends
         } catch (Exception e) {
             e.printStackTrace();
@@ -262,7 +264,7 @@ public class SwiftSocial {
                         updatesSubscriber);
                 requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             }
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -289,7 +291,7 @@ public class SwiftSocial {
                     updatesSubscriber);
             outFriendReq.insert(NamingScheme.forUser(receiverName));
 
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -317,7 +319,7 @@ public class SwiftSocial {
             SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(friend.friendList, false, SetIds.class,
                     updatesSubscriber);
             requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -344,7 +346,7 @@ public class SwiftSocial {
                         updatesSubscriber)).getValue();
                 friends.add(new Friend(u.fullName, f));
             }
-            txn.commitAsync(null);
+            commitTxn(txn);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
@@ -359,6 +361,14 @@ public class SwiftSocial {
             NoSuchObjectException, VersionNotFoundException, NetworkException {
         SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(set, false, SetMsg.class, updatesSubscriber);
         messages.insert(msg);
+    }
+
+    private void commitTxn(final TxnHandle txn) {
+        if (asyncCommit) {
+            commitTxn(txn);
+        } else {
+            txn.commit();
+        }
     }
 
 }

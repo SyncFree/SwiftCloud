@@ -35,7 +35,7 @@ public class SwiftSocialTest {
         Sys.init();
         Swift clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
         SwiftSocial client = new SwiftSocial(clientServer, IsolationLevel.SNAPSHOT_ISOLATION,
-                CachePolicy.STRICTLY_MOST_RECENT, false);
+                CachePolicy.STRICTLY_MOST_RECENT, false, false);
 
         // Register users
         client.registerUser("Biene", "Honig", "Anne Biene", 0, System.currentTimeMillis());

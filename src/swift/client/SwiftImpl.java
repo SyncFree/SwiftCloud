@@ -105,7 +105,7 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort) {
-        return newInstance(serverHostname, serverPort, DEFAULT_TIMEOUT_MILLIS);
+        return newInstance(serverHostname, serverPort, DEFAULT_TIMEOUT_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS);
     }
 
     /**
@@ -118,11 +118,14 @@ public class SwiftImpl implements Swift, TxnManager {
      *            TCP port of storage server
      * @param timeoutMillis
      *            timeout for server replies in milliseconds
+     * @param cacheEvictionTimeMillis
+     *            eviction time for non-accessed objects in the cache
      * @return instance of Swift client
      */
-    public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis) {
+    public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis,
+            long cacheEvictionTimeMillis) {
         return new SwiftImpl(Networking.rpcBind(0, null), Networking.resolve(serverHostname, serverPort),
-                new TimeBoundedObjectsCache(DEFAULT_CACHE_EVICTION_MILLIS), timeoutMillis,
+                new TimeBoundedObjectsCache(cacheEvictionTimeMillis), timeoutMillis,
                 DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
     }
 
