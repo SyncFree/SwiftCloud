@@ -18,6 +18,8 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
+import swift.dc.DCSequencerServer;
+import swift.dc.DCServer;
 import sys.Sys;
 
 /**
@@ -55,6 +57,8 @@ public class SwiftSocialMain {
                 usersFileName = null;
             }
         }
+        startSequencer();
+        startDCServer();
         runClient(commandsFileName, usersFileName);
     }
 
@@ -166,12 +170,12 @@ public class SwiftSocialMain {
         System.out.println("Initialization finished");
     }
 
-    // private static void startDCServer() {
-    // DCServer.main(new String[] { sequencerName });
-    // }
-    //
-    // private static void startSequencer() {
-    // DCSequencerServer.main(new String[] { "-name", sequencerName });
-    // }
+    private static void startDCServer() {
+        DCServer.main(new String[] { dcName });
+    }
+
+    private static void startSequencer() {
+        DCSequencerServer.main(new String[] { "-name", dcName });
+    }
 
 }

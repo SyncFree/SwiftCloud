@@ -1,2 +1,0 @@
-usr_add;K8L30v+x;passwd;"K8L30v+x K8L30v+xson";01/01/01;"";
-usr_add;A67nCvXD;passwd;"A67nCvXD A67nCvXDson";01/01/01;"";

@@ -39,7 +39,7 @@ echo "starting client 1"
 run_cmd_bg $C1 $CMD $DC1 $ITERATIONS 1 $ISOLATION $CACHING $NOTIFICATIONS
 
 echo "starting client 2"
-run_cmd_bg $C2 $CMD $DC1 $ITERATIONS 2 $ISOLATION $CACHING $NOTIFICATIONS
+run_cmd_bg $C2 $CMD $DC2 $ITERATIONS 2 $ISOLATION $CACHING $NOTIFICATIONS
 
 echo "running ... hit enter when you think its finished"
 read dummy
