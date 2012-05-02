@@ -32,6 +32,7 @@ public class RiakMicroBenchmark implements WorkerManager {
     private double updateRatio;
     private int numObjects, maxTxSize, numWorkers, executionTime, runs;
     private Map<String, List<ResultHandler>> results;
+    private String outputDir;
     private static Logger logger = Logger.getLogger("swift.benchmark");
 
     private static final int /* valueLength = 20, valueLengthDeviation = 0 , */randomSeed = 1;
@@ -42,7 +43,7 @@ public class RiakMicroBenchmark implements WorkerManager {
     private static int portId = 2001;
 
     public RiakMicroBenchmark(boolean initialize, int numObjects, int maxTxSize, int numWorkers, double updateRatio,
-            int executionTime, int runs) {
+            int executionTime, int runs, String outputDir) {
         this.initialize = initialize;
         this.random = new Random(randomSeed);
         this.numObjects = numObjects;
@@ -52,21 +53,23 @@ public class RiakMicroBenchmark implements WorkerManager {
         this.executionTime = executionTime;
         this.runs = runs;
         this.results = new HashMap<String, List<ResultHandler>>();
+        this.outputDir = outputDir;
     }
 
     public static void main(String[] args) {
 
         int sampleSize, maxTxSize, execTime, numRuns, numWorkers;
+        String outputDir;
         double updateRatio;
         boolean populate = false;
-        if (args.length == 7) {
-            if (args[7].equals("-p"))
+        if (args.length == 9) {
+            if (args[8].equals("-p"))
                 populate = true;
         }
 
-        if (args.length < 7 || args.length > 8) {
+        if (args.length < 8 || args.length > 9) {
             System.out
-                    .println("[SAMPLE SIZE]\t[MAX TX SIZE]\t[NUM WORKERS]\t[UPDATE RATIO]\t[EXECUTION TIME SECONDS]\t[NUM RUNS]\t[SERVER LOCATION]");
+                    .println("[SAMPLE SIZE]\t[MAX TX SIZE]\t[NUM WORKERS]\t[UPDATE RATIO]\t[EXECUTION TIME SECONDS]\t[NUM RUNS]\t[SERVER LOCATION]\t[OUTPUT DIRECTORY]");
             return;
         } else {
             sampleSize = Integer.parseInt(args[0]);
@@ -76,13 +79,14 @@ public class RiakMicroBenchmark implements WorkerManager {
             execTime = Integer.parseInt(args[4]);
             numRuns = Integer.parseInt(args[5]);
             serverLocation = args[6];
+            outputDir = args[7];
         }
         System.out.println("SAMPLE SIZE " + sampleSize + " MAX_TX_SIZE " + maxTxSize + " NUM_WORKERS " + numWorkers
                 + " UPDATE_RATIO " + updateRatio + " EXECUTION_TIME_SECONDS " + execTime + " NUM_RUNS " + numRuns);
 
         Sys.init();
         RiakMicroBenchmark mb = new RiakMicroBenchmark(populate, sampleSize, maxTxSize, numWorkers, updateRatio,
-                1000 * execTime, numRuns);
+                1000 * execTime, numRuns, outputDir);
         try {
             mb.doIt();
         } catch (InterruptedException e) {
@@ -112,9 +116,9 @@ public class RiakMicroBenchmark implements WorkerManager {
 
         for (int r = 0; r < runs; r++) {
             logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
-            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client,r);
+            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client,r, outputDir);
             logger.info("START");
-            executeWorkers("RiakWorker", numWorkers, identifiers, executionTime, client,r);
+            executeWorkers("RiakWorker", numWorkers, identifiers, executionTime, client,r, outputDir);
             logger.info("END");
 
         }
@@ -123,14 +127,14 @@ public class RiakMicroBenchmark implements WorkerManager {
     }
 
     private void executeWorkers(String workersName, int numWorkers, Integer[] identifiers, long executionTime,
-            IRiakClient client, int runCounter) throws InterruptedException {
+            IRiakClient client, int runCounter, String outputDir) throws InterruptedException {
         List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
         stopSemaphore = new Semaphore(-numWorkers + 1);
         for (int i = 0; i < numWorkers; i++) {
             // client = BenchUtil.getNewSwiftInterface(serverLocation,
             // DCConstants.SURROGATE_PORT);
             RiakExecutorWorker worker = new RiakExecutorWorker(this, workersName + i, identifiers, updateRatio, random,
-                    client, maxTxSize, runCounter);
+                    client, maxTxSize, runCounter, outputDir);
             new Thread(worker).start();
             workers.add(worker);
 
@@ -209,9 +213,9 @@ public class RiakMicroBenchmark implements WorkerManager {
     }
 
     @Override
-    public RawDataCollector getNewRawDataCollector(String workerName, int runCount) {
+    public RawDataCollector getNewRawDataCollector(String workerName, int runCount, String outputDir) {
         int initialSize = (int) (maxTxSize * (1 - updateRatio) + 1) * executionTime * ESTIMATED_THGPT_MILLIS;
-        return new RawDataCollector(initialSize, workerName, runCount);
+        return new RawDataCollector(initialSize, workerName, runCount, outputDir);
     }
 
 

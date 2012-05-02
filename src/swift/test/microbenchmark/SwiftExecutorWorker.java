@@ -57,7 +57,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
     public SwiftExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
             double updateRatio, Random random, Swift clientServer, int maxTxSize, CachePolicy cachePolicy,
-            IsolationLevel isolationLevel, int runCount) {
+            IsolationLevel isolationLevel, int runCount, String outputDir) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.updateRatio = updateRatio;
@@ -65,7 +65,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
         this.random = random;
         this.clientServer = clientServer;
         this.maxTxSize = maxTxSize;
-        this.rawData = manager.getNewRawDataCollector(workerID, runCount);
+        this.rawData = manager.getNewRawDataCollector(workerID, runCount, outputDir);
         this.cachePolicy = cachePolicy;
         this.isolationLevel = isolationLevel;
 

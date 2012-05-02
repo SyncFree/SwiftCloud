@@ -15,14 +15,16 @@ public class RawDataCollector {
     int bufferPosition, runCount;
     List<long[][]> bufferList;
     private String workerName;
+    private String outputDir;
 
-    public RawDataCollector(int initialSize, String workerName, int runCount) {
+    public RawDataCollector(int initialSize, String workerName, int runCount, String outputDir) {
         bufferList = new LinkedList<long[][]>();
         operationInfo = new long[initialSize][4];
         bufferList.add(operationInfo);
         bufferPosition = 0;
         this.workerName = workerName;
         this.runCount = runCount;
+        this.outputDir = outputDir;
 
     }
 
@@ -77,12 +79,12 @@ public class RawDataCollector {
     }
 
     public void rawDataToFile() {
-        File file = new File("results-micro");
+        File file = new File(outputDir);
         if (!file.exists()) {
             file.mkdir();
         }
-        String filename = "result-log_" + workerName + "_" + runCount;
-        File outputFile = new File("results-micro/" + filename);
+        String filename = "" + workerName + "_" + runCount;
+        File outputFile = new File(outputDir+"/" + filename);
         FileOutputStream fos;
         try {
             fos = new FileOutputStream(outputFile);
