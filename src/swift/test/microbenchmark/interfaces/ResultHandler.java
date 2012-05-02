@@ -10,4 +10,5 @@ public interface ResultHandler {
     public int getReadOps();
     public String getWorkerID();
     public String getRawResults();
+   
 }

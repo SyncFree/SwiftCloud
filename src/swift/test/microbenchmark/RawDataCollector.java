@@ -1,5 +1,9 @@
 package swift.test.microbenchmark;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -8,16 +12,17 @@ public class RawDataCollector {
     // [0] -> timeToexecute, [1] -> txType, [2] -> opCount, [4]
     // -> startTime
     long[][] operationInfo;
-    int bufferPosition;
+    int bufferPosition, runCount;
     List<long[][]> bufferList;
     private String workerName;
 
-    public RawDataCollector(int initialSize, String workerName) {
+    public RawDataCollector(int initialSize, String workerName, int runCount) {
         bufferList = new LinkedList<long[][]>();
         operationInfo = new long[initialSize][4];
         bufferList.add(operationInfo);
         bufferPosition = 0;
         this.workerName = workerName;
+        this.runCount = runCount;
 
     }
 
@@ -52,14 +57,42 @@ public class RawDataCollector {
     public String RawData() {
         StringBuffer string = new StringBuffer();
         string.append("StartTime\tTxType\tOpCount\tTimeToExecute(nano)");
-        string.append(workerName);
-        for (int buf =1; buf <= bufferList.size();buf++) {
-            long[][] ops = bufferList.get(buf-1);
-            int length = (buf != bufferList.size())?ops.length:bufferPosition;
+        string.append(workerName+"\n");
+        for (int buf = 1; buf <= bufferList.size(); buf++) {
+            long[][] ops = bufferList.get(buf - 1);
+            int length = (buf != bufferList.size()) ? ops.length : bufferPosition;
             for (int i = 0; i < length; i++)
-                string.append(ops[i][3] + "\t" + ((ops[i][1] == 0) ? "R" : "W") + "\t" + ops[i][2] + "\t" + ops[i][0]+"\n");
+                string.append(ops[i][3] + "\t" + ((ops[i][1] == 0) ? "R" : "W") + "\t" + ops[i][2] + "\t" + ops[i][0]
+                        + "\n");
         }
         return string.toString();
+    }
+
+    public int getRunCount() {
+        return runCount;
+    }
+
+    public String getWorkerName() {
+        return workerName;
+    }
+
+    public void rawDataToFile() {
+        File file = new File("results-micro");
+        if (!file.exists()) {
+            file.mkdir();
+        }
+        String filename = "result-log_" + workerName + "_" + runCount;
+        File outputFile = new File("results-micro/" + filename);
+        FileOutputStream fos;
+        try {
+            fos = new FileOutputStream(outputFile);
+            fos.write(RawData().getBytes());
+            fos.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
 }

@@ -31,11 +31,11 @@ public class SwiftMicroBenchmark implements WorkerManager {
     private int numObjects, maxTxSize, numWorkers, executionTime, runs;
     private Map<String, List<ResultHandler>> results;
 
-    private static final int /* valueLength = 20, valueLengthDeviation = 0 , */randomSeed = 1;
+    private static final int randomSeed = 1;
 
     public static final String TABLE_NAME = "BENCHMARK";
     private static final int ESTIMATED_THGPT_MILLIS = 1;
-    private static String serverLocation = "localhost";
+    private static String serverLocation = "127.0.0.1";
     private static int portId = 2001;
     private static Logger logger = Logger.getLogger("swift.benchmark");
     private static CachePolicy cachePolicy;
@@ -59,14 +59,14 @@ public class SwiftMicroBenchmark implements WorkerManager {
         int sampleSize, maxTxSize, execTime, numRuns, numWorkers;
         double updateRatio;
         boolean populate = false;
-        if (args.length == 9) {
-            if (args[8].equals("-p"))
+        if (args.length == 10) {
+            if (args[9].equals("-p"))
                 populate = true;
         }
 
-        if (args.length < 8 || args.length > 9) {
+        if (args.length < 9 || args.length > 10) {
             System.out
-                    .println("[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS] [CACHE POLICY] [ISOLATION LEVEL]");
+                    .println("[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS] [CACHE POLICY] [ISOLATION LEVEL] [SERVER LOCATION]");
             return;
         } else {
             sampleSize = Integer.parseInt(args[0]);
@@ -77,6 +77,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
             numRuns = Integer.parseInt(args[5]);
             cachePolicy = CachePolicy.valueOf(args[6]);
             isolationLevel = IsolationLevel.valueOf(args[7]);
+            serverLocation = args[8];
         }
         Sys.init();
         logger.info("SAMPLE SIZE " + sampleSize + " MAX_TX_SIZE " + maxTxSize + " NUM_WORKERS " + numWorkers
@@ -101,6 +102,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
             try {
                 logger.info("START POPULATOR");
                 stopSemaphore.acquire();
+                client.stop(true);
                 logger.info("END POPULATOR");
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -109,9 +111,9 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
         for (int r = 0; r < runs; r++) {
             logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
-            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client);
+            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, r);
             logger.info("START");
-            executeWorkers("Worker", numWorkers, identifiers, executionTime, client);
+            executeWorkers("SwiftWorker", numWorkers, identifiers, executionTime, r);
             logger.info("END");
 
         }
@@ -120,14 +122,16 @@ public class SwiftMicroBenchmark implements WorkerManager {
     }
 
     private void executeWorkers(String workersName, int numWorkers, CRDTIdentifier[] identifiers, long executionTime,
-            Swift client) throws InterruptedException {
+            int runCount) throws InterruptedException {
         List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
         stopSemaphore = new Semaphore(-numWorkers + 1);
+        // TODO: Use more then one client?
+        // Swift client = BenchUtil.getNewSwiftInterface(serverLocation,
+        // DCConstants.SURROGATE_PORT);
         for (int i = 0; i < numWorkers; i++) {
-            // client = BenchUtil.getNewSwiftInterface(serverLocation,
-            // DCConstants.SURROGATE_PORT);
+            Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
             SwiftExecutorWorker worker = new SwiftExecutorWorker(this, workersName + i, identifiers, updateRatio,
-                    random, client, maxTxSize, cachePolicy, isolationLevel);
+                    random, client, maxTxSize, cachePolicy, isolationLevel, runCount);
             new Thread(worker).start();
             workers.add(worker);
 
@@ -142,7 +146,8 @@ public class SwiftMicroBenchmark implements WorkerManager {
         stopSemaphore.acquire();
         if (!workersName.equals("WARM_UP"))
             for (MicroBenchmarkWorker w : workers) {
-                System.out.println(w.getRawData().RawData());
+                w.getRawData().rawDataToFile();
+                // System.out.println(w.getRawData().RawData());
             }
     }
 
@@ -206,9 +211,9 @@ public class SwiftMicroBenchmark implements WorkerManager {
     }
 
     @Override
-    public RawDataCollector getNewRawDataCollector(String workerName) {
+    public RawDataCollector getNewRawDataCollector(String workerName, int runCount) {
         int initialSize = (int) (maxTxSize * (1 - updateRatio) + 1) * executionTime * ESTIMATED_THGPT_MILLIS;
-        return new RawDataCollector(initialSize, workerName);
+        return new RawDataCollector(initialSize, workerName, runCount);
     }
 
 }

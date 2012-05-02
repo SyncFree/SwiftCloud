@@ -60,13 +60,13 @@ public class RiakMicroBenchmark implements WorkerManager {
         double updateRatio;
         boolean populate = false;
         if (args.length == 7) {
-            if (args[6].equals("-p"))
+            if (args[7].equals("-p"))
                 populate = true;
         }
 
-        if (args.length < 6 || args.length > 7) {
+        if (args.length < 7 || args.length > 8) {
             System.out
-                    .println("[SAMPLE SIZE]\t[MAX TX SIZE]\t[NUM WORKERS]\t[UPDATE RATIO]\t[EXECUTION TIME SECONDS]\t[NUM RUNS]");
+                    .println("[SAMPLE SIZE]\t[MAX TX SIZE]\t[NUM WORKERS]\t[UPDATE RATIO]\t[EXECUTION TIME SECONDS]\t[NUM RUNS]\t[SERVER LOCATION]");
             return;
         } else {
             sampleSize = Integer.parseInt(args[0]);
@@ -75,6 +75,7 @@ public class RiakMicroBenchmark implements WorkerManager {
             updateRatio = Double.parseDouble(args[3]);
             execTime = Integer.parseInt(args[4]);
             numRuns = Integer.parseInt(args[5]);
+            serverLocation = args[6];
         }
         System.out.println("SAMPLE SIZE " + sampleSize + " MAX_TX_SIZE " + maxTxSize + " NUM_WORKERS " + numWorkers
                 + " UPDATE_RATIO " + updateRatio + " EXECUTION_TIME_SECONDS " + execTime + " NUM_RUNS " + numRuns);
@@ -95,7 +96,7 @@ public class RiakMicroBenchmark implements WorkerManager {
 
     public void doIt() throws InterruptedException, RiakException {
         Integer[] identifiers = BenchUtil.generateIntegers(numObjects);
-        IRiakClient client = BenchUtil.getNewRiakClient("127.0.0.1", 8087);
+        IRiakClient client = BenchUtil.getNewRiakClient(serverLocation, 8087);
         if (initialize) {
             stopSemaphore = new Semaphore(-1);
             MicroBenchmarkWorker initializer = new RiakInitializerWorker(this, identifiers, random, client);
@@ -111,9 +112,9 @@ public class RiakMicroBenchmark implements WorkerManager {
 
         for (int r = 0; r < runs; r++) {
             logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
-            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client);
+            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client,r);
             logger.info("START");
-            executeWorkers("Worker", numWorkers, identifiers, executionTime, client);
+            executeWorkers("RiakWorker", numWorkers, identifiers, executionTime, client,r);
             logger.info("END");
 
         }
@@ -122,14 +123,14 @@ public class RiakMicroBenchmark implements WorkerManager {
     }
 
     private void executeWorkers(String workersName, int numWorkers, Integer[] identifiers, long executionTime,
-            IRiakClient client) throws InterruptedException {
+            IRiakClient client, int runCounter) throws InterruptedException {
         List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
         stopSemaphore = new Semaphore(-numWorkers + 1);
         for (int i = 0; i < numWorkers; i++) {
             // client = BenchUtil.getNewSwiftInterface(serverLocation,
             // DCConstants.SURROGATE_PORT);
             RiakExecutorWorker worker = new RiakExecutorWorker(this, workersName + i, identifiers, updateRatio, random,
-                    client, maxTxSize);
+                    client, maxTxSize, runCounter);
             new Thread(worker).start();
             workers.add(worker);
 
@@ -142,9 +143,9 @@ public class RiakMicroBenchmark implements WorkerManager {
 
         }
         stopSemaphore.acquire();
-        if (!workersName.equals("WARM_UP"))
+        if (!workersName.contains("WARM_UP"))
             for (MicroBenchmarkWorker w : workers) {
-                System.out.println(w.getRawData().RawData());
+               // System.out.println(w.getRawData().RawData());
             }
     }
 
@@ -208,9 +209,10 @@ public class RiakMicroBenchmark implements WorkerManager {
     }
 
     @Override
-    public RawDataCollector getNewRawDataCollector(String workerName) {
+    public RawDataCollector getNewRawDataCollector(String workerName, int runCount) {
         int initialSize = (int) (maxTxSize * (1 - updateRatio) + 1) * executionTime * ESTIMATED_THGPT_MILLIS;
-        return new RawDataCollector(initialSize, workerName);
+        return new RawDataCollector(initialSize, workerName, runCount);
     }
+
 
 }

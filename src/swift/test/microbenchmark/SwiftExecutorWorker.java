@@ -1,5 +1,9 @@
 package swift.test.microbenchmark;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
@@ -53,7 +57,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
     public SwiftExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
             double updateRatio, Random random, Swift clientServer, int maxTxSize, CachePolicy cachePolicy,
-            IsolationLevel isolationLevel) {
+            IsolationLevel isolationLevel, int runCount) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.updateRatio = updateRatio;
@@ -61,7 +65,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
         this.random = random;
         this.clientServer = clientServer;
         this.maxTxSize = maxTxSize;
-        this.rawData = manager.getNewRawDataCollector(workerID);
+        this.rawData = manager.getNewRawDataCollector(workerID, runCount);
         this.cachePolicy = cachePolicy;
         this.isolationLevel = isolationLevel;
 
@@ -124,6 +128,8 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                 e.printStackTrace();
             }
         }
+        //System.out.println("STOP CLIENT");
+        clientServer.stop(true);
         endTime = System.currentTimeMillis();
         manager.onWorkerFinish(this);
 
@@ -137,7 +143,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     @Override
     public void stop() {
         stop = true;
-        // clientServer.stop(true);
+       
     }
 
     @Override
@@ -154,7 +160,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
         @Override
         public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-            System.out.println("Object Modified " + id);
+            // System.out.println("Object Modified " + id);
 
         }
     }
@@ -216,5 +222,6 @@ class SwiftOperationExecutorResultHandler implements ResultHandler {
     public String getRawResults() {
         return rawData.RawData();
     }
+
 
 }

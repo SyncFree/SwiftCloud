@@ -44,6 +44,7 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
 
                 IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
                 integer.add(0);
+                //System.out.println(integer.getValue());
 
             }
             txh.commit();

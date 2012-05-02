@@ -75,7 +75,7 @@ public class RiakInitializerWorker implements MicroBenchmarkWorker {
 
     @Override
     public RawDataCollector getRawData() {
-       return null;
+        return null;
     }
 }
 

@@ -57,7 +57,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
     private RawDataCollector rawData;
 
     public RiakExecutorWorker(WorkerManager manager, String workerID, Integer[] identifiers, double updateRatio,
-            Random random, IRiakClient clientServer, int maxTxSize) {
+            Random random, IRiakClient clientServer, int maxTxSize, int runCounter) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.updateRatio = updateRatio;
@@ -66,7 +66,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
         this.clientServer = clientServer;
         this.maxTxSize = maxTxSize;
         kryo = new Kryo();
-        rawData = manager.getNewRawDataCollector(workerID);
+        rawData = manager.getNewRawDataCollector(workerID, runCounter);
 
     }
 
@@ -149,7 +149,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
     @Override
     public void stop() {
         stop = true;
-        // clientServer.stop(true);
+        rawData.rawDataToFile();
     }
 
     @Override
