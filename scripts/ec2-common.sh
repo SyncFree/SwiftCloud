@@ -42,17 +42,15 @@ run_cmd_bg() {
 	ssh -fi $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
 }
 
-# swift_app_cmd <class> <args>
+# swift_app_cmd <java options>
 # output in CMD
 swift_app_cmd() {
-	class=$1
-	shift
 	java_args=$*
 	CMD=$(cat <<EOF
 		if [ ! -f "$JAR" ]; then
 			echo "$JAR not found" && exit 1;
 		fi;
-		java -Xms1000m -cp $JAR -Djava.util.logging.config.file=$PROPS $class $java_args 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)
+		java -cp $JAR -Djava.util.logging.config.file=$PROPS $java_args 2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)
 EOF
 )
 }
@@ -85,15 +83,16 @@ deploy_swift_on() {
 
 deploy_swift_on_many() {
 	echo "Installing swift on: $*"
-	primary=$1
-	echo "Installing on primary: $primary"
-	deploy_swift_on $primary
-	shift
-	rsync_cmd=""
+#	primary=$1
+#	echo "Installing on primary: $primary"
+#	deploy_swift_on $primary
+#	shift
+#	rsync_cmd=""
 	for server in $*; do
-		rsync_cmd="$rsync_cmd; $primary rsync -e ssh $SWIFT_FILES $server:"
+		deploy_swift_on $server
+#		rsync_cmd="$rsync_cmd; $primary rsync -e ssh $SWIFT_FILES $server:"
 	done
-	echo "Copying from primary to other servers."
-	run_cmd $rsync_cmd
+#	echo "Copying from primary to other servers."
+#	run_cmd $rsync_cmd
 }
 

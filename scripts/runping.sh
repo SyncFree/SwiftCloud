@@ -28,7 +28,7 @@ echo "waiting a bit before starting clients"
 sleep 10
 
 echo "starting clients"
-swift_app_cmd swift.application.PingSpeedBenchmark
+swift_app_cmd -Xms1000m swift.application.PingSpeedBenchmark
 
 NOTIFICATIONS=false
 ISOLATION=REPEATABLE_READS
