@@ -365,7 +365,7 @@ public class SwiftSocial {
 
     private void commitTxn(final TxnHandle txn) {
         if (asyncCommit) {
-            commitTxn(txn);
+            txn.commitAsync(null);
         } else {
             txn.commit();
         }
