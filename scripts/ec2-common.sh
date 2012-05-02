@@ -79,9 +79,11 @@ deploy_swift_on_many() {
 	echo "Installing on primary: $primary"
 	deploy_swift_on $primary
 	shift
+	rsync_cmd=""
 	for server in $*; do
-		echo "Copying from primary to $server"
-		run_cmd $primary rsync -e ssh $SWIFT_FILES $server:
+		rsync_cmd="$rsync_cmd; $primary rsync -e ssh $SWIFT_FILES $server:"
 	done
+	echo "Copying from primary to other servers."
+	run_cmd $rsync_cmd
 }
 
