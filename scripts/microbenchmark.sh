@@ -20,7 +20,8 @@ for i in ${!modes[*]}; do
 	for workers in $numWorkers; do
 	if [ ! -d "$outputDir"/""${modes[$i]/ /_}"" ]; then
 		mkdir $outputDir"/""${modes[$i]/ /_}"
-	fi	
+	fi	#[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS] [CACHE POLICY] [ISOLATION LEVEL] [SERVER LOCATION] [OUTPUTDIR]
+		#example parameters 20 5 2 0.3 10 2 CACHED SNAPSHOT_ISOLATION  ec2-122-248-226-204.ap-southeast-1.compute.amazonaws.com tok -p
 		#TODO CMD Variable to execute the benchmark
 		echo -i $EC2_IDENTITY_FILE "$EC2_USER@$client" "$cmd" > $outputDir"/""${modes[$i]/ /_}""/""$workers".log
 
