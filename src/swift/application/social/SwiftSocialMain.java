@@ -156,10 +156,19 @@ public class SwiftSocialMain {
 
     public static void initUsers(Swift swiftClient, SwiftSocial client, final String usersFileName) {
         try {
-            final TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
+            TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
+            int txnSize = 0;
             // Initialize user data
             List<String> userData = readInputFromFile(usersFileName);
             for (String line : userData) {
+                // Divide into smaller transactions.
+                if (txnSize >= 10000) {
+                    txn.commit();
+                    txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
+                    txnSize = 0;
+                } else {
+                    txnSize++;
+                }
                 String[] toks = line.split(";");
                 long birthday = 0;
                 try {
@@ -171,7 +180,9 @@ public class SwiftSocialMain {
                 }
                 client.registerUser(txn, toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
             }
-            txn.commit();
+            if (!txn.getStatus().isTerminated()) {
+                txn.commit();
+            }
         } catch (SwiftException e1) {
             e1.printStackTrace();
         }
