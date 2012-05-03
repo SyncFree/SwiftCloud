@@ -35,7 +35,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
     private static final int randomSeed = 1;
 
     public static final String TABLE_NAME = "BENCHMARK";
-    private static final int ESTIMATED_THGPT_MILLIS = 1;
+    private static final int ESTIMATED_THGPT_MILLIS = 10;
     private static String serverLocation = "127.0.0.1";
     private static int portId = 2001;
     private static Logger logger = Logger.getLogger("swift.benchmark");
@@ -63,7 +63,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
         double updateRatio;
         boolean populate = false;
         if (args.length == 11) {
-            if (args[9].equals("-p"))
+            if (args[10].equals("-p"))
                 populate = true;
         }
 
@@ -122,6 +122,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
         }
         printResults();
+        System.exit(0);
 
     }
 
