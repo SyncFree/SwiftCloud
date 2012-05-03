@@ -4,7 +4,6 @@ import sys, os, base64, random, time
 
 activities = ["Running Experiments", "Drinking Coffee" , "Sleeping"]
 allUsers = []
-friends_of = []
 
 def doStatusLine(user,friends):
   return 'status;"{0}";\n'.format(activities[random.randint(0, len(activities)-1)])
@@ -55,8 +54,9 @@ def doMixed(friends_per_user, commands_per_user_biased, commands_per_user, total
         userName = allUsers[random.randint(0,partitionSize-1) + partitionSize * site]
     
     #generate the friends for that user
+        friends=[]
         for i in range(0,friends_per_user):
-           friends_of.append(allUsers[random.randint(0,len(allUsers)-1)])      
+           friends.append(allUsers[random.randint(0,len(allUsers)-1)])      
     
         for k, v in commands.items():
            for i in range(0,v[1]):
@@ -68,7 +68,7 @@ def doMixed(friends_per_user, commands_per_user_biased, commands_per_user, total
         #operations on friends
         for j in range(0, total_commands):
             for i in range(0, commands_per_user_biased):
-                fOut.write(mix[random.randint(0, len(mix)-1)](userName,friends_of))
+                fOut.write(mix[random.randint(0, len(mix)-1)](userName,friends))
         #operations on all users
             for i in range(0, commands_per_user):
                 fOut.write(doReadLine(userName,allUsers))
