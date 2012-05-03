@@ -65,7 +65,16 @@ public class SwiftSocial {
         try {
             // Check if user is known at all
             // FIXME Is login possible in offline mode?
-            txn = server.beginTxn(isolationLevel, cachePolicy, true);
+
+            // ATTENZIONE ATTENZIONE, HACK!! Shall we perhaps do it at client
+            // startup? I am not changing it now to make experiments comparable.
+            final CachePolicy loginCachePolicy;
+            if (isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && cachePolicy == CachePolicy.CACHED) {
+                loginCachePolicy = CachePolicy.MOST_RECENT;
+            } else {
+                loginCachePolicy = cachePolicy;
+            }
+            txn = server.beginTxn(isolationLevel, loginCachePolicy, true);
             @SuppressWarnings("unchecked")
             User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class,
                     updatesSubscriber)).getValue();
