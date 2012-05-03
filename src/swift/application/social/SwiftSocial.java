@@ -323,7 +323,7 @@ public class SwiftSocial {
         logger.info("Befriending " + receiverName);
         TxnHandle txn = null;
         try {
-            txn = server.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain new friend's data
             User friend = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
