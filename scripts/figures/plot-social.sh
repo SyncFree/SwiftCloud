@@ -23,7 +23,7 @@ echo "set boxwidth 2.00 relative" >> ${grun}
 
 echo "set style fill solid border -1" >> ${grun}
 echo "set bars front" >> ${grun}
-echo -n "plot \"${data}\" every ::2 using 1:2:xtic(10) notitle" >> ${grun}
+echo -n "plot \"${data}\" every ::1 using 11:2:xtic(10) notitle" >> ${grun}
 
 gnuplot ${grun}
 epstopdf ${epsrun}
