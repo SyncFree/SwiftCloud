@@ -114,7 +114,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        } else
+        } else {
         for (int r = 0; r < runs; r++) {
             logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
             executeWorkers("WARM_UP", numWorkers, identifiers, cltObjects, executionTime / 2, r, outputDir);
@@ -124,6 +124,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
         }
         printResults();
+        }
         System.exit(0);
 
     }
