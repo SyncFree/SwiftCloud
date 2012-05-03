@@ -38,11 +38,11 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
         manager.onWorkerStart(this);
         startTime = System.currentTimeMillis();
         try {
-            for (int i = 0; i < identifiers.length; i++) {
+            for (int i = 0; i < identifiers.length;) {
 
                 TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                         false);
-                for( int j = 0; j < 50; j++, i++) {
+                for( int j = 0; j < 50 && i < identifiers.length; j++, i++) {
                 IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
                 integer.add(0);
                 //System.out.println(integer.getValue());
