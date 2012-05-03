@@ -62,6 +62,7 @@ done
 
 
 echo "Generating input data - generating users db"
+mkdir -p input/
 scripts/create_users.py 0 $INPUT_USERS $FILE_USERS
 echo "Generating input data - generating commands"
 scripts/gen_commands_local.py $FILE_USERS $INPUT_USER_FRIENDS $INPUT_USER_BIASED_OPS $INPUT_USER_RANDOM_OPS $INPUT_USER_OPS_GROUPS $INPUT_SITES $INPUT_ACTIVE_USERS $FILE_CMDS_PREFIX
