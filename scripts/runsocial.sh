@@ -10,11 +10,13 @@ fi
 DC1=$EC2_ASIA_TOKYO
 DC2=$EC2_US_OREGON
 DC3=$EC2_EU1
-DCS="$DC1 $DC2 $DC3"
-DC1_CLIENTS="$EC2_ASIA_SINGAPORE1" # $EC2_ASIA_SINGAPORE2
-DC2_CLIENTS="$EC2_US_NORTHCALIFORNIA1" # $EC2_US_NORTHCALIFORNIA2
-DC3_CLIENTS="$EC2_EU2 $EC2_EU3"
-CLIENTS="$DC1_CLIENTS $DC2_CLIENTS $DC3_CLIENTS"
+DC4=$EC2_ASIA_SINGAPORE2
+DCS="$DC1 $DC2 $DC3 $DC4"
+DC1_CLIENTS="$EC2_ASIA_SINGAPORE1" 
+DC2_CLIENTS="$EC2_US_NORTHCALIFORNIA1"
+DC3_CLIENTS="$EC2_EU2"
+DC4_CLIENTS="$EC2_US_NORTHCALIFORNIA2"
+CLIENTS="$DC1_CLIENTS $DC2_CLIENTS $DC3_CLIENTS $DC4_CLIENTS"
 INIT_CLIENT=$EC2_ASIA_TOKYO # On DC node -> otherwise painfully slow (sequential).
 MACHINES="$CLIENTS $DCS"
 
@@ -89,7 +91,7 @@ echo "initializing database"
 run_swift_client_initdb $INIT_CLIENT $DC1 users.txt
 
 echo "waiting a bit before starting real clients"
-sleep 10
+sleep 100
 
 echo "starting clients connecting to DC1"
 for client in $DC1_CLIENTS; do
@@ -105,6 +107,12 @@ echo "starting clients connecting to DC3"
 for client in $DC3_CLIENTS; do
 	run_swift_client_bg $client $DC3
 done
+
+echo "starting clients connecting to DC4"
+for client in $DC4_CLIENTS; do
+	run_swift_client_bg $client $DC4
+done
+
 
 echo "running ... hit enter when you think its finished"
 read dummy
