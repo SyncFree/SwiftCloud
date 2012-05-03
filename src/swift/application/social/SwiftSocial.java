@@ -3,6 +3,7 @@ package swift.application.social;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
@@ -28,7 +29,7 @@ import swift.exceptions.WrongTypeException;
 
 public class SwiftSocial {
 
-    public static final int RETRY_DELAY_MS = 500;
+    public static final int RETRY_DELAY_MS = 1000;
     private static Logger logger = Logger.getLogger("swift.social");
 
     // FIXME Add sessions? Local login possible? Cookies?
@@ -63,6 +64,7 @@ public class SwiftSocial {
             }
         }
 
+        final AtomicBoolean success = new AtomicBoolean(false);
         runRetryableTask(new RetryableTask() {
             @Override
             public boolean run() {
@@ -100,7 +102,7 @@ public class SwiftSocial {
                             currentUser = user;
                             logger.info(loginName + " successfully logged in");
                             commitTxn(txn);
-                            return true;
+                            success.set(true);
                         } else {
                             logger.info("Wrong password for " + loginName);
                         }
@@ -126,7 +128,7 @@ public class SwiftSocial {
             }
         });
 
-        return false;
+        return success.get();
     }
 
     void logout(String loginName) {
@@ -245,7 +247,7 @@ public class SwiftSocial {
                     }
                 }
                 refUser.set(user);
-                return true;
+                return false;
             }
         });
         return refUser.get();
