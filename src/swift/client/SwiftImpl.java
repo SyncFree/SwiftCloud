@@ -88,7 +88,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     // WISHME: subscribe updates of frequently accessed objects
 
-    public static final int DEFAULT_TIMEOUT_MILLIS = 10 * 1000;
+    public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     private static final String CLIENT_CLOCK_ID = "client";
