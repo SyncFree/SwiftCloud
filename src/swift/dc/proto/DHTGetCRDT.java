@@ -1,6 +1,7 @@
 package swift.dc.proto;
 
 import swift.client.proto.SubscriptionType;
+import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.dc.*;
 import sys.dht.api.DHT;
@@ -15,6 +16,7 @@ public class DHTGetCRDT implements DHT.Message {
     String surrogateId;
     CRDTIdentifier id;
     SubscriptionType subscribe;
+    CausalityClock version;
     
     /**
      * Needed for Kryo serialization
@@ -22,11 +24,12 @@ public class DHTGetCRDT implements DHT.Message {
     public DHTGetCRDT() {
     }
 
-    public DHTGetCRDT(String surrogateId, CRDTIdentifier id, SubscriptionType subscribe) {
+    public DHTGetCRDT(String surrogateId, CRDTIdentifier id, SubscriptionType subscribe, CausalityClock version) {
         super();
         this.surrogateId = surrogateId;
         this.id = id;
         this.subscribe = subscribe;
+        this.version = version;
     }
 
     @Override
@@ -44,5 +47,9 @@ public class DHTGetCRDT implements DHT.Message {
 
     public SubscriptionType getSubscribe() {
         return subscribe;
+    }
+
+    public CausalityClock getVersion() {
+        return version;
     }
 }

@@ -246,8 +246,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
      * @param subscribe
      *            Subscription type
      */
-    CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
-        return dataServer.getCRDT(id, subscribe); // call DHT server
+    CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe, CausalityClock clk) {
+        return dataServer.getCRDT(id, subscribe, clk); // call DHT server
     }
 
     @Override
@@ -282,7 +282,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             }
         }
 
-        CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType());
+        CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType(), request.getVersion());
         if (crdt == null) {
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
                     estimatedDCVersionCopy, ClockFactory.newClock(), estimatedDCVersionCopy);

@@ -1,6 +1,7 @@
 package swift.dc;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.crdt.interfaces.CRDT;
 
 public class CRDTObject<V extends CRDT<V>> {
@@ -21,8 +22,15 @@ public class CRDTObject<V extends CRDT<V>> {
     public CRDTObject() {
         // do nothing
     }
-    public CRDTObject(CRDTData<V> data) {
-        this.crdt = data.crdt.copy();
+    public CRDTObject(CRDTData<V> data, CausalityClock version) {
+        if( DCDataServer.prune) {
+            CMP_CLOCK cmp = version.compareTo( data.pruneClock);
+            if( cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES)
+                this.crdt = data.prunedCrdt.copy();
+            else
+                this.crdt = data.crdt.copy();
+        } else;
+            this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
     }

@@ -49,6 +49,7 @@ public class DCServer {
     public static void main(String[] args) {
         Properties props = new Properties();
         props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+        props.setProperty(DCConstants.PRUNE_POLICY, "false");
         int portSurrogate = DCConstants.SURROGATE_PORT;
 
         String sequencerNode = "localhost";
@@ -59,6 +60,8 @@ public class DCServer {
                 props.setProperty( args[i].substring(6), args[++i]);
             } else if (args[i].equals("-portSurrogate")) {
                 portSurrogate = Integer.parseInt(args[++i]);
+            } else if (args[i].equals("-prune")) {
+                props.setProperty(DCConstants.PRUNE_POLICY, "true");
             }
         }
         

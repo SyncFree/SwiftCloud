@@ -17,6 +17,10 @@ public class CRDTData<V extends CRDT<V>> {
      */
     CRDT<V> crdt;
     /**
+     * crdt object
+     */
+    CRDT<V> prunedCrdt;
+    /**
      * CRDT unique identifier
      */
     CRDTIdentifier id;
@@ -47,6 +51,8 @@ public class CRDTData<V extends CRDT<V>> {
 
     CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock) {
         this.crdt = crdt;
+        if( DCDataServer.prune)
+            this.prunedCrdt = crdt.copy();
         this.id = id;
         this.clock = clock;
         this.pruneClock = pruneClock;
@@ -57,6 +63,8 @@ public class CRDTData<V extends CRDT<V>> {
     
     void initValue( CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock) {
         this.crdt = crdt;
+        if( DCDataServer.prune)
+            this.prunedCrdt = crdt.copy();
         this.clock = clock;
         this.pruneClock = pruneClock;
         this.empty = false;
@@ -98,6 +106,9 @@ public class CRDTData<V extends CRDT<V>> {
         empty = true;
         crdt.merge((CRDT<V>)d.crdt);
         clock.merge(d.clock);
+        if( DCDataServer.prune) {
+            this.prunedCrdt.merge((CRDT<V>)d.crdt);
+        }
         pruneClock.merge(d.pruneClock);
     }
 

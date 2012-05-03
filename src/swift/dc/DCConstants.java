@@ -26,5 +26,7 @@ public class DCConstants {
     public static final String RIAK_PORT = "RIAK_PORT"; // property of port for
                                                         // accessing Riak
 
+    public static final String PRUNE_POLICY = "prune";
+
     public static final int DEFAULT_TRXIDTIME = 5000;
 }

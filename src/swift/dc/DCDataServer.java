@@ -55,6 +55,7 @@ class DCDataServer {
 
     DCNodeDatabase dbServer;
     DHT dhtClient;
+    static public boolean prune;
 
 //    LinkedList<NotificationRecord> notifications;
 
@@ -63,6 +64,7 @@ class DCDataServer {
     DCDataServer(DCSurrogate surrogate, Properties props) {
         this.localSurrogate = new LocalObserver(surrogate);
         this.localSurrogateId = surrogate.getId();
+        prune = Boolean.parseBoolean(props.getProperty(DCConstants.PRUNE_POLICY));
         initStore();
         initData(props);
         initDHT();
@@ -162,7 +164,7 @@ class DCDataServer {
             public void onReceive(Connection con, Key key, DHTGetCRDT request) {
                 DCConstants.DCLogger.info("DHT data server: get CRDT : " + request.getId());
                 con.reply(new DHTGetCRDTReply(localGetCRDTObject(new RemoteObserver(request.getSurrogateId(), con),
-                        request.getId(), request.getSubscribe())));
+                        request.getId(), request.getSubscribe(), request.getVersion())));
             }
 
             @Override
@@ -341,12 +343,12 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe) {
+    CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe, CausalityClock clk) {
         final StringKey key = new StringKey(id.toString());
         if (!DHT_Node.getInstance().isHandledLocally(key)) {
             final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
             while (!result.hasResult()) {
-                dhtClient.send(key, new DHTGetCRDT(localSurrogateId, id, subscribe), new DHTGetCRDTReplyHandler() {
+                dhtClient.send(key, new DHTGetCRDT(localSurrogateId, id, subscribe, clk), new DHTGetCRDTReplyHandler() {
                     @Override
                     public void onReceive(DHTGetCRDTReply reply) {
                         result.setResult(reply.getObject());
@@ -357,7 +359,7 @@ class DCDataServer {
             }
             return result.getResult();
         } else
-            return localGetCRDTObject(localSurrogate, id, subscribe);
+            return localGetCRDTObject(localSurrogate, id, subscribe, clk);
     }
 
     /**
@@ -373,6 +375,9 @@ class DCDataServer {
                 data.initValue(crdt, clk, prune);
             } else {
                 data.crdt.merge(crdt);
+                if( DCDataServer.prune) {
+                    data.crdt.merge(crdt);
+                }
                 data.clock.merge(clk);
                 data.pruneClock.merge(prune);
             }
@@ -414,6 +419,11 @@ class DCDataServer {
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectOperationsGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+            if( DCDataServer.prune) {
+                data.prunedCrdt.execute((CRDTObjectOperationsGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+                data.prunedCrdt.prune( data.clock, false);
+                data.pruneClock = data.clock;
+            }
             data.clock = data.crdt.getClock();
             setModifiedDatabaseEntry( data);
             
@@ -444,13 +454,13 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTObject<?> localGetCRDTObject(Observer observer, CRDTIdentifier id, SubscriptionType subscribe) {
+    CRDTObject<?> localGetCRDTObject(Observer observer, CRDTIdentifier id, SubscriptionType subscribe, CausalityClock version) {
         lock(id);
         try {
             CRDTData<?> data = localGetCRDT(observer, id, subscribe);
             if (data == null)
                 return null;
-            return new CRDTObject(data);
+            return new CRDTObject(data, version);
         } finally {
             unlock(id);
         }
