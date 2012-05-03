@@ -9,11 +9,13 @@ fi
 # TOPOLOGY
 DC1=$EC2_ASIA_TOKYO
 DC2=$EC2_US_OREGON
-DCS="$DC1 $DC2"
-DC1_CLIENTS="$EC2_ASIA_SINGAPORE1 $EC2_ASIA_SINGAPORE2"
-DC2_CLIENTS="$EC2_US_NORTHCALIFORNIA1 $EC2_US_NORTHCALIFORNIA2"
-INIT_CLIENT=$EC2_ASIA_TOKYO
-CLIENTS="$DC1_CLIENTS $DC2_CLIENTS"
+DC3=$EC2_EU1
+DCS="$DC1 $DC2 $DC3"
+DC1_CLIENTS="$EC2_ASIA_SINGAPORE1" # $EC2_ASIA_SINGAPORE2
+DC2_CLIENTS="$EC2_US_NORTHCALIFORNIA1" # $EC2_US_NORTHCALIFORNIA2
+DC3_CLIENTS="$EC2_EU2 $EC2_EU3"
+CLIENTS="$DC1_CLIENTS $DC2_CLIENTS $DC3_CLIENTS"
+INIT_CLIENT=$EC2_ASIA_TOKYO # On DC node -> otherwise painfully slow (sequential).
 MACHINES="$CLIENTS $DCS"
 
 # INPUT DATA PARAMS
@@ -97,6 +99,11 @@ done
 echo "starting clients connecting to DC2"
 for client in $DC2_CLIENTS; do
 	run_swift_client_bg $client $DC2
+done
+
+echo "starting clients connecting to DC3"
+for client in $DC3_CLIENTS; do
+	run_swift_client_bg $client $DC3
 done
 
 echo "running ... hit enter when you think its finished"

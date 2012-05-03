@@ -23,13 +23,14 @@ export EC2_US_NORTHCALIFORNIA1=ec2-184-169-233-51.us-west-1.compute.amazonaws.co
 export EC2_US_NORTHCALIFORNIA2=ec2-50-18-133-148.us-west-1.compute.amazonaws.com
 export EC2_EU1=ec2-79-125-37-63.eu-west-1.compute.amazonaws.com
 export EC2_EU2=ec2-46-51-165-88.eu-west-1.compute.amazonaws.com
+export EC2_EU3=ec2-176-34-173-115.eu-west-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE1=ec2-122-248-226-204.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE2=ec2-46-137-229-245.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_TOKYO=ec2-54-248-17-129.ap-northeast-1.compute.amazonaws.com
 
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
-export EC2_ALL="$EC2_EU1 $EC2_EU2 $EC2_US_OREGON $EC2_US_NORTHCALIFORNIA $EC2_ASIA_TOKYO $EC2_ASIA_SINGAPORE"
+export EC2_ALL="$EC2_EU1 $EC2_EU2 $EC2_EU3 $EC2_US_OREGON $EC2_US_NORTHCALIFORNIA1 $EC2_US_NORTHCALIFORNIA2 $EC2_ASIA_TOKYO $EC2_ASIA_SINGAPORE1 $EC2_ASIA_SINGAPORE2"
 export JAR=swiftcloud.jar
 export PROPS=deployment_logging.properties
 export SWIFT_FILES="$JAR $PROPS"
