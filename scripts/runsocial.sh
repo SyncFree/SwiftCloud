@@ -17,8 +17,8 @@ CLIENTS="$DC1_CLIENTS $DC2_CLIENTS"
 MACHINES="$CLIENTS $DCS"
 
 # INPUT DATA PARAMS
-INPUT_USERS=15000
-INPUT_ACTIVE_USERS=300
+INPUT_USERS=5000
+INPUT_ACTIVE_USERS=100
 INPUT_USER_FRIENDS=25
 INPUT_USER_BIASED_OPS=9
 INPUT_USER_RANDOM_OPS=1
@@ -28,10 +28,10 @@ FILE_CMDS_PREFIX=input/commands.txt
 
 # BENCHMARK PARAMS
 NOTIFICATIONS=false
-ISOLATION=SNAPSHOT_ISOLATION
+ISOLATION=REPEATABLE_READS
 CACHING=STRICTLY_MOST_RECENT
 CACHE_EVICTION_TIME_MS=120000
-ASYNC_COMMIT=false
+ASYNC_COMMIT=TRUE
 THINK_TIME_MS=1000
 
 # DEPLOY STUFF?
@@ -60,12 +60,17 @@ for c in $CLIENTS; do
 	INPUT_SITES=$(($INPUT_SITES+1))
 done
 
-
 echo "Generating input data - generating users db"
 mkdir -p input/
 scripts/create_users.py 0 $INPUT_USERS $FILE_USERS
 echo "Generating input data - generating commands"
 scripts/gen_commands_local.py $FILE_USERS $INPUT_USER_FRIENDS $INPUT_USER_BIASED_OPS $INPUT_USER_RANDOM_OPS $INPUT_USER_OPS_GROUPS $INPUT_SITES $INPUT_ACTIVE_USERS $FILE_CMDS_PREFIX
+
+echo "killing existing servers and clients"
+for host in $MACHINES; do
+        kill_swift $host || true
+done
+
 
 echo "deploying swift social test"
 if [ -n "$DEPLOY" ]; then

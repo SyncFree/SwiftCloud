@@ -30,9 +30,9 @@ sleep 10
 echo "starting clients"
 swift_app_cmd -Xms1000m swift.application.PingSpeedBenchmark
 
-NOTIFICATIONS=true
+NOTIFICATIONS=false
 ISOLATION=REPEATABLE_READS
-CACHING=CACHED
+CACHING=STRICTLY_MOST_RECENT
 ITERATIONS=100
 
 echo "starting client 1"
