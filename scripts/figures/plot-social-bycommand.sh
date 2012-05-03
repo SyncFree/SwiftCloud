@@ -13,7 +13,7 @@ echo "set size 1,1.1" >> ${grun}
 echo "set xlabel \"Setting\"" >> ${grun}
 echo "set ylabel \"Time [ms]\"" >> ${grun}
 echo "set pointsize 3" >> ${grun}
-echo "set key invert reverse Left outside" >>{grun}
+echo "set key invert reverse left" >> ${grun}
 
 echo "set style data histograms" >> ${grun}
 echo "unset xtics"  >> ${grun}
