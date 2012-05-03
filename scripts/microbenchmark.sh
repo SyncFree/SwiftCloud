@@ -3,7 +3,7 @@
 
 modes=("CACHED REPEATABLE_READS" "MOST_RECENT SNAPSHOT_ISOLATION")
 #numWorkers="1 5 10 15 20"
-numWorkers="15"
+numWorkers="1"
 ratios="0 0.2 0.5 1"
 maxTxSize="5"
 sampleSize="10000"
