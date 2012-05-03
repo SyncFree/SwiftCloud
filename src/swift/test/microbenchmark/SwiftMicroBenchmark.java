@@ -64,7 +64,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
         String outputDir;
         double updateRatio;
         boolean populate = false;
-        if (args.length == 11) {
+        if (args.length == 12) {
             if (args[11].equals("-p"))
                 populate = true;
         }
