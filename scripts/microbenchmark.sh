@@ -60,10 +60,11 @@ for i in ${!modes[*]}; do
 
 			swift_app_cmd swift.test.microbenchmark.SwiftMicroBenchmark
 
+			run_cmd $client1 $CMD $sampleSize $cltSize $maxTxSize $workers $ratio_i $executionTime $numRuns "${modes[$i]}" $server1 $rawDir -p
 			echo "starting client 1"
-			run_cmd_bg $client1 $CMD $sampleSize $cltSize $maxTxSize $workers $ratio_i $executionTime $numRuns "${modes[$i]}" $server1 $rawDir -p
+			run_cmd_bg $client1 $CMD $sampleSize $cltSize $maxTxSize $workers $ratio_i $executionTime $numRuns "${modes[$i]}" $server1 $rawDir
 			echo "starting client 2"
-			run_cmd $client2 $CMD $sampleSize $cltSize $maxTxSize $workers $ratio_i $executionTime $numRuns "${modes[$i]}" $server2 $rawDir -p
+			run_cmd $client2 $CMD $sampleSize $cltSize $maxTxSize $workers $ratio_i $executionTime $numRuns "${modes[$i]}" $server2 $rawDir
 		
 			sleep $(($1 * $2))
 
