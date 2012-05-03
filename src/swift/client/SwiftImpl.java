@@ -787,7 +787,7 @@ public class SwiftImpl implements Swift, TxnManager {
             @Override
             public void run() {
                 final CausalityClock version;
-                synchronized (this) {
+                synchronized (SwiftImpl.this) {
                     if (!objectUpdateSubscriptions.containsKey(id)) {
                         return;
                     }
