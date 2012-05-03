@@ -1,8 +1,9 @@
 #!/usr/bin/python
 # Generate a command file for adding bogus users to a file
+# CLARIFY LICENSING: THIS SCRIPT COMES FROM WALTER PAPER PUBLISHED IN OSDI 2011
 import sys, os, base64, random, time
 
-activities = ["Running Experiments", "Drinking Coffee" , "Sleeping"]
+
 allUsers = []
 commands_per_user=10
 

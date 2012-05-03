@@ -1,5 +1,7 @@
 #!/usr/bin/python
 # Generate a command file for adding bogus users to a file
+# TODO: CLARIFY LICENSING: THIS SCRIPT COMES FROM WALTER PAPER PUBLISHED IN OSDI 2011
+
 import sys, os, base64, hashlib
 
 def main():
