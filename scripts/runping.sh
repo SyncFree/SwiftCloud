@@ -6,10 +6,10 @@ if [ ! -f "$JAR" ]; then
 	echo "file $JAR not found" && exit 1
 fi
 
-C1=$EC2_ASIA_SINGAPORE
+C1=$EC2_ASIA_SINGAPORE1
 C2=$EC2_US_OREGON
 DC1=$EC2_ASIA_TOKYO
-DC2=$EC2_US_NORTHCALIFORNIA
+DC2=$EC2_US_NORTHCALIFORNIA1
 
 DEPLOY=true
 
@@ -30,9 +30,9 @@ sleep 10
 echo "starting clients"
 swift_app_cmd -Xms1000m swift.application.PingSpeedBenchmark
 
-NOTIFICATIONS=false
+NOTIFICATIONS=true
 ISOLATION=REPEATABLE_READS
-CACHING=STRICTLY_MOST_RECENT
+CACHING=CACHED
 ITERATIONS=100
 
 echo "starting client 1"
