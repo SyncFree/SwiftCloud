@@ -188,6 +188,7 @@ class RiakOperationExecutorResultHandler implements ResultHandler {
         results += "Executed Transactions:\t" + numExecutedTransactions + " W:\t" + writeOps + "\tR:\t" + readOps
                 + "\n";
         results += "Throughput(Tx/min):\t" + numExecutedTransactions / ((executionTime) / (1000 * 60d)) + "\n";
+        results += "Throughput(Tx/sec):\t" + numExecutedTransactions / ((executionTime) / (1000d)) + "\n";
         return results;
     }
 
@@ -217,9 +218,9 @@ class RiakOperationExecutorResultHandler implements ResultHandler {
         return workerID;
     }
 
-    @Override
+/*    @Override
     public String getRawResults() {
         return rawData.RawData();
     }
-
+*/
 }

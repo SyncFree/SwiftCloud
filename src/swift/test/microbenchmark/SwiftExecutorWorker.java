@@ -54,6 +54,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     private RawDataCollector rawData;
     private CachePolicy cachePolicy;
     private IsolationLevel isolationLevel;
+    private MicroBenchmarkUpdateListener listener;
 
     public SwiftExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
             double updateRatio, Random random, Swift clientServer, int maxTxSize, CachePolicy cachePolicy,
@@ -68,6 +69,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
         this.rawData = manager.getNewRawDataCollector(workerID, runCount, outputDir);
         this.cachePolicy = cachePolicy;
         this.isolationLevel = isolationLevel;
+        this.listener = new MicroBenchmarkUpdateListener();
 
     }
 
@@ -84,9 +86,9 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                 case UPDATE: {
                     long txStartTime = System.nanoTime();
                     TxnHandle txh = clientServer.beginTxn(isolationLevel, cachePolicy, false);
-                    int randomIndex = (int) Math.floor(random.nextDouble() * identifiers.length);
+                    int randomIndex = random.nextInt(identifiers.length);// (int) Math.floor(random.nextDouble() * identifiers.length);
                     IntegerTxnLocal integerCRDT = txh.get(identifiers[randomIndex], false, IntegerVersioned.class,
-                            new MicroBenchmarkUpdateListener());
+                            listener);
                     if (random.nextDouble() > 0.5) {
                         integerCRDT.add(10);
                     } else {
@@ -105,7 +107,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                     for (int i = 0; i < txSize; i++) {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
                         txh.get(identifiers[randomIndex], false, IntegerVersioned.class,
-                                new MicroBenchmarkUpdateListener());
+                                listener);
                         readOps++;
                     }
                     txh.commit();
@@ -190,6 +192,7 @@ class SwiftOperationExecutorResultHandler implements ResultHandler {
         results += "Executed Transactions:\t" + numExecutedTransactions + " W:\t" + writeOps + "\tR:\t" + readOps
                 + "\n";
         results += "Throughput(Tx/min):\t" + numExecutedTransactions / ((executionTime) / (1000 * 60d)) + "\n";
+        results += "Throughput(Tx/sec):\t" + numExecutedTransactions / ((executionTime) / (1000)) + "\n";
         return results;
     }
 
@@ -218,10 +221,10 @@ class SwiftOperationExecutorResultHandler implements ResultHandler {
         return workerID;
     }
 
-    @Override
+/*    @Override
     public String getRawResults() {
         return rawData.RawData();
     }
-
+*/
 
 }

@@ -119,9 +119,9 @@ class RiakInitializerResultHandler implements ResultHandler {
         return "RIAKINITIALIZER";
     }
 
-    @Override
+/*    @Override
     public String getRawResults() {
         return "INITIALIZER";
     }
-
+*/
 }

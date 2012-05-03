@@ -209,6 +209,7 @@ public class RiakMicroBenchmark implements WorkerManager {
         results += "Executed Transactions:\t" + totalExecutedTransactions + " W:\t" + totalWriteOps + "\tR:\t"
                 + totalReadOps + "\n";
         results += "Throughput(Tx/min):\t" + totalExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
+        results += "Throughput(Tx/sec):\t" + totalExecutedTransactions / ((executionTime / 1000)) + "\n";
         System.out.println(results);
     }
 

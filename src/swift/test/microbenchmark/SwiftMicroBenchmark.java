@@ -1,6 +1,7 @@
 package swift.test.microbenchmark;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
     private Random random;
     private double updateRatio;
     private String outputDir;
-    private int numObjects, maxTxSize, numWorkers, executionTime, runs;
+    private int numObjects, cltObjects, maxTxSize, numWorkers, executionTime, runs;
     private Map<String, List<ResultHandler>> results;
 
     private static final int randomSeed = 1;
@@ -42,11 +43,12 @@ public class SwiftMicroBenchmark implements WorkerManager {
     private static CachePolicy cachePolicy;
     private static IsolationLevel isolationLevel;
 
-    public SwiftMicroBenchmark(boolean initialize, int numObjects, int maxTxSize, int numWorkers, double updateRatio,
+    public SwiftMicroBenchmark(boolean initialize, int numObjects, int cltObjects, int maxTxSize, int numWorkers, double updateRatio,
             int executionTime, int runs, String outputDir) {
         this.initialize = initialize;
         this.random = new Random(randomSeed);
         this.numObjects = numObjects;
+        this.cltObjects = cltObjects;
         this.maxTxSize = maxTxSize;
         this.numWorkers = numWorkers;
         this.updateRatio = updateRatio;
@@ -58,35 +60,36 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
     public static void main(String[] args) {
 
-        int sampleSize, maxTxSize, execTime, numRuns, numWorkers;
+        int sampleSize, cltSize, maxTxSize, execTime, numRuns, numWorkers;
         String outputDir;
         double updateRatio;
         boolean populate = false;
         if (args.length == 11) {
-            if (args[10].equals("-p"))
+            if (args[11].equals("-p"))
                 populate = true;
         }
 
-        if (args.length < 10 || args.length > 11) {
+        if (args.length < 11 || args.length > 12) {
             System.out
-                    .println("[SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS] [CACHE POLICY] [ISOLATION LEVEL] [SERVER LOCATION] [OUTPUTDIR]");
+                    .println("[SAMPLE SIZE] [CLT SAMPLE SIZE] [MAX TX SIZE] [NUM WORKERS] [UPDATE RATIO] [EXECUTION TIME SECONDS] [NUM RUNS] [CACHE POLICY] [ISOLATION LEVEL] [SERVER LOCATION] [OUTPUTDIR]");
             return;
         } else {
             sampleSize = Integer.parseInt(args[0]);
-            maxTxSize = Integer.parseInt(args[1]);
-            numWorkers = Integer.parseInt(args[2]);
-            updateRatio = Double.parseDouble(args[3]);
-            execTime = Integer.parseInt(args[4]);
-            numRuns = Integer.parseInt(args[5]);
-            cachePolicy = CachePolicy.valueOf(args[6]);
-            isolationLevel = IsolationLevel.valueOf(args[7]);
-            serverLocation = args[8];
-            outputDir = args[9];
+            cltSize = Integer.parseInt(args[1]);
+            maxTxSize = Integer.parseInt(args[2]);
+            numWorkers = Integer.parseInt(args[3]);
+            updateRatio = Double.parseDouble(args[4]);
+            execTime = Integer.parseInt(args[5]);
+            numRuns = Integer.parseInt(args[6]);
+            cachePolicy = CachePolicy.valueOf(args[7]);
+            isolationLevel = IsolationLevel.valueOf(args[8]);
+            serverLocation = args[9];
+            outputDir = args[10];
         }
         Sys.init();
         logger.info("SAMPLE SIZE " + sampleSize + " MAX_TX_SIZE " + maxTxSize + " NUM_WORKERS " + numWorkers
                 + " UPDATE_RATIO " + updateRatio + " EXECUTION_TIME_SECONDS " + execTime + " NUM_RUNS " + numRuns);
-        SwiftMicroBenchmark mb = new SwiftMicroBenchmark(populate, sampleSize, maxTxSize, numWorkers, updateRatio,
+        SwiftMicroBenchmark mb = new SwiftMicroBenchmark(populate, sampleSize, cltSize, maxTxSize, numWorkers, updateRatio,
                 1000 * execTime, numRuns, outputDir);
         try {
             mb.doIt();
@@ -115,9 +118,9 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
         for (int r = 0; r < runs; r++) {
             logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
-            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, r, outputDir);
+            executeWorkers("WARM_UP", numWorkers, identifiers, cltObjects, executionTime / 2, r, outputDir);
             logger.info("START");
-            executeWorkers("SwiftWorker", numWorkers, identifiers, executionTime, r, outputDir);
+            executeWorkers("SwiftWorker", numWorkers, identifiers, cltObjects, executionTime, r, outputDir);
             logger.info("END");
 
         }
@@ -126,16 +129,23 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
     }
 
-    private void executeWorkers(String workersName, int numWorkers, CRDTIdentifier[] identifiers, long executionTime,
+    private void executeWorkers(String workersName, int numWorkers, CRDTIdentifier[] identifiers, int cltObjects, long executionTime,
             int runCount, String outputDir) throws InterruptedException {
         List<MicroBenchmarkWorker> workers = new ArrayList<MicroBenchmarkWorker>();
         stopSemaphore = new Semaphore(-numWorkers + 1);
         // TODO: Use more then one client?
         // Swift client = BenchUtil.getNewSwiftInterface(serverLocation,
         // DCConstants.SURROGATE_PORT);
+        List<CRDTIdentifier> l = new ArrayList<CRDTIdentifier>();
+        for( int j = 0; j < identifiers.length; j++)
+            l.add(identifiers[j]);
         for (int i = 0; i < numWorkers; i++) {
+            CRDTIdentifier[] ids = new CRDTIdentifier[cltObjects];
+            Collections.shuffle(l);
+            for( int j = 0; j < ids.length; j++)
+                ids[j] = l.get(j);
             Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
-            SwiftExecutorWorker worker = new SwiftExecutorWorker(this, workersName + i, identifiers, updateRatio,
+            SwiftExecutorWorker worker = new SwiftExecutorWorker(this, workersName + i, ids, updateRatio,
                     random, client, maxTxSize, cachePolicy, isolationLevel, runCount, outputDir);
             new Thread(worker).start();
             workers.add(worker);
@@ -212,6 +222,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
         results += "Executed Transactions:\t" + totalExecutedTransactions + " W:\t" + totalWriteOps + "\tR:\t"
                 + totalReadOps + "\n";
         results += "Throughput(Tx/min):\t" + totalExecutedTransactions / ((executionTime / 1000) / 60d) + "\n";
+        results += "Throughput(Tx/s):\t" + totalExecutedTransactions / ((executionTime / 1000)) + "\n";
         System.out.println(results);
     }
 

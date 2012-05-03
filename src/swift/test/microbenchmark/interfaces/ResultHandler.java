@@ -9,6 +9,6 @@ public interface ResultHandler {
     public int getWriteOps();
     public int getReadOps();
     public String getWorkerID();
-    public String getRawResults();
+//    public String getRawResults();
    
 }

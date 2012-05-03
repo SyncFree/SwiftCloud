@@ -130,9 +130,9 @@ class DBInitializerResultHandler implements ResultHandler {
         return null;
     }
 
-    @Override
+/*    @Override
     public String getRawResults() {
         return "Initializer";
     }
-
+*/
 }
