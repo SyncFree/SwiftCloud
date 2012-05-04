@@ -25,6 +25,7 @@ export EC2_US_NORTHCALIFORNIA3=ec2-50-18-14-51.us-west-1.compute.amazonaws.com
 export EC2_EU1=ec2-79-125-37-63.eu-west-1.compute.amazonaws.com
 export EC2_EU2=ec2-46-51-165-88.eu-west-1.compute.amazonaws.com
 export EC2_EU3=ec2-176-34-173-115.eu-west-1.compute.amazonaws.com
+export EC2_EU4=ec2-46-137-2-36.eu-west-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE1=ec2-122-248-200-129.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE2=ec2-46-137-229-245.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE3=ec2-175-41-154-25.ap-southeast-1.compute.amazonaws.com
