@@ -22,13 +22,21 @@ export EC2_US_OREGON=ec2-50-112-199-43.us-west-2.compute.amazonaws.com
 export EC2_US_NORTHCALIFORNIA1=ec2-184-169-233-51.us-west-1.compute.amazonaws.com
 export EC2_US_NORTHCALIFORNIA2=ec2-50-18-133-148.us-west-1.compute.amazonaws.com
 export EC2_US_NORTHCALIFORNIA3=ec2-50-18-14-51.us-west-1.compute.amazonaws.com
+export EC2_US_NORTHCALIFORNIA4=ec2-50-18-43-126.us-west-1.compute.amazonaws.com
+export EC2_US_NORTHCALIFORNIA5=ec2-184-72-23-218.us-west-1.compute.amazonaws.com
+export EC2_US_NORTHCALIFORNIA6=ec2-184-72-23-218.us-west-1.compute.amazonaws.com
 export EC2_EU1=ec2-79-125-37-63.eu-west-1.compute.amazonaws.com
 export EC2_EU2=ec2-46-51-165-88.eu-west-1.compute.amazonaws.com
 export EC2_EU3=ec2-176-34-173-115.eu-west-1.compute.amazonaws.com
 export EC2_EU4=ec2-46-137-2-36.eu-west-1.compute.amazonaws.com
+export EC2_EU5=ec2-176-34-73-193.eu-west-1.compute.amazonaws.com
+export EC2_EU6=ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE1=ec2-122-248-200-129.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE2=ec2-46-137-229-245.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_SINGAPORE3=ec2-175-41-154-25.ap-southeast-1.compute.amazonaws.com
+export EC2_ASIA_SINGAPORE4=ec2-122-248-226-204.ap-southeast-1.compute.amazonaws.com
+export EC2_ASIA_SINGAPORE5=ec2-175-41-184-40.ap-southeast-1.compute.amazonaws.com
+export EC2_ASIA_SINGAPORE6=ec2-122-248-196-57.ap-southeast-1.compute.amazonaws.com
 export EC2_ASIA_TOKYO=ec2-54-248-17-129.ap-northeast-1.compute.amazonaws.com
 
 
