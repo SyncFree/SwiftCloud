@@ -1,4 +1,4 @@
-#! /bin/sh -e
+#! /bin/bash
 
 . ./scripts/ec2-common.sh
 
@@ -7,18 +7,17 @@ if [ ! -f "$JAR" ]; then
 fi
 
 # TOPOLOGY
-DC1=$EC2_ASIA_TOKYO
-#DC2=$EC2_US_OREGON
-DCS="$DC1 $DC2"
-DC1_CLIENTS="$EC2_ASIA_SINGAPORE1 $EC2_ASIA_SINGAPORE2 $EC2_ASIA_SINGAPORE3 $EC2_ASIA_SINGAPORE4 $EC2_ASIA_SINGAPORE5 $EC2_ASIA_SINGAPORE6" # $EC2_EU1"
-DC2_CLIENTS="$EC2_US_NORTHCALIFORNIA1 $EC2_US_NORTHCALIFORNIA2 $EC2_US_NORTHCALIFORNIA3 $EC2_US_NORTHCALIFORNIA4 $EC2_US_NORTHCALIFORNIA5 $EC2_US_NORTHCALIFORNIA6" # $EC2_EU2"
-INIT_CLIENT=$EC2_ASIA_TOKYO
-CLIENTS="$DC1_CLIENTS $DC2_CLIENTS"
-MACHINES="$CLIENTS $DCS"
+DCS[0]=${EC2_TEST_EU[0]}
+DCS[1]=${EC2_TEST_EU[1]}
+DC_CLIENTS[0]="${EC2_TEST_EU[2]}"
+DC_CLIENTS[1]="${EC2_TEST_EU[3]}"
+# Use first DC to initialize global users db, to make it fast.
+INIT_DB_DC=${DCS[0]}
+MACHINES="${DCS[*]} ${DC_CLIENTS[*]}"
 
 # INPUT DATA PARAMS
-INPUT_USERS=20000
-INPUT_ACTIVE_USERS=200
+INPUT_USERS=2000
+INPUT_ACTIVE_USERS=50
 INPUT_USER_FRIENDS=25
 INPUT_USER_BIASED_OPS=9
 INPUT_USER_RANDOM_OPS=1
@@ -55,78 +54,71 @@ run_swift_client_bg() {
 	run_cmd_bg $client $CMD
 }
 
-INPUT_SITES=0
-for c in $CLIENTS; do
-	INPUT_SITES=$(($INPUT_SITES+1))
+echo "Preprocessing input parameters"
+if [ "${!DCS[*]}" != "${!DC_CLIENTS[*]}" ]; then
+	echo "Error: DCs configuration does not match clients configuration"
+	exit 1  	
+fi
+
+CLIENTS_NUMBER=0
+for c in ${DC_CLIENTS[*]}; do
+	CLIENTS_NUMBER=$(($CLIENTS_NUMBER+1))
 done
 
 echo "Generating input data - generating users db"
 mkdir -p input/
 scripts/create_users.py 0 $INPUT_USERS $FILE_USERS
 echo "Generating input data - generating commands"
-scripts/gen_commands_local.py $FILE_USERS $INPUT_USER_FRIENDS $INPUT_USER_BIASED_OPS $INPUT_USER_RANDOM_OPS $INPUT_USER_OPS_GROUPS $INPUT_SITES $INPUT_ACTIVE_USERS $FILE_CMDS_PREFIX
+scripts/gen_commands_local.py $FILE_USERS $INPUT_USER_FRIENDS $INPUT_USER_BIASED_OPS $INPUT_USER_RANDOM_OPS $INPUT_USER_OPS_GROUPS $CLIENTS_NUMBER $INPUT_ACTIVE_USERS $FILE_CMDS_PREFIX
 
 echo "killing existing servers and clients"
-for host in $MACHINES; do
-        kill_swift $host || true
-done
-
+scripts/ec2-kill.sh $MACHINES
 
 echo "deploying swift social test"
 if [ -n "$DEPLOY" ]; then
 	deploy_swift_on_many $MACHINES
-	copy_to $FILE_USERS $INIT_CLIENT users.txt
+	echo "copying database of users"
+	copy_to_bg $FILE_USERS $INIT_DB_DC users.txt
+	copy_pids="$!"
+	echo "scattering workload definitions to the clients"
 	i=0
-	for client in $CLIENTS; do
-		copy_to $FILE_CMDS_PREFIX-$i $client commands.txt
+	for client in ${DC_CLIENTS[*]}; do
+		copy_to_bg $FILE_CMDS_PREFIX-$i $client commands.txt
+		copy_pids="$copy_pids $!"
 		i=$(($i+1))
 	done
+	echo "awaiting transfers completion"
+	wait $copy_pids
 fi
 
 echo "starting sequencers and DC servers"
-./scripts/ec2-start-servers.sh $DCS
+./scripts/ec2-start-servers.sh ${DCS[*]}
 
 echo "waiting a bit before initializing database"
 sleep 10
 
 echo "initializing database"
-run_swift_client_initdb $INIT_CLIENT $DC1 users.txt
+run_swift_client_initdb $INIT_DB_DC $INIT_DB_DC users.txt
 
 echo "waiting a bit before starting real clients"
-sleep 100
+sleep 10
 
-echo "starting clients connecting to DC1"
-for client in $DC1_CLIENTS; do
-	run_swift_client_bg $client $DC1
+for i in ${!DCS[*]}; do
+	echo "starting clients connecting to DC$i"
+	for client in ${DC_CLIENTS[$i]}; do
+		run_swift_client_bg "$client" "${DCS[$i]}"
+	done	
 done
-
-echo "starting clients connecting to DC2"
-for client in $DC2_CLIENTS; do
-	run_swift_client_bg $client $DC2
-done
-
-echo "starting clients connecting to DC3"
-for client in $DC3_CLIENTS; do
-	run_swift_client_bg $client $DC3
-done
-
-echo "starting clients connecting to DC4"
-for client in $DC4_CLIENTS; do
-	run_swift_client_bg $client $DC4
-done
-
 
 echo "running ... hit enter when you think its finished"
 read dummy
 
 echo "killing servers and clients"
-for host in $MACHINES; do
-	kill_swift $host || true
-done
+scripts/ec2-kill.sh $MACHINES
 
 echo "collecting client log to result log"
 output_prefix=results/result-social-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT-$THINK_TIME_MS.log
-for client in $CLIENTS; do
+for client in ${DC_CLIENTS[*]}; do
 	copy_from $client stdout.txt $output_prefix.$client
 done
 

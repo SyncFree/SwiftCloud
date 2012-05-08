@@ -13,35 +13,16 @@ fi
 
 export EC2_IDENTITY_FILE=swiftcloud.pem
 export EC2_USER=ubuntu
-export EC2_EU_SERVER1=ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
-export EC2_EU_SERVER2=ec2-176-34-73-193.eu-west-1.compute.amazonaws.com
-export EC2_US_SERVER=ec2-50-112-46-117.us-west-2.compute.amazonaws.com
-export EC2_US_CLIENT=ec2-184-72-10-67.us-west-1.compute.amazonaws.com
 
-export EC2_US_OREGON=ec2-50-112-199-43.us-west-2.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA1=ec2-184-169-233-51.us-west-1.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA2=ec2-50-18-133-148.us-west-1.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA3=ec2-50-18-14-51.us-west-1.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA4=ec2-50-18-43-126.us-west-1.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA5=ec2-184-72-23-218.us-west-1.compute.amazonaws.com
-export EC2_US_NORTHCALIFORNIA6=ec2-184-72-23-218.us-west-1.compute.amazonaws.com
-export EC2_EU1=ec2-79-125-37-63.eu-west-1.compute.amazonaws.com
-export EC2_EU2=ec2-46-51-165-88.eu-west-1.compute.amazonaws.com
-export EC2_EU3=ec2-176-34-173-115.eu-west-1.compute.amazonaws.com
-export EC2_EU4=ec2-46-137-2-36.eu-west-1.compute.amazonaws.com
-export EC2_EU5=ec2-176-34-73-193.eu-west-1.compute.amazonaws.com
-export EC2_EU6=ec2-176-34-221-41.eu-west-1.compute.amazonaws.com
-export EC2_ASIA_SINGAPORE1=ec2-122-248-200-129.ap-southeast-1.compute.amazonaws.com
-export EC2_ASIA_SINGAPORE2=ec2-46-137-229-245.ap-southeast-1.compute.amazonaws.com
-export EC2_ASIA_SINGAPORE3=ec2-175-41-154-25.ap-southeast-1.compute.amazonaws.com
-export EC2_ASIA_SINGAPORE4=ec2-122-248-226-204.ap-southeast-1.compute.amazonaws.com
-export EC2_ASIA_SINGAPORE5=ec2-175-41-184-40.ap-southeast-1.compute.amazonaws.com
-export EC2_ASIA_SINGAPORE6=ec2-122-248-196-57.ap-southeast-1.compute.amazonaws.com
-export EC2_ASIA_TOKYO=ec2-54-248-17-129.ap-northeast-1.compute.amazonaws.com
-
+# TEST instances
+export EC2_TEST_EU=(
+ec2-176-34-82-18.eu-west-1.compute.amazonaws.com 
+ec2-46-137-37-255.eu-west-1.compute.amazonaws.com
+ec2-46-137-139-255.eu-west-1.compute.amazonaws.com
+ec2-176-34-222-247.eu-west-1.compute.amazonaws.com)
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
-export EC2_ALL="$EC2_EU1 $EC2_EU2 $EC2_EU3 $EC2_US_OREGON $EC2_US_NORTHCALIFORNIA1 $EC2_US_NORTHCALIFORNIA2 $EC2_US_NORTHCALIFORNIA3 $EC2_ASIA_TOKYO $EC2_ASIA_SINGAPORE1 $EC2_ASIA_SINGAPORE2 $EC2_ASIA_SINGAPORE3"
+export EC2_ALL="${EC2_TEST_EU[*]}"
 export JAR=swiftcloud.jar
 export PROPS=deployment_logging.properties
 export SWIFT_FILES="$JAR $PROPS"
@@ -99,6 +80,12 @@ copy_to() {
 	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
 }
 
+# copy_to_bg <local_file> <server> <remote_file>
+copy_to_bg() {
+	echo "Copying to $2 in background..."
+	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3" &
+}
+
 # copy_from <server> <remote file> <local file>
 copy_from() {
 	echo "Copying from $1..."
@@ -113,18 +100,20 @@ deploy_swift_on() {
 	copy_to stuff/$PROPS $server $PROPS	
 }
 
+# deploy_swift_to_many <server1, server2, server3... >
 deploy_swift_on_many() {
 	echo "Installing swift on: $*"
-#	primary=$1
-#	echo "Installing on primary: $primary"
-#	deploy_swift_on $primary
-#	shift
-#	rsync_cmd=""
+	primary=$1
+	echo "Installing on the primary first"
+	deploy_swift_on $primary
+	shift
+	rsync_cmd=":" # no-op
+	rsync_ec2_int="$RSYNC -e '$SSH -o StrictHostKeyChecking=no'"
 	for server in $*; do
-		deploy_swift_on $server
-#		rsync_cmd="$rsync_cmd; $primary rsync -e ssh $SWIFT_FILES $server:"
+		# deploy_swift_on $server
+		rsync_cmd="$rsync_cmd; $rsync_ec2_int $SWIFT_FILES $server:"
 	done
-#	echo "Copying from primary to other servers."
-#	run_cmd $rsync_cmd
+	echo "Copying from the primary to other servers."
+	run_cmd $primary $rsync_cmd
 }
 
