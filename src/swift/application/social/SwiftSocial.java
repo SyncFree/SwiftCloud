@@ -111,14 +111,11 @@ public class SwiftSocial {
                     }
                 } catch (NetworkException e) {
                     return true;
-                } catch (WrongTypeException e) {
-                    // should not happen
-                    e.printStackTrace();
                 } catch (NoSuchObjectException e) {
                     logger.info("User " + loginName + " is not known");
-                } catch (VersionNotFoundException e) {
+                } catch (Exception e) {
                     // should not happen
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -150,7 +147,7 @@ public class SwiftSocial {
             User newUser = registerUser(txn, loginName, passwd, fullName, birthday, date);
             logger.info("Registered user: " + newUser);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.warning(e.getMessage());
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -206,7 +203,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -240,7 +237,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -273,7 +270,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -303,7 +300,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -348,7 +345,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -385,7 +382,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -424,7 +421,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();
@@ -461,7 +458,7 @@ public class SwiftSocial {
                 } catch (NetworkException x) {
                     return true;
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    logger.warning(e.getMessage());
                 } finally {
                     if (txn != null && !txn.getStatus().isTerminated()) {
                         txn.rollback();

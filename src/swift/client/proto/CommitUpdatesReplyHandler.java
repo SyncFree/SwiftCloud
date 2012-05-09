@@ -1,6 +1,5 @@
 package swift.client.proto;
 
-import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcConnection;
 
 /**
@@ -8,6 +7,6 @@ import sys.net.api.rpc.RpcConnection;
  * 
  * @author mzawirski
  */
-public abstract class CommitUpdatesReplyHandler extends AbstractRpcHandler {
+public abstract class CommitUpdatesReplyHandler extends SilentFailRpcHandler {
     public abstract void onReceive(RpcConnection conn, CommitUpdatesReply reply);
 }
