@@ -109,7 +109,7 @@ public class RPCBenchmark {
     @Test
     public void test1000RPC() {
         final AtomicLong receivedAcks = new AtomicLong();
-        final AbstractRpcHandler countingReplyHandler = new FetchObjectVersionReplyHandler() {
+        final FetchObjectVersionReplyHandler countingReplyHandler = new FetchObjectVersionReplyHandler() {
             @Override
             public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
                 receivedAcks.incrementAndGet();
@@ -126,7 +126,6 @@ public class RPCBenchmark {
         final long duration = System.currentTimeMillis() - startTime;
         System.out.println("10000 ping RPCs executed in " + duration + "ms");
     }
-
 
     private class RpcServer implements SwiftServer {
         @Override
