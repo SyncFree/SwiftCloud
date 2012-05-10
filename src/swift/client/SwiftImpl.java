@@ -16,6 +16,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
@@ -211,6 +212,8 @@ public class SwiftImpl implements Swift, TxnManager {
             }
             notificationsSubscriberExecutor.shutdown();
             notificationsCallbacksExecutor.shutdown();
+            notificationsSubscriberExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+            notificationsCallbacksExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             // Do not wait for notifications thread, as it is hard to interrupt
             // pending notification reply.
             // if (stopGracefully) {
