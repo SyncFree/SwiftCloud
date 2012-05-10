@@ -88,6 +88,9 @@ public class SwiftMicroBenchmark implements WorkerManager {
                 startSequencer();
                 startDCServer();
             }
+            else{
+                serverLocation = args[9]; 
+            }
             outputDir = args[10];
         }
         Sys.init();
