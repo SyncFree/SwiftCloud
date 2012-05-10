@@ -3,8 +3,10 @@ package swift.application.social;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
@@ -28,74 +30,79 @@ public class SwiftSocialBenchmark {
     private static boolean subscribeUpdates;
     private static PrintStream bufferedOutput;
     private static boolean asyncCommit;
-    private static int firstSession;
-    private static int sessionsNumber;
     private static long cacheEvictionTimeMillis;
-    private static boolean inputUsernames;
     private static long thinkTime;
+    private static int concurrentSessions;
 
     public static void main(String[] args) {
-        if (args.length != 9) {
-            System.out
-                    .println("Usage: <surrogate addr> <isolationLevel> <cachePolicy> <cache time eviction ms> <subscribe updates (true|false)> <async commit (true|false)>");
-            System.out.println("       <think time ms> <input filename> <init database only (true|false)>>");
-            System.out.println("With the last option being true, input is treated as list of users to populate db.");
-            System.out.println("Without the last options, input is treated as list of sessions with commands to run.");
-            return;
-        } else {
-            dcName = args[0];
-            isolationLevel = IsolationLevel.valueOf(args[1]);
-            cachePolicy = CachePolicy.valueOf(args[2]);
-            cacheEvictionTimeMillis = Long.valueOf(args[3]);
-            subscribeUpdates = Boolean.parseBoolean(args[4]);
-            asyncCommit = Boolean.parseBoolean(args[5]);
-            thinkTime = Long.valueOf(args[6]);
-            fileName = args[7];
-            inputUsernames = Boolean.valueOf(args[8]);
+        if (args.length < 3) {
+            exitWithUsage();
         }
-        Sys.init();
+        final String command = args[0];
+        dcName = args[1];
+        fileName = args[2];
 
-        if (inputUsernames) {
+        Sys.init();
+        if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
             final SwiftImpl swiftClient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
-            final SwiftSocial socialClient = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, false, false);
+            final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
+                    CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
             swiftClient.stop(true);
             System.out.println("Finished populating db with users.");
-        } else {
+        } else if (command.equals("run") && args.length == 10) {
+            isolationLevel = IsolationLevel.valueOf(args[3]);
+            cachePolicy = CachePolicy.valueOf(args[4]);
+            cacheEvictionTimeMillis = Long.valueOf(args[5]);
+            subscribeUpdates = Boolean.parseBoolean(args[6]);
+            asyncCommit = Boolean.parseBoolean(args[7]);
+            thinkTime = Long.valueOf(args[8]);
+            concurrentSessions = Integer.valueOf(args[9]);
 
             bufferedOutput = new PrintStream(System.out, false);
             bufferedOutput.println("session_id,command,command_exec_time,time");
 
             // Read sessions from assigned range.
             final List<List<String>> sessions = readSessionsCommands(fileName, 0, Integer.MAX_VALUE);
-            final List<Thread> threads = new LinkedList<Thread>();
 
+            // Kick off all sessions, throughput is limited by
+            // concurrentSessions.
+            final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions);
             System.err.println("Spawning session threads.");
-            // Kick off all sessions.
             for (int i = 0; i < sessions.size(); i++) {
                 final int sessionId = i;
                 final List<String> commands = sessions.get(i);
-                final Thread sessionThread = new Thread() {
+                sessionsExecutor.execute(new Runnable() {
                     public void run() {
                         runClientSession(sessionId, commands);
                     }
-                };
-                sessionThread.start();
-                threads.add(sessionThread);
+                });
             }
 
             // Wait for all sessions.
-            for (final Thread thread : threads) {
-                try {
-                    thread.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+            try {
+                sessionsExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
             System.err.println("Session threads completed.");
+        } else {
+            exitWithUsage();
         }
         System.exit(0);
+    }
+
+    private static void exitWithUsage() {
+        System.out.println("Usage 1: init <surrogate addr> <users filename>");
+        System.out.println("With the last option being true, input is treated as list of users to populate db.");
+        System.out.println("Without the last options, input is treated as list of sessions with commands to run.");
+        System.out
+                .println("Usage 2: run <surrogate addr> <commands filename> <isolation level> <cache policy> <cache time eviction ms> <subscribe updates (true|false)> <async commit (true|false)>");
+        System.out.println("         <think time ms> <concurrent sessions>");
+        System.out.println("With the last option being true, input is treated as list of users to populate db.");
+        System.out.println("Without the last options, input is treated as list of sessions with commands to run.");
+        System.exit(1);
     }
 
     private static void runClientSession(final int sessionId, final List<String> commands) {

@@ -32,6 +32,7 @@ CACHING=STRICTLY_MOST_RECENT
 CACHE_EVICTION_TIME_MS=120000
 ASYNC_COMMIT=true
 THINK_TIME_MS=0
+CONCURRENT_SESSIONS_PER_JVM=100
 
 # DEPLOY STUFF?
 DEPLOY=true
@@ -41,7 +42,7 @@ run_swift_client_initdb() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS users.txt true
+	swift_app_cmd swift.application.social.SwiftSocialBenchmark init $server users.txt
 	run_cmd $client $CMD
 }
 
@@ -50,7 +51,7 @@ run_swift_client_bg() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd_nostdout swift.application.social.SwiftSocialBenchmark $server $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS commands.txt false
+	swift_app_cmd_nostdout swift.application.social.SwiftSocialBenchmark run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $CONCURRENT_SESSIONS_PER_JVM
 	run_cmd_bg $client $CMD
 }
 
