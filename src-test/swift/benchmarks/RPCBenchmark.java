@@ -37,7 +37,7 @@ import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.AbstractRpcHandler;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcMessage;
 
@@ -111,7 +111,7 @@ public class RPCBenchmark {
         final AtomicLong receivedAcks = new AtomicLong();
         final FetchObjectVersionReplyHandler countingReplyHandler = new FetchObjectVersionReplyHandler() {
             @Override
-            public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+            public void onReceive(RpcHandle conn, FetchObjectVersionReply reply) {
                 receivedAcks.incrementAndGet();
             }
         };
@@ -129,25 +129,25 @@ public class RPCBenchmark {
 
     private class RpcServer implements SwiftServer {
         @Override
-        public void onReceive(RpcConnection conn, FetchObjectVersionRequest request) {
+        public void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
             conn.reply(new FetchObjectVersionReply(FetchStatus.OK, integer, causalityClock1, emptyClock,
                     causalityClock1));
         }
 
         @Override
-        public void onReceive(RpcConnection conn, GenerateTimestampRequest request) {
+        public void onReceive(RpcHandle conn, GenerateTimestampRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, KeepaliveRequest request) {
+        public void onReceive(RpcHandle conn, KeepaliveRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, LatestKnownClockRequest request) {
+        public void onReceive(RpcHandle conn, LatestKnownClockRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, SeqCommitUpdatesRequest request) {
+        public void onReceive(RpcHandle conn, SeqCommitUpdatesRequest request) {
         }
 
         @Override
@@ -155,35 +155,31 @@ public class RPCBenchmark {
         }
 
         @Override
-        public void onFailure() {
+        public void onFailure(RpcHandle h) {
         }
 
         @Override
-        public void onFailure(Endpoint dst, RpcMessage m) {
+        public void onReceive(RpcHandle conn, FetchObjectDeltaRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, FetchObjectDeltaRequest request) {
+        public void onReceive(RpcHandle conn, UnsubscribeUpdatesRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, UnsubscribeUpdatesRequest request) {
+        public void onReceive(RpcHandle conn, RecentUpdatesRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, RecentUpdatesRequest request) {
+        public void onReceive(RpcHandle conn, FastRecentUpdatesRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, FastRecentUpdatesRequest request) {
+        public void onReceive(RpcHandle conn, CommitUpdatesRequest request) {
         }
 
         @Override
-        public void onReceive(RpcConnection conn, CommitUpdatesRequest request) {
-        }
-
-        @Override
-        public void onReceive(RpcConnection conn, RpcMessage m) {
+        public void onReceive(RpcHandle conn, RpcMessage m) {
         }
     }
 
@@ -198,7 +194,7 @@ public class RPCBenchmark {
     // }
     //
     // @Override
-    // public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    // public void deliverTo(RpcHandle conn, RpcHandler handler) {
     // handler.onReceive(conn, this);
     // }
     // }
@@ -214,7 +210,7 @@ public class RPCBenchmark {
     // }
     //
     // @Override
-    // public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    // public void deliverTo(RpcHandle conn, RpcHandler handler) {
     // handler.onReceive(this);
     // }
     // }

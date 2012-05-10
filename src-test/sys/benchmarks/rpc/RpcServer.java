@@ -1,9 +1,9 @@
-package swift.benchmarks.rpc;
+package sys.benchmarks.rpc;
 
 import sys.Sys;
 import sys.net.api.Networking;
-import sys.net.api.rpc.RpcConnection;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 
 public class RpcServer extends Handler {
 
@@ -11,15 +11,15 @@ public class RpcServer extends Handler {
 
     RpcEndpoint endpoint;
 
-    RpcServer(RpcEndpoint e) {
-        endpoint = e;
-        endpoint.setHandler(this);
+    RpcServer() {
+        endpoint = Networking.Networking.rpcBind(PORT, this);
         System.out.println("Server ready...");
     }
-
+    
     @Override
-    public void onReceive(final RpcConnection conn, final Request req) {
-        conn.reply(new Reply( req.val ));
+    public void onReceive(final RpcHandle handle, final Request req) {
+//    	System.err.println("Server: " + req );
+        handle.reply(new Reply( req.val, req.timestamp ));
     }
 
     /*
@@ -28,9 +28,8 @@ public class RpcServer extends Handler {
     public static void main(final String[] args) {
 
         Sys.init();
-
         KryoSerialization.init();
 
-        new RpcServer(Networking.Networking.rpcBind(PORT, null));
+        new RpcServer();
     }
 }

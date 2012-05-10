@@ -56,6 +56,7 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -104,20 +105,20 @@ public class SwiftImplTest extends EasyMockSupport {
                 isA(LatestKnownClockReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+            public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 ((LatestKnownClockReplyHandler) replyHandler).onReceive(null, new LatestKnownClockReply(serverClock));
-                return true;
+                return null;
             }
         });
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(FetchObjectVersionRequest.class),
                 isA(FetchObjectVersionReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+            public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FetchObjectVersionReply fetchReply = new FetchObjectVersionReply(FetchStatus.OBJECT_NOT_FOUND,
                         null, serverClock, ClockFactory.newClock(), serverClock);
                 ((FetchObjectVersionReplyHandler) replyHandler).onReceive(null, fetchReply);
-                return true;
+                return null;
             }
         });
         final Timestamp txn1Timestamp = serverTimestampGen.generateNew();
@@ -125,14 +126,14 @@ public class SwiftImplTest extends EasyMockSupport {
                 isA(GenerateTimestampReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+            public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final GenerateTimestampRequest request = (GenerateTimestampRequest) m;
                 assertFalse(request.getClientId().isEmpty());
                 assertNull(request.getPreviousTimestamp());
                 assertEquals(CMP_CLOCK.CMP_EQUALS, ClockFactory.newClock().compareTo(request.getDominatedClock()));
                 ((GenerateTimestampReplyHandler) replyHandler).onReceive(null, new GenerateTimestampReply(
                         txn1Timestamp, 1000));
-                return true;
+                return null;
             }
         });
 
@@ -140,7 +141,7 @@ public class SwiftImplTest extends EasyMockSupport {
                 isA(CommitUpdatesReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+            public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final CommitUpdatesRequest request = (CommitUpdatesRequest) m;
                 assertFalse(request.getClientId().isEmpty());
                 assertEquals(txn1Timestamp, request.getBaseTimestamp());
@@ -150,7 +151,7 @@ public class SwiftImplTest extends EasyMockSupport {
 
                 ((CommitUpdatesReplyHandler) replyHandler).onReceive(null, new CommitUpdatesReply(
                         CommitStatus.COMMITTED, request.getBaseTimestamp()));
-                return true;
+                return null;
             }
         });
 
@@ -158,7 +159,7 @@ public class SwiftImplTest extends EasyMockSupport {
                 isA(FastRecentUpdatesReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
-            public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+            public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FastRecentUpdatesRequest request = (FastRecentUpdatesRequest) m;
                 assertFalse(request.getClientId().isEmpty());
                 assertTrue(request.getMaxBlockingTimeMillis() > 0
@@ -168,7 +169,7 @@ public class SwiftImplTest extends EasyMockSupport {
                         null,
                         new FastRecentUpdatesReply(SubscriptionStatus.ACTIVE, Collections
                                 .<ObjectSubscriptionInfo> emptyList(), ClockFactory.newClock()));
-                return true;
+                return null;
             }
         }).anyTimes();
         replayAll();
@@ -223,18 +224,18 @@ public class SwiftImplTest extends EasyMockSupport {
         }
 
         @Override
-        public boolean send(Endpoint dst, RpcMessage m) {
-            return false;
+        public RpcHandle send(Endpoint dst, RpcMessage m) {
+            return null;
         }
 
         @Override
-        public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
-            return false;
+        public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
+            return null;
         }
 
         @Override
-        public boolean send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
-            return false;
+        public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+            return null;
         }
 
         @Override
