@@ -1,6 +1,6 @@
 package sys.dht.catadupa.msgs;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.dht.catadupa.MembershipUpdate;
@@ -20,7 +20,7 @@ public class CatadupaCastPayload implements RpcMessage {
 		this.timestamp = ts;
 	}
 
-	public void deliverTo(RpcConnection call, RpcHandler handler) {
+	public void deliverTo(RpcHandle call, RpcHandler handler) {
 		((CatadupaHandler) handler).onReceive(call, this);
 	}
 }

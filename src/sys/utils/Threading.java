@@ -52,7 +52,8 @@ public class Threading {
 
 	static public void waitOn(Object o, int ms) {
 		try {
-			o.wait(ms);
+			if( ms > 0 )
+				o.wait(ms);
 		} catch (InterruptedException x) {
 			x.printStackTrace();
 		}
@@ -77,7 +78,7 @@ public class Threading {
 	}
 
 	static public void synchronizedWaitOn(Object o, int ms) {
-		synchronized (o) {
+	    synchronized (o) {
 			try {
 				o.wait(ms);
 			} catch (InterruptedException x) {
@@ -106,6 +107,7 @@ public class Threading {
 	 * @return
 	 */
 	synchronized static public Object lockFor(Object o) {
+
 		Object res = locks.get(o);
 		if (res == null) {
 			res = o;

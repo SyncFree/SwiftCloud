@@ -7,7 +7,7 @@ package sys.net.api;
  * @author smd
  * 
  */
-public interface TcpConnection {
+public interface TransportConnection {
 
 	/**
 	 * Obtains the state of the connection. Connections may fail to be

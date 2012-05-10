@@ -89,11 +89,6 @@ public interface DHT {
 		boolean failed();
 
 		/**
-		 * Optional method to dispose of a connection
-		 */
-		void dispose();
-
-		/**
 		 * Obtains the remote endpoint of this connection
 		 * 
 		 * @return the remote endpoint of this connection

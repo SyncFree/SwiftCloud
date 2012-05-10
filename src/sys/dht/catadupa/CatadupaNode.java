@@ -18,8 +18,7 @@ import sys.dht.catadupa.msgs.DbMergeRequest;
 import sys.dht.catadupa.msgs.JoinRequest;
 import sys.dht.catadupa.msgs.JoinRequestAccept;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
-import sys.net.api.rpc.RpcMessage;
+import sys.net.api.rpc.RpcHandle;
 import sys.scheduler.PeriodicTask;
 import sys.scheduler.Task;
 
@@ -85,7 +84,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 						}
 
 						@Override
-						public void onFailure() {
+						public void onFailure( RpcHandle handle ) {
 							backoff = Math.min(5, backoff * 1.5);
 							reSchedule(backoff);
 						}
@@ -97,9 +96,9 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	}
 
 	@Override
-	synchronized public void onReceive(RpcConnection conn, JoinRequest m) {
+	synchronized public void onReceive(RpcHandle handle, JoinRequest m) {
 		joins.add(m.node);
-		conn.reply(new JoinRequestAccept());
+		handle.reply(new JoinRequestAccept());
 		if (!sequencerTask.isScheduled())
 			sequencerTask.reSchedule(Config.SEQUENCER_BROADCAST_PERIOD + Sys.rg.nextDouble());
 	}
@@ -129,13 +128,13 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 		Log.finest("Broacasting:" + m + "-->" + ts);
 
 		CatadupaCastPayload ccp = new CatadupaCastPayload(m, ts);
-		onReceive((RpcConnection) null, new CatadupaCast(0, self.key, new Range(), ccp));
+		onReceive((RpcHandle) null, new CatadupaCast(0, self.key, new Range(), ccp));
 	}
 
 	// --------------------------------------------------------------------------------------------------------------------------------
 	// Broadcast a membership aggregate event.
 	@Override
-	synchronized public void onReceive(RpcConnection sock, final CatadupaCast m) {
+	synchronized public void onReceive(RpcHandle sock, final CatadupaCast m) {
 
 		final int BroadcastFanout = broadcastFanout(m.level);
 
@@ -152,7 +151,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 					if (i.key == m.rootKey)
 						continue;
 
-					if (rpc.send(i.endpoint, new CatadupaCast(m.level + 1, m.rootKey, j, m.payload)))
+					if (rpc.send(i.endpoint, new CatadupaCast(m.level + 1, m.rootKey, j, m.payload)).succeeded())
 						break;
 				}
 			}
@@ -187,7 +186,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	 * being announced in the payload. Updates the node membership database.
 	 */
 	@Override
-	synchronized public void onReceive(RpcConnection call, CatadupaCastPayload m) {
+	synchronized public void onReceive(RpcHandle call, CatadupaCastPayload m) {
 		Log.finest(self.key + "  " + m.data);
 		db.merge(m);
 	}
@@ -213,13 +212,13 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 					rpc.send(other.endpoint, new DbMergeRequest(db.clock()), new CatadupaHandler() {
 
 						@Override
-						public void onFailure() {
+						public void onFailure( RpcHandle handle) {
 							backoff = Math.min(5, backoff * 1.5);
 							reSchedule(backoff);
 						}
 
 						@Override
-						public void onReceive(final RpcConnection conn, final DbMergeReply r) {
+						public void onReceive(final RpcHandle handle, final DbMergeReply r) {
 							backoff = 0.1;
 
 							Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + r.clock);
@@ -227,7 +226,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 							db.merge(r);
 							Collection<? extends Timestamp> ts = db.clock().delta(r.clock);
-							conn.reply(new DbMergeReply(db.clock(), db.membership.subSet(ts)));
+							handle.reply(new DbMergeReply(db.clock(), db.membership.subSet(ts)));
 
 							mergePeriod = Math.min(45, Math.max(10, mergePeriod));
 							reSchedule(mergePeriod + Sys.rg.nextDouble());
@@ -240,7 +239,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	}
 
 	@Override
-	synchronized public void onReceive(RpcConnection conn, DbMergeRequest other) {
+	synchronized public void onReceive( RpcHandle handle, DbMergeRequest other) {
 
 		Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + other.clock);
 		Log.finest("---DB--->" + db.membership);
@@ -252,7 +251,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 		Log.finest("Delta:" + delta);
 
-		conn.reply(new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
+		handle.reply(new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
 
 			@Override
 			public void onReceive(DbMergeReply r) {
@@ -275,10 +274,11 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	 * Handle node failure events...
 	 */
 	@Override
-	public void onFailure(Endpoint dst, RpcMessage m) {
-		if (dst != endpoint) {
+	public void onFailure( RpcHandle handle) {
+		Endpoint remote = handle.remoteEndpoint();
+		if ( remote != endpoint) {
 
-			Node failedNode = new Node(dst);
+			Node failedNode = new Node( remote );
 
 			Log.finest("Failed Node:" + failedNode);
 			// if (state.db.loadedEndpoints) {

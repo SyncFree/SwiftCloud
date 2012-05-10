@@ -7,7 +7,7 @@ import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 
 public class DHT_ClientStub implements DHT {
@@ -47,12 +47,12 @@ public class DHT_ClientStub implements DHT {
 		}
 
 		@Override
-		public void onFailure() {
+		public void onFailure( RpcHandle handle ) {
 			Thread.dumpStack();
 		}
 
 		@Override
-		public void onReceive(final RpcConnection conn, final DHT_RequestReply reply) {
+		public void onReceive(final RpcHandle conn, final DHT_RequestReply reply) {
 			DHT_PendingReply prh = DHT_PendingReply.getHandler(reply.handlerId);
 			if (prh != null) {
 				reply.payload.deliverTo(new DHT_ConnectionImpl(conn, reply.replyHandlerId), prh.handler);

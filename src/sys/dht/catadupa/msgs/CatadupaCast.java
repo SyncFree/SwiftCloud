@@ -1,6 +1,6 @@
 package sys.dht.catadupa.msgs;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.dht.catadupa.Range;
@@ -22,7 +22,7 @@ public class CatadupaCast implements RpcMessage {
 		this.range = range.clone();
 	}
 
-	public void deliverTo(RpcConnection call, RpcHandler handler) {
-		((CatadupaHandler) handler).onReceive(call, this);
+	public void deliverTo(RpcHandle handle, RpcHandler handler) {
+		((CatadupaHandler) handler).onReceive(handle, this);
 	}
 }

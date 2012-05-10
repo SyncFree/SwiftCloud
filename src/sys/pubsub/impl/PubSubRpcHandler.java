@@ -1,7 +1,6 @@
 package sys.pubsub.impl;
 
-import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -13,26 +12,20 @@ public class PubSubRpcHandler implements RpcHandler {
     }
 
     @Override
-    public void onReceive(RpcConnection conn, RpcMessage m) {
+    public void onFailure( RpcHandle handle ) {
         Thread.dumpStack();
     }
 
     @Override
-    public void onFailure() {
+    public void onReceive(RpcHandle conn, RpcMessage m) {
         Thread.dumpStack();
     }
 
-    @Override
-    public void onFailure(Endpoint dst, RpcMessage m) {
+    public void onReceive(RpcHandle conn, PubSubAck m) {
         Thread.dumpStack();
     }
 
-    public void onReceive(RpcConnection conn, PubSubAck m) {
+    public void onReceive(RpcHandle conn, PubSubNotification m) {
         Thread.dumpStack();
     }
-
-    public void onReceive(RpcConnection conn, PubSubNotification m) {
-        Thread.dumpStack();
-    }
-
 }

@@ -19,14 +19,19 @@ public class Sys {
 	public long uploadedBytes = 1;
 	public long downloadedBytes = 1;
 
-	private double T0;
 
 	private String datacenter = "*";
 	
 	public double currentTime() {
-		return (System.nanoTime() - T0) * NANOSECOND;
+		return (System.nanoTime() - T0n) * NANOSECOND;
 	}
+	private double T0n = System.nanoTime();
 
+	public long timeMillis() {
+		return System.currentTimeMillis() - T0m; 
+	}
+	private long T0m = System.currentTimeMillis();
+	
 	protected Sys() {
 		Sys = this;
 		initInstance();
@@ -34,7 +39,6 @@ public class Sys {
 
 	protected void initInstance() {
 		rg = new Random(1L);
-		T0 = System.nanoTime();
 		scheduler = new TaskScheduler();
 		scheduler.start();
 		NetworkingImpl.init();

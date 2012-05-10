@@ -23,7 +23,7 @@ public interface Endpoint {
 	 * @return an object representing the connection to the endpoint, allowing
 	 *         for message exchange.
 	 */
-	TcpConnection connect(final Endpoint dst);
+	TransportConnection connect(final Endpoint dst);
 
 	/**
 	 * Sends a message to a remote endpoint, after successfully establishing a
@@ -36,7 +36,7 @@ public interface Endpoint {
 	 * @return an object representing the connection to the endpoint, allowing
 	 *         for further message exchange.
 	 */
-	TcpConnection send(final Endpoint dst, final Message m);
+	TransportConnection send(final Endpoint dst, final Message m);
 
 	/**
 	 * Sets the handler for incoming messages

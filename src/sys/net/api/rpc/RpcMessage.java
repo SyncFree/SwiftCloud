@@ -9,6 +9,6 @@ package sys.net.api.rpc;
  */
 public interface RpcMessage {
 
-	void deliverTo(final RpcConnection conn, final RpcHandler handler);
+	void deliverTo(final RpcHandle handle, final RpcHandler handler);
 
 }

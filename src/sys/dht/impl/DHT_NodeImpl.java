@@ -14,7 +14,7 @@ import sys.dht.impl.msgs.DHT_ReplyReply;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.pubsub.impl.PubSubService;
 
@@ -117,7 +117,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 		}
 
 		@Override
-		public void onReceive(RpcConnection conn, DHT_Request req) {
+		public void onReceive(RpcHandle conn, DHT_Request req) {
 			Node nextHop = resolve(req.key);
 			if (nextHop != null && nextHop.key != self.key) {
 				myEndpoint.send(nextHop.endpoint, req);
@@ -127,7 +127,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 		}
 
 		@Override
-		public void onReceive(RpcConnection conn, DHT_RequestReply reply) {
+		public void onReceive(RpcHandle conn, DHT_RequestReply reply) {
 			DHT_PendingReply prh = DHT_PendingReply.getHandler(reply.handlerId);
 			if (prh != null) {
 				reply.payload.deliverTo(new DHT_ConnectionImpl(conn, reply.replyHandlerId), prh.handler);
@@ -137,7 +137,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 		}
 
 		@Override
-		public void onReceive(RpcConnection conn, DHT_ReplyReply reply) {
+		public void onReceive(RpcHandle conn, DHT_ReplyReply reply) {
 			DHT_PendingReply prh = DHT_PendingReply.getHandler(reply.handlerId);
 			if (prh != null) {
 				reply.payload.deliverTo(new DHT_ConnectionImpl(conn, reply.replyHandlerId), prh.handler);

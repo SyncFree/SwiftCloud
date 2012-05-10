@@ -2,7 +2,7 @@ package sys.dht.catadupa.msgs;
 
 import java.util.Map;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -37,9 +37,9 @@ public class DbMergeReply implements RpcMessage {
 		return res;
 	}
 	
-	public void deliverTo( RpcConnection conn, RpcHandler handler) {		
-		if( conn.expectingReply() )
-			((CatadupaHandler) handler).onReceive( conn, this ) ;			
+	public void deliverTo( RpcHandle handle, RpcHandler handler) {		
+		if( handle.expectingReply() )
+			((CatadupaHandler) handler).onReceive( handle, this ) ;			
 		else
 			((CatadupaHandler) handler).onReceive( this ) ;
 	}

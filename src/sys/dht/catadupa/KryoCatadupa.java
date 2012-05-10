@@ -1,7 +1,5 @@
 package sys.dht.catadupa;
 
-import static sys.net.api.Networking.Networking;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -15,7 +13,7 @@ import sys.dht.catadupa.msgs.DbMergeReply;
 import sys.dht.catadupa.msgs.DbMergeRequest;
 import sys.dht.catadupa.msgs.JoinRequest;
 import sys.dht.catadupa.msgs.JoinRequestAccept;
-import sys.net.impl.KryoSerializer;
+import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.serialize.CollectionSerializer;
@@ -35,32 +33,31 @@ public class KryoCatadupa {
 
 	public static void init() {
 
-		Kryo kryo = ((KryoSerializer) Networking.serializer()).kryo();
 
-		kryo.register(Map.class, new MapSerializer(kryo));
-		kryo.register(HashMap.class, new MapSerializer(kryo));
-		kryo.register(ArrayList.class, new CollectionSerializer(kryo));
-		kryo.register(LinkedHashMap.class, new MapSerializer(kryo));
+//		kryo.register(Map.class, new MapSerializer(kryo));
+//		kryo.register(HashMap.class, new MapSerializer(kryo));
+//		kryo.register(ArrayList.class, new CollectionSerializer(kryo));
+//		kryo.register(LinkedHashMap.class, new MapSerializer(kryo));
 
-		kryo.register(Node.class);
-		kryo.register(Node[].class);
+		KryoLib.register(Node.class);
+		KryoLib.register(Node[].class);
 
-		kryo.register(LVV.class);
-		kryo.register(LVV.TS.class);
-		kryo.register(LVV.TsSet.class);
+		KryoLib.register(LVV.class);
+		KryoLib.register(LVV.TS.class);
+		KryoLib.register(LVV.TsSet.class);
 
-		kryo.register(Range.class);
+		KryoLib.register(Range.class);
 
-		kryo.register(JoinRequest.class);
-		kryo.register(JoinRequestAccept.class);
+		KryoLib.register(JoinRequest.class);
+		KryoLib.register(JoinRequestAccept.class);
 
-		kryo.register(CatadupaCast.class);
-		kryo.register(CatadupaCastPayload.class);
-		kryo.register(DbMergeReply.class);
-		kryo.register(DbMergeRequest.class);
-		kryo.register(MembershipUpdate.class);
-		kryo.register(ORSet.class);
-		kryo.register(JoinRequest.class);
+		KryoLib.register(CatadupaCast.class);
+		KryoLib.register(CatadupaCastPayload.class);
+		KryoLib.register(DbMergeReply.class);
+		KryoLib.register(DbMergeRequest.class);
+		KryoLib.register(MembershipUpdate.class);
+		KryoLib.register(ORSet.class);
+		KryoLib.register(JoinRequest.class);
 
 	}
 }

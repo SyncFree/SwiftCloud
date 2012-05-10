@@ -1,6 +1,5 @@
 package sys.net.api.rpc;
 
-import sys.net.api.Endpoint;
 
 /**
  * 
@@ -12,10 +11,17 @@ public interface RpcHandler {
 
 	void onReceive(final RpcMessage m);
 
-	void onReceive(final RpcConnection conn, final RpcMessage m);
+	void onReceive(final RpcHandle handle, final RpcMessage m);
 
-	void onFailure();
+	void onFailure( final RpcHandle handle );
 
-	void onFailure(final Endpoint dst, final RpcMessage m);
+	static public final RpcHandler NONE = new RpcHandler() {
 
+		public void onReceive(final RpcMessage m) {}
+
+		public void onFailure( final RpcHandle handle ) {}
+
+		public void onReceive(final RpcHandle handle, final RpcMessage m) {}
+
+	};
 }

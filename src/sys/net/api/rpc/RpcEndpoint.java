@@ -27,9 +27,9 @@ public interface RpcEndpoint {
 	 *            the destination of the invocation message
 	 * @param m
 	 *            the message being sent
-	 * @return true/false if the message was sent successfully or otherwise
+	 * @return the handle associated for the message
 	 */
-	boolean send(final Endpoint dst, final RpcMessage m);
+	RpcHandle send(final Endpoint dst, final RpcMessage m);
 
 	/**
 	 * Allows sending an invocation message to a (listening) destination
@@ -41,9 +41,9 @@ public interface RpcEndpoint {
 	 *            the message being sent
 	 * @param replyHandler
 	 *            - the handler for processing the reply message
-	 * @return true/false if the message was sent successfully or otherwise
+	 * @return the handle associated for the message
 	 */
-	boolean send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler);
+	RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler);
 
 	/**
 	 * Allows sending an invocation message to a (listening) destination
@@ -59,9 +59,9 @@ public interface RpcEndpoint {
 	 * @param timout
 	 *            - number of milliseconds to wait for the reply. <= 0 returns
 	 *            immediately.
-	 * @return true/false if the message was sent successfully or otherwise
+	 * @return the handle associated for the message
 	 */
-	boolean send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler, int timeout);
+	RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler, int timeout);
 
 	/**
 	 * Allows setting the handler responsible for processing incoming invocation

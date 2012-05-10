@@ -22,6 +22,6 @@ public interface Message {
 	 * @param handler
 	 *            The handler the message should be delivered to.
 	 */
-	void deliverTo(final TcpConnection conn, final MessageHandler handler);
+	void deliverTo(final TransportConnection conn, final MessageHandler handler);
 
 }
