@@ -1,7 +1,7 @@
 package swift.dc.proto;
 
 import sys.net.api.rpc.AbstractRpcHandler;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 
 /**
  * RPC handler for {@link SeqCommitUpdatesReply}.
@@ -9,5 +9,5 @@ import sys.net.api.rpc.RpcConnection;
  * @author pregucia
  */
 public abstract class SeqCommitUpdatesReplyHandler extends AbstractRpcHandler {
-    public abstract void onReceive(RpcConnection conn, SeqCommitUpdatesReply reply);
+    public abstract void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply);
 }

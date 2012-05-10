@@ -1,7 +1,7 @@
 package swift.dc.proto;
 
 import swift.client.proto.BaseServer;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
@@ -18,6 +18,6 @@ public interface  SequencerServer extends BaseServer {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, CommitTSRequest request);
+    void onReceive(RpcHandle conn, CommitTSRequest request);
 
 }

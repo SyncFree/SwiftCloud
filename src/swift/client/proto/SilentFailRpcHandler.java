@@ -2,8 +2,7 @@ package swift.client.proto;
 
 import java.util.logging.Logger;
 
-import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -16,15 +15,12 @@ public class SilentFailRpcHandler implements RpcHandler {
     }
 
     @Override
-    public void onReceive(RpcConnection conn, RpcMessage m) {
+    public void onReceive(RpcHandle handle, RpcMessage m) {
         logger.warning("unhandled RPC message " + m);
     }
 
     @Override
-    public void onFailure() {
+    public void onFailure( RpcHandle h) {
     }
 
-    @Override
-    public void onFailure(Endpoint dst, RpcMessage m) {
-    }
 }

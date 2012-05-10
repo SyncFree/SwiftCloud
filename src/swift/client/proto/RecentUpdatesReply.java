@@ -6,7 +6,7 @@ import java.util.Map;
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -113,7 +113,7 @@ public class RecentUpdatesReply implements RpcMessage {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((RecentUpdatesReplyHandler) handler).onReceive(conn, this);
     }
 }

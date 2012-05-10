@@ -2,7 +2,7 @@ package swift.client.proto;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
@@ -47,7 +47,7 @@ public class KeepaliveRequest extends ClientRequest {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((BaseServer) handler).onReceive(conn, this);
     }
 }

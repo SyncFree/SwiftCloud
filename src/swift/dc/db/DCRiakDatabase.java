@@ -6,18 +6,15 @@ import java.io.IOException;
 import java.util.Properties;
 
 import com.basho.riak.client.IRiakObject;
-import com.basho.riak.client.RiakException;
 import com.basho.riak.client.builders.RiakObjectBuilder;
 import com.basho.riak.client.raw.RawClient;
 import com.basho.riak.client.raw.RiakResponse;
-import com.basho.riak.client.raw.StoreMeta;
 import com.basho.riak.client.raw.pbc.PBClientAdapter;
 import com.basho.riak.pbc.RiakClient;
 
 import swift.crdt.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
-import sys.net.impl.KryoSerializer;
 
 public class DCRiakDatabase implements DCNodeDatabase {
     String url;

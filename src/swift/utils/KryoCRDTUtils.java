@@ -44,7 +44,7 @@ import swift.dc.proto.DHTExecCRDTReply;
 import swift.dc.proto.DHTGetCRDT;
 import swift.dc.proto.DHTGetCRDTReply;
 import swift.dc.proto.DHTSendNotification;
-import sys.net.impl.KryoSerializer;
+import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
 
@@ -58,61 +58,60 @@ public class KryoCRDTUtils {
      * Needs to be called exactly only once per JVM!
      */
     public static void init() {
-        final Kryo kryo = ((KryoSerializer) Networking.serializer()).kryo();
 
-        kryo.register(ClientRequest.class);
-        kryo.register(CommitUpdatesRequest.class);
-        kryo.register(CommitUpdatesReply.class);
-        kryo.register(CommitUpdatesReply.CommitStatus.class);
-        kryo.register(FastRecentUpdatesRequest.class);
-        kryo.register(FastRecentUpdatesReply.class);
-        kryo.register(FastRecentUpdatesReply.ObjectSubscriptionInfo.class);
-        kryo.register(FetchObjectDeltaRequest.class);
-        kryo.register(FetchObjectVersionRequest.class);
-        kryo.register(FetchObjectVersionReply.class);
-        kryo.register(FetchObjectVersionReply.FetchStatus.class);
-        kryo.register(GenerateTimestampRequest.class);
-        kryo.register(GenerateTimestampReply.class);
-        kryo.register(KeepaliveRequest.class);
-        kryo.register(KeepaliveReply.class);
-        kryo.register(LatestKnownClockRequest.class);
-        kryo.register(LatestKnownClockReply.class);
-        kryo.register(RecentUpdatesRequest.class);
-        kryo.register(RecentUpdatesReply.class);
-        kryo.register(SubscriptionType.class);
-        kryo.register(UnsubscribeUpdatesRequest.class);
+        KryoLib.register(ClientRequest.class);
+        KryoLib.register(CommitUpdatesRequest.class);
+        KryoLib.register(CommitUpdatesReply.class);
+        KryoLib.register(CommitUpdatesReply.CommitStatus.class);
+        KryoLib.register(FastRecentUpdatesRequest.class);
+        KryoLib.register(FastRecentUpdatesReply.class);
+        KryoLib.register(FastRecentUpdatesReply.ObjectSubscriptionInfo.class);
+        KryoLib.register(FetchObjectDeltaRequest.class);
+        KryoLib.register(FetchObjectVersionRequest.class);
+        KryoLib.register(FetchObjectVersionReply.class);
+        KryoLib.register(FetchObjectVersionReply.FetchStatus.class);
+        KryoLib.register(GenerateTimestampRequest.class);
+        KryoLib.register(GenerateTimestampReply.class);
+        KryoLib.register(KeepaliveRequest.class);
+        KryoLib.register(KeepaliveReply.class);
+        KryoLib.register(LatestKnownClockRequest.class);
+        KryoLib.register(LatestKnownClockReply.class);
+        KryoLib.register(RecentUpdatesRequest.class);
+        KryoLib.register(RecentUpdatesReply.class);
+        KryoLib.register(SubscriptionType.class);
+        KryoLib.register(UnsubscribeUpdatesRequest.class);
 
-        kryo.register(Timestamp.class);
-        kryo.register(TripleTimestamp.class);
-        kryo.register(VersionVectorWithExceptions.class);
-        kryo.register(VersionVectorWithExceptions.Pair.class);
+        KryoLib.register(Timestamp.class);
+        KryoLib.register(TripleTimestamp.class);
+        KryoLib.register(VersionVectorWithExceptions.class);
+        KryoLib.register(VersionVectorWithExceptions.Pair.class);
 
-        kryo.register(CRDTIdentifier.class);
-        kryo.register(BaseCRDT.class);
-        kryo.register(IntegerVersioned.class);
-        kryo.register(IntegerVersioned.UpdatesPerSite.class);
-        kryo.register(RegisterVersioned.class);
-        kryo.register(RegisterVersioned.QueueEntry.class);
-        kryo.register(SetIds.class);
-        kryo.register(SetIntegers.class);
-        kryo.register(SetMsg.class);
-        kryo.register(SetStrings.class);
-        kryo.register(SetVersioned.class);
+        KryoLib.register(CRDTIdentifier.class);
+        KryoLib.register(BaseCRDT.class);
+        KryoLib.register(IntegerVersioned.class);
+        KryoLib.register(IntegerVersioned.UpdatesPerSite.class);
+        KryoLib.register(RegisterVersioned.class);
+        KryoLib.register(RegisterVersioned.QueueEntry.class);
+        KryoLib.register(SetIds.class);
+        KryoLib.register(SetIntegers.class);
+        KryoLib.register(SetMsg.class);
+        KryoLib.register(SetStrings.class);
+        KryoLib.register(SetVersioned.class);
 
-        kryo.register(CRDTObjectOperationsGroup.class);
-        kryo.register(BaseOperation.class);
-        kryo.register(IntegerUpdate.class);
-        kryo.register(RegisterUpdate.class);
-        kryo.register(SetInsert.class);
-        kryo.register(SetRemove.class);
+        KryoLib.register(CRDTObjectOperationsGroup.class);
+        KryoLib.register(BaseOperation.class);
+        KryoLib.register(IntegerUpdate.class);
+        KryoLib.register(RegisterUpdate.class);
+        KryoLib.register(SetInsert.class);
+        KryoLib.register(SetRemove.class);
 
-        kryo.register(CommitTSRequest.class);
-        kryo.register(CommitTSReply.class);
-        kryo.register(DHTExecCRDT.class);
-        kryo.register(DHTExecCRDTReply.class);
-        kryo.register(DHTGetCRDT.class);
-        kryo.register(DHTGetCRDTReply.class);
-        kryo.register(DHTSendNotification.class);
+        KryoLib.register(CommitTSRequest.class);
+        KryoLib.register(CommitTSReply.class);
+        KryoLib.register(DHTExecCRDT.class);
+        KryoLib.register(DHTExecCRDTReply.class);
+        KryoLib.register(DHTGetCRDT.class);
+        KryoLib.register(DHTGetCRDTReply.class);
+        KryoLib.register(DHTSendNotification.class);
 
         // WISHME: I tried to use Reflections library, but it has plenty of
         // dependencies...

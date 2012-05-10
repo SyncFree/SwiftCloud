@@ -1,7 +1,5 @@
 package swift.crdt;
 
-import static sys.net.api.Networking.Networking;
-
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
@@ -13,7 +11,7 @@ import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import sys.net.impl.KryoSerializer;
+import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.ObjectBuffer;
@@ -156,7 +154,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected abstract Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock);
 
     public V copy() {
-        final Kryo kryo = ((KryoSerializer) Networking.serializer()).kryo();
+        final Kryo kryo = KryoLib.kryo();
         final ObjectBuffer objectBuffer = new ObjectBuffer(kryo);
         final V copy = (V) objectBuffer.readClassAndObject(objectBuffer.writeClassAndObject(this));
         copy.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);

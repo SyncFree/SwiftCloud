@@ -1,6 +1,6 @@
 package swift.client.proto;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 
 /**
  * RPC handler for {@link GenerateTimestampReply}.
@@ -8,5 +8,5 @@ import sys.net.api.rpc.RpcConnection;
  * @author mzawirski
  */
 public abstract class GenerateTimestampReplyHandler extends SilentFailRpcHandler {
-    public abstract void onReceive(RpcConnection conn, GenerateTimestampReply reply);
+    public abstract void onReceive(RpcHandle conn, GenerateTimestampReply reply);
 }

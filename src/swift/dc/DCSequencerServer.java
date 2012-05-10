@@ -40,7 +40,8 @@ import swift.dc.proto.SequencerServer;
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.AbstractRpcHandler;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -276,7 +277,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                 endpoint.send(ep, req, new SeqCommitUpdatesReplyHandler() {
 
                                     @Override
-                                    public void onReceive(RpcConnection conn, SeqCommitUpdatesReply reply) {
+                                    public void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply) {
                                         boolean toRemove = false;
                                         synchronized (r0) {
                                             r0.acked.set(i0);
@@ -375,7 +376,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     @Override
-    public void onReceive(RpcConnection conn, GenerateTimestampRequest request) {
+    public void onReceive(RpcHandle conn, GenerateTimestampRequest request) {
         DCConstants.DCLogger.info("sequencer: generatetimestamprequest");
         if (isBackup && !upgradeToPrimary())
             return;
@@ -384,7 +385,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     @Override
-    public void onReceive(RpcConnection conn, KeepaliveRequest request) {
+    public void onReceive(RpcHandle conn, KeepaliveRequest request) {
         DCConstants.DCLogger.info("sequencer: keepaliverequest");
         if (isBackup && !upgradeToPrimary())
             return;
@@ -401,7 +402,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      * @param request
      *            request to serve
      */
-    public void onReceive(RpcConnection conn, LatestKnownClockRequest request) {
+    public void onReceive(RpcHandle conn, LatestKnownClockRequest request) {
         DCConstants.DCLogger.info("sequencer: latestknownclockrequest:" + currentClockCopy());
         if (isBackup && !upgradeToPrimary())
             return;
@@ -416,7 +417,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      *            request to serve
      */
     @Override
-    public void onReceive(RpcConnection conn, CommitTSRequest request) {
+    public void onReceive(RpcHandle conn, CommitTSRequest request) {
         DCConstants.DCLogger.info("sequencer: commitTSRequest:" + request.getTimestamp() + ":nops="
                 + request.getObjectUpdateGroups().size());
         if (isBackup && !upgradeToPrimary())
@@ -438,26 +439,17 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         if (!isBackup && sequencerShadowEP != null) {
             final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(request.getBaseTimestamp(),
                     request.getObjectUpdateGroups(), clk, nuClk);
-            endpoint.send(sequencerShadowEP, msg, new RpcHandler() {
+            endpoint.send(sequencerShadowEP, msg, new AbstractRpcHandler() {
                 @Override
                 public void onReceive(RpcMessage m) {
                     // do nothing
                 }
 
                 @Override
-                public void onReceive(RpcConnection conn, RpcMessage m) {
+                public void onReceive(RpcHandle conn, RpcMessage m) {
                     // do nothing
                 }
 
-                @Override
-                public void onFailure() {
-                    // TODO: handle suspected sequencer backup failure
-                }
-
-                @Override
-                public void onFailure(Endpoint dst, RpcMessage m) {
-                    // TODO: handle suspected sequencer backup failure
-                }
             }, 0);
         }
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getBaseTimestamp()));
@@ -465,7 +457,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     @Override
-    public void onReceive(RpcConnection conn, final SeqCommitUpdatesRequest request) {
+    public void onReceive(RpcHandle conn, final SeqCommitUpdatesRequest request) {
         DCConstants.DCLogger.info("sequencer: received commit record:" + request.getBaseTimestamp() + ":nops="
                 + request.getObjectUpdateGroups().size());
         if (isBackup) {
@@ -483,26 +475,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                 .getBaseTimestamp()));
         conn.reply(new SeqCommitUpdatesReply());
         if (!isBackup && sequencerShadowEP != null) {
-            endpoint.send(sequencerShadowEP, request, new RpcHandler() {
-                @Override
-                public void onReceive(RpcMessage m) {
-                    // do nothing
-                }
-
-                @Override
-                public void onReceive(RpcConnection conn, RpcMessage m) {
-                    // do nothing
-                }
-
-                @Override
-                public void onFailure() {
-                    // TODO: handle suspected sequencer backup failure
-                }
-
-                @Override
-                public void onFailure(Endpoint dst, RpcMessage m) {
-                    // TODO: handle suspected sequencer backup failure
-                }
+            endpoint.send(sequencerShadowEP, request, new AbstractRpcHandler() {
             }, 0);
         }
         addPending(request);

@@ -6,7 +6,7 @@ import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -57,7 +57,7 @@ public class CommitTSReply implements RpcMessage {
 
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((CommitTSReplyHandler) handler).onReceive(conn, this);
     }
 }

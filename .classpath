@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry kind="src" path="src"/>
+	<classpathentry excluding="sys/dht/api/DHT_Connection.java|sys/dht/api/DHT_Handler.java|sys/dht/api/DHT_Key.java|sys/dht/api/DHT_Message.java|sys/net/impl/rpc/RpcFactoryImpl2.java|sys/net/impl/KryoObjectBuffer2.java|sys/net/impl/KryoQueue.java|sys/net/impl/LocalEndpoint2.java|sys/net/impl2/rpc/tcp/|sys/net/oldimpl/|sys/net/impl2/tcp/nio2/TcpEndpoint.java" kind="src" path="src"/>
 	<classpathentry excluding="swift/client/TxnHandleImplTest.java" kind="src" path="src-test"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.6"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="lib" path="lib/activemq-protobuf-1.0.jar"/>
-	<classpathentry kind="lib" path="lib/kryo-1.04-all.jar"/>
-	<classpathentry kind="lib" path="lib/kryo-serializers-0.9.jar"/>
 	<classpathentry kind="lib" path="lib/riak-client-1.0.3-jar-with-dependencies.jar"/>
 	<classpathentry kind="lib" path="lib/easymock-3.1.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="http://www.easymock.org/api/easymock/3.1/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/kryo-serializers-0.9.jar"/>
+	<classpathentry kind="lib" path="lib/kryo-1.04-all.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

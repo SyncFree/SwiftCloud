@@ -13,8 +13,6 @@ import com.esotericsoftware.kryo.serialize.CollectionSerializer;
 import com.esotericsoftware.kryo.serialize.MapSerializer;
 
 import swift.clocks.VersionVectorWithExceptions;
-import sys.net.impl.KryoSerialization;
-import sys.net.impl.KryoSerializer;
 
 public class SerializerTester {
 

@@ -3,7 +3,7 @@ package swift.client.proto;
 import swift.dc.proto.SeqCommitUpdatesReply;
 import swift.dc.proto.SeqCommitUpdatesReplyHandler;
 import swift.dc.proto.SeqCommitUpdatesRequest;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
@@ -21,7 +21,7 @@ public interface  BaseServer extends RpcHandler {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, GenerateTimestampRequest request);
+    void onReceive(RpcHandle conn, GenerateTimestampRequest request);
 
     /**
      * @param conn
@@ -31,7 +31,7 @@ public interface  BaseServer extends RpcHandler {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, KeepaliveRequest request);
+    void onReceive(RpcHandle conn, KeepaliveRequest request);
     
     /**
      * @param conn
@@ -41,7 +41,7 @@ public interface  BaseServer extends RpcHandler {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, LatestKnownClockRequest request);
+    void onReceive(RpcHandle conn, LatestKnownClockRequest request);
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -50,7 +50,7 @@ public interface  BaseServer extends RpcHandler {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, SeqCommitUpdatesRequest request);
+    void onReceive(RpcHandle conn, SeqCommitUpdatesRequest request);
 
     
 

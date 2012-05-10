@@ -1,6 +1,6 @@
 package swift.client.proto;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 
 /**
  * RPC handler for {@link LatestKnownClockReply}.
@@ -8,5 +8,5 @@ import sys.net.api.rpc.RpcConnection;
  * @author mzawirski
  */
 public abstract class LatestKnownClockReplyHandler extends SilentFailRpcHandler {
-    public abstract void onReceive(RpcConnection conn, LatestKnownClockReply reply);
+    public abstract void onReceive(RpcHandle conn, LatestKnownClockReply reply);
 }

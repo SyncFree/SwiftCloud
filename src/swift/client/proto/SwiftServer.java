@@ -1,7 +1,7 @@
 package swift.client.proto;
 
 import swift.dc.proto.SeqCommitUpdatesRequest;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 
 /**
  * Server interface for client-server interaction.
@@ -22,7 +22,7 @@ public interface SwiftServer extends BaseServer {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, FetchObjectVersionRequest request);
+    void onReceive(RpcHandle conn, FetchObjectVersionRequest request);
 
     /**
      * @param conn
@@ -34,7 +34,7 @@ public interface SwiftServer extends BaseServer {
      */
     // TODO: FetchObjectVersionReply is temporary. Eventually, we shall replace
     // it with deltas or list of operations.
-    void onReceive(RpcConnection conn, FetchObjectDeltaRequest request);
+    void onReceive(RpcHandle conn, FetchObjectDeltaRequest request);
 
     /**
      * @param conn
@@ -42,7 +42,7 @@ public interface SwiftServer extends BaseServer {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, UnsubscribeUpdatesRequest request);
+    void onReceive(RpcHandle conn, UnsubscribeUpdatesRequest request);
 
     /**
      * @param conn
@@ -52,7 +52,7 @@ public interface SwiftServer extends BaseServer {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, RecentUpdatesRequest request);
+    void onReceive(RpcHandle conn, RecentUpdatesRequest request);
 
     /**
      * @param conn
@@ -62,7 +62,7 @@ public interface SwiftServer extends BaseServer {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, FastRecentUpdatesRequest request);
+    void onReceive(RpcHandle conn, FastRecentUpdatesRequest request);
 
     /**
      * @param conn
@@ -72,6 +72,6 @@ public interface SwiftServer extends BaseServer {
      * @param request
      *            request to serve
      */
-    void onReceive(RpcConnection conn, CommitUpdatesRequest request);
+    void onReceive(RpcHandle conn, CommitUpdatesRequest request);
 
 }

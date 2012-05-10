@@ -1,6 +1,6 @@
 package swift.client.proto;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 
 /**
  * RPC handler for {@link KeepaliveReply}.
@@ -8,5 +8,5 @@ import sys.net.api.rpc.RpcConnection;
  * @author mzawirski
  */
 public abstract class KeepaliveReplyHandler extends SilentFailRpcHandler {
-    public abstract void onReceive(RpcConnection conn, KeepaliveReply reply);
+    public abstract void onReceive(RpcHandle conn, KeepaliveReply reply);
 }

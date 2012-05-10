@@ -1,6 +1,6 @@
 package swift.client.proto;
 
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
@@ -21,7 +21,7 @@ public class LatestKnownClockRequest extends ClientRequest {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((BaseServer) handler).onReceive(conn, this);
     }
 }

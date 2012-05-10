@@ -66,7 +66,7 @@ import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 
 /**
@@ -241,7 +241,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
                         new LatestKnownClockReplyHandler() {
                             @Override
-                            public void onReceive(RpcConnection conn, LatestKnownClockReply reply) {
+                            public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
                                 updateCommittedVersion(reply.getClock());
                                 doneFlag.set(true);
                             }
@@ -488,7 +488,7 @@ public class SwiftImpl implements Swift, TxnManager {
             localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, version,
                     strictUnprunedVersion, subscriptionType), new FetchObjectVersionReplyHandler() {
                 @Override
-                public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
                     replyRef.set(reply);
                 }
             }, timeoutMillis);
@@ -517,7 +517,7 @@ public class SwiftImpl implements Swift, TxnManager {
             localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, oldCrdtClock, version,
                     strictUnrpunedVersion, subscriptionType), new FetchObjectVersionReplyHandler() {
                 @Override
-                public void onReceive(RpcConnection conn, FetchObjectVersionReply reply) {
+                public void onReceive(RpcHandle conn, FetchObjectVersionReply reply) {
                     replyRef.set(reply);
                 }
             }, timeoutMillis);
@@ -614,7 +614,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
                 new FastRecentUpdatesReplyHandler() {
                     @Override
-                    public void onReceive(RpcConnection conn, FastRecentUpdatesReply reply) {
+                    public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
                         replyRef.set(reply);
                     }
                 }, notificationTimeoutMillis);
@@ -815,7 +815,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 if (objectUpdateSubscriptions.containsKey(id)) {
                     return;
                 }
-                if (!localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(clientId, id))) {
+                if (localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(clientId, id)).failed()) {
                     logger.warning("could not unsuscribe object updates");
                 }
             }
@@ -886,7 +886,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, txn.getGlobalTimestamp(),
                         operationsGroups), new CommitUpdatesReplyHandler() {
                     @Override
-                    public void onReceive(RpcConnection conn, CommitUpdatesReply reply) {
+                    public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
                         commitReplyRef.set(reply);
                     }
                 }, timeoutMillis);
@@ -915,7 +915,7 @@ public class SwiftImpl implements Swift, TxnManager {
             localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(),
                     txn.getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
                 @Override
-                public void onReceive(RpcConnection conn, GenerateTimestampReply reply) {
+                public void onReceive(RpcHandle conn, GenerateTimestampReply reply) {
                     timestampReplyRef.set(reply);
                 }
             }, timeoutMillis);

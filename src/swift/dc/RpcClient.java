@@ -2,7 +2,7 @@ package swift.dc;
 
 import sys.Sys;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.utils.Threading;
 
@@ -24,7 +24,7 @@ public class RpcClient {
                     System.out.println("Client Send failed...");
                 }
 
-                public void onReceive(RpcConnection conn, Reply r) {
+                public void onReceive(RpcHandle conn, Reply r) {
                     System.out.println("Client Got: " + r + " from:" + conn.remoteEndpoint());
 //                    conn.reply(new Reply());
                 }

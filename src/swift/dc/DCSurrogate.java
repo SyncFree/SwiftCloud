@@ -52,7 +52,7 @@ import swift.dc.proto.DHTSendNotification;
 import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.Sys;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -251,13 +251,13 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     @Override
-    public void onReceive(RpcConnection conn, FetchObjectVersionRequest request) {
+    public void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
         DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId());
         conn.reply(handleFetchVersionRequest(request));
     }
 
     @Override
-    public void onReceive(RpcConnection conn, FetchObjectDeltaRequest request) {
+    public void onReceive(RpcHandle conn, FetchObjectDeltaRequest request) {
         DCConstants.DCLogger.info("FetchObjectDeltaRequest client = " + request.getClientId());
         conn.reply(handleFetchVersionRequest(request));
     }
@@ -304,13 +304,13 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     @Override
-    public void onReceive(final RpcConnection conn, GenerateTimestampRequest request) {
+    public void onReceive(final RpcHandle conn, GenerateTimestampRequest request) {
         DCConstants.DCLogger.info("GenerateTimestampRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
 
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new GenerateTimestampReplyHandler() {
             @Override
-            public void onReceive(RpcConnection conn0, GenerateTimestampReply reply) {
+            public void onReceive(RpcHandle conn0, GenerateTimestampReply reply) {
                 DCConstants.DCLogger.info("GenerateTimestampRequest: forwarding reply");
                 conn.reply(reply);
             }
@@ -318,13 +318,13 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     @Override
-    public void onReceive(final RpcConnection conn, KeepaliveRequest request) {
+    public void onReceive(final RpcHandle conn, KeepaliveRequest request) {
         DCConstants.DCLogger.info("KeepaliveRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
 
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new KeepaliveReplyHandler() {
             @Override
-            public void onReceive(RpcConnection conn0, KeepaliveReply reply) {
+            public void onReceive(RpcHandle conn0, KeepaliveReply reply) {
                 DCConstants.DCLogger.info("KeepaliveRequest: forwarding reply");
                 conn.reply(reply);
             }
@@ -332,7 +332,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     @Override
-    public void onReceive(final RpcConnection conn, CommitUpdatesRequest request) {
+    public void onReceive(final RpcHandle conn, CommitUpdatesRequest request) {
         DCConstants.DCLogger.info("CommitUpdatesRequest client = " + request.getClientId() + ":ts=" + request.getBaseTimestamp()+":nops=" + request.getObjectUpdateGroups().size());
         final ClientPubInfo session = getSession(request.getClientId());
 
@@ -365,7 +365,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups(), request.getBaseTimestamp()), new CommitTSReplyHandler() {
             @Override
-            public void onReceive(RpcConnection conn0, CommitTSReply reply) {
+            public void onReceive(RpcHandle conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest");
                 CausalityClock estimatedDCVersionCopy = null;
                 synchronized (estimatedDCVersion) {
@@ -398,7 +398,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         sequencerClientEndpoint.send(sequencerServerEndpoint, new LatestKnownClockRequest("suurogate"),
                 new LatestKnownClockReplyHandler() {
                     @Override
-                    public void onReceive(RpcConnection conn0, LatestKnownClockReply reply) {
+                    public void onReceive(RpcHandle conn0, LatestKnownClockReply reply) {
                         synchronized (estimatedDCVersion) {
                             estimatedDCVersion.merge(reply.getClock());
                         }
@@ -407,12 +407,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     @Override
-    public void onReceive(final RpcConnection conn, LatestKnownClockRequest request) {
+    public void onReceive(final RpcHandle conn, LatestKnownClockRequest request) {
         DCConstants.DCLogger.info("LatestKnownClockRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
         sequencerClientEndpoint.send(sequencerServerEndpoint, request, new LatestKnownClockReplyHandler() {
             @Override
-            public void onReceive(RpcConnection conn0, LatestKnownClockReply reply) {
+            public void onReceive(RpcHandle conn0, LatestKnownClockReply reply) {
                 DCConstants.DCLogger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
                 conn.reply(reply);
                 synchronized (estimatedDCVersion) {
@@ -423,28 +423,28 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
 
     @Override
-    public void onReceive(RpcConnection conn, UnsubscribeUpdatesRequest request) {
+    public void onReceive(RpcHandle conn, UnsubscribeUpdatesRequest request) {
         DCConstants.DCLogger.info("UnsubscribeUpdatesRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
         remFromObserving(request.getUid(), session);
     }
 
     @Override
-    public void onReceive(RpcConnection conn, RecentUpdatesRequest request) {
+    public void onReceive(RpcHandle conn, RecentUpdatesRequest request) {
         DCConstants.DCLogger.info("RecentUpdatesRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
         session.dumpNewUpdates(conn, request);
     }
 
     @Override
-    public void onReceive(RpcConnection conn, FastRecentUpdatesRequest request) {
+    public void onReceive(RpcHandle conn, FastRecentUpdatesRequest request) {
         DCConstants.DCLogger.info("FastRecentUpdatesRequest client = " + request.getClientId());
         final ClientPubInfo session = getSession(request.getClientId());
         session.dumpNewUpdates(conn, request, getEstimatedDCVersionCopy());
     }
 
     @Override
-    public void onReceive(RpcConnection conn, SeqCommitUpdatesRequest request) {
+    public void onReceive(RpcHandle conn, SeqCommitUpdatesRequest request) {
         DCConstants.DCLogger.info("SeqCommitUpdatesRequest timestamp = " + request.getBaseTimestamp());
 
         List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
@@ -476,7 +476,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups(), request.getBaseTimestamp()), new CommitTSReplyHandler() {
             @Override
-            public void onReceive(RpcConnection conn0, CommitTSReply reply) {
+            public void onReceive(RpcHandle conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest");
                 CausalityClock estimatedDCVersionCopy = null;
                 synchronized (estimatedDCVersion) {
@@ -507,7 +507,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 class ClientPubInfo {
     private String clientId;
     boolean hasUpdates;
-    RpcConnection conn;
+    RpcHandle conn;
     long replyTime;
     private Map<CRDTIdentifier, CRDTSessionInfo> subscriptions;
 
@@ -573,14 +573,14 @@ class ClientPubInfo {
         }
     }
 
-    synchronized void dumpNewUpdates(RpcConnection conn, FastRecentUpdatesRequest request, CausalityClock clk) {
+    synchronized void dumpNewUpdates(RpcHandle conn, FastRecentUpdatesRequest request, CausalityClock clk) {
         this.conn = conn;
         replyTime = System.currentTimeMillis() + request.getMaxBlockingTimeMillis();
         if (hasUpdates)
             dumpNotifications(clk);
     }
 
-    synchronized void dumpNewUpdates(RpcConnection conn, RecentUpdatesRequest request) {
+    synchronized void dumpNewUpdates(RpcHandle conn, RecentUpdatesRequest request) {
         // TODO: return updates
     }
 
@@ -627,7 +627,7 @@ class ClientPubInfo {
 
 /*
  * class ClientSession { String clientId; Map<CRDTIdentifier,CRDTSessionInfo>
- * subscriptions; RpcConnection conn;
+ * subscriptions; RpcHandle conn;
  * 
  * ClientSession( String clientId) { this.clientId = clientId; subscriptions =
  * new TreeMap<CRDTIdentifier,CRDTSessionInfo>(); updates = new
@@ -647,10 +647,10 @@ class ClientPubInfo {
  * 
  * }
  * 
- * void dumpNewUpdates( RpcConnection conn, FastRecentUpdatesRequest request) {
+ * void dumpNewUpdates( RpcHandle conn, FastRecentUpdatesRequest request) {
  * //TODO: return notifications }
  * 
- * void dumpNewUpdates( RpcConnection conn, RecentUpdatesRequest request) {
+ * void dumpNewUpdates( RpcHandle conn, RecentUpdatesRequest request) {
  * //TODO: return updates }
  * 
  * public boolean equals( Object obj) { return obj instanceof ClientSession &&
@@ -728,7 +728,7 @@ class Reply implements RpcMessage {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         if (conn.expectingReply()) {
             ((Handler) handler).onReceive(conn, this);
         } else {

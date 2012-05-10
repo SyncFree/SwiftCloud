@@ -1,7 +1,7 @@
 package swift.client.proto;
 
 import swift.clocks.CausalityClock;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -32,7 +32,7 @@ public class LatestKnownClockReply implements RpcMessage {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((LatestKnownClockReplyHandler) handler).onReceive(conn, this);
     }
 }

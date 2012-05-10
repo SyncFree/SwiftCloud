@@ -7,7 +7,7 @@ import java.util.List;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectOperationsGroup;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
@@ -70,7 +70,7 @@ public class CommitUpdatesRequest extends ClientRequest {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftServer) handler).onReceive(conn, this);
     }
 }

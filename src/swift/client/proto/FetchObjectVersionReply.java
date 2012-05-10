@@ -2,7 +2,7 @@ package swift.client.proto;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.interfaces.CRDT;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
@@ -94,7 +94,7 @@ public class FetchObjectVersionReply implements RpcMessage {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((FetchObjectVersionReplyHandler) handler).onReceive(conn, this);
     }
 }

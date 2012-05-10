@@ -33,6 +33,7 @@ public class RawDataCollector {
         String filename = "" + workerName + "_" + runCount;
         File outputFile = new File(outputDir+"/" + filename);
         try {
+        	outputFile.getParentFile().mkdirs();
             fos = new FileOutputStream(outputFile);
             pw = new PrintWriter( new OutputStreamWriter( fos));
         } catch (FileNotFoundException e) {

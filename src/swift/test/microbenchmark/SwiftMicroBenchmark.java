@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
@@ -131,9 +132,9 @@ public class SwiftMicroBenchmark implements WorkerManager {
             logger.info("END");
 
         }
+        System.err.println("Before printResults");
         printResults();
         System.exit(0);
-
     }
 
     private void executeWorkers(String workersName, int numWorkers, CRDTIdentifier[] identifiers, int cltObjects,

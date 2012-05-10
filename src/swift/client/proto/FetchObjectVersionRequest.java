@@ -2,7 +2,7 @@ package swift.client.proto;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
-import sys.net.api.rpc.RpcConnection;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
@@ -61,7 +61,7 @@ public class FetchObjectVersionRequest extends ClientRequest {
     }
 
     @Override
-    public void deliverTo(RpcConnection conn, RpcHandler handler) {
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftServer) handler).onReceive(conn, this);
     }
 }
