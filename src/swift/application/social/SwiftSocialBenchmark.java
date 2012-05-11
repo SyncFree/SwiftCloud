@@ -63,7 +63,7 @@ public class SwiftSocialBenchmark {
             bufferedOutput = new PrintStream(System.out, false);
             bufferedOutput.println("session_id,command,command_exec_time,time");
 
-            // Read sessions from assigned range.
+            // Read all sessions from the file.
             final List<List<String>> sessions = readSessionsCommands(fileName, 0, Integer.MAX_VALUE);
 
             // Kick off all sessions, throughput is limited by
