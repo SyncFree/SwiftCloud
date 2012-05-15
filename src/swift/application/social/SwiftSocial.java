@@ -3,8 +3,6 @@ package swift.application.social;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Logger;
 
 import swift.crdt.CRDTIdentifier;
@@ -21,6 +19,7 @@ import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
@@ -29,7 +28,6 @@ import swift.exceptions.WrongTypeException;
 
 public class SwiftSocial {
 
-    public static final int RETRY_DELAY_MS = 1000;
     private static Logger logger = Logger.getLogger("swift.social");
 
     // FIXME Add sessions? Local login possible? Cookies?
@@ -50,7 +48,7 @@ public class SwiftSocial {
     }
 
     // FIXME Return type integer encoding error msg?
-    boolean login(final String loginName, final String passwd) {
+    boolean login(String loginName, String passwd) {
         logger.info("Got login request from user " + loginName);
 
         // Check if user is already logged in
@@ -64,68 +62,53 @@ public class SwiftSocial {
             }
         }
 
-        final AtomicBoolean success = new AtomicBoolean(false);
-        runRetryableTask(new RetryableTask() {
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    // Check if user is known at all
-                    // FIXME Is login possible in offline mode?
+        TxnHandle txn = null;
+        try {
+            // Check if user is known at all
+            // FIXME Is login possible in offline mode?
 
-                    // ATTENZIONE ATTENZIONE, HACK!! Shall we perhaps do it at
-                    // client
-                    // startup? I am not changing it now to make experiments
-                    // comparable.
-                    final CachePolicy loginCachePolicy;
-                    if (isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && cachePolicy == CachePolicy.CACHED) {
-                        loginCachePolicy = CachePolicy.MOST_RECENT;
-                    } else {
-                        loginCachePolicy = cachePolicy;
-                    }
-                    txn = server.beginTxn(isolationLevel, loginCachePolicy, true);
-                    @SuppressWarnings("unchecked")
-                    User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class,
-                            updatesSubscriber)).getValue();
-
-                    // Check password
-                    // FIXME We actually need an external authentification
-                    // mechanism, as
-                    // clients cannot be trusted.
-                    // In Walter, authentification is done on server side,
-                    // within the
-                    // data center. Moving password (even if hashed) to the
-                    // client is a
-                    // security breach.
-                    if (user != null) {
-                        if (user.password.equals(passwd)) {
-                            currentUser = user;
-                            logger.info(loginName + " successfully logged in");
-                            commitTxn(txn);
-                            success.set(true);
-                        } else {
-                            logger.info("Wrong password for " + loginName);
-                        }
-                    } else {
-                        logger.info("User has not been registered " + loginName);
-                    }
-                } catch (NetworkException e) {
-                    return true;
-                } catch (NoSuchObjectException e) {
-                    logger.info("User " + loginName + " is not known");
-                } catch (Exception e) {
-                    // should not happen
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+            // ATTENZIONE ATTENZIONE, HACK!! Shall we perhaps do it at client
+            // startup? I am not changing it now to make experiments comparable.
+            final CachePolicy loginCachePolicy;
+            if (isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && cachePolicy == CachePolicy.CACHED) {
+                loginCachePolicy = CachePolicy.MOST_RECENT;
+            } else {
+                loginCachePolicy = cachePolicy;
             }
-        });
+            txn = server.beginTxn(isolationLevel, loginCachePolicy, true);
+            @SuppressWarnings("unchecked")
+            User user = (User) (txn.get(NamingScheme.forUser(loginName), false, RegisterVersioned.class,
+                    updatesSubscriber)).getValue();
 
-        return success.get();
+            // Check password
+            // FIXME We actually need an external authentification mechanism, as
+            // clients cannot be trusted.
+            // In Walter, authentification is done on server side, within the
+            // data center. Moving password (even if hashed) to the client is a
+            // security breach.
+            if (user != null) {
+                if (user.password.equals(passwd)) {
+                    currentUser = user;
+                    logger.info(loginName + " successfully logged in");
+                    commitTxn(txn);
+                    return true;
+                } else {
+                    logger.info("Wrong password for " + loginName);
+                }
+            } else {
+                logger.info("User has not been registered " + loginName);
+            }
+        } catch (NoSuchObjectException e) {
+            logger.severe("User " + loginName + " is not known");
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
+            }
+        }
+
+        return false;
     }
 
     void logout(String loginName) {
@@ -146,7 +129,7 @@ public class SwiftSocial {
             txn = server.beginTxn(isolationLevel, CachePolicy.STRICTLY_MOST_RECENT, false);
             User newUser = registerUser(txn, loginName, passwd, fullName, birthday, date);
             logger.info("Registered user: " + newUser);
-        } catch (Exception e) {
+        } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
@@ -186,287 +169,204 @@ public class SwiftSocial {
         this.currentUser.active = status;
         this.currentUser.fullName = fullName;
         this.currentUser.birthday = birthday;
-
-        final String name = this.currentUser.loginName;
-
-        runRetryableTask(new RetryableTask() {
-
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, false);
-                    RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), true,
-                            RegisterVersioned.class, updatesSubscriber);
-                    reg.set(currentUser);
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
+                    NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class, updatesSubscriber);
+            reg.set(currentUser);
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
             }
-        });
+        }
     }
 
     @SuppressWarnings("unchecked")
     User read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
-
-        final AtomicReference<User> refUser = new AtomicReference<User>();
-        runRetryableTask(new RetryableTask() {
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                User user = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, true);
-                    RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
-                            RegisterVersioned.class);
-                    user = reg.getValue();
-                    msgs.addAll(((SetTxnLocalMsg) txn.get(user.msgList, false, SetMsg.class, updatesSubscriber))
-                            .getValue());
-                    evnts.addAll(((SetTxnLocalMsg) txn.get(user.eventList, false, SetMsg.class, updatesSubscriber))
-                            .getValue());
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                refUser.set(user);
-                return false;
+        TxnHandle txn = null;
+        User user = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, true);
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
+                    RegisterVersioned.class);
+            user = reg.getValue();
+            msgs.addAll(((SetTxnLocalMsg) txn.get(user.msgList, false, SetMsg.class, updatesSubscriber)).getValue());
+            evnts.addAll(((SetTxnLocalMsg) txn.get(user.eventList, false, SetMsg.class, updatesSubscriber)).getValue());
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
             }
-        });
-        return refUser.get();
+        }
+        return user;
     }
 
     // FIXME return error code?
-    void postMessage(final String receiverName, String msg, long date) {
+    void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
-        final Message newMsg = new Message(msg, this.currentUser.loginName, date);
-        final Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
+        Message newMsg = new Message(msg, this.currentUser.loginName, date);
+        Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
                 this.currentUser.loginName, date);
-
-        runRetryableTask(new RetryableTask() {
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, false);
-                    User receiver = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
-                            RegisterVersioned.class)).getValue();
-                    writeMessage(txn, newMsg, receiver.msgList);
-                    writeMessage(txn, newEvt, currentUser.eventList);
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
-            };
-        });
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
+            User receiver = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
+                    RegisterVersioned.class)).getValue();
+            writeMessage(txn, newMsg, receiver.msgList);
+            writeMessage(txn, newEvt, currentUser.eventList);
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
+            }
+        }
     }
 
     void updateStatus(String msg, long date) {
         logger.info("Update status for " + this.currentUser.loginName);
-        final Message newMsg = new Message(msg, this.currentUser.loginName, date);
-        final Message newEvt = new Message(currentUser.loginName + " has an updated status",
-                this.currentUser.loginName, date);
-        runRetryableTask(new RetryableTask() {
-
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, false);
-                    writeMessage(txn, newMsg, currentUser.msgList);
-                    writeMessage(txn, newEvt, currentUser.eventList);
-                    commitTxn(txn);
-                    // TODO Broadcast update to friends
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+        Message newMsg = new Message(msg, this.currentUser.loginName, date);
+        Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
+            writeMessage(txn, newMsg, currentUser.msgList);
+            writeMessage(txn, newEvt, currentUser.eventList);
+            commitTxn(txn);
+            // TODO Broadcast update to friends
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
             }
-        });
+        }
     }
 
-    void answerFriendRequest(final String requester, final boolean accept) {
+    void answerFriendRequest(String requester, boolean accept) {
         logger.info("Answered friend request from " + this.currentUser.loginName + " for " + requester);
-        final String name = this.currentUser.loginName;
-        runRetryableTask(new RetryableTask() {
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, false);
-                    // Obtain data of requesting user
-                    User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(requester), false,
-                            RegisterVersioned.class)).getValue();
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
+            // Obtain data of requesting user
+            User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(requester), false,
+                    RegisterVersioned.class)).getValue();
 
-                    // Remove information for request
-                    SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(currentUser.inFriendReq, false, SetIds.class,
-                            updatesSubscriber);
-                    inFriendReq.remove(NamingScheme.forUser(requester));
-                    SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(other.outFriendReq, false, SetIds.class,
-                            updatesSubscriber);
-                    outFriendReq.remove(NamingScheme.forUser(name));
+            // Remove information for request
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(currentUser.inFriendReq, false, SetIds.class,
+                    updatesSubscriber);
+            inFriendReq.remove(NamingScheme.forUser(requester));
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(other.outFriendReq, false, SetIds.class,
+                    updatesSubscriber);
+            outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
 
-                    // Befriend if accepted
-                    if (accept) {
-                        SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
-                                updatesSubscriber);
-                        friends.insert(NamingScheme.forUser(requester));
-                        SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(other.friendList, false, SetIds.class,
-                                updatesSubscriber);
-                        requesterFriends.insert(NamingScheme.forUser(name));
-                    }
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+            // Befriend if accepted
+            if (accept) {
+                SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
+                        updatesSubscriber);
+                friends.insert(NamingScheme.forUser(requester));
+                SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(other.friendList, false, SetIds.class,
+                        updatesSubscriber);
+                requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             }
-        });
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
+            }
+        }
     }
 
-    void sendFriendRequest(final String receiverName) {
+    void sendFriendRequest(String receiverName) {
         logger.info("Sending friend request from to " + receiverName);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
+            // Obtain data of friend
+            User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
+                    RegisterVersioned.class)).getValue();
 
-        runRetryableTask(new RetryableTask() {
+            // Add data for request
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(other.inFriendReq, false, SetIds.class,
+                    updatesSubscriber);
+            inFriendReq.insert(NamingScheme.forUser(currentUser.loginName));
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(currentUser.outFriendReq, false, SetIds.class,
+                    updatesSubscriber);
+            outFriendReq.insert(NamingScheme.forUser(receiverName));
 
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, false);
-                    // Obtain data of friend
-                    User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
-                            RegisterVersioned.class)).getValue();
-
-                    // Add data for request
-                    SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(other.inFriendReq, false, SetIds.class,
-                            updatesSubscriber);
-                    inFriendReq.insert(NamingScheme.forUser(currentUser.loginName));
-                    SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(currentUser.outFriendReq, false, SetIds.class,
-                            updatesSubscriber);
-                    outFriendReq.insert(NamingScheme.forUser(receiverName));
-
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
             }
-        });
+        }
     }
 
-    void befriend(final String receiverName) {
+    void befriend(String receiverName) {
         logger.info("Befriending " + receiverName);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, false);
+            // Obtain new friend's data
+            User friend = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
+                    RegisterVersioned.class)).getValue();
 
-        final String name = this.currentUser.loginName;
-        runRetryableTask(new RetryableTask() {
+            // Register him as my friend
+            SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
+                    updatesSubscriber);
+            friends.insert(NamingScheme.forUser(receiverName));
 
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, false);
-                    // Obtain new friend's data
-                    User friend = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
-                            RegisterVersioned.class)).getValue();
-
-                    // Register him as my friend
-                    SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
-                            updatesSubscriber);
-                    friends.insert(NamingScheme.forUser(receiverName));
-
-                    // Register me as his friend
-                    SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(friend.friendList, false, SetIds.class,
-                            updatesSubscriber);
-                    requesterFriends.insert(NamingScheme.forUser(name));
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+            // Register me as his friend
+            SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(friend.friendList, false, SetIds.class,
+                    updatesSubscriber);
+            requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
             }
-        });
+        }
     }
 
-    Set<Friend> readFriendList(final String name) {
+    Set<Friend> readFriendList(String name) {
         logger.info("Get friends of " + name);
+        Set<Friend> friends = new HashSet<Friend>();
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(isolationLevel, cachePolicy, true);
+            // Obtain user data
+            User user = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class,
+                    updatesSubscriber)).getValue();
 
-        final Set<Friend> friends = new HashSet<Friend>();
-        runRetryableTask(new RetryableTask() {
-
-            @Override
-            public boolean run() {
-                TxnHandle txn = null;
-                try {
-                    txn = server.beginTxn(isolationLevel, cachePolicy, true);
-                    // Obtain user data
-                    User user = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
-                            RegisterVersioned.class, updatesSubscriber)).getValue();
-
-                    Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) txn.get(user.friendList, false, SetIds.class,
-                            updatesSubscriber)).getValue();
-                    for (CRDTIdentifier f : friendIds) {
-                        User u = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
-                                RegisterVersioned.class, updatesSubscriber)).getValue();
-                        friends.add(new Friend(u.fullName, f));
-                    }
-                    commitTxn(txn);
-                } catch (NetworkException x) {
-                    return true;
-                } catch (Exception e) {
-                    logger.warning(e.getMessage());
-                } finally {
-                    if (txn != null && !txn.getStatus().isTerminated()) {
-                        txn.rollback();
-                    }
-                }
-                return false;
+            Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) txn.get(user.friendList, false, SetIds.class,
+                    updatesSubscriber)).getValue();
+            for (CRDTIdentifier f : friendIds) {
+                User u = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class,
+                        updatesSubscriber)).getValue();
+                friends.add(new Friend(u.fullName, f));
             }
-        });
+            commitTxn(txn);
+        } catch (SwiftException e) {
+            logger.warning(e.getMessage());
+        } finally {
+            if (txn != null && !txn.getStatus().isTerminated()) {
+                txn.rollback();
+            }
+        }
         return friends;
     }
 
@@ -484,21 +384,4 @@ public class SwiftSocial {
         }
     }
 
-    private void runRetryableTask(final RetryableTask task) {
-        boolean retry;
-        do {
-            retry = task.run();
-            if (retry) {
-                logger.warning("retrying swift social operation");
-                try {
-                    Thread.sleep(RETRY_DELAY_MS);
-                } catch (InterruptedException e) {
-                }
-            }
-        } while (retry);
-    }
-
-    interface RetryableTask {
-        boolean run();
-    }
 }

@@ -65,9 +65,11 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.CallableWithDeadline;
+import swift.utils.ExponentialBackoffTaskExecutor;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 
 /**
  * Implementation of Swift client and transactions manager.
@@ -89,9 +91,14 @@ public class SwiftImpl implements Swift, TxnManager {
 
     // WISHME: subscribe updates of frequently accessed objects
 
+    public static final int RPC_RETRY_WAIT_TIME_MULTIPLIER = 2;
+    public static final int INIT_RPC_RETRY_WAIT_TIME_MILLIS = 10;
+    // The two above yield the following sequence of wait times: 10, 20, 40...
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
+    public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
+    public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
     private static final String CLIENT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -106,7 +113,8 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort) {
-        return newInstance(serverHostname, serverPort, DEFAULT_TIMEOUT_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS);
+        return newInstance(serverHostname, serverPort, DEFAULT_TIMEOUT_MILLIS, DEFAULT_DEADLINE_MILLIS,
+                DEFAULT_CACHE_EVICTION_MILLIS);
     }
 
     /**
@@ -118,16 +126,19 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param serverPort
      *            TCP port of storage server
      * @param timeoutMillis
-     *            timeout for server replies in milliseconds
+     *            socket-level timeout for server replies in milliseconds
+     * @param deadlineMillis
+     *            deadline for fulfilling user-triggered requests (get, refresh
+     *            etc)
      * @param cacheEvictionTimeMillis
      *            eviction time for non-accessed objects in the cache
      * @return instance of Swift client
      */
-    public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis,
+    public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis, int deadlineMillis,
             long cacheEvictionTimeMillis) {
         return new SwiftImpl(Networking.rpcBind(0, null), Networking.resolve(serverHostname, serverPort),
                 new TimeBoundedObjectsCache(cacheEvictionTimeMillis), timeoutMillis,
-                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
     private static String generateClientId() {
@@ -171,14 +182,17 @@ public class SwiftImpl implements Swift, TxnManager {
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
     private final ExecutorService notificationsSubscriberExecutor;
+    private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
     private final int timeoutMillis;
     private final int notificationTimeoutMillis;
+    private final int deadlineMillis;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeBoundedObjectsCache objectsCache,
-            int timeoutMillis, final int notificationTimeoutMillis) {
+            int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
         this.clientId = generateClientId();
         this.timeoutMillis = timeoutMillis;
+        this.deadlineMillis = deadlineMillis;
         this.notificationTimeoutMillis = notificationTimeoutMillis;
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
@@ -187,6 +201,8 @@ public class SwiftImpl implements Swift, TxnManager {
         this.pendingTxnLocalDependencies = new LinkedList<AbstractTxnHandle>();
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
+        this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
+                INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.committerThread = new CommitterThread();
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
@@ -237,16 +253,23 @@ public class SwiftImpl implements Swift, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                final AtomicBoolean doneFlag = new AtomicBoolean(false);
-                localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
-                        new LatestKnownClockReplyHandler() {
-                            @Override
-                            public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
-                                updateCommittedVersion(reply.getClock());
-                                doneFlag.set(true);
-                            }
-                        }, timeoutMillis);
-                if (!doneFlag.get() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(deadlineMillis) {
+                    @Override
+                    protected Boolean callOrFailWithNull() {
+                        final AtomicBoolean doneFlag = new AtomicBoolean(false);
+                        localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
+                                new LatestKnownClockReplyHandler() {
+                                    @Override
+                                    public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
+                                        updateCommittedVersion(reply.getClock());
+                                        doneFlag.set(true);
+                                    }
+                                }, Math.min(timeoutMillis, getDeadlineLeft()));
+                        return doneFlag.get();
+                    }
+                });
+
+                if (reply == null && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     throw new NetworkException("timed out to get transcation snapshot point");
                 }
             }
@@ -482,21 +505,9 @@ public class SwiftImpl implements Swift, TxnManager {
             CausalityClock version, boolean strictUnprunedVersion, boolean subscribeUpdates, boolean txnTriggered)
             throws NoSuchObjectException, WrongTypeException, VersionNotFoundException, NetworkException {
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
-        do {
-            replyRef.set(null);
-            localEndpoint.send(serverEndpoint, new FetchObjectVersionRequest(clientId, id, version,
-                    strictUnprunedVersion, subscriptionType), new FetchObjectVersionReplyHandler() {
-                @Override
-                public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
-                    replyRef.set(reply);
-                }
-            }, timeoutMillis);
-            if (replyRef.get() == null) {
-                throw new NetworkException("Fetching object version timed out");
-            }
-        } while (!processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, txnTriggered));
-        // TODO Give up after several retries?
+        final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(clientId, id, version,
+                strictUnprunedVersion, subscriptionType);
+        doFetchObjectVersionOrTimeout(fetchRequest, classOfV, create, txnTriggered);
     }
 
     @SuppressWarnings("unchecked")
@@ -511,41 +522,56 @@ public class SwiftImpl implements Swift, TxnManager {
 
         // WISHME: we should replace it with deltas or operations list
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
+        final FetchObjectDeltaRequest fetchRequest = new FetchObjectDeltaRequest(clientId, id, oldCrdtClock, version,
+                strictUnrpunedVersion, subscriptionType);
+        doFetchObjectVersionOrTimeout(fetchRequest, classOfV, create, txnTriggered);
+    }
+
+    private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final FetchObjectVersionRequest fetchRequest,
+            Class<V> classOfV, boolean create, boolean txnTriggered) throws NetworkException, NoSuchObjectException,
+            WrongTypeException {
+        FetchObjectVersionReply reply;
         do {
-            replyRef.set(null);
-            localEndpoint.send(serverEndpoint, new FetchObjectDeltaRequest(clientId, id, oldCrdtClock, version,
-                    strictUnrpunedVersion, subscriptionType), new FetchObjectVersionReplyHandler() {
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(deadlineMillis) {
                 @Override
-                public void onReceive(RpcHandle conn, FetchObjectVersionReply reply) {
-                    replyRef.set(reply);
+                protected FetchObjectVersionReply callOrFailWithNull() {
+                    final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
+                    localEndpoint.send(serverEndpoint, fetchRequest, new FetchObjectVersionReplyHandler() {
+                        @Override
+                        public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
+                            replyRef.set(reply);
+                        }
+                    }, Math.min(timeoutMillis, getDeadlineLeft()));
+                    return replyRef.get();
                 }
-            }, timeoutMillis);
-            if (replyRef.get() == null) {
-                throw new NetworkException("Fetching newer object version timed out");
+            });
+            if (reply == null) {
+                throw new NetworkException("Fetching object version exceeded the deadline");
             }
-        } while (!processFetchObjectReply(id, create, classOfV, replyRef.get(), subscribeUpdates, txnTriggered));
-        // TODO Give up after several retries?
+            if (stopFlag) {
+                throw new NetworkException("Fetching object version was interrupted by client shutdown.");
+            }
+        } while (!processFetchObjectReply(fetchRequest, reply, classOfV, create, txnTriggered));
     }
 
     /**
      * @return when the request was successful
      */
-    private <V extends CRDT<V>> boolean processFetchObjectReply(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final FetchObjectVersionReply fetchReply, boolean requestedSubscribeUpdates, boolean clientTriggered)
+    private <V extends CRDT<V>> boolean processFetchObjectReply(final FetchObjectVersionRequest request,
+            final FetchObjectVersionReply fetchReply, Class<V> classOfV, boolean create, boolean clientTriggered)
             throws NoSuchObjectException, WrongTypeException {
         final V crdt;
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
             if (!create) {
-                throw new NoSuchObjectException("object " + id + " not found");
+                throw new NoSuchObjectException("object " + request.getUid() + " not found");
             }
             try {
                 crdt = classOfV.newInstance();
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-            crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), false);
+            crdt.init(request.getUid(), fetchReply.getVersion(), fetchReply.getPruneClock(), false);
             break;
         case VERSION_NOT_FOUND:
         case OK:
@@ -554,7 +580,7 @@ public class SwiftImpl implements Swift, TxnManager {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-            crdt.init(id, fetchReply.getVersion(), fetchReply.getPruneClock(), true);
+            crdt.init(request.getUid(), fetchReply.getVersion(), fetchReply.getPruneClock(), true);
             break;
         default:
             throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
@@ -566,9 +592,9 @@ public class SwiftImpl implements Swift, TxnManager {
             final V cacheCRDT;
             try {
                 if (clientTriggered) {
-                    cacheCRDT = (V) objectsCache.getAndTouch(id);
+                    cacheCRDT = (V) objectsCache.getAndTouch(request.getUid());
                 } else {
-                    cacheCRDT = (V) objectsCache.getWithoutTouch(id);
+                    cacheCRDT = (V) objectsCache.getWithoutTouch(request.getUid());
                 }
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
@@ -589,15 +615,15 @@ public class SwiftImpl implements Swift, TxnManager {
                     return false;
                 }
             }
-            UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-            if (requestedSubscribeUpdates && subscription == null) {
+            UpdateSubscription subscription = objectUpdateSubscriptions.get(request.getUid());
+            if (request.getSubscriptionType() != SubscriptionType.NONE && subscription == null) {
                 // Add temporary subscription entry without specifying full
                 // information on what value has been read.
                 subscription = addUpdateSubscription(crdt, null, null);
             }
 
             if (subscription != null && subscription.hasListener()) {
-                handleObjectNewVersionTryNotify(id, subscription, cacheCRDT);
+                handleObjectNewVersionTryNotify(request.getUid(), subscription, cacheCRDT);
             }
         }
 
@@ -609,21 +635,23 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private void fetchSubscribedNotifications() {
-        final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
-        localEndpoint.send(serverEndpoint,
-                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
-                new FastRecentUpdatesReplyHandler() {
+        final FastRecentUpdatesReply notifications = retryableTaskExecutor
+                .execute(new CallableWithDeadline<FastRecentUpdatesReply>() {
                     @Override
-                    public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
-                        replyRef.set(reply);
+                    protected FastRecentUpdatesReply callOrFailWithNull() {
+                        final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
+                        localEndpoint.send(
+                                serverEndpoint,
+                                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis
+                                        - timeoutMillis)), new FastRecentUpdatesReplyHandler() {
+                                    @Override
+                                    public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
+                                        replyRef.set(reply);
+                                    }
+                                }, notificationTimeoutMillis);
+                        return replyRef.get();
                     }
-                }, notificationTimeoutMillis);
-        final FastRecentUpdatesReply notifications = replyRef.get();
-        if (notifications == null) {
-            logger.warning("server timed out on subscriptions information request");
-            return;
-        }
-
+                });
         logger.fine("notifications received for " + notifications.getSubscriptions().size() + " objects");
 
         updateCommittedVersion(notifications.getEstimatedLatestKnownClock());
@@ -816,7 +844,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     return;
                 }
                 if (localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(clientId, id)).failed()) {
-                    logger.warning("could not unsuscribe object updates");
+                    logger.info("failed to unsuscribe object updates");
                 }
             }
         });
@@ -869,34 +897,40 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param txn
      *            locally committed transaction
      */
-    private void commitToStore(AbstractTxnHandle txn) {
+    private void commitToStore(final AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
         if (txn.getUpdatesDependencyClock().hasEventFrom(CLIENT_CLOCK_ID)) {
             throw new IllegalStateException("Trying to commit to data store with client clock");
         }
 
-        final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
+        CommitUpdatesReply reply;
         do {
-            requestTxnGlobalTimestamp(txn);
+            assignGlobalTimestamp(txn);
 
             final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
                     txn.getAllGlobalOperations());
             // Commit at server.
-            do {
-                localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, txn.getGlobalTimestamp(),
-                        operationsGroups), new CommitUpdatesReplyHandler() {
-                    @Override
-                    public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
-                        commitReplyRef.set(reply);
-                    }
-                }, timeoutMillis);
-            } while (commitReplyRef.get() == null);
-        } while (commitReplyRef.get().getStatus() == CommitStatus.INVALID_TIMESTAMP);
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>() {
+                @Override
+                protected CommitUpdatesReply callOrFailWithNull() {
+                    final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
+                    localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, txn.getGlobalTimestamp(),
+                            operationsGroups), new CommitUpdatesReplyHandler() {
+                        @Override
+                        public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
+                            commitReplyRef.set(reply);
+                        }
+                    }, timeoutMillis);
+                    return commitReplyRef.get();
+                }
+            });
+        } while (reply.getStatus() == CommitStatus.INVALID_TIMESTAMP);
 
-        if (commitReplyRef.get().getStatus() == CommitStatus.ALREADY_COMMITTED) {
+        if (reply.getStatus() == CommitStatus.ALREADY_COMMITTED) {
             // FIXME Perhaps we could move this complexity to RequestTimestamp
-            // on server side?
-            throw new UnsupportedOperationException("transaction committed under another timestamp");
+            // on server side? Otherwise we need to keep track of all global
+            // timestamps we previously tried.
+            throw new UnsupportedOperationException("transaction committed under another timestamp, unsupported case");
         }
         logger.info("transaction " + txn.getLocalTimestamp() + " commited globally as " + txn.getGlobalTimestamp());
     }
@@ -907,22 +941,29 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param txn
      *            locally committed transaction
      */
-    private void requestTxnGlobalTimestamp(AbstractTxnHandle txn) {
+    private void assignGlobalTimestamp(final AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
-        final AtomicReference<GenerateTimestampReply> timestampReplyRef = new AtomicReference<GenerateTimestampReply>();
-        do {
-            localEndpoint.send(serverEndpoint, new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(),
-                    txn.getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
-                @Override
-                public void onReceive(RpcHandle conn, GenerateTimestampReply reply) {
-                    timestampReplyRef.set(reply);
-                }
-            }, timeoutMillis);
-        } while (timestampReplyRef.get() == null);
+        final GenerateTimestampReply reply = retryableTaskExecutor
+                .execute(new CallableWithDeadline<GenerateTimestampReply>() {
+                    @Override
+                    protected GenerateTimestampReply callOrFailWithNull() {
+                        final AtomicReference<GenerateTimestampReply> replyRef = new AtomicReference<GenerateTimestampReply>();
+                        localEndpoint.send(
+                                serverEndpoint,
+                                new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(), txn
+                                        .getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
+                                    @Override
+                                    public void onReceive(RpcHandle conn, GenerateTimestampReply reply) {
+                                        replyRef.set(reply);
+                                    }
+                                }, timeoutMillis);
+                        return replyRef.get();
+                    }
+                });
 
         // And replace old timestamp in operations with timestamp from server.
-        txn.setGlobalTimestamp(timestampReplyRef.get().getTimestamp());
+        txn.setGlobalTimestamp(reply.getTimestamp());
     }
 
     /**
