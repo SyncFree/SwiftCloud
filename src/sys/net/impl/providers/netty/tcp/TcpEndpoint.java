@@ -1,8 +1,9 @@
 package sys.net.impl.providers.netty.tcp;
 
+import static sys.utils.Log.Log;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -25,7 +26,6 @@ import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
-import sun.tools.tree.ThisExpression;
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.TransportConnection;
@@ -34,8 +34,6 @@ import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.RemoteEndpoint;
 import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.KryoBufferPool;
-
-import static sys.utils.Log.*;
 
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
