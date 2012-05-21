@@ -1,15 +1,18 @@
 package swift.client;
 
-import static org.easymock.EasyMock.eq;
 import static org.easymock.EasyMock.expectLastCall;
-import static org.easymock.EasyMock.isA;
-import static org.easymock.EasyMock.same;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
+import java.util.LinkedList;
+
+import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.isA;
+import static org.easymock.EasyMock.same;
+import static org.easymock.EasyMock.anyInt;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNull;
 
 import org.easymock.EasyMockSupport;
 import org.junit.After;
@@ -47,9 +50,9 @@ import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
@@ -83,8 +86,7 @@ public class SwiftImplTest extends EasyMockSupport {
 
     private SwiftImpl createSwift() {
         return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new TimeBoundedObjectsCache(120 * 1000),
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_DEADLINE_MILLIS,
-                SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_DEADLINE_MILLIS);
     }
 
     @After
@@ -236,8 +238,10 @@ public class SwiftImplTest extends EasyMockSupport {
             return null;
         }
 
-        @Override
-        public void setHandler(RpcHandler handler) {
-        }
+        @SuppressWarnings("unchecked")
+    	@Override
+    	public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
+    		return (T)this;
+    	}
     }
 }
