@@ -41,6 +41,8 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcMessage;
 
+import static sys.net.api.Networking.*;
+
 /**
  * Simple RPC+Kryo benchmark.
  * 
@@ -68,8 +70,8 @@ public class RPCBenchmark {
         // kryo.register(TestRequest.class);
         // kryo.register(TestReply.class);
 
-        serverEndpoint = Networking.Networking.rpcBind(8001, new RpcServer());
-        clientEndpoint = Networking.Networking.rpcBind(0, null);
+        serverEndpoint = Networking.rpcBind(SERVER_PORT, TransportProvider.DEFAULT).toService(0, new RpcServer() );
+        clientEndpoint = Networking.rpcConnect().toDefaultService();
         clientToServerEndpoint = Networking.resolve("localhost", SERVER_PORT);
 
         causalityClock1 = ClockFactory.newClock();

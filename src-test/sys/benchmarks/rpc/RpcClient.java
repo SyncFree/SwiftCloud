@@ -9,6 +9,7 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 
 import sys.net.api.Endpoint;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
@@ -19,16 +20,9 @@ public class RpcClient {
 
 	static  double sumRTT = 0, totRTT = 0;
 
-	public static void main(String[] args) throws UnknownHostException {
-		Log.setLevel(Level.ALL);
-
-		String serverAddr = args.length > 0 ? args[0] : "localhost";
-
-		sys.Sys.init();
-
-		KryoSerialization.init();
+	public void doIt( String serverAddr ) {
 		
-		RpcEndpoint endpoint = Networking.rpcBind(-1, null);
+		RpcEndpoint endpoint = Networking.rpcConnect( TransportProvider.DEFAULT).toDefaultService();
 		
 		final Endpoint server = Networking.resolve(serverAddr, RpcServer.PORT);
 		
@@ -62,13 +56,23 @@ public class RpcClient {
 			int total = n;
 			if (total % 10000 == 0) {
 				synchronized (values) {
-					System.out.printf("#total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total, +total / (Sys.currentTime() - T0),
+					System.out.printf(endpoint + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total, +total / (Sys.currentTime() - T0),
 							(values.isEmpty() ? 0 : (n - values.first())), sumRTT/totRTT);
 				}
 			}
 			while (values.size() > 1000)
 				Threading.sleep(1);
-		}
+		}		
+	}
+	public static void main(String[] args) throws UnknownHostException {
+		Log.setLevel(Level.ALL);
 
+		String serverAddr = args.length > 0 ? args[0] : "localhost";
+
+		sys.Sys.init();
+
+		KryoSerialization.init();
+
+		new RpcClient().doIt( serverAddr );
 	}
 }

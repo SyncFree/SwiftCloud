@@ -1,9 +1,11 @@
 package sys.benchmarks.rpc;
 
 import sys.Sys;
-import sys.net.api.Networking;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+
+import static sys.net.api.Networking.*;
 
 public class RpcServer extends Handler {
 
@@ -12,7 +14,7 @@ public class RpcServer extends Handler {
     RpcEndpoint endpoint;
 
     RpcServer() {
-        endpoint = Networking.Networking.rpcBind(PORT, this);
+        endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
         System.out.println("Server ready...");
     }
     

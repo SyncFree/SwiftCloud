@@ -6,15 +6,16 @@ import sys.net.api.rpc.RpcMessage;
 
 import static sys.Sys.*;
 
+import sys.net.api.*;
 /**
  * 
  * @author smd
  * 
  */
-public class Reply implements RpcMessage {
+public class Reply implements RpcMessage, CustomKryoSerializer {
 
-    int val;
-    private double timestamp;
+    public int val;
+    public double timestamp;
     
 	public Reply() {
 	}
