@@ -1,6 +1,6 @@
 package swift.dc;
 
-import static sys.net.api.Networking.Networking;
+import static sys.net.api.Networking.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,8 +40,8 @@ public class DCServer {
     public void startSurrogServer( int portSurrogate) {
         Sys.init();
 
-        server = new DCSurrogate(Networking.Networking.rpcBind(portSurrogate, null), 
-                                Networking.rpcBind(0,null), 
+        server = new DCSurrogate(Networking.rpcBind(portSurrogate).toDefaultService(), 
+                                Networking.rpcConnect().toDefaultService(), 
                                 Networking.resolve(sequencerHost, sequencerPort), 
                                 props);
     }

@@ -18,6 +18,8 @@ public interface MessageHandler {
 	
 	void onFailure( final TransportConnection conn );
 	
+	void onClose( final TransportConnection conn );
+	
 	/**
 	 * Called whenever a connection to a remote endpoint cannot be established
 	 * or fails.

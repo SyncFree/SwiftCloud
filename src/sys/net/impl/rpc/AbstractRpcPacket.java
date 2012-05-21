@@ -94,9 +94,11 @@ public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 		return this;
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public void setHandler(RpcHandler handler) {
+	public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
 		this.handler = handler;
+		return (T)this;
 	}
 
 	public void deliverTo(TransportConnection conn, MessageHandler handler) {

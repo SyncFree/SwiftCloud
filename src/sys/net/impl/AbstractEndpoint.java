@@ -61,9 +61,11 @@ abstract public class AbstractEndpoint implements Endpoint {
 		return other != null && equals((AbstractEndpoint) other);
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
-	public void setHandler(MessageHandler handler) {
+	public <T extends Endpoint> T setHandler(MessageHandler handler) {
 		this.handler = handler;
+		return (T)this;
 	}
 
 	@Override

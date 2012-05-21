@@ -31,4 +31,9 @@ public class DefaultMessageHandler implements MessageHandler {
 	public void onReceive(TransportConnection conn, Message m) {
 		Thread.dumpStack();
 	}
+
+	@Override
+	public void onClose(TransportConnection conn) {
+		Thread.dumpStack();
+	}
 }

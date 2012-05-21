@@ -1,6 +1,7 @@
 package sys;
 
 import java.util.Random;
+import java.util.concurrent.atomic.AtomicLong;
 
 import swift.utils.KryoCRDTUtils;
 import sys.dht.DHT_Node;
@@ -16,8 +17,8 @@ public class Sys {
 	public Random rg;
 	public TaskScheduler scheduler;
 
-	public long uploadedBytes = 1;
-	public long downloadedBytes = 1;
+	public AtomicLong uploadedBytes = new AtomicLong(1);
+	public AtomicLong downloadedBytes = new AtomicLong(1);
 
 
 	private String datacenter = "*";

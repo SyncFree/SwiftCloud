@@ -173,7 +173,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	public int dynamicBroadcastFanout() {
 		final double TARGET_BROADCAST_ADJUST = 0.05;
 
-		targetFanout *= (1 + TARGET_BROADCAST_ADJUST * (Sys.uploadedBytes > Sys.downloadedBytes ? -1 : 1));
+		targetFanout *= (1 + TARGET_BROADCAST_ADJUST * (Sys.uploadedBytes.get() > Sys.downloadedBytes.get() ? -1 : 1));
 		targetFanout = Math.max(2, Math.min(targetFanout, Config.BROADCAST_MAX_FANOUT));
 
 		int floor = (int) targetFanout;

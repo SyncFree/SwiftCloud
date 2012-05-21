@@ -30,7 +30,7 @@ public class RemoteEndpoint extends AbstractEndpoint {
 	}
 
 	@Override
-	public void setHandler(final MessageHandler handler) {
+	public <T extends Endpoint> T setHandler(MessageHandler handler) {
 		throw new NetworkingException("Not supported...[This is a remote endpoint...]");
 	}
 

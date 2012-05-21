@@ -5,7 +5,6 @@ import sys.net.api.Networking;
 import sys.net.api.Serializer;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
-import sys.net.api.rpc.RpcHandler;
 import sys.net.impl.rpc.RpcFactoryImpl;
 
 public class NetworkingImpl extends Networking {
@@ -20,7 +19,12 @@ public class NetworkingImpl extends Networking {
 
     @Override
     synchronized public Endpoint bind(final int tcpPort) {
-        return LocalEndpoint.open(tcpPort);
+        return bind( tcpPort, TransportProvider.DEFAULT ) ;
+    }
+
+    @Override
+    synchronized public Endpoint bind(final int tcpPort, TransportProvider provider) {
+        return LocalEndpoint.open(tcpPort, null, provider);
     }
 
     @Override
@@ -29,17 +33,29 @@ public class NetworkingImpl extends Networking {
     }
 
     @Override
-    synchronized public RpcEndpoint rpcBind(final int tcpPort, final RpcHandler handler) {
-        return rpcBind(tcpPort).rpcService(0, handler);
+    synchronized public RpcFactory rpcBind(final int tcpPort) {
+    	return rpcBind(tcpPort, TransportProvider.DEFAULT);
     }
 
     @Override
-    synchronized public RpcFactory rpcBind(final int tcpPort) {
+    synchronized public RpcFactory rpcBind(final int tcpPort, TransportProvider provider) {
     	RpcFactoryImpl fac = new RpcFactoryImpl() ;
-        fac.setEndpoint( LocalEndpoint.open(tcpPort, fac) );
+        fac.setEndpoint( LocalEndpoint.open(tcpPort, fac, provider) );
         return fac;
     }
-
+    
+    @Override
+	public RpcFactory rpcConnect(TransportProvider provider) {
+    	RpcFactoryImpl fac = new RpcFactoryImpl() ;
+        fac.setEndpoint( LocalEndpoint.open(-1, fac, provider) );
+        return fac;
+	}
+    
+    @Override
+	public RpcFactory rpcConnect() {
+    	return rpcConnect( TransportProvider.DEFAULT );
+	}
+    
     @Override
     synchronized public Serializer serializer() {
         if (serializer == null) {
@@ -49,4 +65,8 @@ public class NetworkingImpl extends Networking {
     }
 
     private Serializer serializer;
+
+	
+
+	
 }

@@ -11,6 +11,7 @@ import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 import sys.dht.api.StringKey;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
+import sys.net.api.CustomKryoSerializer;
 
 public class KryoLib {
 
@@ -74,6 +75,20 @@ public class KryoLib {
 		register(StringKey.class);
 	}
 
+//	public static void autoRegister( String packagePrefix ) {
+//		for( Package p : Package.getPackages() ) {
+//			System.out.println( p.getName() );
+//			if( p.getName().startsWith( packagePrefix ) ) 
+//				for( Class<?> c : p.getClass().getClasses() ) ;
+//		}
+//	}
+//	
+//	private static void processClasse( Class<?> c ) {
+//		if(c.isInstance( CustomKryoSerializer.class) ) {
+//			System.out.println(c);
+//		}
+//	}
+	
 	public static Kryo kryo = null;
 	private static Map<Class<?>, Serializer> registry = new LinkedHashMap<Class<?>, Serializer>();
 }

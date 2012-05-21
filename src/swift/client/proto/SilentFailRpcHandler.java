@@ -21,6 +21,7 @@ public class SilentFailRpcHandler implements RpcHandler {
 
     @Override
     public void onFailure( RpcHandle h) {
+    	Thread.dumpStack();
     }
 
 }

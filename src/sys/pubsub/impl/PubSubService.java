@@ -29,8 +29,7 @@ public class PubSubService extends PubSub {
         localSubscribers = new HashMap<String, Set<Handler>>();
         remoteSubscribers = new HashMap<String, Set<Endpoint>>();
         
-        svc = factory.rpcService( RpcServices.PUBSUB.ordinal(), new PubSubRpcHandler(){
-
+        svc = factory.toService( RpcServices.PUBSUB.ordinal(), new PubSubRpcHandler(){
             public void onReceive(RpcHandle conn, PubSubNotification m) {
                 conn.reply( new PubSubAck( localSubscribers(m.group, false).size() ) );
                 
@@ -38,7 +37,6 @@ public class PubSubService extends PubSub {
                     i.notify(m.group, m.payload);
                 }
             }
-            
         });
     }
      
@@ -48,7 +46,6 @@ public class PubSubService extends PubSub {
     public void publish( final String group, final Object payload ) {
         for( Endpoint i : remoteSubscribers(group, true)){
             svc.send( i, new PubSubNotification(group, payload), new PubSubRpcHandler(){
-                
                public void onFailure(  RpcHandle handle ) {
             	   removeRemoteSubscriber( group, handle.remoteEndpoint() ) ;
                } 

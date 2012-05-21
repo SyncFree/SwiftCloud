@@ -1,4 +1,4 @@
-package sys.net.impl.tcp;
+package sys.net.impl.providers;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;

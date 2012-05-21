@@ -68,8 +68,8 @@ import swift.exceptions.WrongTypeException;
 import swift.utils.CallableWithDeadline;
 import swift.utils.ExponentialBackoffTaskExecutor;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcEndpoint;
 
 /**
  * Implementation of Swift client and transactions manager.
@@ -136,7 +136,7 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis, int deadlineMillis,
             long cacheEvictionTimeMillis) {
-        return new SwiftImpl(Networking.rpcBind(0, null), Networking.resolve(serverHostname, serverPort),
+        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(serverHostname, serverPort),
                 new TimeBoundedObjectsCache(cacheEvictionTimeMillis), timeoutMillis,
                 DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }

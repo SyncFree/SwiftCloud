@@ -7,6 +7,7 @@ import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
 import sys.net.api.Endpoint;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 
@@ -22,7 +23,7 @@ public class DHT_ClientStub implements DHT {
 	
 	public DHT_ClientStub(final Endpoint dhtEndpoint) {
 		this.dhtEndpoint = dhtEndpoint;
-		myEndpoint = Networking.rpcBind(0).rpcService( RpcServices.DHT.ordinal(), new _Handler());
+		myEndpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toService( RpcServices.DHT.ordinal(), new _Handler());
 	}
 
 	DHT_ClientStub(final RpcEndpoint myEndpoint, final Endpoint dhtEndpoint) {

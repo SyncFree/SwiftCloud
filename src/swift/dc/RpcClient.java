@@ -14,13 +14,13 @@ public class RpcClient {
 
         Sys.init();
 
-        RpcEndpoint endpoint = Networking.rpcBind(0, null);
+        RpcEndpoint endpoint = Networking.rpcConnect().toDefaultService();
         final Endpoint server = Networking.resolve("localhost", DCConstants.SURROGATE_PORT);
 
         for (;;) {
             endpoint.send(server, new Request(), new Handler() {
 
-                public void onFailure() {
+                public void onFailure( RpcHandle handler ) {
                     System.out.println("Client Send failed...");
                 }
 

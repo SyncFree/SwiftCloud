@@ -1,4 +1,4 @@
-package sys.net.impl.tcp.nio;
+package sys.net.impl.providers.nio;
 
 import static sys.utils.Log.Log;
 
@@ -15,40 +15,38 @@ import java.util.concurrent.TimeUnit;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
-import sys.net.api.MessageHandler;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
+import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.AbstractTransport;
 import sys.net.impl.RemoteEndpoint;
-import sys.net.impl.tcp.KryoBuffer;
-import sys.net.impl.tcp.KryoBufferPool;
+import sys.net.impl.providers.KryoBuffer;
+import sys.net.impl.providers.KryoBufferPool;
 import sys.utils.Threading;
 
-public class TcpEndpoint implements Runnable {
+public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
-	private static final int MAX_POOL_THREADS = 32;
-	private static final int CORE_POOL_THREADS = 4;
+	private static final int MAX_POOL_THREADS = 12;
+	private static final int CORE_POOL_THREADS = 3;
 	private static final int MAX_IDLE_THREAD_IMEOUT = 30;
 
-	final Endpoint localEndpoint;
-
-	int tcpPort;
-	MessageHandler handler;
 	ServerSocketChannel ssc;
 
 	final BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(256);
 	final ThreadPoolExecutor threadPool = new ThreadPoolExecutor(CORE_POOL_THREADS, MAX_POOL_THREADS, MAX_IDLE_THREAD_IMEOUT, TimeUnit.SECONDS, holdQueue);
-	final KryoBufferPool writePool = new KryoBufferPool(5);
-	
-	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
-		this.localEndpoint = (AbstractEndpoint)local;
+	final KryoBufferPool writePool;
 
-		if( tcpPort >= 0 ) {
+	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
+		this.localEndpoint = (AbstractEndpoint) local;
+
+		if (tcpPort >= 0) {
 			ssc = ServerSocketChannel.open();
 			ssc.socket().bind(new InetSocketAddress(tcpPort));
 			this.tcpPort = ssc.socket().getLocalPort();
 		} else
 			this.tcpPort = 0;
+
+		writePool = new KryoBufferPool(tcpPort > 0 ? 64 : 8);
 	}
 
 	public void start() throws IOException {
@@ -57,13 +55,13 @@ public class TcpEndpoint implements Runnable {
 		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
 		while (this.writePool.remainingCapacity() > 0)
-			this.writePool.offer( new KryoBuffer());
+			this.writePool.offer(new KryoBuffer());
 
-		
-		if( tcpPort > 0 )
+		if (tcpPort > 0)
 			Threading.newThread(true, this).start();
 	}
-	
+
+	@Override
 	public int getLocalPort() {
 		return tcpPort <= 0 ? 0 : ssc.socket().getLocalPort();
 	}
@@ -72,18 +70,10 @@ public class TcpEndpoint implements Runnable {
 		try {
 			return new OutgoingConnection(localEndpoint, remote);
 		} catch (IOException e) {
-			//e.printStackTrace();
-            Log.severe("Bad connection to:" + remote);
+			// e.printStackTrace();
+			Log.severe("Bad connection to:" + remote);
 		}
 		return null;
-	}
-
-	public TransportConnection send(Endpoint remote, Message m) {
-		TransportConnection conn = connect(remote);
-		if (conn != null && conn.send(m))
-			return conn;
-		else
-			return null;
 	}
 
 	@Override
@@ -94,7 +84,7 @@ public class TcpEndpoint implements Runnable {
 
 			for (;;) {
 				SocketChannel channel = ssc.accept();
-				
+
 				channel.socket().setTcpNoDelay(true);
 
 				locatorBuffer.clear();
@@ -103,7 +93,7 @@ public class TcpEndpoint implements Runnable {
 				} while (locatorBuffer.hasRemaining());
 
 				int remotePort = locatorBuffer.getInt(0);
-				
+
 				InetSocketAddress raddr = (InetSocketAddress) channel.socket().getRemoteSocketAddress();
 				Endpoint remote = new RemoteEndpoint(new InetSocketAddress(raddr.getAddress(), remotePort));
 				new IncomingConnection(localEndpoint, remote, channel);
@@ -114,7 +104,7 @@ public class TcpEndpoint implements Runnable {
 	}
 
 	abstract class AbstractConnection extends AbstractTransport implements Runnable {
-		
+
 		SocketChannel channel;
 		final KryoBufferPool readPool;
 		final SynchronousQueue<KryoBuffer> rq;
@@ -126,7 +116,7 @@ public class TcpEndpoint implements Runnable {
 		}
 
 		abstract void init() throws IOException;
-		
+
 		@Override
 		public void run() {
 			try {
@@ -135,16 +125,22 @@ public class TcpEndpoint implements Runnable {
 
 				for (;;) {
 					KryoBuffer inBuf = readPool.take();
-					inBuf.readFrom(channel);
-					
-					if (!rq.offer(inBuf))
-						threadPool.execute(inBuf);
-//					inBuf.run();
+
+					if (inBuf.readFrom(channel))
+						inBuf.run();
+					else {
+						this.readPool.offer(inBuf);
+						break;
+					}
+					// // if (inBuf != null && !rq.offer(inBuf))
+					// // threadPool.execute(inBuf);
+					//
+					// inBuf.run();
 				}
 
 			} catch (IOException ioe) {
 				isBroken = true;
-				handler.onFailure( this ) ;
+				handler.onFailure(this);
 			} catch (Throwable t) {
 				t.printStackTrace();
 			}
@@ -156,7 +152,7 @@ public class TcpEndpoint implements Runnable {
 				try {
 					Message msg = super.readClassAndObject();
 					readPool.offer(this);
-					msg.deliverTo(AbstractConnection.this, handler);
+					msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
 				} catch (Throwable t) {
 					t.printStackTrace();
 				}
@@ -167,7 +163,7 @@ public class TcpEndpoint implements Runnable {
 			KryoBuffer outBuf = null;
 			try {
 				outBuf = writePool.take();
-				outBuf.writeClassAndObject(m, channel);
+				outBuf.writeClassAndObjectFrame(m, channel);
 				return true;
 			} catch (Throwable t) {
 				t.printStackTrace();
@@ -195,8 +191,8 @@ public class TcpEndpoint implements Runnable {
 		}
 
 	}
-	
-	class IncomingConnection extends AbstractConnection  {
+
+	class IncomingConnection extends AbstractConnection {
 
 		public IncomingConnection(Endpoint local, Endpoint remote, SocketChannel channel) throws IOException {
 			super(local, remote);
@@ -206,7 +202,7 @@ public class TcpEndpoint implements Runnable {
 
 		@Override
 		void init() throws IOException {
-			handler.onAccept(this);	
+			handler.onAccept(this);
 			Threading.newThread(true, this).start();
 		}
 
@@ -226,10 +222,10 @@ public class TcpEndpoint implements Runnable {
 			channel.socket().setTcpNoDelay(true);
 
 			ByteBuffer locatorBuffer = ByteBuffer.allocate(4);
-			locatorBuffer.putInt( tcpPort ).flip();
-			channel.write( locatorBuffer);
-			
-			handler.onConnect( this );
+			locatorBuffer.putInt(tcpPort).flip();
+			channel.write(locatorBuffer);
+
+			handler.onConnect(this);
 			Threading.newThread(true, this).start();
 		}
 	}

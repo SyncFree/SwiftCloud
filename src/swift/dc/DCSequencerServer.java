@@ -1,10 +1,9 @@
 package swift.dc;
 
-import static sys.net.api.Networking.Networking;
+import static sys.net.api.Networking.*;
 
 import java.util.ArrayList;
 import java.util.BitSet;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -12,8 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.TreeSet;
 
 import swift.client.proto.GenerateTimestampReply;
 import swift.client.proto.GenerateTimestampRequest;
@@ -190,7 +187,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                 sequencersEP.add(Networking.resolve(s, DCConstants.SEQUENCER_PORT));
         }
 
-        this.endpoint = Networking.Networking.rpcBind(port, null);
+        this.endpoint = Networking.rpcBind(port).toDefaultService();
         this.endpoint.setHandler(this);
 
         if (sequencerShadow != null) {

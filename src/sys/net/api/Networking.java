@@ -2,7 +2,6 @@ package sys.net.api;
 
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
-import sys.net.api.rpc.RpcHandler;
 
 /**
  * Used to obtain endpoints form performing message exchange.
@@ -12,6 +11,10 @@ import sys.net.api.rpc.RpcHandler;
  */
 abstract public class Networking {
 
+	public enum TransportProvider {
+		DEFAULT, NIO_TCP, NETTY_IO_TCP, NETTY_IO_WS
+	}
+	
 	/**
 	 * Creates a local endpoint for accepting and sending messages
 	 * 
@@ -22,9 +25,28 @@ abstract public class Networking {
 	abstract public Endpoint bind(final int tcpPort);
 
 	/**
+	 * Creates a local endpoint for accepting and sending messages
+	 * 
+	 * @param tcpPort
+	 *            the port used for listening tcp connections
+	 * @return the endpoint created
+	 */
+	
+	/**
+	 * Creates a local endpoint for accepting and sending messages, using the provider specified.
+	 * 
+	 * @param tcpPort
+	 * 				the port used for listening for connections
+	 * @param provider
+	 * 			 the provider user for accepting connections
+	 * @return
+	 */
+	abstract public Endpoint bind(final int tcpPort, TransportProvider provider );
+
+	/**
 	 * Creates an endpoint pointing to a remote location, identified by host/ip
-	 * and a port. Connections are creating upon calling one of the send
-	 * methods.
+	 * and a port. Endpoints returned by this function serve only as locators and
+	 * cannot be used to initiate communication by themselves.
 	 * 
 	 * @param host
 	 *            - the host/ip address of the remote location
@@ -34,18 +56,45 @@ abstract public class Networking {
 	 */
 	abstract public Endpoint resolve(final String host, final int tcpPort);
 
+
 	/**
-	 * Creates a local endpoint form accepting and sending messages according to
+	 * Creates a local endpoint for accepting and sending messages according to
 	 * a simple RPC scheme. Allows for a sequence of cascading send/reply
 	 * message exchanges.
 	 * 
 	 * @param tcpPort
 	 *            the listening port
-	 * @param handler
-	 *            the handler used for message delivery
+	 * @param provider
+	 * 			 the provider user for accepting connections
 	 * @return
 	 */
-	abstract public RpcEndpoint rpcBind(final int tcpPort, final RpcHandler handler);
+	abstract public RpcFactory rpcBind(final int tcpPort, TransportProvider provider);
+
+	
+	/**
+	 * Creates a local endpoint for accepting and sending messages according to
+	 * a simple RPC scheme. Allows for a sequence of cascading send/reply
+	 * message exchanges.
+	 * 
+	 * @param tcpPort
+	 *            the listening port
+	 * @param provider
+	 * 			 the provider user for accepting connections
+	 * @return
+	 */
+	abstract public RpcFactory rpcConnect(TransportProvider provider);
+
+
+	/**
+	 * Creates a local endpoint form accepting and sending messages according to
+	 * a simple RPC scheme, using the default TCP provider. Allows for a sequence of cascading send/reply
+	 * message exchanges.
+	 * 
+	 * @param tcpPort
+	 *            the listening port
+	 * @return
+	 */
+	abstract public RpcFactory rpcConnect();
 
 	/**
 	 * Creates a rpc factory, which allows to register handler associted with
@@ -56,7 +105,7 @@ abstract public class Networking {
 	 * @return
 	 */
 	abstract public RpcFactory rpcBind(final int tcpPort);
-
+	
 	/**
 	 * Obtains a singleton instance of a serializer object
 	 * @return the serializer
@@ -76,5 +125,4 @@ abstract public class Networking {
 	 * simulated environment.
 	 */
 	public static Networking Networking;
-
 }

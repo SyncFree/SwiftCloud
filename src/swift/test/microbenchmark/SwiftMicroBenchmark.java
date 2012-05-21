@@ -132,7 +132,6 @@ public class SwiftMicroBenchmark implements WorkerManager {
             logger.info("END");
 
         }
-        System.err.println("Before printResults");
         printResults();
         System.exit(0);
     }

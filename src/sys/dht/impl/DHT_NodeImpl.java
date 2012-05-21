@@ -105,7 +105,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 
 		_DHT_ServerStub(DHT.MessageHandler myHandler) {
 			this.myHandler = myHandler;
-			myEndpoint = rpcFactory.rpcService( RpcServices.DHT.ordinal(), this);
+			myEndpoint = rpcFactory.toService( RpcServices.DHT.ordinal(), this);
 		}
 
 		RpcEndpoint getEndpoint() {

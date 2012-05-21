@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
 
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 
@@ -33,14 +34,21 @@ import static sys.net.impl.KryoLib.*;
 
 final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	static final long MAX_SERVICE_ID = 1L << 16;
-
+	static final int RPC_MAX_TIMEOUT = 10000;
+	
 	Endpoint local;
 	ConnectionManager conMgr;
 	List<RpcEndpoint> services = new ArrayList<RpcEndpoint>();
 
 	public RpcFactoryImpl() {
 		this.conMgr = new ConnectionManager();
-
+	     
+//		sys.utils.Log.setLevel("", Level.ALL);
+//		sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
+//		sys.utils.Log.setLevel("sys.dht", Level.ALL);
+//		sys.utils.Log.setLevel("sys.net", Level.ALL);
+//		sys.utils.Log.setLevel("sys", Level.ALL);
+		
 		KryoLib.register(RpcPacket.class, new SimpleSerializer<RpcPacket>() {
 
 			public RpcPacket read(ByteBuffer bb) {
@@ -68,35 +76,49 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	}
 
 	@Override
-	public RpcEndpoint rpcService(final int service, final RpcHandler handler) {
+	public RpcEndpoint toService(final int service, final RpcHandler handler) {
 		RpcEndpoint res = new RpcPacket(service, handler);
 		services.add(res);
 		return res;
 	}
 
 	@Override
-	public RpcEndpoint rpcServiceConnect(int service) {
-		return null;
+	public RpcEndpoint toService(int service) {
+		return toService( service, null);
 	}
 
 	@Override
+	public RpcEndpoint toDefaultService() {
+		return toService(0);
+	}
+	
+	@Override
 	public void onAccept(TransportConnection conn) {
 		conMgr.add(conn);
-		System.out.println("Accepted connection from:" + conn.remoteEndpoint());
+		Log.finest("Accepted connection from:" + conn.remoteEndpoint());
 	}
 
 	@Override
 	public void onConnect(TransportConnection conn) {
+		Log.finest("Established connection to:" + conn.remoteEndpoint());
 		conMgr.add(conn);
 	}
 
 	@Override
 	public void onFailure(TransportConnection conn) {
+		Log.finest("Connection failed to:" + conn.remoteEndpoint());
+		conMgr.remove(conn);
+		Thread.dumpStack();
+	}
+
+	@Override
+	public void onClose(TransportConnection conn) {
+		Log.finest("Connection closed to:" + conn.remoteEndpoint());
 		conMgr.remove(conn);
 	}
 
+	
 	public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
-		// System.out.println(conn + " " + pkt.payload.getClass());
 
 		final RpcPacket handle = getHandle(pkt);
 		if (handle != null) {
@@ -106,7 +128,6 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 			pkt.conn = conn;
 			handle.accept(pkt);
 		} else {
-			System.err.println("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
 			Log.finest("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
 		}
 	}
@@ -121,12 +142,14 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		Thread.dumpStack();
 	}
 
+
+	
 	final class ConnectionManager {
 		final int CONNECTION_RETRIES = 3;
 		final int CONNECTION_REPLY_DELAY = 5;
 		Map<Endpoint, RandomList<TransportConnection>> connections = new HashMap<Endpoint, RandomList<TransportConnection>>();
 
-		synchronized TransportConnection get(Endpoint remote) {
+		TransportConnection get(Endpoint remote) {
 			RandomList<TransportConnection> rl = connections(remote, true);
 			for (TransportConnection i : rl)
 				if (!i.failed())
@@ -150,7 +173,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 				connections(conn.remoteEndpoint(), false).remove(conn);
 		}
 
-		RandomList<TransportConnection> connections(Endpoint remote, boolean create) {
+		synchronized RandomList<TransportConnection> connections(Endpoint remote, boolean create) {
 			RandomList<TransportConnection> res = connections.get(remote);
 			if (res == null && create)
 				connections.put(remote, res = new RandomList<TransportConnection>());
@@ -247,7 +270,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		}
 
 		final private boolean timedOut() {
-			int ms = timeout < 0 ? Integer.MAX_VALUE: (int) (timeout - (Sys.timeMillis() - timestamp));
+			int ms = timeout < 0 ? RPC_MAX_TIMEOUT: (int) (timeout - (Sys.timeMillis() - timestamp));
 			if (ms > 0)
 				Threading.waitOn(this, ms > 100 ? 100 : ms );
 			return ms <= 0;
@@ -266,6 +289,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 					return false;
 				}
 			} catch (Throwable t) {
+				t.printStackTrace();
 				failed = true;
 				failureCause = t;
 				
@@ -340,8 +364,11 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 	}
 
+	// [0-MAX_SERVICE_ID[ are reserved for static service handlers.
 	long g_handlers = MAX_SERVICE_ID + Sys.rg.nextInt(100000);
 
 	final LongMap<StaleRef> handles = new LongMap<StaleRef>();
 	final ReferenceQueue<RpcPacket> refQueue = new ReferenceQueue<RpcPacket>();
+
+
 }

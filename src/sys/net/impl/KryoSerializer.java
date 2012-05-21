@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
 
 import sys.net.api.Serializer;
 import sys.net.api.SerializerException;
-import sys.net.impl.tcp.KryoBuffer;
+import sys.net.impl.providers.KryoBuffer;
 
 import com.esotericsoftware.kryo.Kryo;
 

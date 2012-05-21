@@ -1,4 +1,4 @@
-package sys.net.impl.tcp;
+package sys.net.impl.providers;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,40 +17,43 @@ import static sys.Sys.*;
 
 public class KryoBuffer implements Runnable {
 
+	final static Kryo kryo = KryoLib.kryo() ;
+
 	private static int INITIAL_BUFFER_CAPACITY = 1 * 1024;
 
-	Kryo kryo;
 	ByteBuffer buffer;
 	
 	Runnable handler;
 
 	public KryoBuffer() {
-		kryo = KryoLib.kryo();
 		buffer = ByteBuffer.allocate(INITIAL_BUFFER_CAPACITY);
 	}
 
-	public KryoBuffer readFrom(SocketChannel ch) throws IOException {
+	public boolean readFrom(SocketChannel ch) throws IOException {
 		buffer.clear().limit(4);
-		do {
-			ch.read(buffer);
-		} while (buffer.hasRemaining());
 
+		while( ch.read( buffer ) >= 0 && buffer.hasRemaining() ); 
+
+		if( buffer.hasRemaining() )
+			return false;
+		
 		int contentLength = buffer.getInt(0);
 
-		Sys.downloadedBytes += 4 + contentLength;
+		Sys.downloadedBytes.addAndGet( 4 + contentLength );
 		
 		if (contentLength > buffer.capacity()) {
 			int newCapacity = Integer.highestOneBit(contentLength) << 2;
 			buffer = ByteBuffer.allocate(newCapacity);
 		}
 		buffer.clear().limit(contentLength);
-		do {
-			ch.read(buffer);
-		} while (buffer.hasRemaining());
-		buffer.flip();		
-		
 
-		return this;
+		while( ch.read( buffer ) >= 0 && buffer.hasRemaining() ); 
+
+		if( buffer.hasRemaining() )
+			return false;
+
+		buffer.flip();		
+		return true;
 	}
 
 	public void setHandler(Runnable handler) {
@@ -78,10 +81,12 @@ public class KryoBuffer implements Runnable {
 					throw ex;
 			}
 		}
-		return buffer.position();
+		int res = buffer.position();
+		buffer.flip();
+		return res;
 	}
 
-	public void writeClassAndObject(Object object, SocketChannel ch) throws IOException {
+	public void writeClassAndObjectFrame(Object object, SocketChannel ch) throws IOException {
 		while (true) {
 			buffer.clear();
 			buffer.position(4);
@@ -101,10 +106,43 @@ public class KryoBuffer implements Runnable {
 		}
 		int contentLength = buffer.position();
 		buffer.putInt(0, contentLength - 4);
+		Sys.uploadedBytes.addAndGet( buffer.position() );
 		buffer.flip();
-		Sys.uploadedBytes += ch.write(buffer) ;
+		ch.write(buffer) ;
+	}
+	
+	public int writeClassAndObjectFrame(Object object) throws IOException {
+		while (true) {
+			buffer.clear();
+			buffer.position(4);
+			try {
+				kryo.writeClassAndObject(buffer, object);
+				break;
+			} catch (SerializationException ex) { // For some reason, Kryo
+													// throws this exception,
+													// instead of the one
+													// below...
+				if (!resizeBuffer())
+					throw ex;
+			} catch (BufferOverflowException ex) {
+				if (!resizeBuffer())
+					throw ex;
+			}
+		}
+		int contentLength = buffer.position();
+		buffer.putInt(0, contentLength - 4);
+		int length = buffer.position();
+		Sys.uploadedBytes.addAndGet( length );
+		buffer.flip();
+		return length;
+	}
+	
+	@SuppressWarnings("unchecked")
+	static public <T> T readClassAndObject( ByteBuffer buffer ) {
+		return (T) kryo.readClassAndObject(buffer );
 	}
 
+	
 	@SuppressWarnings("unchecked")
 	public <T> T readClassAndObject() {
 		return (T) kryo.readClassAndObject(buffer);
@@ -116,11 +154,15 @@ public class KryoBuffer implements Runnable {
 	}
 
 	public byte[] toByteArray() {
-		byte[] objectBytes = new byte[buffer.position()];
+		byte[] objectBytes = new byte[buffer.limit()];
 		System.arraycopy(buffer.array(), 0, objectBytes, 0, objectBytes.length);
 		return objectBytes;
 	}
 
+	public ByteBuffer toByteBuffer() {
+		return buffer;
+	}
+	
 	public void writeTo(OutputStream os) throws IOException {
 		os.write(buffer.array(), 0, buffer.position());
 	}

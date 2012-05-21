@@ -43,7 +43,7 @@ public interface Endpoint {
 	 * 
 	 * @param handler
 	 */
-	void setHandler(final MessageHandler handler);
+	<T extends Endpoint> T setHandler(MessageHandler handler);
 
 	/**
 	 * Gets the handler for incoming messages
