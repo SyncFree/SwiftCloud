@@ -81,6 +81,7 @@ public class SwiftSocialBenchmark {
             }
 
             // Wait for all sessions.
+            sessionsExecutor.shutdown();
             try {
                 sessionsExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             } catch (InterruptedException e) {
