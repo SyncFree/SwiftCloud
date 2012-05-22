@@ -50,7 +50,7 @@ run_cmd_bg() {
 	cmd=$*
 	echo "Running command on $server and detaching"
 	echo "$cmd"
-	$SSH -fi $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
+	$SSH -i $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd" &
 }
 
 # swift_app_cmd <java options>

@@ -104,15 +104,17 @@ run_swift_client_initdb $INIT_DB_DC $INIT_DB_DC users.txt
 echo "waiting a bit before starting real clients"
 sleep 10
 
+client_pids=""
 for i in ${!DCS[*]}; do
 	echo "starting clients connecting to DC$i"
 	for client in ${DC_CLIENTS[$i]}; do
 		run_swift_client_bg "$client" "${DCS[$i]}"
-	done	
+		client_pids="$client_pids $!"
+	done
 done
 
-echo "running ... hit enter when you think its finished"
-read dummy
+echo "==== RUNNING... ===="
+wait $client_pids
 
 echo "killing servers and clients"
 scripts/ec2-kill.sh $MACHINES
