@@ -1,19 +1,13 @@
 package sys.dht;
 
-import static sys.dht.catadupa.Config.Config;
+import static sys.Sys.Sys;
 import static sys.utils.Log.Log;
-
-import org.hamcrest.Factory;
-
 import sys.dht.api.DHT;
-import sys.dht.catadupa.Node;
 import sys.dht.discovery.Discovery;
 import sys.dht.impl.DHT_ClientStub;
 import sys.dht.impl.DHT_NodeImpl;
 import sys.net.api.Endpoint;
-import sys.pubsub.impl.PubSubService;
 import sys.utils.Threading;
-import static sys.Sys.*;
 
 public class DHT_Node extends DHT_NodeImpl {
 
