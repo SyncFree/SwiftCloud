@@ -8,9 +8,9 @@ fi
 
 # TOPOLOGY
 DCS[0]=${EC2_TEST_EU[0]}
-DCS[1]=${EC2_TEST_EU[1]}
-DC_CLIENTS[0]="${EC2_TEST_EU[2]}"
-DC_CLIENTS[1]="${EC2_TEST_EU[3]}"
+DC_CLIENTS[0]=${EC2_TEST_EU[@]:1:4}
+DCS[1]=${EC2_TEST_EU[5]}
+DC_CLIENTS[1]=${EC2_TEST_EU[@]:6:4}
 # Use first DC to initialize global users db, to make it fast.
 INIT_DB_DC=${DCS[0]}
 MACHINES="${DCS[*]} ${DC_CLIENTS[*]}"
@@ -32,7 +32,7 @@ CACHING=STRICTLY_MOST_RECENT
 CACHE_EVICTION_TIME_MS=120000
 ASYNC_COMMIT=true
 THINK_TIME_MS=0
-CONCURRENT_SESSIONS_PER_JVM=10
+CONCURRENT_SESSIONS_PER_JVM=1
 
 # DEPLOY STUFF?
 DEPLOY=true
@@ -96,7 +96,7 @@ echo "starting sequencers and DC servers"
 ./scripts/ec2-start-servers.sh ${DCS[*]}
 
 echo "waiting a bit before initializing database"
-sleep 10
+sleep 20
 
 echo "initializing database"
 run_swift_client_initdb $INIT_DB_DC $INIT_DB_DC users.txt

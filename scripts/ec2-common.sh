@@ -19,7 +19,13 @@ export EC2_TEST_EU=(
 ec2-176-34-82-18.eu-west-1.compute.amazonaws.com 
 ec2-46-137-37-255.eu-west-1.compute.amazonaws.com
 ec2-46-137-139-255.eu-west-1.compute.amazonaws.com
-ec2-176-34-222-247.eu-west-1.compute.amazonaws.com)
+ec2-176-34-222-247.eu-west-1.compute.amazonaws.com
+ec2-79-125-101-111.eu-west-1.compute.amazonaws.com
+ec2-79-125-99-76.eu-west-1.compute.amazonaws.com
+ec2-54-247-135-82.eu-west-1.compute.amazonaws.com
+ec2-176-34-172-62.eu-west-1.compute.amazonaws.com
+ec2-54-247-154-80.eu-west-1.compute.amazonaws.com
+ec2-79-125-100-183.eu-west-1.compute.amazonaws.com)
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
 export EC2_ALL="${EC2_TEST_EU[*]}"
