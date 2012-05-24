@@ -96,7 +96,7 @@ public class SwiftSocial {
                     logger.info("Wrong password for " + loginName);
                 }
             } else {
-                logger.info("User has not been registered " + loginName);
+                logger.severe("User has not been registered " + loginName);
             }
         } catch (NoSuchObjectException e) {
             logger.severe("User " + loginName + " is not known");

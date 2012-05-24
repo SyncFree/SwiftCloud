@@ -10,7 +10,8 @@ import java.util.logging.Logger;
  * @author mzawirski
  */
 public class ExponentialBackoffTaskExecutor {
-    public static final int FREQ_RETRY_LOGGING = 100;
+    public static final int LOGGING_RETRY_SAMPLING_FREQ = 100;
+    public static final int LOGGING_RETRY_WAIT_THRESHOLD_MS = 60 * 1000;
     private static Logger logger = Logger.getLogger(ExponentialBackoffTaskExecutor.class.getName());
 
     private final String name;
@@ -41,8 +42,8 @@ public class ExponentialBackoffTaskExecutor {
             try {
                 return task.call();
             } catch (Exception x) {
-                reportRetry();
                 interRetryWaitTime *= retryWaitTimeMultiplier;
+                reportRetry(interRetryWaitTime);
                 deadlineLeft = task.getDeadlineLeft();
                 if (interRetryWaitTime <= deadlineLeft) {
                     try {
@@ -58,9 +59,11 @@ public class ExponentialBackoffTaskExecutor {
         return null;
     }
 
-    private void reportRetry() {
-        if (retriesNumber.incrementAndGet() % FREQ_RETRY_LOGGING == 0) {
-            logger.warning("Retried " + name + " " + FREQ_RETRY_LOGGING + " times since last log entry.");
+    private void reportRetry(final long retryWaitTimeMs) {
+        if (retriesNumber.incrementAndGet() % LOGGING_RETRY_SAMPLING_FREQ == 0) {
+            logger.warning("Retried " + name + " " + LOGGING_RETRY_SAMPLING_FREQ + " times since last log entry.");
+        } else if (retryWaitTimeMs >= LOGGING_RETRY_WAIT_THRESHOLD_MS) {
+            logger.warning("Retried " + name + " and waiting back-off already exceeded " + retryWaitTimeMs + "ms.");
         }
     }
 }
