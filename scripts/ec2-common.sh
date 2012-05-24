@@ -15,11 +15,21 @@ export EC2_IDENTITY_FILE=swiftcloud.pem
 export EC2_USER=ubuntu
 
 # PRODUCTION instances
-export EC2_PROD_EU=(
-ec2-176-34-79-99.eu-west-1.compute.amazonaws.com
-ec2-54-247-155-245.eu-west-1.compute.amazonaws.com
-ec2-176-34-160-138.eu-west-1.compute.amazonaws.com
-ec2-54-247-144-193.eu-west-1.compute.amazonaws.com)
+export EC2_PROD_EU_C1MEDIUM=(
+ec2-176-34-173-72.eu-west-1.compute.amazonaws.com
+ec2-79-125-102-36.eu-west-1.compute.amazonaws.com
+)
+
+export EC2_PROD_EU_M1SMALL=(
+ec2-176-34-92-20.eu-west-1.compute.amazonaws.com
+ec2-54-247-150-206.eu-west-1.compute.amazonaws.com
+ec2-79-125-98-219.eu-west-1.compute.amazonaws.com
+ec2-54-247-128-136.eu-west-1.compute.amazonaws.com
+ec2-79-125-99-46.eu-west-1.compute.amazonaws.com
+ec2-176-34-72-48.eu-west-1.compute.amazonaws.com
+ec2-54-247-152-14.eu-west-1.compute.amazonaws.com
+ec2-54-247-150-245.eu-west-1.compute.amazonaws.com
+)
 
 # TEST instances
 export EC2_TEST_EU=(
