@@ -2,6 +2,7 @@ package sys.utils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A collection of convenience methods for dealing with threads.
@@ -113,7 +114,7 @@ public class Threading {
 			Object res = locks.get(o);
 			if (res == null) {
 				res = o;
-				locks.put(res, res);
+				locks.put(res, counter.incrementAndGet() );
 			}
 			return res;
 		}
@@ -121,7 +122,7 @@ public class Threading {
 		synchronized public void freeLockFor(Object o) {
 			locks.remove(o);
 		}
-
+		AtomicInteger counter = new AtomicInteger(0);
 		Map<Object, Object> locks = new HashMap<Object, Object>();
 	}
 }
