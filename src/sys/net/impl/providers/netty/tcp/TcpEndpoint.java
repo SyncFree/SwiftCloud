@@ -35,12 +35,9 @@ import sys.net.impl.providers.KryoBufferPool;
 import sys.net.impl.providers.LocalEndpointExchange;
 import sys.utils.Threading;
 
-<<<<<<< .mine
 import static sys.Sys.Sys;
 import static sys.utils.Log.*;
 
-=======
->>>>>>> .r904
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
 	ExecutorService bossExecutors, workerExecutors;

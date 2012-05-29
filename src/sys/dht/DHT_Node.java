@@ -1,17 +1,13 @@
 package sys.dht;
 
-<<<<<<< .mine
-=======
 import static sys.Sys.Sys;
 import static sys.utils.Log.Log;
->>>>>>> .r904
 import sys.dht.api.DHT;
 import sys.dht.discovery.Discovery;
 import sys.dht.impl.DHT_ClientStub;
 import sys.dht.impl.DHT_NodeImpl;
 import sys.net.api.Endpoint;
 import sys.utils.Threading;
-import static sys.utils.Log.Log;
 
 public class DHT_Node extends DHT_NodeImpl {
 
