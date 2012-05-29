@@ -12,12 +12,14 @@ import com.basho.riak.client.cap.UnresolvedConflictException;
 import com.basho.riak.client.convert.ConversionException;
 
 import static sys.net.api.Networking.*;
+
 /**
  * 
- * A convenience class to store and load stuff off Riak. 
- * Data is stored in riak as raw arrays of bytes after serialization.
+ * A convenience class to store and load stuff off Riak. Data is stored in riak
+ * as raw arrays of bytes after serialization.
+ * 
  * @author smd
- *
+ * 
  */
 public class Riak {
 
@@ -34,7 +36,7 @@ public class Riak {
 
 	public static void store(String bucket, String key, Object value) {
 		try {
-			byte[] data = serializer.writeObject(value);			
+			byte[] data = serializer.writeObject(value);
 			getBucket(bucket).store(key, data).execute();
 		} catch (RiakRetryFailedException e) {
 			// TODO Auto-generated catch block

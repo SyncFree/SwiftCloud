@@ -31,7 +31,7 @@ public class Client {
 		sys.Sys.init();
 
 		Sys.setDatacenter("datacenter-0");
-		
+
 		DHT stub = Sys.getDHT_ClientStub();
 
 		while (stub != null) {

@@ -12,6 +12,8 @@ import sys.dht.api.StringKey;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.net.api.CustomKryoSerializer;
+import sys.net.impl.providers.LocalEndpointExchange;
+import sys.net.impl.providers.nio.TcpEndpoint;
 
 public class KryoLib {
 
@@ -48,47 +50,50 @@ public class KryoLib {
 		register(LocalEndpoint.class, new SimpleSerializer<AbstractEndpoint>() {
 			@Override
 			public void write(ByteBuffer buffer, AbstractEndpoint ep) {
-				buffer.putLong((Long) ep.locator());
+				buffer.putLong(ep.locator);
+				buffer.putLong(ep.gid);
 			}
 
 			@Override
 			public AbstractEndpoint read(ByteBuffer buffer) {
-				return new RemoteEndpoint(buffer.getLong());
+				return new RemoteEndpoint(buffer.getLong(), buffer.getLong());
 			}
 		});
 
-		register(RemoteEndpoint.class, new SimpleSerializer<RemoteEndpoint>() {
+		register(RemoteEndpoint.class, new SimpleSerializer<AbstractEndpoint>() {
 
 			@Override
-			public RemoteEndpoint read(ByteBuffer bb) {
-				return new RemoteEndpoint(bb.getLong());
+			public void write(ByteBuffer buffer, AbstractEndpoint ep) {
+				buffer.putLong(ep.locator);
+				buffer.putLong(ep.gid);
 			}
 
 			@Override
-			public void write(ByteBuffer bb, RemoteEndpoint e) {
-				bb.putLong((Long) e.locator());
+			public AbstractEndpoint read(ByteBuffer buffer) {
+				return new RemoteEndpoint(buffer.getLong(), buffer.getLong());
 			}
 		});
+		register(LocalEndpointExchange.class);
 
 		register(DHT_Request.class);
 		register(DHT_RequestReply.class);
 		register(StringKey.class);
 	}
 
-//	public static void autoRegister( String packagePrefix ) {
-//		for( Package p : Package.getPackages() ) {
-//			System.out.println( p.getName() );
-//			if( p.getName().startsWith( packagePrefix ) ) 
-//				for( Class<?> c : p.getClass().getClasses() ) ;
-//		}
-//	}
-//	
-//	private static void processClasse( Class<?> c ) {
-//		if(c.isInstance( CustomKryoSerializer.class) ) {
-//			System.out.println(c);
-//		}
-//	}
-	
+	// public static void autoRegister( String packagePrefix ) {
+	// for( Package p : Package.getPackages() ) {
+	// System.out.println( p.getName() );
+	// if( p.getName().startsWith( packagePrefix ) )
+	// for( Class<?> c : p.getClass().getClasses() ) ;
+	// }
+	// }
+	//
+	// private static void processClasse( Class<?> c ) {
+	// if(c.isInstance( CustomKryoSerializer.class) ) {
+	// System.out.println(c);
+	// }
+	// }
+
 	public static Kryo kryo = null;
 	private static Map<Class<?>, Serializer> registry = new LinkedHashMap<Class<?>, Serializer>();
 }

@@ -6,7 +6,6 @@ import sys.net.api.Endpoint;
 
 public class AbstractSequencerNode extends CatadupaNode {
 
-
 	protected AbstractSequencerNode() {
 	}
 
@@ -15,11 +14,11 @@ public class AbstractSequencerNode extends CatadupaNode {
 		super.init();
 	}
 
-	protected Endpoint getSequencerFor( String datacenter ) {
-        for (Node i : super.db.nodes(0L))
-            if (i.isOnline() && datacenter.equals( i.getDatacenter() ) )
-                return i.endpoint;
+	protected Endpoint getSequencerFor(String datacenter) {
+		for (Node i : super.db.nodes(0L))
+			if (i.isOnline() && datacenter.equals(i.getDatacenter()))
+				return i.endpoint;
 
-        return self.endpoint; // return null???
-    }
+		return self.endpoint; // return null???
+	}
 }

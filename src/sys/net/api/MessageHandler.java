@@ -11,15 +11,15 @@ package sys.net.api;
  * 
  */
 public interface MessageHandler {
-	
-	void onAccept( final TransportConnection conn );
-	
-	void onConnect( final TransportConnection conn );
-	
-	void onFailure( final TransportConnection conn );
-	
-	void onClose( final TransportConnection conn );
-	
+
+	void onAccept(final TransportConnection conn);
+
+	void onConnect(final TransportConnection conn);
+
+	void onFailure(final TransportConnection conn);
+
+	void onClose(final TransportConnection conn);
+
 	/**
 	 * Called whenever a connection to a remote endpoint cannot be established
 	 * or fails.
@@ -29,7 +29,7 @@ public interface MessageHandler {
 	 * @param m
 	 *            - the message that was being sent
 	 */
-	void onFailure( final Endpoint dst, final Message m);
+	void onFailure(final Endpoint dst, final Message m);
 
 	/**
 	 * Called to upon the arrival of a message in the given connection.

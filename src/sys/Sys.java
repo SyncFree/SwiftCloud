@@ -20,19 +20,20 @@ public class Sys {
 	public AtomicLong uploadedBytes = new AtomicLong(1);
 	public AtomicLong downloadedBytes = new AtomicLong(1);
 
-
 	private String datacenter = "*";
-	
+
 	public double currentTime() {
 		return (System.nanoTime() - T0n) * NANOSECOND;
 	}
+
 	private double T0n = System.nanoTime();
 
 	public long timeMillis() {
-		return System.currentTimeMillis() - T0m; 
+		return System.currentTimeMillis() - T0m;
 	}
+
 	private long T0m = System.currentTimeMillis();
-	
+
 	protected Sys() {
 		Sys = this;
 		initInstance();
@@ -44,22 +45,21 @@ public class Sys {
 		scheduler.start();
 		NetworkingImpl.init();
 		KryoCatadupa.init();
-        KryoCRDTUtils.init();
+		KryoCRDTUtils.init();
 	}
 
-	public void setDatacenter( String datacenter ) {
-	   this.datacenter = datacenter;
+	public void setDatacenter(String datacenter) {
+		this.datacenter = datacenter;
 	}
-	
+
 	public String getDatacenter() {
-	    return datacenter;
+		return datacenter;
 	}
-	
 
 	public DHT getDHT_ClientStub() {
-        return DHT_Node.getStub();
-    }
-	
+		return DHT_Node.getStub();
+	}
+
 	synchronized public static void init() {
 		if (Sys == null) {
 			Sys = new Sys();

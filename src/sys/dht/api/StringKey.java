@@ -29,11 +29,11 @@ public class StringKey implements DHT.Key {
 
 	@Override
 	public long longHashValue() {
-	    synchronized( digest ) {
-    		digest.reset();
-    		digest.update(key.getBytes());
-    		return new BigInteger(1, digest.digest()).longValue() >>> 1;
-	    }
+		synchronized (digest) {
+			digest.reset();
+			digest.update(key.getBytes());
+			return new BigInteger(1, digest.digest()).longValue() >>> 1;
+		}
 	}
 
 	static {

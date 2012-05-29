@@ -6,21 +6,22 @@ import sys.net.api.rpc.RpcMessage;
 
 public class PubSubAck implements RpcMessage {
 
-    int totalSubscribers;
-    
-    PubSubAck(){}
+	int totalSubscribers;
 
-    public PubSubAck( int subscribers ){
-        this.totalSubscribers = subscribers;
-    }
+	PubSubAck() {
+	}
 
-    public int totalSubscribers() {
-        return totalSubscribers;
-    }
-    
-    @Override
-    public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((PubSubRpcHandler)handler).onReceive( conn, this);
-    }
+	public PubSubAck(int subscribers) {
+		this.totalSubscribers = subscribers;
+	}
+
+	public int totalSubscribers() {
+		return totalSubscribers;
+	}
+
+	@Override
+	public void deliverTo(RpcHandle conn, RpcHandler handler) {
+		((PubSubRpcHandler) handler).onReceive(conn, this);
+	}
 
 }

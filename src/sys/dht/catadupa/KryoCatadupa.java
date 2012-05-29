@@ -33,11 +33,10 @@ public class KryoCatadupa {
 
 	public static void init() {
 
-
-//		kryo.register(Map.class, new MapSerializer(kryo));
-//		kryo.register(HashMap.class, new MapSerializer(kryo));
-//		kryo.register(ArrayList.class, new CollectionSerializer(kryo));
-//		kryo.register(LinkedHashMap.class, new MapSerializer(kryo));
+		// kryo.register(Map.class, new MapSerializer(kryo));
+		// kryo.register(HashMap.class, new MapSerializer(kryo));
+		// kryo.register(ArrayList.class, new CollectionSerializer(kryo));
+		// kryo.register(LinkedHashMap.class, new MapSerializer(kryo));
 
 		KryoLib.register(Node.class);
 		KryoLib.register(Node[].class);

@@ -6,7 +6,6 @@ import sys.net.api.rpc.RpcMessage;
 import sys.dht.catadupa.MembershipUpdate;
 import sys.dht.catadupa.crdts.time.Timestamp;
 
-
 public class CatadupaCastPayload implements RpcMessage {
 
 	public Timestamp timestamp;
@@ -14,8 +13,8 @@ public class CatadupaCastPayload implements RpcMessage {
 
 	CatadupaCastPayload() {
 	}
-	
-	public CatadupaCastPayload( MembershipUpdate data, Timestamp ts) {
+
+	public CatadupaCastPayload(MembershipUpdate data, Timestamp ts) {
 		this.data = data;
 		this.timestamp = ts;
 	}

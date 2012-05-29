@@ -26,7 +26,7 @@ public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 	boolean failed = false;
 	Throwable failureCause;
 	boolean streamingIsEnabled = false;
-	
+
 	volatile RpcPacket reply;
 
 	public AbstractRpcPacket() {
@@ -35,7 +35,6 @@ public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 	public Endpoint remote() {
 		return remote;
 	}
-
 
 	@Override
 	public boolean expectingReply() {
@@ -98,7 +97,7 @@ public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 	@Override
 	public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
 		this.handler = handler;
-		return (T)this;
+		return (T) this;
 	}
 
 	public void deliverTo(TransportConnection conn, MessageHandler handler) {
@@ -118,5 +117,4 @@ public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 	public RpcHandle getReply() {
 		return reply;
 	}
-	
 }

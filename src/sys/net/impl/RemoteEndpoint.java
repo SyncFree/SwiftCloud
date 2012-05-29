@@ -10,7 +10,8 @@ import sys.net.api.TransportConnection;
 
 /**
  * 
- * Represent a remote location. Used as a destination for sending messages.
+ * Represents a remote endpoint location. Used as a destination for sending
+ * messages.
  * 
  * @author smd
  * 
@@ -18,15 +19,11 @@ import sys.net.api.TransportConnection;
 public class RemoteEndpoint extends AbstractEndpoint {
 
 	public RemoteEndpoint(final String host, final int tcpPort) {
-		super(host, tcpPort);
+		super(new InetSocketAddress(host, tcpPort), 0);
 	}
 
-	RemoteEndpoint(final long locator) {
-		super(locator);
-	}
-
-	public RemoteEndpoint(final InetSocketAddress saddr) {
-		super(saddr);
+	public RemoteEndpoint(long locator, long gid) {
+		super(locator, gid);
 	}
 
 	@Override
@@ -43,5 +40,4 @@ public class RemoteEndpoint extends AbstractEndpoint {
 	public TransportConnection connect(Endpoint dst) {
 		throw new NetworkingException("Not supported...[This is a remote endpoint...]");
 	}
-
 }

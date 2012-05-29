@@ -53,11 +53,11 @@ public interface Endpoint {
 	MessageHandler getHandler();
 
 	/**
-	 * Obtains the endpoint locator, ie., an opaque and compact representation
-	 * of the endpoint. Used to serialized endpoints.
+	 * Obtains the endpoint gid, ie., an opaque identifier of the endpoint. Can
+	 * be used to tell if outgoing connections belong to the same process.
 	 * 
 	 * @return the locator for this endpoint
 	 */
-	<T> T locator();
+	<T> T gid();
 
 }

@@ -9,6 +9,7 @@ import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
 
 import static sys.Sys.*;
+
 /**
  * 
  * @author smd
@@ -27,7 +28,7 @@ public class LocalNode extends CatadupaHandler {
 
 	public void initLocalNode() {
 		rpcFactory = Networking.rpcBind(0, TransportProvider.DEFAULT);
-		rpc = rpcFactory.toService( RpcServices.CATADUPA.ordinal(), this);
+		rpc = rpcFactory.toService(RpcServices.CATADUPA.ordinal(), this);
 		self = new Node(rpc.localEndpoint(), Sys.getDatacenter());
 		SeedDB.init(self);
 	}

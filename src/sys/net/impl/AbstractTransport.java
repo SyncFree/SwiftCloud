@@ -7,42 +7,46 @@ import sys.net.api.TransportConnection;
 
 public abstract class AbstractTransport implements TransportConnection {
 
-    protected final Endpoint local;
-    protected final Endpoint remote;
-    protected boolean isBroken;
-    
-    public AbstractTransport(Endpoint local, Endpoint remote) {
-        this.local = local;
-        this.remote = remote;
-        this.isBroken = false;
-    }
+	protected Endpoint remote;
+	protected final Endpoint local;
+	protected boolean isBroken;
 
-    @Override
-    public void dispose() {
-    }
+	public AbstractTransport(Endpoint local, Endpoint remote) {
+		this.local = local;
+		this.remote = remote;
+		this.isBroken = false;
+	}
 
-    @Override
-    public boolean send(Message m) {
-        throw new NetworkingException("Invalid connection state...");
-    }
+	@Override
+	public void dispose() {
+	}
 
-    @Override
-    public <T extends Message> T receive() {
-        throw new NetworkingException("Invalid connection state...");
-    }
+	@Override
+	public boolean send(Message m) {
+		throw new NetworkingException("Invalid connection state...");
+	}
 
-    @Override
-    public boolean failed() {
-    	return isBroken;
-    }
+	@Override
+	public <T extends Message> T receive() {
+		throw new NetworkingException("Invalid connection state...");
+	}
 
-    @Override
-    public Endpoint localEndpoint() {
-        return local;
-    }
+	@Override
+	public boolean failed() {
+		return isBroken;
+	}
 
-    @Override
-    public Endpoint remoteEndpoint() {
-        return remote;
-    }
+	@Override
+	public Endpoint localEndpoint() {
+		return local;
+	}
+
+	@Override
+	public Endpoint remoteEndpoint() {
+		return remote;
+	}
+	
+	public void setRemoteEndpoint(Endpoint remote) {
+		this.remote = remote;
+	}
 }

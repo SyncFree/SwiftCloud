@@ -6,7 +6,7 @@ import sys.net.api.rpc.RpcHandle;
 abstract public class DHT_StubHandler extends AbstractRpcHandler {
 
 	@Override
-	public void onFailure( final RpcHandle handle) {
+	public void onFailure(final RpcHandle handle) {
 		Thread.dumpStack();
 	}
 

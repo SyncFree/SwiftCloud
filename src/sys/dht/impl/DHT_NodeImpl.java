@@ -43,12 +43,12 @@ public class DHT_NodeImpl extends CatadupaNode {
 			}
 		});
 
-        String name = DHT_Node.DHT_ENDPOINT + Sys.getDatacenter();
+		String name = DHT_Node.DHT_ENDPOINT + Sys.getDatacenter();
 		Discovery.register(name, serverStub.getEndpoint().localEndpoint());
 
 		clientStub = new _DHT_ClientStub(serverStub.getEndpoint());
-		
-        new PubSubService( rpcFactory );
+
+		new PubSubService(rpcFactory);
 	}
 
 	@Override
@@ -63,7 +63,8 @@ public class DHT_NodeImpl extends CatadupaNode {
 
 	protected Node resolve(final DHT.Key key) {
 		long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
-//		Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys() ) );
+		// Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key,
+		// self.key, db.nodeKeys() ) );
 		for (Node i : super.db.nodes(key2key))
 			if (i.isOnline())
 				return i;
@@ -105,7 +106,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 
 		_DHT_ServerStub(DHT.MessageHandler myHandler) {
 			this.myHandler = myHandler;
-			myEndpoint = rpcFactory.toService( RpcServices.DHT.ordinal(), this);
+			myEndpoint = rpcFactory.toService(RpcServices.DHT.ordinal(), this);
 		}
 
 		RpcEndpoint getEndpoint() {

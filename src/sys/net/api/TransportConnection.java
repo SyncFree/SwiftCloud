@@ -53,4 +53,5 @@ public interface TransportConnection {
 	 */
 	Endpoint remoteEndpoint();
 
+	Throwable causeOfFailure();
 }

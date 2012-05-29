@@ -1,6 +1,6 @@
 package sys.net.impl.providers.netty.ws;
 
-import static sys.utils.Log.Log;
+import static sys.Sys.Sys;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -25,7 +25,6 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.handler.codec.http.DefaultHttpResponse;
 import org.jboss.netty.handler.codec.http.HttpChunkAggregator;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpRequest;
@@ -35,27 +34,22 @@ import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 import org.jboss.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
-import org.jboss.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketFrame;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 import org.jboss.netty.handler.codec.http.websocketx.WebSocketVersion;
-import org.jboss.netty.util.CharsetUtil;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.RemoteEndpoint;
 import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.KryoBufferPool;
-
-import static org.jboss.netty.handler.codec.http.HttpHeaders.*;
-import static org.jboss.netty.handler.codec.http.HttpResponseStatus.*;
-import static org.jboss.netty.handler.codec.http.HttpVersion.*;
+import sys.net.impl.providers.LocalEndpointExchange;
+import sys.utils.Threading;
 
 public class WebSocketEndpoint extends AbstractLocalEndpoint {
 
@@ -63,8 +57,9 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 	final KryoBufferPool writeBufferPool = new KryoBufferPool(16);
 
 	public WebSocketEndpoint(Endpoint local, int tcpPort) throws IOException {
-
 		this.localEndpoint = local;
+		this.gid = Sys.rg.nextLong();
+
 		bossExecutors = Executors.newCachedThreadPool();
 		workerExecutors = Executors.newCachedThreadPool();
 
@@ -76,9 +71,9 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			bootstrap.setOption("child.tcpNoDelay", true);
 			bootstrap.setOption("child.keepAlive", true);
 			Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
-			this.tcpPort = ((InetSocketAddress) ch.getLocalAddress()).getPort();
+			super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
 		} else
-			this.tcpPort = 0;
+			super.setSocketAddress(0);
 	}
 
 	public void start() throws IOException {
@@ -89,23 +84,18 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 
 	}
 
-	public int getLocalPort() {
-		return tcpPort;
-	}
-
 	public TransportConnection connect(Endpoint remote) {
-		InetSocketAddress rAddr = ((AbstractEndpoint) remote).tcpAddress();
 
 		ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors, workerExecutors));
 
 		Channel ch = null;
 
 		try {
-
+			InetSocketAddress rAddr = ((AbstractEndpoint) remote).sockAddress();
 			URI uri = new URI("ws://" + rAddr.getAddress().getHostAddress() + ":" + rAddr.getPort() + "/swift");
 			final WebSocketClientHandshaker handshaker = new WebSocketClientHandshakerFactory().newHandshaker(uri, WebSocketVersion.V13, null, false, Collections.<String, String> emptyMap());
 
-			final OutgoingWebSocketHandler outgoing = new OutgoingWebSocketHandler(handshaker);
+			final OutgoingWebSocketHandler outgoing = new OutgoingWebSocketHandler(remote, handshaker);
 
 			bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 				public ChannelPipeline getPipeline() throws Exception {
@@ -120,7 +110,8 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			// Connect
 			ChannelFuture future = bootstrap.connect(rAddr).awaitUninterruptibly().rethrowIfFailed();
 			ch = future.getChannel();
-			handshaker.handshake(ch).awaitUninterruptibly().rethrowIfFailed();
+			handshaker.handshake(ch);
+			Threading.synchronizedWaitOn(outgoing, 5000);
 			return outgoing;
 		} catch (Exception x) {
 			x.printStackTrace();
@@ -139,7 +130,7 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		}
 	}
 
-	class AbstractWebSocketTransportConnection extends SimpleChannelUpstreamHandler implements TransportConnection {
+	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection {
 		private final String WEBSOCKET_PATH = "/swift";
 
 		Channel channel;
@@ -158,8 +149,6 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 				outBuf.writeClassAndObject(msg);
 				WebSocketFrame frame = new BinaryWebSocketFrame(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
 				channel.write(frame).awaitUninterruptibly();
-				
-				System.out.println("   sa sa sa s");
 				return true;
 			} catch (Throwable t) {
 				t.printStackTrace();
@@ -191,11 +180,19 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			handler.onClose(this);
 		}
 
-		protected void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {
-			ChannelBuffer buffer = frame.getBinaryData();
-			Message msg = KryoBuffer.readClassAndObject( buffer.toByteBuffer() );
-			if( msg != null)
-				msg.deliverTo(this, handler);
+		protected void handleWebSocketFrame(final ChannelHandlerContext ctx, final WebSocketFrame frame) {
+			workerExecutors.execute(new Runnable() {
+				public void run() {
+					try {
+						ChannelBuffer buffer = frame.getBinaryData();
+						Message msg = KryoBuffer.readClassAndObject(buffer.toByteBuffer());
+						if (msg != null)
+							msg.deliverTo(AbstractConnection.this, handler);
+					} catch (Throwable t) {
+						t.printStackTrace();
+					}
+				}
+			});
 		}
 
 		@Override
@@ -204,39 +201,44 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			e.getChannel().close();
 			handler.onFailure(this);
 		}
-		
+
 		protected String getWebSocketLocation(HttpRequest req) {
 			return "ws://" + req.getHeader(HttpHeaders.Names.HOST) + WEBSOCKET_PATH;
 		}
-		
-		protected void setChannel( Channel ch ) {
+
+		protected void setChannel(Channel ch) {
 			this.channel = ch;
-			InetSocketAddress raddr = (InetSocketAddress) channel.getRemoteAddress();
-			remote = new RemoteEndpoint(raddr);
+		}
+
+		@Override
+		public Throwable causeOfFailure() {
+			return null;
+		}
+
+		void setRemoteEndpoint(Endpoint remote) {
+			this.remote = remote;
 		}
 	}
 
-	class IncomingWebSocketHandler extends AbstractWebSocketTransportConnection {
-		
+	class IncomingWebSocketHandler extends AbstractConnection {
+
 		WebSocketServerHandshaker handshaker;
 
 		IncomingWebSocketHandler() {
-			
 		}
-		
+
 		public void channelBound(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
 			super.setChannel(e.getChannel());
-			handler.onAccept(this);			
 		}
 
 		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
-			if (handshaker != null ) {
-				super.handleWebSocketFrame(ctx, (WebSocketFrame) e.getMessage());				
+			if (handshaker != null) {
+				super.handleWebSocketFrame(ctx, (WebSocketFrame) e.getMessage());
 			} else
-				handShake(ctx, (HttpRequest) e.getMessage() ) ;
+				handShake(ctx, (HttpRequest) e.getMessage());
 		}
-		
-		private void handShake( ChannelHandlerContext ctx, HttpRequest req ) {
+
+		private void handShake(ChannelHandlerContext ctx, HttpRequest req) {
 			WebSocketServerHandshakerFactory wsFactory = new WebSocketServerHandshakerFactory(this.getWebSocketLocation(req), null, false);
 			this.handshaker = wsFactory.newHandshaker(req);
 			if (this.handshaker == null) {
@@ -247,12 +249,14 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		}
 	}
 
-	class OutgoingWebSocketHandler extends AbstractWebSocketTransportConnection {
+	class OutgoingWebSocketHandler extends AbstractConnection {
 
 		WebSocketClientHandshaker handshaker;
 
-		OutgoingWebSocketHandler(WebSocketClientHandshaker handshaker) {
+		OutgoingWebSocketHandler(Endpoint remote, WebSocketClientHandshaker handshaker) {
 			this.handshaker = handshaker;
+			this.remote = remote;
+			
 		}
 
 		public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
@@ -264,8 +268,15 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
 			if (handshaker.isHandshakeComplete())
 				super.handleWebSocketFrame(ctx, (WebSocketFrame) e.getMessage());
-			else
+			else {
 				handshaker.finishHandshake(e.getChannel(), (HttpResponse) e.getMessage());
+				workerExecutors.execute( new Runnable() {
+					public void run() {
+						send(new LocalEndpointExchange(localEndpoint));					
+					}
+				});
+				Threading.synchronizedNotifyAllOn( this );
+			}
 		}
 	}
 }

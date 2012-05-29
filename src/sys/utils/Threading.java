@@ -52,7 +52,7 @@ public class Threading {
 
 	static public void waitOn(Object o, int ms) {
 		try {
-			if( ms > 0 )
+			if (ms > 0)
 				o.wait(ms);
 		} catch (InterruptedException x) {
 			x.printStackTrace();
@@ -78,7 +78,7 @@ public class Threading {
 	}
 
 	static public void synchronizedWaitOn(Object o, int ms) {
-	    synchronized (o) {
+		synchronized (o) {
 			try {
 				o.wait(ms);
 			} catch (InterruptedException x) {
@@ -99,22 +99,29 @@ public class Threading {
 		}
 	}
 
-	/**
-	 * Returns an object "value" (rather than any instance) to serve as a
-	 * monitor. Leaks memory...
-	 * 
-	 * @param o
-	 * @return
-	 */
-	synchronized static public Object lockFor(Object o) {
+	public static class LockManager {
 
-		Object res = locks.get(o);
-		if (res == null) {
-			res = o;
-			locks.put(res, res);
+		/**
+		 * Returns an object "value" (rather than any instance) to serve as a
+		 * monitor. Leaks memory...
+		 * 
+		 * @param o
+		 * @return
+		 */
+		synchronized public Object lockFor(Object o) {
+
+			Object res = locks.get(o);
+			if (res == null) {
+				res = o;
+				locks.put(res, res);
+			}
+			return res;
 		}
-		return res;
-	}
 
-	static Map<Object, Object> locks = new HashMap<Object, Object>();
+		synchronized public void freeLockFor(Object o) {
+			locks.remove(o);
+		}
+
+		Map<Object, Object> locks = new HashMap<Object, Object>();
+	}
 }

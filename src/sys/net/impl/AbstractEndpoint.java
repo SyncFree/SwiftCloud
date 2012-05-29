@@ -2,6 +2,7 @@ package sys.net.impl;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
@@ -10,9 +11,11 @@ import sys.net.api.MessageHandler;
 
 abstract public class AbstractEndpoint implements Endpoint {
 
-	protected Object locator;
-	protected InetSocketAddress tcpAddress;
-	protected MessageHandler handler ;
+	protected long gid;
+	protected long locator;
+	protected InetSocketAddress sockAddress;
+
+	protected MessageHandler handler;
 
 	protected AbstractEndpoint() {
 		this.handler = new DefaultMessageHandler();
@@ -21,39 +24,34 @@ abstract public class AbstractEndpoint implements Endpoint {
 	protected AbstractEndpoint(MessageHandler handler) {
 		this.handler = handler;
 	}
-	
-	protected AbstractEndpoint(final long locator) {
+
+	protected AbstractEndpoint(InetSocketAddress sockAddress, long gid) {
+		this.gid = gid;
+		this.sockAddress = sockAddress;
+		this.locator = ByteBuffer.wrap(sockAddress.getAddress().getAddress()).getInt() << 32 | sockAddress.getPort();
+	}
+
+	protected AbstractEndpoint(long locator, long gid) {
+		this.gid = gid;
 		this.locator = locator;
+		this.sockAddress = decodeLocator(locator);
 	}
 
-	protected AbstractEndpoint(final InetSocketAddress saddr) {
-		this(encodeLocator(saddr));
+	public final boolean isOutgoing() {
+		return (locator & 0xFFFF) == 0;
 	}
 
-	protected AbstractEndpoint(final String host, final int tcpPort) {
-		this(new InetSocketAddress(host, tcpPort));
-	}
-
-	public InetSocketAddress tcpAddress() {
-		if (tcpAddress == null) {
-			tcpAddress = decodeLocator((Long) locator);
-		}
-		return tcpAddress;
-	}
-
-	@Override
-	@SuppressWarnings("unchecked")
-	public <T> T locator() {
-		return (T) locator;
+	public final boolean isIncoming() {
+		return (locator & 0xFFFF) > 0;
 	}
 
 	@Override
 	public int hashCode() {
-		return tcpAddress().hashCode();
+		return (int) (locator >>> 32 ^ locator & 0xFFFFFFFFL);
 	}
 
-	public boolean equals(AbstractEndpoint other) {
-		return tcpAddress().equals(other.tcpAddress());
+	final public boolean equals(AbstractEndpoint other) {
+		return locator == other.locator && gid == other.gid;
 	}
 
 	@Override
@@ -65,7 +63,27 @@ abstract public class AbstractEndpoint implements Endpoint {
 	@Override
 	public <T extends Endpoint> T setHandler(MessageHandler handler) {
 		this.handler = handler;
-		return (T)this;
+		return (T) this;
+	}
+
+	static protected void copyLocatorData(AbstractEndpoint src, AbstractEndpoint dst) {
+		dst.gid = src.gid;
+		dst.locator = src.locator;
+		dst.sockAddress = src.sockAddress;
+	}
+
+	protected void setSocketAddress(int port) {
+		try {
+			this.sockAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), port);
+			this.locator = encodeLocator(sockAddress);
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public InetSocketAddress sockAddress() {
+		return sockAddress;
 	}
 
 	@Override
@@ -75,15 +93,22 @@ abstract public class AbstractEndpoint implements Endpoint {
 
 	@Override
 	public String toString() {
-		return String.format("tcp://%s:%d", tcpAddress().getAddress().getHostAddress(), tcpAddress().getPort());
+		return sockAddress.getAddress().getHostAddress() + ":" + sockAddress.getPort() + (gid == 0L ? "" : "/" + Long.toString(gid, 32));
 	}
 
-	protected static long encodeLocator(InetSocketAddress saddr) {
-		return encodeLocator(saddr.getAddress(), saddr.getPort());
+	/**
+	 * Obtains the endpoint locator, ie., an opaque and compact representation
+	 * of the endpoint. Used to serialized endpoints.
+	 * 
+	 * @return the locator for this endpoint
+	 */
+	@SuppressWarnings("unchecked")
+	public <T> T gid() {
+		return (T) new Long(gid);
 	}
 
-	protected static long encodeLocator(InetAddress ip, int port) {
-		return ((long) ByteBuffer.wrap(ip.getAddress()).getInt() << Integer.SIZE) | port;
+	protected static long encodeLocator(InetSocketAddress addr) {
+		return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();
 	}
 
 	protected static InetSocketAddress decodeLocator(long locator) {

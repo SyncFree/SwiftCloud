@@ -84,7 +84,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 						}
 
 						@Override
-						public void onFailure( RpcHandle handle ) {
+						public void onFailure(RpcHandle handle) {
 							backoff = Math.min(5, backoff * 1.5);
 							reSchedule(backoff);
 						}
@@ -212,7 +212,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 					rpc.send(other.endpoint, new DbMergeRequest(db.clock()), new CatadupaHandler() {
 
 						@Override
-						public void onFailure( RpcHandle handle) {
+						public void onFailure(RpcHandle handle) {
 							backoff = Math.min(5, backoff * 1.5);
 							reSchedule(backoff);
 						}
@@ -239,7 +239,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	}
 
 	@Override
-	synchronized public void onReceive( RpcHandle handle, DbMergeRequest other) {
+	synchronized public void onReceive(RpcHandle handle, DbMergeRequest other) {
 
 		Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + other.clock);
 		Log.finest("---DB--->" + db.membership);
@@ -274,11 +274,11 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	 * Handle node failure events...
 	 */
 	@Override
-	public void onFailure( RpcHandle handle) {
+	public void onFailure(RpcHandle handle) {
 		Endpoint remote = handle.remoteEndpoint();
-		if ( remote != endpoint) {
+		if (remote != endpoint) {
 
-			Node failedNode = new Node( remote );
+			Node failedNode = new Node(remote);
 
 			Log.finest("Failed Node:" + failedNode);
 			// if (state.db.loadedEndpoints) {

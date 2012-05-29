@@ -36,57 +36,57 @@ import static sys.pubsub.PubSub.*;
  */
 public class Server2 {
 
-    public static void main(String[] args) throws Exception {
-        Log.setLevel("", Level.ALL);
-        Log.setLevel("sys.dht.catadupa", Level.FINER);
-        Log.setLevel("sys.dht", Level.FINEST);
-        Log.setLevel("sys.net", Level.ALL);
-        Log.setLevel("sys", Level.ALL);
+	public static void main(String[] args) throws Exception {
+		Log.setLevel("", Level.ALL);
+		Log.setLevel("sys.dht.catadupa", Level.FINER);
+		Log.setLevel("sys.dht", Level.FINEST);
+		Log.setLevel("sys.net", Level.ALL);
+		Log.setLevel("sys", Level.ALL);
 
-        sys.Sys.init();
-        Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(3));
-        System.err.println(Sys.getDatacenter());
+		sys.Sys.init();
+		Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(3));
+		System.err.println(Sys.getDatacenter());
 
-        Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
-        DHT_Node.start();
+		Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
+		DHT_Node.start();
 
-        DHT_Node.setHandler(new KVS.RequestHandler() {
-            @Override
-            public void onReceive(DHT.Connection conn, DHT.Key key, StoreData request) {
-                System.out.printf("Got request for <%s, %s>\n", key, request.data);
-                conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
+		DHT_Node.setHandler(new KVS.RequestHandler() {
+			@Override
+			public void onReceive(DHT.Connection conn, DHT.Key key, StoreData request) {
+				System.out.printf("Got request for <%s, %s>\n", key, request.data);
+				conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
 
-                System.out.println(conn.remoteEndpoint());
-                PubSub.addRemoteSubscriber("xxx",  conn.remoteEndpoint() ) ;
-                PubSub.publish("xxx", "asjdajshdajhd asdajdhahsdjahsdja ajdahdjd" );
-            }
-        });
+				System.out.println(conn.remoteEndpoint());
+				PubSub.addRemoteSubscriber("xxx", conn.remoteEndpoint());
+				PubSub.publish("xxx", "asjdajshdajhd asdajdhahsdjahsdja ajdahdjd");
+			}
+		});
 
-        Threading.sleep(1000);
+		Threading.sleep(1000);
 
-            int n = 0;
-            DHT stub = Sys.getDHT_ClientStub();
-            
-            System.out.println( stub.localEndpoint() );
+		int n = 0;
+		DHT stub = Sys.getDHT_ClientStub();
 
-            PubSub.subscribe("xxx", new Handler() {
+		System.out.println(stub.localEndpoint());
 
-                @Override
-                public void notify(String group, Object payload) {
-                    System.err.println( group + "---" + payload );
-                }
-                
-            });
-            
-            while (stub != null) {
-                String key = "" + Sys.rg.nextInt(1000);
-                stub.send(new StringKey(key), new StoreData("" + n++), new KVS.ReplyHandler() {
-                    @Override
-                    public void onReceive(StoreDataReply reply) {
-                        //System.out.println(reply.msg);
-                    }
-                });
-                Threading.sleep(1000);
-            }
-    }
+		PubSub.subscribe("xxx", new Handler() {
+
+			@Override
+			public void notify(String group, Object payload) {
+				System.err.println(group + "---" + payload);
+			}
+
+		});
+
+		while (stub != null) {
+			String key = "" + Sys.rg.nextInt(1000);
+			stub.send(new StringKey(key), new StoreData("" + n++), new KVS.ReplyHandler() {
+				@Override
+				public void onReceive(StoreDataReply reply) {
+					// System.out.println(reply.msg);
+				}
+			});
+			Threading.sleep(1000);
+		}
+	}
 }

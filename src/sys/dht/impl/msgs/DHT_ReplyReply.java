@@ -25,7 +25,7 @@ public class DHT_ReplyReply implements RpcMessage {
 	}
 
 	@Override
-	public void deliverTo( RpcHandle handle, RpcHandler handler) {
+	public void deliverTo(RpcHandle handle, RpcHandler handler) {
 		((DHT_StubHandler) handler).onReceive(handle, this);
 	}
 

@@ -108,7 +108,7 @@ public class DB {
 	public Set<Long> nodeKeys() {
 		return k2n.keySet();
 	}
-	
+
 	public LVV clock() {
 		return rt.getCausalityClock();
 	}

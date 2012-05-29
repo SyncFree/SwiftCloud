@@ -69,8 +69,7 @@ public interface RpcEndpoint {
 	 * 
 	 * @param handler
 	 *            the handler for processing invocation messages
-	 * @return 
-	 * 		  itself
+	 * @return itself
 	 */
 	<T extends RpcEndpoint> T setHandler(final RpcHandler handler);
 }

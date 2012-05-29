@@ -23,7 +23,6 @@ import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.handler.codec.frame.FrameDecoder;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
 import sys.net.api.Endpoint;
@@ -31,18 +30,26 @@ import sys.net.api.Message;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.RemoteEndpoint;
 import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.KryoBufferPool;
+import sys.net.impl.providers.LocalEndpointExchange;
+import sys.utils.Threading;
 
+<<<<<<< .mine
+import static sys.Sys.Sys;
+import static sys.utils.Log.*;
+
+=======
+>>>>>>> .r904
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
 	ExecutorService bossExecutors, workerExecutors;
 	final KryoBufferPool writeBufferPool = new KryoBufferPool(64);
 
 	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
-
 		this.localEndpoint = local;
+		this.gid = Sys.rg.nextLong();
+		
 		bossExecutors = Executors.newCachedThreadPool();
 		workerExecutors = Executors.newCachedThreadPool();
 
@@ -52,15 +59,16 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 			// Set up the pipeline factory.
 			bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 				public ChannelPipeline getPipeline() throws Exception {
-					return Channels.pipeline( new MessageFrameDecoder(), new OutgoingConnectionHandler()  );
+					return Channels.pipeline(new MessageFrameDecoder(), new IncomingConnectionHandler());
 				}
 			});
 			bootstrap.setOption("child.tcpNoDelay", true);
 			bootstrap.setOption("child.keepAlive", true);
 			Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
-			this.tcpPort = ((InetSocketAddress) ch.getLocalAddress()).getPort();
+			super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
+			Log.finest("Bound to: " + this);
 		} else
-			this.tcpPort = 2;
+			super.setSocketAddress(0);
 	}
 
 	public void start() throws IOException {
@@ -71,42 +79,32 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 
 	}
 
-	public int getLocalPort() {
-		return tcpPort;
-	}
-
 	public TransportConnection connect(Endpoint remote) {
-		final OutgoingConnectionHandler res = new OutgoingConnectionHandler();
+		final OutgoingConnectionHandler res = new OutgoingConnectionHandler( remote );
 		ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors, workerExecutors));
 		bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
 				return Channels.pipeline(new MessageFrameDecoder(), res);
 			}
 		});
-		ChannelFuture future = bootstrap.connect(((AbstractEndpoint) remote).tcpAddress());
-		future.awaitUninterruptibly(5000);
-
+		ChannelFuture future = bootstrap.connect(((AbstractEndpoint) remote).sockAddress());
+		Threading.synchronizedWaitOn(res, 5000);
 		if (!future.isSuccess()) {
 			Log.severe("Bad connection to:" + remote);
 			return null;
-		} else {
-//			ByteBuffer locatorBuffer = ByteBuffer.allocate(4);
-//			locatorBuffer.putInt(tcpPort);
-//			locatorBuffer.flip();
-//			future.getChannel().write(ChannelBuffers.wrappedBuffer(locatorBuffer));
+		} else
 			return res;
-		}
 	}
 
-	class AbstractTransportConnection extends SimpleChannelUpstreamHandler implements TransportConnection {
+	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection {
 
 		Channel channel;
 		boolean failed;
 		Endpoint remote;
+		Throwable cause;
 
 		@Override
 		public boolean failed() {
-			// TODO Auto-generated method stub
 			return failed;
 		}
 
@@ -149,12 +147,12 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		}
 
 		public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e) {
-			workerExecutors.execute( new Runnable() {
+			workerExecutors.execute(new Runnable() {
 				public void run() {
 					try {
-					Message msg = KryoBuffer.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
-					msg.deliverTo(AbstractTransportConnection.this, handler);					
-					} catch( Throwable t ) {
+						Message msg = KryoBuffer.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
+						msg.deliverTo(AbstractConnection.this, handler);
+					} catch (Throwable t) {
 						t.printStackTrace();
 					}
 				}
@@ -164,44 +162,46 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		@Override
 		public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
 			failed = true;
+			cause = e.getCause();
 			e.getChannel().close();
 			handler.onFailure(this);
 		}
-	}
-
-	class IncomingConnectionHandler extends AbstractTransportConnection {		
-		IncomingConnectionHandler( Channel ch, InetSocketAddress raddr ) {
-			channel = ch;
-			remote = new RemoteEndpoint( raddr );
-			handler.onAccept(this);	
-		}
-	}
-
-	class OutgoingConnectionHandler extends AbstractTransportConnection {
-		synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-			channel = e.getChannel();
-			InetSocketAddress raddr = (InetSocketAddress) channel.getRemoteAddress();
-			remote = new RemoteEndpoint(raddr);
-			handler.onConnect(this);
-		}
-	}
-
-	class LocatorFrameDecoder extends FrameDecoder {
-
-		public LocatorFrameDecoder() {
-			super(true);
-		}
 
 		@Override
-		protected Object decode(ChannelHandlerContext ctx, Channel channel, ChannelBuffer buf) {
-			InetSocketAddress raddr = (InetSocketAddress) channel.getRemoteAddress();
-			MessageFrameDecoder replacement = new MessageFrameDecoder();
-			ctx.getPipeline().replace(this, "second", replacement ) ;
-			ctx.getPipeline().addLast("last", new IncomingConnectionHandler( channel, raddr  ) ) ;
-			if( buf.readableBytes() > 0) {
-				return buf.readBytes( buf.readableBytes() ) ;
-			} else
-				return null;
+		public Throwable causeOfFailure() {
+			return cause;
+		}
+
+		void setRemoteEndpoint(Endpoint remote) {
+			this.remote = remote;
+		}
+	}
+
+	class IncomingConnectionHandler extends AbstractConnection {
+
+		synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+			channel = e.getChannel();
+		}
+	}
+
+	class OutgoingConnectionHandler extends AbstractConnection {
+		public OutgoingConnectionHandler(Endpoint remote) {
+			super.remote = remote;
+		}
+		
+		synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+			channel = e.getChannel();
+			workerExecutors.execute( new Runnable() {
+				public void run() {
+					send(new LocalEndpointExchange(localEndpoint));					
+				}
+			});
+			handler.onConnect(this);
+			Threading.synchronizedNotifyAllOn( this );
+		}
+		
+		public String toString() {
+			return "" + localEndpoint + " -> " + remote + ": " + channel.getLocalAddress() ;
 		}
 	}
 
