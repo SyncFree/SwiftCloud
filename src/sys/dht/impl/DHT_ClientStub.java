@@ -48,7 +48,6 @@ public class DHT_ClientStub implements DHT {
 
 		@Override
 		public void onFailure(RpcHandle handle) {
-			Thread.dumpStack();
 		}
 
 		@Override

@@ -55,16 +55,16 @@ public class Server {
 
 		Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
 		DHT_Node.start();
-
+		System.out.println("Server ready...");
+		
 		DHT_Node.setHandler(new KVS.RequestHandler() {
+
 			@Override
 			public void onReceive(DHT.Connection conn, DHT.Key key, StoreData request) {
 				System.out.printf("Got request for <%s, %s>\n", key, request.data);
 				conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
 
 				System.out.println(conn.remoteEndpoint());
-				PubSub.addRemoteSubscriber("xxx", conn.remoteEndpoint());
-				PubSub.publish("xxx", "asjdajshdajhd asdajdhahsdjahsdja ajdahdjd");
 			}
 		});
 
