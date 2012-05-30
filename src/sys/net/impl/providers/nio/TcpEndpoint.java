@@ -120,6 +120,9 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					if (inBuf.readFrom(channel)) {
 						try {
 							inBuf.run();
+//							if (inBuf != null && ! rq.offer(inBuf) )
+//								threadPool.execute(inBuf);
+							
 						} catch (Throwable t) {
 							t.printStackTrace();
 						}
@@ -133,6 +136,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					// inBuf.run();
 				}
 			} catch (IOException ioe) {
+				ioe.printStackTrace();
 				cause = ioe;
 				isBroken = true;
 				handler.onFailure(this);

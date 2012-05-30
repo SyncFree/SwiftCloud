@@ -18,7 +18,7 @@ public class DHT_Node extends DHT_NodeImpl {
 	}
 
 	public boolean isHandledLocally(final DHT.Key key) {
-		return super.resolve(key).key == self.key;
+		return super.resolveNextHop(key).key == self.key;
 	}
 
 	synchronized public static DHT getStub() {
@@ -39,7 +39,7 @@ public class DHT_Node extends DHT_NodeImpl {
 		serverStub.setHandler(handler);
 	}
 
-	synchronized public static void start() {
+	public static void start() {
 		if (singleton == null) {
 			singleton = new DHT_Node();
 		}

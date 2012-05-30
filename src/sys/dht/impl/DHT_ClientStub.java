@@ -1,10 +1,16 @@
 package sys.dht.impl;
 
 import static sys.net.api.Networking.Networking;
+
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceArray;
+
 import sys.RpcServices;
 import sys.dht.api.DHT;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
+import sys.dht.impl.msgs.DHT_ResolveKey;
+import sys.dht.impl.msgs.DHT_ResolveKeyReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
@@ -59,6 +65,18 @@ public class DHT_ClientStub implements DHT {
 				Thread.dumpStack();
 			}
 		}
+	}
+
+	@Override
+	public Endpoint resolveKey(final Key key, int timeout) {
+		final AtomicReference<Endpoint> ref = new AtomicReference<Endpoint>();
+		myEndpoint.send( dhtEndpoint, new DHT_ResolveKey(key), new DHT_StubHandler() {
+			public void onReceive(final RpcHandle conn, final DHT_ResolveKeyReply reply) {
+				if( key.equals( reply.key) )
+					ref.set( reply.endpoint ) ;
+			}
+		}, timeout);
+		return ref.get();
 	}
 
 }

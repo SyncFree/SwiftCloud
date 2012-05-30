@@ -51,7 +51,7 @@ public class Node {
 
 	@Override
 	public String toString() {
-		return "" + key; // + ":" + endpoint ;
+		return "" + key ; //+ " -> " + endpoint ;
 	}
 
 	private static long locator2key(Object locator) {

@@ -51,11 +51,10 @@ public class Server {
 
 		// SeedDB.addSeedNode( Networking.resolve("10.0.0.1", 10001) ) ;
 
-		Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(3));
+		Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(1));
 
 		Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
 		DHT_Node.start();
-		System.out.println("Server ready...");
 		
 		DHT_Node.setHandler(new KVS.RequestHandler() {
 

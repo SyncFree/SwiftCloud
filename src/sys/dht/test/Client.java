@@ -9,6 +9,7 @@ import sys.dht.api.DHT;
 import sys.dht.api.StringKey;
 import sys.dht.test.msgs.StoreData;
 import sys.dht.test.msgs.StoreDataReply;
+import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcFactory;
 import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
@@ -35,16 +36,23 @@ public class Client {
 
 		DHT stub = Sys.getDHT_ClientStub();
 
+//		while (stub != null) {
+//			String key = "" + Sys.rg.nextInt(1000);
+//			stub.send(new StringKey(key), new StoreData(Sys.rg.nextDouble()), new KVS.ReplyHandler() {
+//			    public void onFailure() {
+//			        System.out.println("Failed...");
+//			    }
+//				public void onReceive(StoreDataReply reply) {
+//					System.out.println(reply.msg);
+//				}
+//			});
+//			Threading.sleep(1000);
+//		}
+		
 		while (stub != null) {
 			String key = "" + Sys.rg.nextInt(1000);
-			stub.send(new StringKey(key), new StoreData(Sys.rg.nextDouble()), new KVS.ReplyHandler() {
-			    public void onFailure() {
-			        System.out.println("Failed...");
-			    }
-				public void onReceive(StoreDataReply reply) {
-					System.out.println(reply.msg);
-				}
-			});
+			Endpoint res = stub.resolveKey(new StringKey(key), 1000);
+			System.out.println( "Resolved DHT key:" + key + " to Node: " + res );
 			Threading.sleep(1000);
 		}
 	}

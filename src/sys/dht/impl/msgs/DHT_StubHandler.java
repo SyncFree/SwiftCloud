@@ -10,6 +10,14 @@ abstract public class DHT_StubHandler extends AbstractRpcHandler {
 		Thread.dumpStack();
 	}
 
+	public void onReceive(final RpcHandle conn, final DHT_ResolveKey req) {
+		Thread.dumpStack();
+	}
+
+	public void onReceive(final RpcHandle conn, final DHT_ResolveKeyReply rep) {
+		Thread.dumpStack();
+	}
+
 	public void onReceive(final RpcHandle conn, final DHT_Request req) {
 		Thread.dumpStack();
 	}

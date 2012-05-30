@@ -8,8 +8,10 @@ import java.lang.ref.SoftReference;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
@@ -45,7 +47,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		this.conMgr = new ConnectionManager();
 
 		sys.utils.Log.setLevel("", Level.ALL);
-		sys.utils.Log.setLevel("sys.dht.catadupa", Level.OFF);
+		sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
 		sys.utils.Log.setLevel("sys.dht", Level.ALL);
 		sys.utils.Log.setLevel("sys.net", Level.ALL);
 		sys.utils.Log.setLevel("sys", Level.ALL);
@@ -143,8 +145,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 	final class ConnectionManager {
 		final int CONNECTION_RETRIES = 3;
-		final int CONNECTION_REPLY_DELAY = 5;
-		Map<Endpoint, RandomList<TransportConnection>> connections = new HashMap<Endpoint, RandomList<TransportConnection>>();
+		Map<Endpoint, TransportConnection[]> ro_connections = new HashMap<Endpoint, TransportConnection[]>();
+		Map<Endpoint, Set<TransportConnection>> connections = new HashMap<Endpoint, Set<TransportConnection>>();
 
 		boolean send(Endpoint remote, Message msg) {
 			for (TransportConnection i : connections(remote))
@@ -163,26 +165,33 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		synchronized void add(TransportConnection conn) {
 			if (!conn.failed()) {
 				Endpoint remote = conn.remoteEndpoint();
-				RandomList<TransportConnection> newList = new RandomList<TransportConnection>(connections(remote));
-				newList.add( conn);
-				connections.put(remote, newList);
+				Set<TransportConnection> cs = connections.get(remote);
+				if( cs == null ) {
+					connections.put(remote, cs = new HashSet<TransportConnection>() );
+					cs.add( conn ) ;
+				}
+				ro_connections.put( remote, cs.toArray( new TransportConnection[ cs.size() ] ) ) ;
 			}
 		}
 
 		synchronized void remove(TransportConnection conn) {
 			Endpoint remote = conn.remoteEndpoint();
-			RandomList<TransportConnection> newList = new RandomList<TransportConnection>(connections(remote));
-			newList.remove(conn);
-			if (newList.size() > 0)
-				connections.put(remote, newList);
+			Set<TransportConnection> cs = connections.get(remote);
+			if( cs != null ) {
+				cs.remove( conn ) ;
+				if( cs.isEmpty() )
+					ro_connections.remove( remote ) ;
+				else
+					ro_connections.put( remote, cs.toArray( new TransportConnection[ cs.size() ] ) ) ;
+			}			
 		}
 
-		synchronized RandomList<TransportConnection> connections(Endpoint remote) {
-			RandomList<TransportConnection> res = connections.get(remote);
-			if (res == null)
-				connections.put(remote, res = new RandomList<TransportConnection>());
-			return res;
+		synchronized TransportConnection[] connections(Endpoint remote) {
+			TransportConnection[] res = ro_connections.get(remote);
+			return res != null ? res : noConnections;
 		}
+		
+		final TransportConnection[] noConnections = new TransportConnection[0];
 	}
 
 	final public class RpcPacket extends AbstractRpcPacket {

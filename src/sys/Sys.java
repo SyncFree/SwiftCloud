@@ -40,7 +40,7 @@ public class Sys {
 	}
 
 	protected void initInstance() {
-		rg = new Random(1L);
+		rg = new Random();
 		scheduler = new TaskScheduler();
 		scheduler.start();
 		NetworkingImpl.init();

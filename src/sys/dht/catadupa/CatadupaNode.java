@@ -5,6 +5,7 @@ import static sys.dht.catadupa.Config.Config;
 import static sys.utils.Log.Log;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -37,9 +38,9 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 	double targetFanout = Config.BROADCAST_MAX_FANOUT;
 
-	Set<Node> joins = new HashSet<Node>();
-	Set<Node> rejoins = new HashSet<Node>();
-	Set<Node> departures = new HashSet<Node>();
+	Set<Node> joins = Collections.synchronizedSet(new HashSet<Node>());
+	Set<Node> rejoins = Collections.synchronizedSet(new HashSet<Node>());
+	Set<Node> departures = Collections.synchronizedSet(new HashSet<Node>());
 
 	public CatadupaNode() {
 	}
@@ -47,16 +48,16 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	public void init() {
 		db = new DB(this);
 
-		Log.finest("I am " + db.self);
+		Log.finer("I am " + db.self);
 
-		joinCatadupa();
-		repairCatadupa();
 		initSequencerTask();
+		repairCatadupa();
+		joinCatadupa();
 
 		new PeriodicTask(0, 5) {
 			@Override
 			public void run() {
-				Log.finest(self.key + ": " + db.k2n.values());
+				Log.finer(self.key + ": " + db.k2n.values());
 			}
 		};
 	}
@@ -96,7 +97,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	}
 
 	@Override
-	synchronized public void onReceive(RpcHandle handle, JoinRequest m) {
+	public void onReceive(RpcHandle handle, JoinRequest m) {
 		joins.add(m.node);
 		handle.reply(new JoinRequestAccept());
 		if (!sequencerTask.isScheduled())
@@ -134,7 +135,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	// --------------------------------------------------------------------------------------------------------------------------------
 	// Broadcast a membership aggregate event.
 	@Override
-	synchronized public void onReceive(RpcHandle sock, final CatadupaCast m) {
+	public void onReceive(RpcHandle sock, final CatadupaCast m) {
 
 		final int BroadcastFanout = broadcastFanout(m.level);
 
@@ -186,8 +187,8 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	 * being announced in the payload. Updates the node membership database.
 	 */
 	@Override
-	synchronized public void onReceive(RpcHandle call, CatadupaCastPayload m) {
-		Log.finest(self.key + "  " + m.data);
+	public void onReceive(RpcHandle call, CatadupaCastPayload m) {
+		Log.finest(self.key + "  CatadupaCastPayload: " + m.data);
 		db.merge(m);
 	}
 
@@ -206,8 +207,8 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 			public void run() {
 
 				Node other = db.randomNode();
-				Log.finest(self.key + "-->Merging with:" + other);
 				if (other != null) {
+					Log.finest(self.key + "-->Merging with:" + other);
 
 					rpc.send(other.endpoint, new DbMergeRequest(db.clock()), new CatadupaHandler() {
 
@@ -305,5 +306,5 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 	@Override
 	public void onNodeRemoved(Node n) {
-	}
+	}	
 }

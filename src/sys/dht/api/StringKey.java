@@ -27,6 +27,14 @@ public class StringKey implements DHT.Key {
 		return key;
 	}
 
+	public int hashCode() {
+		return key.hashCode();
+	}
+	
+	public boolean equals( Object other ) {
+		return other != null && key.equals( ((StringKey)other).key);
+	}
+	
 	@Override
 	public long longHashValue() {
 		synchronized (digest) {

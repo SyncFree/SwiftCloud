@@ -1,5 +1,7 @@
 package sys.dht.impl.msgs;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import sys.dht.api.DHT;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -13,6 +15,8 @@ public class DHT_Request implements RpcMessage {
 	public DHT.Message payload;
 	public Endpoint srcEndpoint;
 
+	public int serial;
+	
 	DHT_Request() {
 	}
 
@@ -25,6 +29,8 @@ public class DHT_Request implements RpcMessage {
 		this.payload = payload;
 		this.handlerId = handlerId;
 		this.srcEndpoint = srcEndpoint;
+		
+		this.serial = counter.incrementAndGet();
 	}
 
 	@Override
@@ -32,4 +38,9 @@ public class DHT_Request implements RpcMessage {
 		((DHT_StubHandler) handler).onReceive(conn, this);
 	}
 
+	public String toString() {
+		return super.toString() + " :> " + serial ;
+	}
+	
+	static AtomicInteger counter = new AtomicInteger(0);
 }
