@@ -47,8 +47,9 @@ public class Log {
 				return res.append('\n').toString();
 			}
 		});
-		ch.setLevel(Level.ALL);
-		Log.setLevel(Level.ALL);
+        // Do not hardcode logging levels!!!
+        // ch.setLevel(Level.ALL);
+        // Log.setLevel(Level.ALL);
 		Log.setFilter(filter = new LogFilter());
 		Log.addHandler(ch);
 	}
