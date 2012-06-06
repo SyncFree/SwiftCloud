@@ -21,14 +21,10 @@ ec2-79-125-102-36.eu-west-1.compute.amazonaws.com
 )
 
 export EC2_PROD_EU_M1SMALL=(
-ec2-176-34-92-20.eu-west-1.compute.amazonaws.com
-ec2-54-247-150-206.eu-west-1.compute.amazonaws.com
-ec2-79-125-98-219.eu-west-1.compute.amazonaws.com
-ec2-54-247-128-136.eu-west-1.compute.amazonaws.com
-ec2-79-125-99-46.eu-west-1.compute.amazonaws.com
-ec2-176-34-72-48.eu-west-1.compute.amazonaws.com
-ec2-54-247-152-14.eu-west-1.compute.amazonaws.com
-ec2-54-247-150-245.eu-west-1.compute.amazonaws.com
+ec2-54-247-149-171.eu-west-1.compute.amazonaws.com 
+ec2-54-247-145-167.eu-west-1.compute.amazonaws.com 
+ec2-46-137-65-206.eu-west-1.compute.amazonaws.com 
+ec2-79-125-47-162.eu-west-1.compute.amazonaws.com 
 )
 
 # TEST instances
