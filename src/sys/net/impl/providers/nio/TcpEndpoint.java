@@ -15,17 +15,15 @@ import java.util.concurrent.TimeUnit;
 import static sys.Sys.*;
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
-import sys.net.api.MessageHandler;
-import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.AbstractTransport;
 import sys.net.impl.FailedTransportConnection;
-import sys.net.impl.KryoLib;
+import sys.net.impl.providers.AbstractTransport;
 import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.KryoBufferPool;
 import sys.net.impl.providers.LocalEndpointExchange;
+import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.IO;
 import sys.utils.Threading;
 
@@ -94,7 +92,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		IO.close(ssc);
 	}
 
-	abstract class AbstractConnection extends AbstractTransport implements Runnable {
+	abstract class AbstractConnection extends AbstractTransport implements RemoteEndpointUpdater, Runnable {
 
 		Throwable cause;
 		SocketChannel channel;

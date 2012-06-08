@@ -4,7 +4,6 @@ import sys.net.api.Endpoint;
 import sys.net.api.Networking;
 import sys.net.api.NetworkingException;
 import sys.net.api.Serializer;
-import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
 import sys.net.impl.rpc.RpcFactoryImpl;
 

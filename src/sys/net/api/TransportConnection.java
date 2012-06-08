@@ -53,5 +53,9 @@ public interface TransportConnection {
 	 */
 	Endpoint remoteEndpoint();
 
-	Throwable causeOfFailure();
+	/**
+	 * If the connection has failed due to an exception, this method provides the cause of failure.
+	 * @return the cause for the connection failure.
+	 */
+	Throwable causeOfFailure();	
 }

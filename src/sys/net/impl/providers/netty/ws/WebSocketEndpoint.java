@@ -49,6 +49,7 @@ import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.KryoBufferPool;
 import sys.net.impl.providers.LocalEndpointExchange;
+import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
 public class WebSocketEndpoint extends AbstractLocalEndpoint {
@@ -130,7 +131,7 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		}
 	}
 
-	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection {
+	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection, RemoteEndpointUpdater {
 		private final String WEBSOCKET_PATH = "/swift";
 
 		Channel channel;
@@ -215,7 +216,7 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			return null;
 		}
 
-		void setRemoteEndpoint(Endpoint remote) {
+		public void setRemoteEndpoint(Endpoint remote) {
 			this.remote = remote;
 		}
 	}

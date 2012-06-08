@@ -9,7 +9,7 @@ abstract public class Config {
 	// Default config values...
 	// Do not alter them directly, use a subclass...
 
-	public int NODE_KEY_LENGTH = 10;
+	public int NODE_KEY_LENGTH = 60;
 
 	public boolean CATADUPA_DYNAMIC_FANOUT = true;
 	public double CATADUPA_LOAD_BALANCE_FACTOR = 1e10;

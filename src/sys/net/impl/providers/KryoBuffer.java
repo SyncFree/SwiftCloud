@@ -31,7 +31,7 @@ public class KryoBuffer implements Runnable {
 	public boolean readFrom(SocketChannel ch) throws IOException {
 		buffer.clear().limit(4);
 
-		while (ch.read(buffer) >= 0 && buffer.hasRemaining())
+		while (ch.read(buffer) > 0 && buffer.hasRemaining())
 			;
 
 		if (buffer.hasRemaining())
@@ -47,7 +47,7 @@ public class KryoBuffer implements Runnable {
 		}
 		buffer.clear().limit(contentLength);
 
-		while (ch.read(buffer) >= 0 && buffer.hasRemaining())
+		while (ch.read(buffer) > 0 && buffer.hasRemaining())
 			;
 
 		if (buffer.hasRemaining())

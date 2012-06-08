@@ -33,10 +33,10 @@ import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.KryoBufferPool;
 import sys.net.impl.providers.LocalEndpointExchange;
+import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
 import static sys.Sys.Sys;
-import static sys.utils.Log.*;
 
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
@@ -93,7 +93,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 			return res;
 	}
 
-	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection {
+	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection, RemoteEndpointUpdater {
 
 		Channel channel;
 		boolean failed;
@@ -169,7 +169,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 			return cause;
 		}
 
-		void setRemoteEndpoint(Endpoint remote) {
+		public void setRemoteEndpoint(Endpoint remote) {
 			this.remote = remote;
 		}
 	}

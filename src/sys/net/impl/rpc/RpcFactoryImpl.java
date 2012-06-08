@@ -16,7 +16,6 @@ import java.util.logging.Level;
 
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 
-import sys.dht.catadupa.RandomList;
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.MessageHandler;
@@ -46,11 +45,11 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	public RpcFactoryImpl() {
 		this.conMgr = new ConnectionManager();
 
-		sys.utils.Log.setLevel("", Level.ALL);
-		sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
-		sys.utils.Log.setLevel("sys.dht", Level.ALL);
-		sys.utils.Log.setLevel("sys.net", Level.ALL);
-		sys.utils.Log.setLevel("sys", Level.ALL);
+//		sys.utils.Log.setLevel("", Level.ALL);
+//		sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
+//		sys.utils.Log.setLevel("sys.dht", Level.ALL);
+//		sys.utils.Log.setLevel("sys.net", Level.ALL);
+//		sys.utils.Log.setLevel("sys", Level.ALL);
 
 		KryoLib.register(RpcPacket.class, new SimpleSerializer<RpcPacket>() {
 
@@ -123,10 +122,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 		final RpcPacket handle = getHandle(pkt);
 		if (handle != null) {
-			if (handle.streamingIsEnabled)
-				handle.reRegisterHandler();
-
 			pkt.conn = conn;
+			pkt.remote = conn.remoteEndpoint();
 			handle.accept(pkt);
 		} else {
 			Log.finest("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
@@ -327,23 +324,28 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 			((RpcFactoryImpl) handler).onReceive(conn, this);
 		}
 
-		void reRegisterHandler() {
+		void reRegisterHandlerX() {
 			synchronized (handles) {
-				handles.put(this.replyHandlerId, new StaleRef(this));
 			}
 		}
 	}
 
 	RpcPacket getHandle(RpcPacket other) {
 		synchronized (handles) {
-			SoftReference<RpcPacket> ref;
+			
 
-			if (other.handlerId < MAX_SERVICE_ID)
-				ref = handles.get(other.handlerId);
-			else
-				ref = handles.remove(other.handlerId);
-
-			return ref == null ? null : ref.get();
+			if (other.handlerId < MAX_SERVICE_ID) {
+				StaleRef ref = handles.get(other.handlerId);
+				return ref == null ? null : ref.get();				
+			}
+			else {
+				RpcPacket res = null;
+				StaleRef ref = handles.remove(other.handlerId);
+				if( ref != null && (res = ref.get()).streamingIsEnabled )
+					handles.put(res.replyHandlerId, ref);
+				
+				return res;
+			}
 		}
 	}
 

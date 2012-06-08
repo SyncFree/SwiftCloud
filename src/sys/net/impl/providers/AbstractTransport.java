@@ -1,4 +1,4 @@
-package sys.net.impl;
+package sys.net.impl.providers;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
@@ -8,8 +8,8 @@ import sys.net.api.TransportConnection;
 public abstract class AbstractTransport implements TransportConnection {
 
 	protected Endpoint remote;
-	protected final Endpoint local;
 	protected boolean isBroken;
+	protected final Endpoint local;
 
 	public AbstractTransport(Endpoint local, Endpoint remote) {
 		this.local = local;

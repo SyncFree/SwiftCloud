@@ -2,6 +2,7 @@ package sys.net.impl;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
+import sys.net.impl.providers.AbstractTransport;
 
 public class FailedTransportConnection extends AbstractTransport {
 

@@ -7,8 +7,11 @@ import swift.utils.KryoCRDTUtils;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.catadupa.KryoCatadupa;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.impl.NetworkingImpl;
 import sys.scheduler.TaskScheduler;
+
+import static sys.net.api.Networking.*;
 
 public class Sys {
 
@@ -44,6 +47,7 @@ public class Sys {
 		scheduler = new TaskScheduler();
 		scheduler.start();
 		NetworkingImpl.init();
+//		Networking.setDefaultProvider( TransportProvider.NETTY_IO_TCP ) ;
 		KryoCatadupa.init();
 		KryoCRDTUtils.init();
 	}
