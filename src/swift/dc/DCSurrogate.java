@@ -575,6 +575,8 @@ class ClientPubInfo {
 
     synchronized void dumpNewUpdates(RpcHandle conn, FastRecentUpdatesRequest request, CausalityClock clk) {
         this.conn = conn;
+        this.conn.enableStreamingReplies(true); //smd
+        
         replyTime = System.currentTimeMillis() + request.getMaxBlockingTimeMillis();
         if (hasUpdates)
             dumpNotifications(clk);
