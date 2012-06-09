@@ -23,8 +23,8 @@ public class StoreDataReply implements DHT.Reply {
 	}
 
 	@Override
-	public void deliverTo(DHT.Connection conn, DHT.ReplyHandler handler) {
-		if (conn.expectingReply())
+	public void deliverTo(DHT.Handle conn, DHT.ReplyHandler handler) {
+		if (conn != null && conn.expectingReply())
 			((KVS.ReplyHandler) handler).onReceive(conn, this);
 		else
 			((KVS.ReplyHandler) handler).onReceive(this);

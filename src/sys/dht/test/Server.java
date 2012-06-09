@@ -59,11 +59,9 @@ public class Server {
 		DHT_Node.setHandler(new KVS.RequestHandler() {
 
 			@Override
-			public void onReceive(DHT.Connection conn, DHT.Key key, StoreData request) {
+			public void onReceive(DHT.Handle conn, DHT.Key key, StoreData request) {
 				System.out.printf("Got request for <%s, %s>\n", key, request.data);
 				conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
-
-				System.out.println(conn.remoteEndpoint());
 			}
 		});
 

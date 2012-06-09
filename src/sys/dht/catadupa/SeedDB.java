@@ -25,6 +25,7 @@ public class SeedDB {
 	static List<Node> seeds = new ArrayList<Node>();
 
 	public static void addSeedNode(Endpoint endpoint) {
+		Log.finer(String.format("Adding Seed node at: <%s>", endpoint));
 		seeds.add(new Node(endpoint));
 	}
 

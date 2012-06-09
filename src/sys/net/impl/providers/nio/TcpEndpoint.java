@@ -29,14 +29,13 @@ import sys.utils.Threading;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
-	private static final int MAX_POOL_THREADS = 12;
-	private static final int CORE_POOL_THREADS = 8;
-	private static final int MAX_IDLE_THREAD_IMEOUT = 30;
+//	private static final int MAX_POOL_THREADS = 12;
+//	private static final int CORE_POOL_THREADS = 8;
+//	private static final int MAX_IDLE_THREAD_IMEOUT = 30;
+//	final BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(128);
+//	final ThreadPoolExecutor threadPool2 = new ThreadPoolExecutor(CORE_POOL_THREADS, MAX_POOL_THREADS, MAX_IDLE_THREAD_IMEOUT, TimeUnit.SECONDS, holdQueue);
 
 	ServerSocketChannel ssc;
-
-	final BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(128);
-	final ThreadPoolExecutor threadPool = new ThreadPoolExecutor(CORE_POOL_THREADS, MAX_POOL_THREADS, MAX_IDLE_THREAD_IMEOUT, TimeUnit.SECONDS, holdQueue);
 	final KryoBufferPool writePool;
 
 	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
@@ -54,7 +53,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 	public void start() throws IOException {
 
 		handler = localEndpoint.getHandler();
-		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+//		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
 		while (this.writePool.remainingCapacity() > 0)
 			this.writePool.offer(new KryoBuffer());
@@ -102,7 +101,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
 			this.rq = new SynchronousQueue<KryoBuffer>();
-			this.readPool = new KryoBufferPool(8);
+			this.readPool = new KryoBufferPool(2);
 		}
 
 		@Override
@@ -128,18 +127,14 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 						this.readPool.offer(inBuf);
 						break;
 					}
-					// // if (inBuf != null && !rq.offer(inBuf))
-					// // threadPool.execute(inBuf);
-					//
-					// inBuf.run();
 				}
 			} catch (IOException ioe) {
 				ioe.printStackTrace();
 				cause = ioe;
-				isBroken = true;
-				handler.onFailure(this);
 			}
+			isBroken = true;
 			IO.close(channel);
+			handler.onFailure(this);
 			Log.fine("Closed connection to:" + remote);
 		}
 
@@ -148,11 +143,11 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			public void run() {
 				try {
 					Message msg = super.readClassAndObject();
-					readPool.offer(this);
 					msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
 				} catch (Throwable t) {
 					t.printStackTrace();
 				}
+				readPool.offer(this);
 			}
 		}
 
@@ -174,19 +169,20 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		}
 
 		public <T extends Message> T receive() {
-			KryoBuffer inBuf = null;
-			try {
-				inBuf = rq.take();
-				T msg = inBuf.readClassAndObject();
-				return msg;
-
-			} catch (Throwable t) {
-				t.printStackTrace();
-			} finally {
-				if (inBuf != null)
-					readPool.offer(inBuf);
-			}
-			return null;
+			throw new RuntimeException("Not supported...");
+//			KryoBuffer inBuf = null;
+//			try {
+//				inBuf = rq.take();
+//				T msg = inBuf.readClassAndObject();
+//				return msg;
+//
+//			} catch (Throwable t) {
+//				t.printStackTrace();
+//			} finally {
+//				if (inBuf != null)
+//					readPool.offer(inBuf);
+//			}
+//			return null;
 		}
 
 		@Override

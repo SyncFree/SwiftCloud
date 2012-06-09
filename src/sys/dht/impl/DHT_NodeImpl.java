@@ -6,7 +6,7 @@ import static sys.utils.Log.Log;
 import sys.RpcServices;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
-import sys.dht.api.DHT.Connection;
+import sys.dht.api.DHT.Handle;
 import sys.dht.catadupa.CatadupaNode;
 import sys.dht.catadupa.Node;
 import sys.dht.discovery.Discovery;
@@ -44,7 +44,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 			}
 
 			@Override
-			public void onReceive(Connection conn, DHT.Key key, DHT.Message m) {
+			public void onReceive(Handle conn, DHT.Key key, DHT.Message m) {
 				Log.finest(String.format("Un-handled DHT message [<%s,%s>]", key, m.getClass()));
 			}
 		});
@@ -52,7 +52,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 		String name = DHT_Node.DHT_ENDPOINT + Sys.getDatacenter();
 		Discovery.register(name, serverStub.getEndpoint().localEndpoint());
 
-		clientStub = new _DHT_ClientStub(serverStub.getEndpoint());
+		clientStub = new DHT_ClientStub( serverStub.getEndpoint(), serverStub.getEndpoint().localEndpoint() );
 
 		new PubSubService(rpcFactory);
 	}
@@ -75,33 +75,6 @@ public class DHT_NodeImpl extends CatadupaNode {
 				return i;
 
 		return self;
-	}
-
-	protected class _DHT_ClientStub extends DHT_ClientStub {
-
-		_DHT_ClientStub(RpcEndpoint myEndpoint) {
-			super(myEndpoint, myEndpoint.localEndpoint());
-		}
-
-		@Override
-		public void send(DHT.Key key, DHT.Message msg) {
-			Node nextHop = resolveNextHop(key);
-			if (nextHop != null) {
-				myEndpoint.send(nextHop.endpoint, new DHT_Request(key, msg));
-			} else {
-				Thread.dumpStack();
-			}
-		}
-
-		@Override
-		public void send(DHT.Key key, DHT.Message msg, DHT.ReplyHandler handler) {
-			Node nextHop = resolveNextHop(key);
-			if (nextHop != null) {
-				myEndpoint.send(nextHop.endpoint, new DHT_Request(key, msg, new DHT_PendingReply(handler).handlerId, myEndpoint.localEndpoint()));
-			} else {
-				Thread.dumpStack();
-			}
-		}
 	}
 
 	protected class _DHT_ServerStub extends DHT_StubHandler {
@@ -129,32 +102,16 @@ public class DHT_NodeImpl extends CatadupaNode {
 		}
 
 		@Override
-		public void onReceive(RpcHandle conn, DHT_Request req) {
+		public void onReceive(RpcHandle handle, DHT_Request req) {
 			Node nextHop = resolveNextHop(req.key);
 			if (nextHop != null && nextHop.key != self.key) {
-				myEndpoint.send(nextHop.endpoint, req);
+				DHT_RequestReply reply = clientStub.send( req );
+				if( reply != null )
+					handle.reply( reply );
 			} else {
-				req.payload.deliverTo(new DHT_ConnectionImpl(conn, req.handlerId, myEndpoint, req.srcEndpoint), req.key, myHandler);
-			}
-		}
-
-		@Override
-		public void onReceive(RpcHandle conn, DHT_RequestReply reply) {
-			DHT_PendingReply prh = DHT_PendingReply.getHandler(reply.handlerId);
-			if (prh != null) {
-				reply.payload.deliverTo(new DHT_ConnectionImpl(conn, reply.replyHandlerId), prh.handler);
-			} else {
-				Thread.dumpStack();
-			}
-		}
-
-		@Override
-		public void onReceive(RpcHandle conn, DHT_ReplyReply reply) {
-			DHT_PendingReply prh = DHT_PendingReply.getHandler(reply.handlerId);
-			if (prh != null) {
-				reply.payload.deliverTo(new DHT_ConnectionImpl(conn, reply.replyHandlerId), prh.handler);
-			} else {
-				Thread.dumpStack();
+				req.payload.deliverTo( new DHT_Handle(handle, req.expectingReply), req.key, myHandler);
+				if(!req.expectingReply)
+					handle.reply(  new DHT_RequestReply(null) );
 			}
 		}
 	}

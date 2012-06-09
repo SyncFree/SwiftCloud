@@ -7,21 +7,13 @@ import sys.net.api.rpc.RpcMessage;
 
 public class DHT_ReplyReply implements RpcMessage {
 
-	public long handlerId;
-	public long replyHandlerId;
 	public DHT.Reply payload;
 
 	DHT_ReplyReply() {
 	}
 
-	public DHT_ReplyReply(DHT.Reply payload, long handlerId) {
-		this(payload, handlerId, 0);
-	}
-
-	public DHT_ReplyReply(DHT.Reply payload, long handlerId, long replyHandlerId) {
+	public DHT_ReplyReply(DHT.Reply payload) {
 		this.payload = payload;
-		this.handlerId = handlerId;
-		this.replyHandlerId = replyHandlerId;
 	}
 
 	@Override

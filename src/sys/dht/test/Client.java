@@ -36,24 +36,24 @@ public class Client {
 
 		DHT stub = Sys.getDHT_ClientStub();
 
-//		while (stub != null) {
-//			String key = "" + Sys.rg.nextInt(1000);
-//			stub.send(new StringKey(key), new StoreData(Sys.rg.nextDouble()), new KVS.ReplyHandler() {
-//			    public void onFailure() {
-//			        System.out.println("Failed...");
-//			    }
-//				public void onReceive(StoreDataReply reply) {
-//					System.out.println(reply.msg);
-//				}
-//			});
-//			Threading.sleep(1000);
-//		}
-		
 		while (stub != null) {
 			String key = "" + Sys.rg.nextInt(1000);
-			Endpoint res = stub.resolveKey(new StringKey(key), 1000);
-			System.out.println( "Resolved DHT key:" + key + " to Node: " + res );
+			stub.send(new StringKey(key), new StoreData(Sys.rg.nextDouble()), new KVS.ReplyHandler() {
+			    public void onFailure() {
+			        System.out.println("Failed...");
+			    }
+				public void onReceive(StoreDataReply reply) {
+					System.out.println(reply.msg);
+				}
+			});
 			Threading.sleep(1000);
 		}
+		
+//		while (stub != null) {
+//			String key = "" + Sys.rg.nextInt(1000);
+//			Endpoint res = stub.resolveKey(new StringKey(key), 1000);
+//			System.out.println( "Resolved DHT key:" + key + " to Node: " + res );
+//			Threading.sleep(1000);
+//		}
 	}
 }

@@ -27,7 +27,7 @@ public class StoreData implements DHT.Message {
 	}
 
 	@Override
-	public void deliverTo(DHT.Connection conn, DHT.Key key, DHT.MessageHandler handler) {
-		((KVS.RequestHandler) handler).onReceive(conn, key, this);
+	public void deliverTo(DHT.Handle handle, DHT.Key key, DHT.MessageHandler handler) {
+		((KVS.RequestHandler) handler).onReceive(handle, key, this);
 	}
 }

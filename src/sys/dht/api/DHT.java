@@ -31,7 +31,7 @@ public interface DHT {
 
 	interface Message {
 
-		void deliverTo(final DHT.Connection conn, final DHT.Key key, final DHT.MessageHandler handler);
+		void deliverTo(final DHT.Handle conn, final DHT.Key key, final DHT.MessageHandler handler);
 
 	}
 
@@ -39,13 +39,13 @@ public interface DHT {
 
 		void onFailure();
 
-		void onReceive(final DHT.Connection conn, final DHT.Key key, final DHT.Message request);
+		void onReceive(final DHT.Handle conn, final DHT.Key key, final DHT.Message request);
 
 	}
 
 	interface Reply {
 
-		void deliverTo(final DHT.Connection conn, final DHT.ReplyHandler handler);
+		void deliverTo(final DHT.Handle conn, final DHT.ReplyHandler handler);
 
 	}
 
@@ -55,13 +55,13 @@ public interface DHT {
 
 		void onReceive(final DHT.Reply msg);
 
-		void onReceive(final DHT.Connection conn, final DHT.Reply reply);
+		void onReceive(final DHT.Handle conn, final DHT.Reply reply);
 	}
 
-	interface Connection {
+	interface Handle {
 
 		/**
-		 * Tells if this connection awaits a reply.
+		 * Tells if this handle awaits a reply.
 		 * 
 		 * @return true/false if the connection awaits a reply or not
 		 */
@@ -88,20 +88,6 @@ public interface DHT {
 		 * @return true/false if the reply was successful or failed
 		 */
 		boolean reply(final DHT.Reply msg, final DHT.ReplyHandler handler);
-
-		/**
-		 * 
-		 * @return true if the connection failed to establish or failed during
-		 *         message exchange
-		 */
-		boolean failed();
-
-		/**
-		 * Obtains the remote endpoint of this connection
-		 * 
-		 * @return the remote endpoint of this connection
-		 */
-		Endpoint remoteEndpoint();
 	}
 
 	abstract class AbstractReplyHandler implements ReplyHandler {
@@ -115,7 +101,7 @@ public interface DHT {
 		}
 
 		@Override
-		public void onReceive(DHT.Connection conn, DHT.Reply reply) {
+		public void onReceive(DHT.Handle conn, DHT.Reply reply) {
 		}
 	}
 
@@ -126,7 +112,7 @@ public interface DHT {
 		}
 
 		@Override
-		public void onReceive(DHT.Connection conn, DHT.Key key, DHT.Message request) {
+		public void onReceive(DHT.Handle conn, DHT.Key key, DHT.Message request) {
 		}
 	}
 }

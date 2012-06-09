@@ -47,7 +47,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 //		sys.utils.Log.setLevel("", Level.ALL);
 //		sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
-//		sys.utils.Log.setLevel("sys.dht", Level.ALL);
+//		sys.utils.Log.setLevel("sys.dht", Level.FINE);
 //		sys.utils.Log.setLevel("sys.net", Level.ALL);
 //		sys.utils.Log.setLevel("sys", Level.ALL);
 
@@ -119,7 +119,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	}
 
 	public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
-
+		Log.finest("RPC: " + pkt.payload.getClass() );
+		
 		final RpcPacket handle = getHandle(pkt);
 		if (handle != null) {
 			pkt.conn = conn;
@@ -127,6 +128,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 			handle.accept(pkt);
 		} else {
 			Log.finest("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
+			System.err.println("Ooops. No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
 		}
 	}
 

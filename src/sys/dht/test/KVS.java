@@ -21,7 +21,7 @@ public interface KVS {
 	 * 
 	 */
 	abstract class RequestHandler extends DHT.AbstractMessageHandler {
-		abstract public void onReceive(DHT.Connection con, DHT.Key key, StoreData request);
+		abstract public void onReceive(DHT.Handle handle, DHT.Key key, StoreData request);
 	}
 
 	/**

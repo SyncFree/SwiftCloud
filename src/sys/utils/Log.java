@@ -37,7 +37,7 @@ public class Log {
 			final String padding = "                                               ";
 
 			@Override
-			public String format(LogRecord r) {
+			synchronized public String format(LogRecord r) {
 				StringBuilder res = new StringBuilder().append(r.getLevel()).append(" : ").append(r.getMessage());
 				while (res.length() < TEXT_WIDTH) {
 					int n = Math.min(TEXT_WIDTH - res.length(), padding.length());
@@ -47,9 +47,6 @@ public class Log {
 				return res.append('\n').toString();
 			}
 		});
-        // Do not hardcode logging levels!!!
-        // ch.setLevel(Level.ALL);
-        // Log.setLevel(Level.ALL);
 		Log.setFilter(filter = new LogFilter());
 		Log.addHandler(ch);
 	}
