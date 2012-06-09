@@ -34,7 +34,7 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     }
 
     @Override
-    public void deliverTo(DHT.Connection conn, DHT.Key key, DHT.MessageHandler handler) {
+    public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler handler) {
         ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
     }
 

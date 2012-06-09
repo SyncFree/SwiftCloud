@@ -34,7 +34,7 @@ import swift.dc.proto.DHTGetCRDTReplyHandler;
 import swift.dc.proto.DHTSendNotification;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
-import sys.dht.api.DHT.Connection;
+import sys.dht.api.DHT.Handle;
 import sys.dht.api.DHT.Key;
 import sys.dht.api.StringKey;
 import sys.pubsub.*;
@@ -161,14 +161,14 @@ class DCDataServer {
         DHT_Node.setHandler(new DHTDataNode.RequestHandler() {
 
             @Override
-            public void onReceive(Connection con, Key key, DHTGetCRDT request) {
+            public void onReceive(Handle con, Key key, DHTGetCRDT request) {
                 DCConstants.DCLogger.info("DHT data server: get CRDT : " + request.getId());
                 con.reply(new DHTGetCRDTReply(localGetCRDTObject(new RemoteObserver(request.getSurrogateId(), con),
                         request.getId(), request.getSubscribe(), request.getVersion())));
             }
 
             @Override
-            public void onReceive(Connection con, Key key, DHTExecCRDT<?> request) {
+            public void onReceive(Handle con, Key key, DHTExecCRDT<?> request) {
                 DCConstants.DCLogger.info("DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
                 con.reply( new DHTExecCRDTReply( localExecCRDT(new RemoteObserver(request.getSurrogateId(), con),
                         request.getGrp(), request.getSnapshotVersion(), request.getTrxVersion())));
@@ -535,9 +535,9 @@ class LocalObserver implements Observer {
 
 class RemoteObserver implements Observer {
     String surrogateId;
-    Connection con;
+    Handle con;
 
-    public RemoteObserver(String surrogateId, Connection con) {
+    public RemoteObserver(String surrogateId, Handle con) {
         this.surrogateId = surrogateId;
         this.con = con;
     }

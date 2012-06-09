@@ -23,7 +23,7 @@ public class DHTGetCRDTReply implements DHT.Reply {
     }
 
     @Override
-    public void deliverTo(DHT.Connection conn, DHT.ReplyHandler handler) {
+    public void deliverTo(DHT.Handle conn, DHT.ReplyHandler handler) {
         if (conn.expectingReply())
             ((DHTGetCRDTReplyHandler) handler).onReceive(conn, this);
         else

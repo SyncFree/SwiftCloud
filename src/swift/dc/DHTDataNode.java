@@ -19,8 +19,8 @@ public interface DHTDataNode {
 	 * 
 	 */
 	public abstract class RequestHandler extends DHT.AbstractMessageHandler {
-        abstract public void onReceive(DHT.Connection con, DHT.Key key, DHTGetCRDT request);
-        abstract public void onReceive(DHT.Connection con, DHT.Key key, DHTExecCRDT<?> request);
+        abstract public void onReceive(DHT.Handle con, DHT.Key key, DHTGetCRDT request);
+        abstract public void onReceive(DHT.Handle con, DHT.Key key, DHTExecCRDT<?> request);
 	}
 
 	/**

@@ -6,7 +6,7 @@ import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.dc.*;
 import sys.dht.api.DHT;
-import sys.dht.api.DHT.Connection;
+import sys.dht.api.DHT.Handle;
 import sys.dht.api.DHT.ReplyHandler;
 
 /**
@@ -36,7 +36,7 @@ public class DHTSendNotification implements DHT.Reply {
     }
 
     @Override
-    public void deliverTo(Connection conn, ReplyHandler handler) {
+    public void deliverTo(Handle conn, ReplyHandler handler) {
         ((DHTDataNode.ReplyHandler) handler).onReceive(conn, this);
         
     }
