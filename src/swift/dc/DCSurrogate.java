@@ -92,16 +92,19 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     private void initDumping() {
         Thread t = new Thread(new Runnable() {
             public void run() {
+                List<ClientPubInfo> lstSession = new ArrayList<ClientPubInfo>();
                 for (;;) {
                     try {
                         long nextTime = Long.MAX_VALUE;
+                        lstSession.clear();
                         synchronized (sessions) {
-                            CausalityClock clk = getEstimatedDCVersionCopy();
-                            Iterator<ClientPubInfo> it = sessions.values().iterator();
-                            while (it.hasNext()) {
-                                ClientPubInfo c = it.next();
-                                nextTime = Math.min(nextTime, c.dumpNotificationsIfTimeout(clk));
-                            }
+                            lstSession.addAll(sessions.values());
+                        }                        
+                        CausalityClock clk = getEstimatedDCVersionCopy();
+                        Iterator<ClientPubInfo> it = lstSession.iterator();
+                        while (it.hasNext()) {
+                            ClientPubInfo c = it.next();
+                            nextTime = Math.min(nextTime, c.dumpNotificationsIfTimeout(clk));
                         }
                         long waitTime = nextTime == Long.MAX_VALUE ? 5000 : nextTime - System.currentTimeMillis();
                         if (waitTime > 0)
