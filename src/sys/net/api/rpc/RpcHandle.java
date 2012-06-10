@@ -92,8 +92,9 @@ public interface RpcHandle {
 	 * @param flag
 	 *            - flag to control if accepting multiple replies for a send is
 	 *            enabled or disabled.
+	 * @return the handle that was modified.
 	 */
-	void enableStreamingReplies(boolean flag);
+	RpcHandle enableStreamingReplies(boolean flag);
 
 	/**
 	 * In blocking mode, this method returns the handle to the reply message.

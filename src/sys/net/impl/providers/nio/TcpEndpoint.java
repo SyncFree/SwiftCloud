@@ -8,7 +8,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -29,11 +28,11 @@ import sys.utils.Threading;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
-//	private static final int MAX_POOL_THREADS = 12;
-//	private static final int CORE_POOL_THREADS = 8;
-//	private static final int MAX_IDLE_THREAD_IMEOUT = 30;
-//	final BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(128);
-//	final ThreadPoolExecutor threadPool2 = new ThreadPoolExecutor(CORE_POOL_THREADS, MAX_POOL_THREADS, MAX_IDLE_THREAD_IMEOUT, TimeUnit.SECONDS, holdQueue);
+	private static final int MAX_POOL_THREADS = 12;
+	private static final int CORE_POOL_THREADS = 8;
+	private static final int MAX_IDLE_THREAD_IMEOUT = 30;
+	final BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(128);
+	final ThreadPoolExecutor threadPool = new ThreadPoolExecutor(CORE_POOL_THREADS, MAX_POOL_THREADS, MAX_IDLE_THREAD_IMEOUT, TimeUnit.SECONDS, holdQueue);
 
 	ServerSocketChannel ssc;
 	final KryoBufferPool writePool;
@@ -53,7 +52,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 	public void start() throws IOException {
 
 		handler = localEndpoint.getHandler();
-//		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
 		while (this.writePool.remainingCapacity() > 0)
 			this.writePool.offer(new KryoBuffer());
@@ -69,9 +68,10 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			else
 				Log.severe("Attempting to connect to an outgoing only endpoint" + remote);
 			return new FailedTransportConnection(localEndpoint, remote, null);
-		} catch (IOException e) {
-			Log.severe("Cannot connect to: " + remote + " :" + e.getMessage());
-			return new FailedTransportConnection(localEndpoint, remote, e);
+		} catch (Throwable t) {
+			t.printStackTrace();
+			Log.severe("Cannot connect to: " + remote + " :" + t.getMessage());
+			return new FailedTransportConnection(localEndpoint, remote, t);
 		}
 	}
 
@@ -96,12 +96,10 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		Throwable cause;
 		SocketChannel channel;
 		final KryoBufferPool readPool;
-		final SynchronousQueue<KryoBuffer> rq;
 
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
-			this.rq = new SynchronousQueue<KryoBuffer>();
-			this.readPool = new KryoBufferPool(2);
+			this.readPool = new KryoBufferPool();
 		}
 
 		@Override
@@ -112,25 +110,24 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
 			try {
 				for (;;) {
+
 					KryoBuffer inBuf = readPool.take();
 
+					if (inBuf == null)
+						inBuf = new _ReadBuffer();
+
 					if (inBuf.readFrom(channel)) {
-						try {
-							inBuf.run();
-//							if (inBuf != null && ! rq.offer(inBuf) )
-//								threadPool.execute(inBuf);
-							
-						} catch (Throwable t) {
-							t.printStackTrace();
-						}
+
+						inBuf.run();
+						//threadPool.execute(inBuf);
 					} else {
 						this.readPool.offer(inBuf);
 						break;
 					}
 				}
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
-				cause = ioe;
+			} catch (Throwable t) {
+				t.printStackTrace();
+				cause = t;
 			}
 			isBroken = true;
 			IO.close(channel);
@@ -141,13 +138,15 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		class _ReadBuffer extends KryoBuffer {
 			@Override
 			public void run() {
+				Message msg;
 				try {
-					Message msg = super.readClassAndObject();
-					msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
+					msg = super.readClassAndObject();
 				} catch (Throwable t) {
 					t.printStackTrace();
+					return;
 				}
 				readPool.offer(this);
+				msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
 			}
 		}
 
@@ -155,11 +154,15 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			KryoBuffer outBuf = null;
 			try {
 				outBuf = writePool.take();
+				if (outBuf == null)
+					outBuf = new KryoBuffer();
+
 				outBuf.writeClassAndObjectFrame(m, channel);
 				return true;
 			} catch (Throwable t) {
 				cause = t;
 				isBroken = true;
+				IO.close(channel);
 				handler.onFailure(this);
 			} finally {
 				if (outBuf != null)
@@ -170,19 +173,19 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
 		public <T extends Message> T receive() {
 			throw new RuntimeException("Not supported...");
-//			KryoBuffer inBuf = null;
-//			try {
-//				inBuf = rq.take();
-//				T msg = inBuf.readClassAndObject();
-//				return msg;
-//
-//			} catch (Throwable t) {
-//				t.printStackTrace();
-//			} finally {
-//				if (inBuf != null)
-//					readPool.offer(inBuf);
-//			}
-//			return null;
+			// KryoBuffer inBuf = null;
+			// try {
+			// inBuf = rq.take();
+			// T msg = inBuf.readClassAndObject();
+			// return msg;
+			//
+			// } catch (Throwable t) {
+			// t.printStackTrace();
+			// } finally {
+			// if (inBuf != null)
+			// readPool.offer(inBuf);
+			// }
+			// return null;
 		}
 
 		@Override
@@ -201,7 +204,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
 	class OutgoingConnection extends AbstractConnection implements Runnable {
 		final private int CONNECTION_TIMEOUT = 5000;
-		
+
 		public OutgoingConnection(Endpoint remote) throws IOException {
 			super.setRemoteEndpoint(remote);
 			init();
@@ -213,6 +216,8 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), CONNECTION_TIMEOUT);
 				channel.socket().setTcpNoDelay(true);
 			} catch (IOException x) {
+				x.printStackTrace();
+				
 				cause = x;
 				isBroken = true;
 				IO.close(channel);

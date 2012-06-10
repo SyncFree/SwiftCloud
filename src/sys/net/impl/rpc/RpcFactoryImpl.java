@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 
 import com.esotericsoftware.kryo.serialize.SimpleSerializer;
@@ -27,6 +28,7 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.KryoLib;
+import sys.scheduler.PeriodicTask;
 import sys.utils.LongMap;
 import sys.utils.Threading;
 
@@ -118,7 +120,20 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		conMgr.remove(conn);
 	}
 
+	public static AtomicInteger rpcCounter = new AtomicInteger();
+	static {
+		new PeriodicTask( 0.0, 5.0 ) {
+			public void run() {
+				int current = rpcCounter.get();
+				if( current > 0 )
+					Log.finest(String.format("Total RPCs: %.2f K\n", current / 1000.0));
+			}
+		};
+	}
+	
 	public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
+		rpcCounter.incrementAndGet();
+		
 		Log.finest("RPC: " + pkt.payload.getClass() );
 		
 		final RpcPacket handle = getHandle(pkt);
@@ -210,10 +225,10 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 		private RpcPacket(Endpoint remote, RpcMessage payload, RpcPacket handle, RpcHandler replyhandler, int timeout) {
 			this.remote = remote;
-			this.timeout = timeout;
 			this.payload = payload;
 			this.handler = replyhandler;
 			this.handlerId = handle.replyHandlerId;
+			this.timeout = Math.min(timeout, RPC_MAX_TIMEOUT);
 			if (replyhandler != null) {
 				synchronized (handles) {
 					this.timestamp = Sys.timeMillis();
@@ -281,7 +296,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		}
 
 		final private boolean timedOut() {
-			int ms = timeout < 0 ? RPC_MAX_TIMEOUT : (int) (timeout - (Sys.timeMillis() - timestamp));
+			int ms = (int)( (timeout < 0 ? RPC_MAX_TIMEOUT : timeout) - (Sys.timeMillis() - timestamp));
 			if (ms > 0)
 				Threading.waitOn(this, ms > 100 ? 100 : ms);
 			return ms <= 0;
@@ -326,23 +341,28 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 			((RpcFactoryImpl) handler).onReceive(conn, this);
 		}
 
-		void reRegisterHandlerX() {
-			synchronized (handles) {
-			}
+		
+		@Override
+		public RpcHandle enableStreamingReplies(boolean flag) {
+			streamingIsEnabled = flag;
+			if( streamingIsEnabled )
+				synchronized (handles) {
+					handles.put(replyHandlerId, new StaleRef(this) );
+				}
+			return this;
 		}
 	}
 
 	RpcPacket getHandle(RpcPacket other) {
 		synchronized (handles) {
 			
-
 			if (other.handlerId < MAX_SERVICE_ID) {
 				StaleRef ref = handles.get(other.handlerId);
 				return ref == null ? null : ref.get();				
 			}
 			else {
 				RpcPacket res = null;
-				StaleRef ref = handles.remove(other.handlerId);
+				StaleRef ref = handles.get(other.handlerId);
 				if( ref != null && (res = ref.get()).streamingIsEnabled )
 					handles.put(res.replyHandlerId, ref);
 				

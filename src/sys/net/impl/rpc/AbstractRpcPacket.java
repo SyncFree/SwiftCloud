@@ -10,7 +10,7 @@ import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.rpc.RpcFactoryImpl.RpcPacket;
 
-public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
+public abstract class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 
 	long handlerId; // destination service handler
 	long replyHandlerId; // reply handler, 0 = no reply expected.
@@ -101,11 +101,6 @@ public class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
 	}
 
 	public void deliverTo(TransportConnection conn, MessageHandler handler) {
-	}
-
-	@Override
-	public void enableStreamingReplies(boolean flag) {
-		streamingIsEnabled = flag;
 	}
 
 	@Override
