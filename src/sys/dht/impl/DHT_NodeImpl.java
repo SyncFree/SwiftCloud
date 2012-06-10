@@ -18,6 +18,7 @@ import sys.dht.impl.msgs.DHT_ResolveKeyReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.impl.rpc.RpcFactoryImpl;
 import sys.pubsub.impl.PubSubService;
 import sys.utils.Threading;
 
@@ -70,6 +71,7 @@ public class DHT_NodeImpl extends CatadupaNode {
 	protected Node resolveNextHop(final DHT.Key key) {
 		long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
 		Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()));
+//		System.err.println(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()) + "---" + RpcFactoryImpl.rpcCounter.get());
 		for (Node i : super.db.nodes(key2key))
 			if (i.isOnline())
 				return i;
@@ -104,10 +106,12 @@ public class DHT_NodeImpl extends CatadupaNode {
 		@Override
 		public void onReceive(RpcHandle handle, DHT_Request req) {
 			Node nextHop = resolveNextHop(req.key);
-			if (nextHop != null && nextHop.key != self.key) {
-				DHT_RequestReply reply = clientStub.send( req );
+			if (nextHop != null && nextHop.key != self.key && ! req.redirected ) {
+				// handle.reply( new DHT_ResolveKeyReply(req.key, nextHop.endpoint) ) ;
+				req.redirected = true;
+				DHT_RequestReply reply = clientStub.send(nextHop.endpoint, req);
 				if( reply != null )
-					handle.reply( reply );
+					handle.reply( reply ) ;
 			} else {
 				req.payload.deliverTo( new DHT_Handle(handle, req.expectingReply), req.key, myHandler);
 				if(!req.expectingReply)

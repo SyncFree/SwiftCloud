@@ -1,8 +1,9 @@
 package sys.dht.impl;
 
 import static sys.net.api.Networking.Networking;
+import static sys.utils.Log.Log;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import sys.RpcServices;
@@ -20,7 +21,7 @@ import sys.utils.Threading;
 
 public class DHT_ClientStub implements DHT {
 	private static final int RETRIES = 5;
-	private static final int TIMEOUT = 5000;
+	private static final int TIMEOUT = 100;
 	
 	Endpoint dhtEndpoint;
 	RpcEndpoint myEndpoint;
@@ -42,15 +43,15 @@ public class DHT_ClientStub implements DHT {
 
 	@Override
 	public void send(final Key key, final DHT.Message msg) {
-		this.send( new DHT_Request(key, msg) );
+		this.send( dhtEndpoint, new DHT_Request(key, msg) );
 	}
 
 	@Override
 	public void send(final Key key, final DHT.Message msg, final DHT.ReplyHandler handler) {
-		DHT_RequestReply reply = this.send( new DHT_Request( key, msg, true) ) ;
+		DHT_RequestReply reply = this.send( dhtEndpoint, new DHT_Request( key, msg, true) ) ;
 		if( reply != null )
 			if( reply.payload != null)
-				reply.payload.deliverTo(null, handler);
+				reply.payload.deliverTo( new DHT_Handle(null, false), handler);
 		else
 			handler.onFailure();
 	}
@@ -68,19 +69,31 @@ public class DHT_ClientStub implements DHT {
 		return ref.get();
 	}
 
-	public DHT_RequestReply send( DHT_Request req) {
-		final AtomicBoolean done = new AtomicBoolean(false);
+	public DHT_RequestReply send( final Endpoint dst, final DHT_Request req) {		
+		final AtomicInteger delay = new AtomicInteger(50);
+		final AtomicReference<Endpoint> dhtNode = new AtomicReference<Endpoint>( dst );
 		final AtomicReference<DHT_RequestReply> ref = new AtomicReference<DHT_RequestReply>(null);
 		for( int i = 0; i < RETRIES ; i++ ) {
-			myEndpoint.send(dhtEndpoint, req, new DHT_StubHandler() {
-				public void onReceive(final RpcHandle conn, final DHT_RequestReply reply) {
-					ref.set( reply );
-					done.set(true);
+			myEndpoint.send( dhtNode.get(), req, new DHT_StubHandler() {
+				
+				public void onFailure( RpcHandle handle ) {
 				}
+				
+				public void onReceive(final RpcHandle handle, final DHT_RequestReply reply) {
+					ref.set( reply );
+				}
+				
+				public void onReceive(final RpcHandle handle, final DHT_ResolveKeyReply reply) {
+					delay.set(0);
+					dhtNode.set( reply.endpoint );
+					Log.finest(String.format("Got redirection for key: %s to %s", req.key, reply.endpoint ));
+				}
+				
 			}, TIMEOUT);
-			if( ! done.get() )
-				Threading.sleep( 500 * (1+i)) ;
-			else break;
+			if( ref.get() != null )
+				break;
+			else
+				Threading.sleep( delay.getAndAdd((i+1) * 100)) ;
 		}
 		return ref.get();
 	}

@@ -8,6 +8,7 @@ import sys.net.api.rpc.RpcMessage;
 public class DHT_Request implements RpcMessage {
 
 	public DHT.Key key;
+	public boolean redirected;
 	public DHT.Message payload;
 	public boolean expectingReply;
 	
@@ -21,9 +22,11 @@ public class DHT_Request implements RpcMessage {
 	public DHT_Request(DHT.Key key, DHT.Message payload, boolean expectingReply) {
 		this.key = key;
 		this.payload = payload;
+		this.redirected = false;
 		this.expectingReply = expectingReply;
 	}
 
+	
 	@Override
 	public void deliverTo(RpcHandle conn, RpcHandler handler) {
 		((DHT_StubHandler) handler).onReceive(conn, this);
