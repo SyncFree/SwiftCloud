@@ -521,6 +521,7 @@ class ClientPubInfo {
         this.clientId = clientId;
         hasUpdates = false;
         conn = null;
+        replyTime = Long.MAX_VALUE;
         subscriptions = new TreeMap<CRDTIdentifier, CRDTSessionInfo>();
     }
 
@@ -580,8 +581,7 @@ class ClientPubInfo {
         this.conn = conn;
         this.conn.enableStreamingReplies(true); //smd
         
-//        replyTime = System.currentTimeMillis() + request.getMaxBlockingTimeMillis();
-        replyTime = System.currentTimeMillis() + 2000;
+        replyTime = Math.min(replyTime, System.currentTimeMillis() + request.getMaxBlockingTimeMillis());
         if (hasUpdates)
             dumpNotifications(clk);
     }
@@ -624,6 +624,7 @@ class ClientPubInfo {
 
         hasUpdates = false;
         conn = null;
+        replyTime = Long.MAX_VALUE;
     }
 
     public String getClientId() {
