@@ -42,10 +42,10 @@ public class Server {
 
 	public static void main(String[] args) throws Exception {
 		Log.setLevel("", Level.OFF);
-		Log.setLevel("sys.dht.catadupa", Level.FINER);
+		Log.setLevel("sys.dht.catadupa", Level.FINEST);
 		Log.setLevel("sys.dht", Level.FINEST);
-		Log.setLevel("sys.net", Level.FINE);
-		Log.setLevel("sys", Level.FINE);
+		Log.setLevel("sys.net", Level.FINEST);
+		Log.setLevel("sys", Level.FINEST);
 
 		sys.Sys.init();
 
@@ -55,6 +55,8 @@ public class Server {
 
 		Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
 		DHT_Node.start();
+		
+		System.out.println("Ready...");
 		
 		DHT_Node.setHandler(new KVS.RequestHandler() {
 

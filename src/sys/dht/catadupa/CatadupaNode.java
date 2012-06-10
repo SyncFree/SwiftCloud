@@ -205,11 +205,9 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 			@Override
 			public void run() {
-
 				Node other = db.randomNode();
+				Log.finest(self.key + "-->Merging with:" + other);
 				if (other != null) {
-					Log.finest(self.key + "-->Merging with:" + other);
-
 					rpc.send(other.endpoint, new DbMergeRequest(db.clock()), new CatadupaHandler() {
 
 						@Override
@@ -227,7 +225,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 							db.merge(r);
 							Collection<? extends Timestamp> ts = db.clock().delta(r.clock);
-							handle.reply(new DbMergeReply(db.clock(), db.membership.subSet(ts)));
+							handle.reply( new DbMergeReply(db.clock(), db.membership.subSet(ts)));
 
 							mergePeriod = Math.min(45, Math.max(10, mergePeriod));
 							reSchedule(mergePeriod + Sys.rg.nextDouble());
@@ -252,7 +250,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 		Log.finest("Delta:" + delta);
 
-		handle.reply(new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
+		handle.reply( new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
 
 			@Override
 			public void onReceive(DbMergeReply r) {

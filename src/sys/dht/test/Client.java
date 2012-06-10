@@ -1,7 +1,6 @@
 package sys.dht.test;
 
 import static sys.Sys.Sys;
-import static sys.utils.Log.Log;
 
 import java.util.logging.Level;
 
@@ -12,6 +11,7 @@ import sys.dht.test.msgs.StoreDataReply;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcFactory;
 import sys.net.api.rpc.RpcHandle;
+import sys.utils.Log;
 import sys.utils.Threading;
 
 /**
@@ -29,8 +29,13 @@ import sys.utils.Threading;
 public class Client {
 
 	public static void main(String[] args) throws Exception {
-		Log.setLevel(Level.ALL);
 		sys.Sys.init();
+
+		Log.setLevel("", Level.OFF);
+		Log.setLevel("sys.dht.catadupa", Level.FINEST);
+		Log.setLevel("sys.dht", Level.FINEST);
+		Log.setLevel("sys.net", Level.FINEST);
+		Log.setLevel("sys", Level.FINEST);
 
 		Sys.setDatacenter("datacenter-0");
 
