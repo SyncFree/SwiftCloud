@@ -580,7 +580,8 @@ class ClientPubInfo {
         this.conn = conn;
         this.conn.enableStreamingReplies(true); //smd
         
-        replyTime = System.currentTimeMillis() + request.getMaxBlockingTimeMillis();
+//        replyTime = System.currentTimeMillis() + request.getMaxBlockingTimeMillis();
+        replyTime = System.currentTimeMillis() + 2000;
         if (hasUpdates)
             dumpNotifications(clk);
     }
