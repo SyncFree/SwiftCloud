@@ -136,9 +136,9 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis, int deadlineMillis,
             long cacheEvictionTimeMillis) {
-        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(serverHostname, serverPort),
-                new TimeBoundedObjectsCache(cacheEvictionTimeMillis), timeoutMillis,
-                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
+        return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
+                Networking.resolve(serverHostname, serverPort), new TimeBoundedObjectsCache(cacheEvictionTimeMillis),
+                timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
     private static String generateClientId() {
@@ -253,7 +253,8 @@ public class SwiftImpl implements Swift, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(deadlineMillis) {
+                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(
+                        "getLatestCommittedClock", deadlineMillis) {
                     @Override
                     protected Boolean callOrFailWithNull() {
                         final AtomicBoolean doneFlag = new AtomicBoolean(false);
@@ -532,7 +533,8 @@ public class SwiftImpl implements Swift, TxnManager {
             WrongTypeException {
         FetchObjectVersionReply reply;
         do {
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(deadlineMillis) {
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(
+                    "fetchObjectVersion", deadlineMillis) {
                 @Override
                 protected FetchObjectVersionReply callOrFailWithNull() {
                     final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
@@ -910,7 +912,7 @@ public class SwiftImpl implements Swift, TxnManager {
             final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
                     txn.getAllGlobalOperations());
             // Commit at server.
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>() {
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>("commitToStore") {
                 @Override
                 protected CommitUpdatesReply callOrFailWithNull() {
                     final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
@@ -945,7 +947,7 @@ public class SwiftImpl implements Swift, TxnManager {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         final GenerateTimestampReply reply = retryableTaskExecutor
-                .execute(new CallableWithDeadline<GenerateTimestampReply>() {
+                .execute(new CallableWithDeadline<GenerateTimestampReply>("assignGlobalTimestamp") {
                     @Override
                     protected GenerateTimestampReply callOrFailWithNull() {
                         final AtomicReference<GenerateTimestampReply> replyRef = new AtomicReference<GenerateTimestampReply>();

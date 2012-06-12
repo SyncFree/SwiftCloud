@@ -43,7 +43,7 @@ public class ExponentialBackoffTaskExecutor {
                 return task.call();
             } catch (Exception x) {
                 interRetryWaitTime *= retryWaitTimeMultiplier;
-                reportRetry(interRetryWaitTime);
+                reportRetry(task, interRetryWaitTime);
                 deadlineLeft = task.getDeadlineLeft();
                 if (interRetryWaitTime <= deadlineLeft) {
                     try {
@@ -59,11 +59,13 @@ public class ExponentialBackoffTaskExecutor {
         return null;
     }
 
-    private void reportRetry(final long retryWaitTimeMs) {
+    private void reportRetry(final CallableWithDeadline<?> task, final long retryWaitTimeMs) {
         if (retriesNumber.incrementAndGet() % LOGGING_RETRY_SAMPLING_FREQ == 0) {
-            logger.warning("Retried " + name + " " + LOGGING_RETRY_SAMPLING_FREQ + " times since last log entry.");
+            logger.warning("Retried " + name + "-" + task + " " + LOGGING_RETRY_SAMPLING_FREQ
+                    + " times since last log entry.");
         } else if (retryWaitTimeMs >= LOGGING_RETRY_WAIT_THRESHOLD_MS) {
-            logger.warning("Retried " + name + " and waiting back-off already exceeded " + retryWaitTimeMs + "ms.");
+            logger.warning("Retried " + name + "-" + task + " and waiting by back-off algorithm already exceeded "
+                    + retryWaitTimeMs + "ms.");
         }
     }
 }

@@ -10,18 +10,21 @@ import java.util.concurrent.Callable;
  */
 public abstract class CallableWithDeadline<V> implements Callable<V> {
     private final long deadlineTime;
+    private final String taskName;
 
     /**
      * Creates callable task without deadline.
      */
-    public CallableWithDeadline() {
+    public CallableWithDeadline(String taskName) {
+        this.taskName = taskName;
         this.deadlineTime = Long.MAX_VALUE;
     }
 
     /**
      * Creates callable task with provided deadline in milliseconds.
      */
-    public CallableWithDeadline(long deadlineMillis) {
+    public CallableWithDeadline(String taskName, long deadlineMillis) {
+        this.taskName = taskName;
         this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
     }
 
@@ -54,5 +57,9 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
 
     public long getDeadlineTime() {
         return deadlineTime;
+    }
+
+    public String toString() {
+        return taskName;
     }
 }
