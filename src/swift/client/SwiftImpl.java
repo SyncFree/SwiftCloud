@@ -637,23 +637,20 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private void fetchSubscribedNotifications() {
-        final FastRecentUpdatesReply notifications = retryableTaskExecutor
-                .execute(new CallableWithDeadline<FastRecentUpdatesReply>() {
+        final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
+        localEndpoint.send(serverEndpoint,
+                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
+                new FastRecentUpdatesReplyHandler() {
                     @Override
-                    protected FastRecentUpdatesReply callOrFailWithNull() {
-                        final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
-                        localEndpoint.send(
-                                serverEndpoint,
-                                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis
-                                        - timeoutMillis)), new FastRecentUpdatesReplyHandler() {
-                                    @Override
-                                    public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
-                                        replyRef.set(reply);
-                                    }
-                                }, notificationTimeoutMillis);
-                        return replyRef.get();
+                    public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
+                        replyRef.set(reply);
                     }
-                });
+                }, notificationTimeoutMillis);
+        final FastRecentUpdatesReply notifications = replyRef.get();
+        if (notifications == null) {
+            logger.warning("server did not reply with recent update notifications");
+            return;
+        }
         logger.fine("notifications received for " + notifications.getSubscriptions().size() + " objects");
 
         updateCommittedVersion(notifications.getEstimatedLatestKnownClock());
