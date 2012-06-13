@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -142,8 +143,7 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private static String generateClientId() {
-        final Random random = new Random(System.currentTimeMillis());
-        return Long.toHexString(System.identityHashCode(random) + random.nextLong());
+        return UUID.randomUUID().toString();
     }
 
     private boolean stopFlag;
