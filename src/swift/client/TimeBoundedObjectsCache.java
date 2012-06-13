@@ -105,7 +105,7 @@ class TimeBoundedObjectsCache {
                 break;
             }
         }
-        logger.fine(evictedObjects + " objects evicted from the cache");
+        logger.info(evictedObjects + " objects evicted from the cache");
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })

@@ -651,7 +651,7 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.warning("server did not reply with recent update notifications");
             return;
         }
-        logger.fine("notifications received for " + notifications.getSubscriptions().size() + " objects");
+        logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects");
 
         updateCommittedVersion(notifications.getEstimatedLatestKnownClock());
         if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
