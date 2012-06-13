@@ -38,7 +38,7 @@ import static sys.net.impl.KryoLib.*;
 
 final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	static final long MAX_SERVICE_ID = 1L << 16;
-	static final int RPC_MAX_TIMEOUT = 10000;
+	static final int RPC_MAX_TIMEOUT = 10000000;
 
 	Endpoint local;
 	ConnectionManager conMgr;

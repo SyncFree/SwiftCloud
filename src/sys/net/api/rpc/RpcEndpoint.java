@@ -58,7 +58,7 @@ public interface RpcEndpoint {
 	 * 
 	 * @param timout
 	 *            - number of milliseconds to wait for the reply. <= 0 returns
-	 *            immediately.
+	 *            immediately. FIXME: document MAX_TIMEOUT 
 	 * @return the handle associated for the message
 	 */
 	RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler, int timeout);
