@@ -113,6 +113,8 @@ public class SwiftSocialBenchmark {
                 asyncCommit);
 
         final long sessionStartTime = System.currentTimeMillis();
+        final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
+        bufferedOutput.println(initSessionLog);
         for (String cmdLine : commands) {
             final long txnStartTime = System.currentTimeMillis();
             String[] toks = cmdLine.split(";");
