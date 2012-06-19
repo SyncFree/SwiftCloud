@@ -241,6 +241,10 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                             Iterator<CommitRecord> it = s.iterator();
                             while (it.hasNext()) {
                                 CommitRecord c = it.next();
+                                if( c.acked.nextClearBit(0) == sequencers.size() ) {
+                                	it.remove();
+                                	continue;
+                                }
                                 long l = c.lastSentTime();
                                 if (l < lastSendTime) {
                                     r = c;
@@ -275,15 +279,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
                                     @Override
                                     public void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply) {
-                                        boolean toRemove = false;
                                         synchronized (r0) {
                                             r0.acked.set(i0);
-                                            toRemove = r0.acked.nextClearBit(0) == sequencers.size();
                                         }
-                                        if (toRemove)
-                                            synchronized (ops) {
-                                                ops.remove(r0);
-                                            }
                                     }
                                 }, 0);
                             }
