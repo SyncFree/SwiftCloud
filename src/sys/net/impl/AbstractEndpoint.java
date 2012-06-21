@@ -2,7 +2,6 @@ package sys.net.impl;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
@@ -28,7 +27,7 @@ abstract public class AbstractEndpoint implements Endpoint {
 	protected AbstractEndpoint(InetSocketAddress sockAddress, long gid) {
 		this.gid = gid;
 		this.sockAddress = sockAddress;
-		this.locator = ByteBuffer.wrap(sockAddress.getAddress().getAddress()).getInt() << 32 | sockAddress.getPort();
+		this.locator = encodeLocator( sockAddress ) ;
 	}
 
 	protected AbstractEndpoint(long locator, long gid) {
