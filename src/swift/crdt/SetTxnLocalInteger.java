@@ -6,6 +6,7 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
@@ -57,4 +58,8 @@ public class SetTxnLocalInteger extends BaseCRDTTxnLocal<SetIntegers> {
         return elems.keySet();
     }
 
+    @Override
+    public Object executeQuery(CRDTQuery<SetIntegers> query) {
+        return query.executeAt(this);
+    }
 }

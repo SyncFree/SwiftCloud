@@ -3,7 +3,7 @@ package swift.crdt;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
@@ -30,7 +30,7 @@ public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRD
         return getTxnHandle().nextTimestamp();
     }
 
-    protected void registerLocalOperation(final CRDTOperation<V> op) {
+    protected void registerLocalOperation(final CRDTUpdate<V> op) {
         getTxnHandle().registerOperation(this.id, op);
     }
 

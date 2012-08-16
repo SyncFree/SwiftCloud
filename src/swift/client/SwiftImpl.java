@@ -60,7 +60,7 @@ import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
@@ -457,9 +457,9 @@ public class SwiftImpl implements Swift, TxnManager {
             // Apply them on sandboxed copy of an object, since these operations
             // use local timestamps.
             for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
-                final CRDTObjectOperationsGroup<V> localOps;
+                final CRDTObjectUpdatesGroup<V> localOps;
                 try {
-                    localOps = (CRDTObjectOperationsGroup<V>) dependentTxn.getObjectLocalOperations(id);
+                    localOps = (CRDTObjectUpdatesGroup<V>) dependentTxn.getObjectLocalOperations(id);
                 } catch (ClassCastException x) {
                     throw new WrongTypeException(x.getMessage());
                 }
@@ -678,7 +678,7 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return true if subscription should be continued for this object
      */
     private synchronized void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
-            final List<CRDTObjectOperationsGroup<?>> ops, final CausalityClock outputClock) {
+            final List<CRDTObjectUpdatesGroup<?>> ops, final CausalityClock outputClock) {
         if (stopFlag) {
             logger.info("Update received after client has been stopped -> ignoring");
             return;
@@ -722,7 +722,7 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.info("applying received updates on object " + id);
         }
 
-        for (final CRDTObjectOperationsGroup<?> op : ops) {
+        for (final CRDTObjectUpdatesGroup<?> op : ops) {
             if (!crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("update " + op.getBaseTimestamp() + " was already included in the state of object "
@@ -906,7 +906,7 @@ public class SwiftImpl implements Swift, TxnManager {
         do {
             assignGlobalTimestamp(txn);
 
-            final LinkedList<CRDTObjectOperationsGroup<?>> operationsGroups = new LinkedList<CRDTObjectOperationsGroup<?>>(
+            final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>(
                     txn.getAllGlobalOperations());
             // Commit at server.
             reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>("commitToStore") {
@@ -978,7 +978,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         txn.markGloballyCommitted();
-        for (final CRDTObjectOperationsGroup opsGroup : txn.getAllGlobalOperations()) {
+        for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllGlobalOperations()) {
             // Try to apply changes in a cached copy of an object.
             final CRDT<?> crdt = objectsCache.getWithoutTouch(opsGroup.getTargetUID());
             if (crdt == null) {

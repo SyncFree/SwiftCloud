@@ -10,7 +10,7 @@ import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 
 /**
  * Local cache of CRDT objects with LRU eviction policy.
@@ -110,7 +110,7 @@ class TimeBoundedObjectsCache {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     void recordOnAll(final Timestamp timestamp) {
-        final CRDTObjectOperationsGroup dummyOp = new CRDTObjectOperationsGroup(null, timestamp, null);
+        final CRDTObjectUpdatesGroup dummyOp = new CRDTObjectUpdatesGroup(null, timestamp, null);
         for (final Entry entry : entries.values()) {
             entry.object.execute(dummyOp, CRDTOperationDependencyPolicy.IGNORE);
         }

@@ -1,7 +1,7 @@
 package swift.crdt;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
@@ -21,7 +21,7 @@ public class SetStrings extends SetVersioned<String, SetStrings> {
     }
 
     @Override
-    protected void execute(CRDTOperation<SetStrings> op) {
+    protected void execute(CRDTUpdate<SetStrings> op) {
         op.applyTo(this);
     }
 

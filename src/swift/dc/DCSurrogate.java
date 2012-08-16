@@ -43,8 +43,8 @@ import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.interfaces.CRDTUpdate;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
 import swift.dc.proto.CommitTSRequest;
@@ -236,7 +236,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     // }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
+    <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
         return dataServer.execCRDT(grp, snapshotVersion, trxVersion); // call
                                                                       // DHT
@@ -339,18 +339,18 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         DCConstants.DCLogger.info("CommitUpdatesRequest client = " + request.getClientId() + ":ts=" + request.getBaseTimestamp()+":nops=" + request.getObjectUpdateGroups().size());
         final ClientPubInfo session = getSession(request.getClientId());
 
-        List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
+        List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp ts = request.getBaseTimestamp();
         final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(request.getBaseTimestamp());
-        Iterator<CRDTObjectOperationsGroup<?>> it = ops.iterator();
+        Iterator<CRDTObjectUpdatesGroup<?>> it = ops.iterator();
         final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; 
         boolean ok = true;
         int pos = 0;
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
-            CRDTObjectOperationsGroup<?> grp = it.next();
+            CRDTObjectUpdatesGroup<?> grp = it.next();
             results[pos] = execCRDT(grp, snapshotClock, trxClock);
             ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
@@ -450,18 +450,18 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     public void onReceive(RpcHandle conn, SeqCommitUpdatesRequest request) {
         DCConstants.DCLogger.info("SeqCommitUpdatesRequest timestamp = " + request.getBaseTimestamp());
 
-        List<CRDTObjectOperationsGroup<?>> ops = request.getObjectUpdateGroups();
+        List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp ts = request.getBaseTimestamp();
         final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(request.getBaseTimestamp());
-        Iterator<CRDTObjectOperationsGroup<?>> it = ops.iterator();
+        Iterator<CRDTObjectUpdatesGroup<?>> it = ops.iterator();
         final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; 
         boolean ok = true;
         int pos = 0;
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
-            CRDTObjectOperationsGroup<?> grp = it.next();
+            CRDTObjectUpdatesGroup<?> grp = it.next();
             results[pos] = execCRDT(grp, snapshotClock, trxClock);
             ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
@@ -672,7 +672,7 @@ class CRDTSessionInfo {
     private boolean hasChanges;
     private CausalityClock oldClock;
     private CausalityClock newClock;
-    private List<CRDTObjectOperationsGroup<?>> updates;
+    private List<CRDTObjectUpdatesGroup<?>> updates;
 
     public CRDTSessionInfo(CausalityClock clk, boolean observing, boolean notificating) {
         this.oldClock = clk;
@@ -680,7 +680,7 @@ class CRDTSessionInfo {
         this.observing = observing;
         this.notificating = notificating;
         this.hasChanges = false;
-        updates = new ArrayList<CRDTObjectOperationsGroup<?>>();
+        updates = new ArrayList<CRDTObjectUpdatesGroup<?>>();
     }
 
     public void addSubscriptionInfo(CRDTIdentifier id, List<ObjectSubscriptionInfo> notifications) {

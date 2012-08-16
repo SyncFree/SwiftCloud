@@ -4,7 +4,7 @@ import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -19,7 +19,7 @@ public class CommitTSRequest implements RpcMessage {
     protected Timestamp timestamp;
     protected CausalityClock version;   // observed version
     protected boolean commit;           // true if transaction was committed
-    protected List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
+    protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     
     protected Timestamp baseTimestamp;
 
@@ -30,7 +30,7 @@ public class CommitTSRequest implements RpcMessage {
     }
 
     public CommitTSRequest(Timestamp timestamp, CausalityClock version, boolean commit,
-            List<CRDTObjectOperationsGroup<?>> objectUpdateGroups, Timestamp baseTimestamp) {
+            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, Timestamp baseTimestamp) {
         this.timestamp = timestamp;
         this.version = version;
         this.commit = commit;
@@ -65,7 +65,7 @@ public class CommitTSRequest implements RpcMessage {
         ((SequencerServer) handler).onReceive(conn, this);
     }
 
-    public List<CRDTObjectOperationsGroup<?>> getObjectUpdateGroups() {
+    public List<CRDTObjectUpdatesGroup<?>> getObjectUpdateGroups() {
         return objectUpdateGroups;
     }
 

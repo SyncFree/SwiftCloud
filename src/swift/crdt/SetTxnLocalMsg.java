@@ -7,6 +7,7 @@ import java.util.Set;
 import swift.application.social.Message;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.SetInsert;
 import swift.crdt.operations.SetRemove;
@@ -50,7 +51,7 @@ public class SetTxnLocalMsg extends BaseCRDTTxnLocal<SetMsg> {
         }
     }
 
-    public boolean lookup(int e) {
+    public boolean lookup(Message e) {
         return elems.containsKey(e);
     }
 
@@ -58,4 +59,8 @@ public class SetTxnLocalMsg extends BaseCRDTTxnLocal<SetMsg> {
         return elems.keySet();
     }
 
+    @Override
+    public Object executeQuery(CRDTQuery<SetMsg> query) {
+        return query.executeAt(this);
+    }
 }

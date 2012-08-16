@@ -31,7 +31,7 @@ import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.crdt.operations.IntegerUpdate;
 import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.Sys;
@@ -82,13 +82,13 @@ public class RPCBenchmark {
 
         integer = new IntegerVersioned();
         integer.init(objectId, causalityClock1, ClockFactory.newClock(), true);
-        final CRDTObjectOperationsGroup<IntegerVersioned> opGroup1 = new CRDTObjectOperationsGroup<IntegerVersioned>(
+        final CRDTObjectUpdatesGroup<IntegerVersioned> opGroup1 = new CRDTObjectUpdatesGroup<IntegerVersioned>(
                 objectId, site1Timestamp, null);
         opGroup1.append(new IntegerUpdate(new IncrementalTripleTimestampGenerator(site1Timestamp).generateNew(), 1));
         opGroup1.setDependency(ClockFactory.newClock());
         integer.execute(opGroup1, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 
-        final CRDTObjectOperationsGroup<IntegerVersioned> opGroup2 = new CRDTObjectOperationsGroup<IntegerVersioned>(
+        final CRDTObjectUpdatesGroup<IntegerVersioned> opGroup2 = new CRDTObjectUpdatesGroup<IntegerVersioned>(
                 objectId, site2Timestamp, null);
         opGroup2.append(new IntegerUpdate(new IncrementalTripleTimestampGenerator(site2Timestamp).generateNew(), 1));
         opGroup2.setDependency(ClockFactory.newClock());

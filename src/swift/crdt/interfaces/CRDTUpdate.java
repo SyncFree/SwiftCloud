@@ -4,11 +4,11 @@ import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 
 /**
- * Basic interface for representing an operation in a CRDT
+ * Basic interface for representing an update operation on a CRDT
  * 
  * @author nmp, annettebieniusa
  */
-public interface CRDTOperation<V extends CRDT<V>> {
+public interface CRDTUpdate<V extends CRDT<V>> {
 
     /**
      * Returns the timestamp associated to the operations.
@@ -21,7 +21,7 @@ public interface CRDTOperation<V extends CRDT<V>> {
      * @param ts
      *            base timestamp to use in the copy
      */
-    CRDTOperation<V> withBaseTimestamp(Timestamp ts);
+    CRDTUpdate<V> withBaseTimestamp(Timestamp ts);
 
     /**
      * Replaces base timestamp of dependee operation(s) of this operation with

@@ -5,7 +5,7 @@ import java.util.Map;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -36,7 +36,7 @@ public class RecentUpdatesReply implements RpcMessage {
 
     protected SubscriptionStatus status;
     protected Map<CRDTIdentifier, CausalityClock> newlyConfirmedSubscriptions;
-    protected List<CRDTObjectOperationsGroup> updates;
+    protected List<CRDTObjectUpdatesGroup> updates;
     protected CausalityClock clock;
 
     /**
@@ -46,7 +46,7 @@ public class RecentUpdatesReply implements RpcMessage {
     }
 
     public RecentUpdatesReply(SubscriptionStatus status,
-            Map<CRDTIdentifier, CausalityClock> newlyConfirmedSubscriptions, List<CRDTObjectOperationsGroup> updates,
+            Map<CRDTIdentifier, CausalityClock> newlyConfirmedSubscriptions, List<CRDTObjectUpdatesGroup> updates,
             CausalityClock clock) {
         this.status = status;
         this.newlyConfirmedSubscriptions = newlyConfirmedSubscriptions;
@@ -101,7 +101,7 @@ public class RecentUpdatesReply implements RpcMessage {
      *         causal order; meaningless if status is
      *         {@link SubscriptionStatus#LOST}
      */
-    public List<CRDTObjectOperationsGroup> getUpdates() {
+    public List<CRDTObjectUpdatesGroup> getUpdates() {
         return updates;
     }
 

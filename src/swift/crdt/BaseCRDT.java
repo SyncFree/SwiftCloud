@@ -6,11 +6,11 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -79,7 +79,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected abstract void mergePayload(V otherObject);
 
     @Override
-    public boolean execute(CRDTObjectOperationsGroup<V> ops, final CRDTOperationDependencyPolicy dependenciesPolicy) {
+    public boolean execute(CRDTObjectUpdatesGroup<V> ops, final CRDTOperationDependencyPolicy dependenciesPolicy) {
         final CausalityClock dependencyClock = ops.getDependency();
         if (dependenciesPolicy == CRDTOperationDependencyPolicy.CHECK) {
             final CMP_CLOCK dependencyCmp = updatesClock.compareTo(dependencyClock);
@@ -100,13 +100,13 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             registeredInStore = true;
         }
 
-        for (final CRDTOperation<V> op : ops.getOperations()) {
+        for (final CRDTUpdate<V> op : ops.getOperations()) {
             execute(op);
         }
         return true;
     }
 
-    protected abstract void execute(CRDTOperation<V> op);
+    protected abstract void execute(CRDTUpdate<V> op);
 
     @Override
     public CRDTIdentifier getUID() {

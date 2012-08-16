@@ -6,7 +6,7 @@ import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
@@ -22,7 +22,7 @@ import sys.net.api.rpc.RpcHandler;
 // that require a bit of extra processing at the server (e.g. baseTimestamp and
 // dependency CausalityClock is shared by all updates).
 public class CommitUpdatesRequest extends ClientRequest {
-    protected List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
+    protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     protected Timestamp baseTimestamp;
     // Optimization HACK! dependencyClock is stored together for transfer time
     // only. We should have a cleaner way to do it, perhaps with Kryo
@@ -36,12 +36,12 @@ public class CommitUpdatesRequest extends ClientRequest {
     }
 
     public CommitUpdatesRequest(String clientId, final Timestamp baseTimestamp,
-            List<CRDTObjectOperationsGroup<?>> objectUpdateGroups) {
+            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
         super(clientId);
         this.baseTimestamp = baseTimestamp;
-        this.objectUpdateGroups = new ArrayList<CRDTObjectOperationsGroup<?>>(objectUpdateGroups.size());
+        this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups.size());
         // Part of optimization hack.
-        for (final CRDTObjectOperationsGroup<?> ops : objectUpdateGroups) {
+        for (final CRDTObjectUpdatesGroup<?> ops : objectUpdateGroups) {
             this.dependencyClock = ops.getDependency();
             this.objectUpdateGroups.add(ops.withBaseTimestampAndDependency(baseTimestamp, null));
         }
@@ -61,9 +61,9 @@ public class CommitUpdatesRequest extends ClientRequest {
      *         per object and they all share the same base timestamp
      *         {@link #getBaseTimestamp()}
      */
-    public List<CRDTObjectOperationsGroup<?>> getObjectUpdateGroups() {
+    public List<CRDTObjectUpdatesGroup<?>> getObjectUpdateGroups() {
         // // Part of optimization hack: make sure dependencies are filled in.
-        for (final CRDTObjectOperationsGroup<?> ops : objectUpdateGroups) {
+        for (final CRDTObjectUpdatesGroup<?> ops : objectUpdateGroups) {
             ops.setDependency(dependencyClock);
         }
         return objectUpdateGroups;

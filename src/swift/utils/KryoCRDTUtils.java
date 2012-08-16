@@ -31,8 +31,8 @@ import swift.crdt.SetIntegers;
 import swift.crdt.SetMsg;
 import swift.crdt.SetStrings;
 import swift.crdt.SetVersioned;
-import swift.crdt.operations.BaseOperation;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.BaseUpdate;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.crdt.operations.IntegerUpdate;
 import swift.crdt.operations.RegisterUpdate;
 import swift.crdt.operations.SetInsert;
@@ -98,8 +98,8 @@ public class KryoCRDTUtils {
         KryoLib.register(SetStrings.class);
         KryoLib.register(SetVersioned.class);
 
-        KryoLib.register(CRDTObjectOperationsGroup.class);
-        KryoLib.register(BaseOperation.class);
+        KryoLib.register(CRDTObjectUpdatesGroup.class);
+        KryoLib.register(BaseUpdate.class);
         KryoLib.register(IntegerUpdate.class);
         KryoLib.register(RegisterUpdate.class);
         KryoLib.register(SetInsert.class);

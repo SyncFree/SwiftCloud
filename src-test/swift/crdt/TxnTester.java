@@ -13,13 +13,13 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -27,7 +27,7 @@ public class TxnTester implements TxnHandle {
     // @Annette: this class is simply intended to work with a single object,
     // isn't it? If so, maybe those are really unnecessary.
     private Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
-    private Map<CRDT<?>, CRDTObjectOperationsGroup<?>> objectOperations;
+    private Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
     private Timestamp ts;
@@ -38,7 +38,7 @@ public class TxnTester implements TxnHandle {
 
     public TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts) {
         this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
-        this.objectOperations = new HashMap<CRDT<?>, CRDTObjectOperationsGroup<?>>();
+        this.objectOperations = new HashMap<CRDT<?>, CRDTObjectUpdatesGroup<?>>();
         this.cc = latestVersion;
         this.ts = ts;
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
@@ -80,8 +80,8 @@ public class TxnTester implements TxnHandle {
 
     @Override
     public void commit() {
-        for (final Entry<CRDT<?>, CRDTObjectOperationsGroup<?>> entry : objectOperations.entrySet()) {
-            entry.getKey().execute((CRDTObjectOperationsGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
+        for (final Entry<CRDT<?>, CRDTObjectUpdatesGroup<?>> entry : objectOperations.entrySet()) {
+            entry.getKey().execute((CRDTObjectUpdatesGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
         }
         cc.record(ts);
     }
@@ -102,13 +102,13 @@ public class TxnTester implements TxnHandle {
     }
 
     @Override
-    public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTOperation<V> op) {
+    public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
         // NOP
     }
 
     // Short-cut for testing purpose
-    public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTOperation<V> op) {
-        final CRDTObjectOperationsGroup<V> opGroup = new CRDTObjectOperationsGroup<V>(obj.getUID(), ts, null)
+    public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTUpdate<V> op) {
+        final CRDTObjectUpdatesGroup<V> opGroup = new CRDTObjectUpdatesGroup<V>(obj.getUID(), ts, null)
                 .withBaseTimestampAndDependency(ts, cc);
         opGroup.append(op);
         objectOperations.put(obj, opGroup);

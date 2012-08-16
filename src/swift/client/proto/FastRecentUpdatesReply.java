@@ -5,7 +5,7 @@ import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -41,27 +41,27 @@ public class FastRecentUpdatesReply implements RpcMessage {
         protected CausalityClock oldClock;
         protected CausalityClock newClock;
         protected boolean dirty;
-        protected List<CRDTObjectOperationsGroup<?>> updates;
+        protected List<CRDTObjectUpdatesGroup<?>> updates;
 
         public ObjectSubscriptionInfo() {
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                CRDTObjectOperationsGroup<?> update) {
+                CRDTObjectUpdatesGroup<?> update) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
-            this.updates = new ArrayList<CRDTObjectOperationsGroup<?>>();
+            this.updates = new ArrayList<CRDTObjectUpdatesGroup<?>>();
             updates.add(update);
             this.dirty = true;
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                List<CRDTObjectOperationsGroup<?>> updates, boolean dirty) {
+                List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
-            this.updates = new ArrayList<CRDTObjectOperationsGroup<?>>();
+            this.updates = new ArrayList<CRDTObjectUpdatesGroup<?>>();
             if (updates != null)
                 this.updates.addAll(updates);
             this.dirty = dirty;
@@ -101,7 +101,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
          *         {@link #getOldClock()} and {@link #getNewClock()} or null if
          *         only an invalidation (notification) has been requested
          */
-        public List<CRDTObjectOperationsGroup<?>> getUpdates() {
+        public List<CRDTObjectUpdatesGroup<?>> getUpdates() {
             return updates;
         }
 

@@ -11,7 +11,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -150,7 +150,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
     }
 
     @Override
-    protected void execute(CRDTOperation<RegisterVersioned<V>> op) {
+    protected void execute(CRDTUpdate<RegisterVersioned<V>> op) {
         op.applyTo(this);
     }
 

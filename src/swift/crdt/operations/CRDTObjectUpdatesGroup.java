@@ -8,10 +8,10 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 
 /**
- * Representation of an atomic sequence of operations on an object.
+ * Representation of an atomic sequence of update operations on an object.
  * <p>
  * The sequence of operations shares a base Timestamp (two dimensional
  * timestamp), which is the unit of visibility of operations group. Each
@@ -22,18 +22,18 @@ import swift.crdt.interfaces.CRDTOperation;
  * 
  * @author mzawirski
  */
-public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
+public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
     protected CRDTIdentifier id;
     protected CausalityClock dependencyClock;
     protected Timestamp baseTimestamp;
-    protected List<CRDTOperation<V>> operations;
+    protected List<CRDTUpdate<V>> operations;
     protected V creationState;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public CRDTObjectOperationsGroup() {
+    public CRDTObjectUpdatesGroup() {
     }
 
     /**
@@ -43,10 +43,10 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      * @param baseTimestamp
      * @param creationState
      */
-    public CRDTObjectOperationsGroup(CRDTIdentifier id, Timestamp baseTimestamp, V creationState) {
+    public CRDTObjectUpdatesGroup(CRDTIdentifier id, Timestamp baseTimestamp, V creationState) {
         this.id = id;
         this.baseTimestamp = baseTimestamp;
-        this.operations = new LinkedList<CRDTOperation<V>>();
+        this.operations = new LinkedList<CRDTUpdate<V>>();
         this.creationState = creationState;
     }
 
@@ -75,12 +75,12 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      *            dependency clock for the new copy of operations group
      * @return a copy of the group with a different base timestamp
      */
-    public synchronized CRDTObjectOperationsGroup<V> withBaseTimestampAndDependency(Timestamp otherBaseTimestamp,
+    public synchronized CRDTObjectUpdatesGroup<V> withBaseTimestampAndDependency(Timestamp otherBaseTimestamp,
             final CausalityClock otherDependencyClock) {
-        final CRDTObjectOperationsGroup<V> copy = new CRDTObjectOperationsGroup<V>(id, otherBaseTimestamp,
+        final CRDTObjectUpdatesGroup<V> copy = new CRDTObjectUpdatesGroup<V>(id, otherBaseTimestamp,
                 creationState);
         copy.dependencyClock = otherDependencyClock;
-        for (final CRDTOperation<V> op : operations) {
+        for (final CRDTUpdate<V> op : operations) {
             copy.append(op.withBaseTimestamp(otherBaseTimestamp));
         }
         copy.replaceDependeeOperationTimestamp(baseTimestamp, otherBaseTimestamp);
@@ -97,7 +97,7 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      *            new base timestamp of a depenedee operation
      */
     public synchronized void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        for (CRDTOperation<V> op : operations) {
+        for (CRDTUpdate<V> op : operations) {
             op.replaceDependeeOperationTimestamp(oldTs, newTs);
         }
     }
@@ -127,7 +127,7 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      * @return read-only reference to the internal list of operations
      *         constituting this group
      */
-    public synchronized List<CRDTOperation<V>> getOperations() {
+    public synchronized List<CRDTUpdate<V>> getOperations() {
         return Collections.unmodifiableList(operations);
     }
 
@@ -137,7 +137,7 @@ public class CRDTObjectOperationsGroup<V extends CRDT<V>> {
      * @param op
      *            next operation to be applied within the transaction
      */
-    public synchronized void append(CRDTOperation<V> op) {
+    public synchronized void append(CRDTUpdate<V> op) {
         operations.add(op);
     }
 

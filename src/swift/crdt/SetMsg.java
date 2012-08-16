@@ -2,7 +2,7 @@ package swift.crdt;
 
 import swift.application.social.Message;
 import swift.clocks.CausalityClock;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
@@ -21,7 +21,7 @@ public class SetMsg extends SetVersioned<Message, SetMsg> {
     }
 
     @Override
-    protected void execute(CRDTOperation<SetMsg> op) {
+    protected void execute(CRDTUpdate<SetMsg> op) {
         op.applyTo(this);
     }
 

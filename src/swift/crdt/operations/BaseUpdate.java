@@ -2,16 +2,16 @@ package swift.crdt.operations;
 
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 
-public abstract class BaseOperation<V extends CRDT<V>> implements CRDTOperation<V> {
+public abstract class BaseUpdate<V extends CRDT<V>> implements CRDTUpdate<V> {
     private TripleTimestamp ts;
 
     // required by kryo
-    protected BaseOperation() {
+    protected BaseUpdate() {
     }
 
-    protected BaseOperation(TripleTimestamp ts) {
+    protected BaseUpdate(TripleTimestamp ts) {
         this.ts = ts;
     }
 

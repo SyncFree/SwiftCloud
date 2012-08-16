@@ -4,7 +4,7 @@ import swift.client.proto.SubscriptionType;
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.*;
 import sys.dht.api.DHT;
 
@@ -15,7 +15,7 @@ import sys.dht.api.DHT;
  */
 public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
 
-    CRDTObjectOperationsGroup<V> grp;
+    CRDTObjectUpdatesGroup<V> grp;
     CausalityClock snapshotVersion;
     CausalityClock trxVersion;
     String surrogateId;
@@ -26,7 +26,7 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     public DHTExecCRDT() {
     }
 
-    public DHTExecCRDT(String surrogateId, CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion, CausalityClock trxVersion) {
+    public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion, CausalityClock trxVersion) {
         this.surrogateId = surrogateId;
         this.grp = grp;
         this.snapshotVersion = snapshotVersion;
@@ -42,7 +42,7 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
         return surrogateId;
     }
 
-    public CRDTObjectOperationsGroup<V> getGrp() {
+    public CRDTObjectUpdatesGroup<V> getGrp() {
         return grp;
     }
 

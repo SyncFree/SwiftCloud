@@ -11,7 +11,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.utils.Pair;
@@ -212,7 +212,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    protected void execute(CRDTOperation<IntegerVersioned> op) {
+    protected void execute(CRDTUpdate<IntegerVersioned> op) {
         op.applyTo(this);
     }
 

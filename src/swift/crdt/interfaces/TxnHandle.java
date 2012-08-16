@@ -151,7 +151,7 @@ public interface TxnHandle {
      * @param op
      *            operation
      */
-    <V extends CRDT<V>> void registerOperation(final CRDTIdentifier id, CRDTOperation<V> op);
+    <V extends CRDT<V>> void registerOperation(final CRDTIdentifier id, CRDTUpdate<V> op);
 
     /**
      * Registers a creation of CRDT object with a given initial empty state,

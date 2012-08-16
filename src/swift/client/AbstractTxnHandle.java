@@ -14,13 +14,13 @@ import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -61,7 +61,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
     protected final CausalityClock updatesDependencyClock;
     protected final IncrementalTripleTimestampGenerator timestampSource;
     protected Timestamp globalTimestamp;
-    protected final Map<CRDTIdentifier, CRDTObjectOperationsGroup<?>> localObjectOperations;
+    protected final Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> localObjectOperations;
     protected TxnStatus status;
     protected CommitListener commitListener;
     protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
@@ -80,7 +80,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
         this.localTimestamp = localTimestamp;
         this.updatesDependencyClock = ClockFactory.newClock();
         this.timestampSource = new IncrementalTripleTimestampGenerator(localTimestamp);
-        this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectOperationsGroup<?>>();
+        this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
     }
@@ -142,13 +142,13 @@ abstract class AbstractTxnHandle implements TxnHandle {
     }
 
     @Override
-    public synchronized <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTOperation<V> op) {
+    public synchronized <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
         assertStatus(TxnStatus.PENDING);
 
         @SuppressWarnings("unchecked")
-        CRDTObjectOperationsGroup<V> operationsGroup = (CRDTObjectOperationsGroup<V>) localObjectOperations.get(id);
+        CRDTObjectUpdatesGroup<V> operationsGroup = (CRDTObjectUpdatesGroup<V>) localObjectOperations.get(id);
         if (operationsGroup == null) {
-            operationsGroup = new CRDTObjectOperationsGroup<V>(id, getLocalTimestamp(), null);
+            operationsGroup = new CRDTObjectUpdatesGroup<V>(id, getLocalTimestamp(), null);
             localObjectOperations.put(id, operationsGroup);
         }
         operationsGroup.append(op);
@@ -156,7 +156,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
 
     @Override
     public synchronized <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
-        final CRDTObjectOperationsGroup<V> operationsGroup = new CRDTObjectOperationsGroup<V>(id, getLocalTimestamp(),
+        final CRDTObjectUpdatesGroup<V> operationsGroup = new CRDTObjectUpdatesGroup<V>(id, getLocalTimestamp(),
                 creationState);
         if (localObjectOperations.put(id, operationsGroup) != null) {
             throw new IllegalStateException("Object creation operation was preceded by some another operation");
@@ -228,7 +228,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
      *         mutable while transaction is pending; empty for read-only
      *         transaction
      */
-    synchronized Collection<CRDTObjectOperationsGroup<?>> getAllLocalOperations() {
+    synchronized Collection<CRDTObjectUpdatesGroup<?>> getAllLocalOperations() {
         assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
         return localObjectOperations.values();
     }
@@ -239,7 +239,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
      *         {@link #getLocalTimestamp()}); null if object is not updated by
      *         this transaction
      */
-    synchronized CRDTObjectOperationsGroup<?> getObjectLocalOperations(CRDTIdentifier id) {
+    synchronized CRDTObjectUpdatesGroup<?> getObjectLocalOperations(CRDTIdentifier id) {
         assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
         return localObjectOperations.get(id);
     }
@@ -251,13 +251,13 @@ abstract class AbstractTxnHandle implements TxnHandle {
      * @throws IllegalStateException
      *             for update transaction when global timestamp is undefined
      */
-    synchronized Collection<CRDTObjectOperationsGroup<?>> getAllGlobalOperations() {
+    synchronized Collection<CRDTObjectUpdatesGroup<?>> getAllGlobalOperations() {
         assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
         assertGlobalTimestampForUpdates(true);
 
-        final List<CRDTObjectOperationsGroup<?>> objectOperationsGlobal = new LinkedList<CRDTObjectOperationsGroup<?>>();
-        for (final CRDTObjectOperationsGroup<?> localGroup : localObjectOperations.values()) {
-            final CRDTObjectOperationsGroup<?> globalGroup = localGroup.withBaseTimestampAndDependency(globalTimestamp,
+        final List<CRDTObjectUpdatesGroup<?>> objectOperationsGlobal = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+        for (final CRDTObjectUpdatesGroup<?> localGroup : localObjectOperations.values()) {
+            final CRDTObjectUpdatesGroup<?> globalGroup = localGroup.withBaseTimestampAndDependency(globalTimestamp,
                     updatesDependencyClock);
             objectOperationsGlobal.add(globalGroup);
         }
@@ -268,7 +268,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
         assertStatus(TxnStatus.COMMITTED_LOCAL);
         assertGlobalTimestampForUpdates(false);
 
-        for (final CRDTObjectOperationsGroup<?> ops : localObjectOperations.values()) {
+        for (final CRDTObjectUpdatesGroup<?> ops : localObjectOperations.values()) {
             updatesDependencyClock.drop(localTs);
             updatesDependencyClock.record(globalTs);
             ops.replaceDependeeOperationTimestamp(localTs, globalTs);

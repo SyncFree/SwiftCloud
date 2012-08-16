@@ -28,4 +28,6 @@ public interface TxnLocalCRDT<V extends CRDT<V>> {
      * @return constant snapshot clock of this local object representation
      */
     CausalityClock getClock();
+
+    Object executeQuery(CRDTQuery<V> query);
 }

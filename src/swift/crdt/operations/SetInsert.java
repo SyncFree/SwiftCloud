@@ -3,9 +3,9 @@ package swift.crdt.operations;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.SetVersioned;
-import swift.crdt.interfaces.CRDTOperation;
+import swift.crdt.interfaces.CRDTUpdate;
 
-public class SetInsert<V, T extends SetVersioned<V, T>> extends BaseOperation<T> {
+public class SetInsert<V, T extends SetVersioned<V, T>> extends BaseUpdate<T> {
     private V val;
 
     // required for kryo
@@ -32,7 +32,7 @@ public class SetInsert<V, T extends SetVersioned<V, T>> extends BaseOperation<T>
     }
 
     @Override
-    public CRDTOperation<T> withBaseTimestamp(Timestamp ts) {
+    public CRDTUpdate<T> withBaseTimestamp(Timestamp ts) {
         return new SetInsert<V, T>(getTimestamp().withBaseTimestamp(ts), val);
     }
 }

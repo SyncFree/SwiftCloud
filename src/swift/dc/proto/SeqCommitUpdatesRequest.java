@@ -7,7 +7,7 @@ import java.util.List;
 import swift.client.proto.*;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -21,7 +21,7 @@ import sys.net.api.rpc.RpcMessage;
  * @author preguica
  */
 public class SeqCommitUpdatesRequest implements RpcMessage {
-    protected List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
+    protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     protected Timestamp baseTimestamp;
     CausalityClock dcReceived;
     CausalityClock dcNotUsed;
@@ -34,9 +34,9 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     }
 
     public SeqCommitUpdatesRequest(final Timestamp baseTimestamp,
-            List<CRDTObjectOperationsGroup<?>> objectUpdateGroups, CausalityClock dcReceived, CausalityClock dcNotUsed) {
+            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, CausalityClock dcReceived, CausalityClock dcNotUsed) {
         this.baseTimestamp = baseTimestamp;
-        this.objectUpdateGroups = new ArrayList<CRDTObjectOperationsGroup<?>>(objectUpdateGroups);
+        this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
         this.dcReceived = dcReceived;
         this.dcNotUsed = dcNotUsed;
     }
@@ -55,7 +55,7 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
      *         per object and they all share the same base timestamp
      *         {@link #getBaseTimestamp()}
      */
-    public List<CRDTObjectOperationsGroup<?>> getObjectUpdateGroups() {
+    public List<CRDTObjectUpdatesGroup<?>> getObjectUpdateGroups() {
         return objectUpdateGroups;
     }
 

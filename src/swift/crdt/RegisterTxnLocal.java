@@ -2,6 +2,7 @@ package swift.crdt;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.RegisterUpdate;
@@ -25,4 +26,8 @@ public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<Regis
         return val;
     }
 
+    @Override
+    public Object executeQuery(CRDTQuery<RegisterVersioned<V>> query) {
+        return query.executeAt(this);
+    }
 }

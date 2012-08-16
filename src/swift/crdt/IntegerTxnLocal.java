@@ -2,6 +2,7 @@ package swift.crdt;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.IntegerUpdate;
 
@@ -28,4 +29,8 @@ public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
         add(-n);
     }
 
+    @Override
+    public Object executeQuery(CRDTQuery<IntegerVersioned> query) {
+        return query.executeAt(this);
+    }
 }

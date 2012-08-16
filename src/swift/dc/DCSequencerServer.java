@@ -25,7 +25,7 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
@@ -519,11 +519,11 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 class CommitRecord implements Comparable<CommitRecord> {
     BitSet acked;
     CausalityClock notUsed;
-    List<CRDTObjectOperationsGroup<?>> objectUpdateGroups;
+    List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     Timestamp baseTimestamp;
     long lastSent;
 
-    public CommitRecord(CausalityClock notUsed, List<CRDTObjectOperationsGroup<?>> objectUpdateGroups,
+    public CommitRecord(CausalityClock notUsed, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
             Timestamp baseTimestamp) {
         this.notUsed = notUsed;
         this.objectUpdateGroups = objectUpdateGroups;

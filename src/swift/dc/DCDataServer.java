@@ -23,7 +23,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
 import swift.dc.proto.DHTExecCRDT;
 import swift.dc.proto.DHTExecCRDTReply;
@@ -306,7 +306,7 @@ class DCDataServer {
      * 
      * @return returns true if the operation could be executed.
      */
-    <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectOperationsGroup<V> grp, CausalityClock snapshotVersion,
+    <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion) {
         final StringKey key = new StringKey(grp.getTargetUID().toString());
         if (!DHT_Node.getInstance().isHandledLocally(key)) {
@@ -389,7 +389,7 @@ class DCDataServer {
     }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(Observer observer, CRDTObjectOperationsGroup<V> grp,
+    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(Observer observer, CRDTObjectUpdatesGroup<V> grp,
             CausalityClock snapshotVersion, CausalityClock trxVersion) {
         CRDTIdentifier id = grp.getTargetUID();
         lock(id);
@@ -418,9 +418,9 @@ class DCDataServer {
 
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
-            data.crdt.execute((CRDTObjectOperationsGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+            data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
             if( DCDataServer.prune) {
-                data.prunedCrdt.execute((CRDTObjectOperationsGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+                data.prunedCrdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
                 data.prunedCrdt.prune( data.clock, false);
                 data.pruneClock = data.clock;
             }

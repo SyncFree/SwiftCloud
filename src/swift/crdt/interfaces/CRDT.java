@@ -7,7 +7,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.operations.CRDTObjectOperationsGroup;
+import swift.crdt.operations.CRDTObjectUpdatesGroup;
 
 /**
  * Common interface for Commutative Replicated Data Types (CRDTs) definitions.
@@ -85,7 +85,7 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      *             when operation's dependencies are not met and checking
      *             dependencies was requested
      */
-    boolean execute(CRDTObjectOperationsGroup<V> ops, CRDTOperationDependencyPolicy dependenciesPolicy);
+    boolean execute(CRDTObjectUpdatesGroup<V> ops, CRDTOperationDependencyPolicy dependenciesPolicy);
 
     /**
      * Prunes the object state to remove versioning meta data from operations
