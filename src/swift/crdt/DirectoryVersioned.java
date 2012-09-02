@@ -4,10 +4,13 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
+@SuppressWarnings("serial")
 public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
@@ -26,6 +29,14 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
     }
 
     protected void execute(CRDTUpdate<DirectoryVersioned> op) {
+        op.applyTo(this);
+    }
+
+    public void applyPut(String key, CRDT<?> val, Set<Timestamp> toBeRemoved, TripleTimestamp tripleTimestamp) {
+        throw new RuntimeException("Not implemented yet!");
+    }
+
+    public void applyRemove(String key, Set<Timestamp> toBeRemoved, TripleTimestamp tripleTimestamp) {
         throw new RuntimeException("Not implemented yet!");
     }
 

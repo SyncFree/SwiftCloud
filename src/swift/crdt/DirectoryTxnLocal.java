@@ -1,5 +1,6 @@
 package swift.crdt;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +20,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
 
     public DirectoryTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, DirectoryVersioned creationState) {
         super(id, txn, clock, creationState);
+        this.dir = new HashMap<String, Pair<CRDT<?>, Set<Timestamp>>>();
         throw new RuntimeException("Not implemented yet!");
     }
 
@@ -42,7 +44,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
             toBeRemoved.addAll(old.getSecond());
         }
 
-        Timestamp ts = nextTimestamp();
+        TripleTimestamp ts = nextTimestamp();
         Set<Timestamp> tset = new HashSet<Timestamp>();
         tset.add(ts);
         dir.put(key, new Pair<CRDT<?>, Set<Timestamp>>(val, tset));
@@ -55,7 +57,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         Pair<CRDT<?>, Set<Timestamp>> deleted = dir.remove(key);
         if (deleted != null) {
             TripleTimestamp ts = nextTimestamp();
-            registerLocalOperation(new DirectoryRemoveUpdate(key, deleted.getSecond()));
+            registerLocalOperation(new DirectoryRemoveUpdate(key, deleted.getSecond(), ts));
         }
     }
 
