@@ -32,7 +32,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     public Map<V, Set<TripleTimestamp>> getValue(CausalityClock snapshotClock) {
         Map<V, Set<TripleTimestamp>> retValues = new HashMap<V, Set<TripleTimestamp>>();
-
         Set<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entrySet = elems.entrySet();
         for (Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e : entrySet) {
             Set<TripleTimestamp> present = new HashSet<TripleTimestamp>();

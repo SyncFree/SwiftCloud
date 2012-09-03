@@ -8,14 +8,14 @@ import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CRDTUpdate;
 
 public class DirectoryRemoveUpdate extends BaseUpdate<DirectoryVersioned> {
-    private Set<Timestamp> toBeRemoved;
+    private Set<TripleTimestamp> toBeRemoved;
     private String key;
 
     public DirectoryRemoveUpdate() {
         // Method stub for kryo
     }
 
-    public DirectoryRemoveUpdate(String key, Set<Timestamp> toBeRemoved, TripleTimestamp ts) {
+    public DirectoryRemoveUpdate(String key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
         super(ts);
         this.key = key;
         this.toBeRemoved = toBeRemoved;

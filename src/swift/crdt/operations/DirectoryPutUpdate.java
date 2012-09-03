@@ -10,10 +10,10 @@ import swift.crdt.interfaces.CRDTUpdate;
 
 public class DirectoryPutUpdate extends BaseUpdate<DirectoryVersioned> {
     CRDT<?> val;
-    Set<Timestamp> toBeRemoved;
+    Set<TripleTimestamp> toBeRemoved;
     String key;
 
-    public DirectoryPutUpdate(String key, CRDT<?> val, Set<Timestamp> toBeRemoved, TripleTimestamp ts) {
+    public DirectoryPutUpdate(String key, CRDT<?> val, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
         // TODO Check that key and type of CRDT are consistent
         super(ts);
         this.key = key;

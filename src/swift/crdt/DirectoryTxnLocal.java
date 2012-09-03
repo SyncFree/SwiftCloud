@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTQuery;
@@ -16,11 +15,13 @@ import swift.crdt.operations.DirectoryRemoveUpdate;
 import swift.utils.Pair;
 
 public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
-    private Map<String, Pair<CRDT<?>, Set<Timestamp>>> dir;
+    private Map<String, Pair<CRDT<?>, Set<TripleTimestamp>>> dir;
 
-    public DirectoryTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, DirectoryVersioned creationState) {
+    public DirectoryTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, DirectoryVersioned creationState,
+            Map<String, Pair<CRDT<?>, Set<TripleTimestamp>>> payload) {
         super(id, txn, clock, creationState);
-        this.dir = new HashMap<String, Pair<CRDT<?>, Set<Timestamp>>>();
+        this.dir = new HashMap<String, Pair<CRDT<?>, Set<TripleTimestamp>>>();
+        this.dir = payload;
         throw new RuntimeException("Not implemented yet!");
     }
 
@@ -38,23 +39,23 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         // TODO Implement version that returns old value
 
         // implemented as remove followed by add
-        Set<Timestamp> toBeRemoved = new HashSet<Timestamp>();
-        Pair<CRDT<?>, Set<Timestamp>> old = dir.remove(key);
+        Set<TripleTimestamp> toBeRemoved = new HashSet<TripleTimestamp>();
+        Pair<CRDT<?>, Set<TripleTimestamp>> old = dir.remove(key);
         if (old != null) {
             toBeRemoved.addAll(old.getSecond());
         }
 
         TripleTimestamp ts = nextTimestamp();
-        Set<Timestamp> tset = new HashSet<Timestamp>();
+        Set<TripleTimestamp> tset = new HashSet<TripleTimestamp>();
         tset.add(ts);
-        dir.put(key, new Pair<CRDT<?>, Set<Timestamp>>(val, tset));
+        dir.put(key, new Pair<CRDT<?>, Set<TripleTimestamp>>(val, tset));
 
         registerLocalOperation(new DirectoryPutUpdate(key, val, toBeRemoved, ts));
     }
 
     public void removeNoReturn(String key) {
         // TODO Return removed element?
-        Pair<CRDT<?>, Set<Timestamp>> deleted = dir.remove(key);
+        Pair<CRDT<?>, Set<TripleTimestamp>> deleted = dir.remove(key);
         if (deleted != null) {
             TripleTimestamp ts = nextTimestamp();
             registerLocalOperation(new DirectoryRemoveUpdate(key, deleted.getSecond(), ts));
@@ -62,9 +63,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     }
 
     public <V> V get(String key) {
-
         throw new RuntimeException("Not implemented yet!");
-
     }
 
     public boolean contains(String key) {
