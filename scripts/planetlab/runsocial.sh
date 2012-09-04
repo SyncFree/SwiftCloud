@@ -1,21 +1,27 @@
 #! /bin/bash
 
+
 . ./scripts/planetlab/pl-common.sh
 
 
 
 # TOPOLOGY
-DCS[0]=${EC2_PROD_EU_M1SMALL[2]}
-DCS[1]=${EC2_PROD_EU_M1SMALL[3]}
-DC_CLIENTS[0]=${EC2_PROD_EU_M1SMALL[@]:0:1}
-DC_CLIENTS[1]=${EC2_PROD_EU_M1SMALL[@]:1:1}
-MACHINES="${DCS[*]} ${DC_CLIENTS[*]}"
+DCS[0]=${EC2_PROD_EU_MICRO[0]}
+DCSEQ[0]=${EC2_PROD_EU_MICRO[0]}
+
+DCS[1]=${EC2_PROD_EU_MICRO[1]}
+DCSEQ[1]=${EC2_PROD_EU_MICRO[1]}
+
+DC_CLIENTS=("${PLANETLAB_NODES[@]}")
+
+MACHINES="${DCS[*]} ${DCSEQ[*]} ${DC_CLIENTS[*]}"
 INIT_DB_DC=${DCS[0]}
-INIT_DB_CLIENT=${EC2_PROD_EU_M1SMALL[0]}
+INIT_DB_CLIENT=${DCS[1]}
+
 
 # INPUT DATA PARAMS
-INPUT_USERS=500
-INPUT_ACTIVE_USERS=10
+INPUT_USERS=2500
+INPUT_ACTIVE_USERS=50
 INPUT_USER_FRIENDS=25
 INPUT_USER_BIASED_OPS=9
 INPUT_USER_RANDOM_OPS=1
@@ -30,13 +36,19 @@ CACHING=STRICTLY_MOST_RECENT
 CACHE_EVICTION_TIME_MS=120 #120000
 ASYNC_COMMIT=false
 THINK_TIME_MS=0
-MAX_CONCURRENT_SESSIONS_PER_JVM=8 #10
+MAX_CONCURRENT_SESSIONS_PER_JVM=20
+
+
+DC_NUMBER=${#DCS[@]}
+CLIENTS_NUMBER=${#DC_CLIENTS[@]}
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
 scripts/planetlab/pl-kill.sh $MACHINES
 echo "==== DONE ===="
 
 sleep 10
+
+ant -buildfile smd-jar-build.xml 
 
 if [ ! -f "$JAR" ]; then
 echo "file $JAR not found" && exit 1
@@ -59,20 +71,16 @@ run_swift_client_bg() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd_nostdout swift.application.social.SwiftSocialBenchmark run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $MAX_CONCURRENT_SESSIONS_PER_JVM
+	swift_app_cmd_nostdout -Xmx512m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7777 -Djava.rmi.server.hostname=$client swift.application.social.SwiftSocialBenchmark run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $MAX_CONCURRENT_SESSIONS_PER_JVM
 	run_cmd_bg $client $CMD
 }
 
-echo "==== PREPROCESSING INPUT PARAMETERS ===="
-if [ "${!DCS[*]}" != "${!DC_CLIENTS[*]}" ]; then
-	echo "Error: DCs configuration does not match clients configuration"
-	exit 1  	
-fi
+#echo "==== PREPROCESSING INPUT PARAMETERS ===="
+#if [ "${!DCS[*]}" != "${!DC_CLIENTS[*]}" ]; then
+#	echo "Error: DCs configuration does not match clients configuration"
+#	exit 1  	
+#fi
 
-CLIENTS_NUMBER=0
-for c in ${DC_CLIENTS[*]}; do
-	CLIENTS_NUMBER=$(($CLIENTS_NUMBER+1))
-done
 
 echo "==== GENERATING INPUT DATA - GENERATING USERS DB ===="
 mkdir -p input/
@@ -91,18 +99,20 @@ if [ -n "$DEPLOY" ]; then
 	i=0
 	for client in ${DC_CLIENTS[*]}; do
 		copy_to_bg $FILE_CMDS_PREFIX-$i $client commands.txt
-		copy_pids="$copy_pids $!"
+#		copy_pids="$copy_pids $!"
 		i=$(($i+1))
 	done
 	echo "==== AWAITING TRANSFERS COMPLETION ===="
-	wait $copy_pids
+	echo "PIDS:" + $copy_pids
+#	wait $copy_pids
 fi
 
 echo "==== STARTING SEQUENCERS AND DC SERVERS ===="
-./scripts/planetlab/pl-start-servers.sh ${DCS[*]}
+. ./scripts/planetlab/pl-start-servers-ds-seq.sh 
+servers_start DCS DCSEQ
 
 echo "==== WAITING A BIT BEFORE INITIALIZING DATABASE ===="
-sleep 20
+sleep 30
 
 echo "==== INITIALIZING DATABASE ===="
 echo "CLIENT" + $INIT_DB_CLIENT, "SERVER" + $INIT_DB_DC
@@ -111,13 +121,27 @@ run_swift_client_initdb $INIT_DB_CLIENT $INIT_DB_DC users.txt
 echo "==== WAITING A BIT BEFORE STARTING REAL CLIENTS ===="
 sleep 30
 
+
+echo "DCS: " $DC_NUMBER "CLIENTS: " $CLIENTS_NUMBER
+
 client_pids=""
-for i in ${!DCS[*]}; do
-	echo "==== STARTING CLIENTS CONNECTING to DC$i ===="
-	for client in ${DC_CLIENTS[$i]}; do
-		run_swift_client_bg "$client" "${DCS[$i]}"
+
+#for i in ${!DCS[*]}; do
+#	echo "==== STARTING CLIENTS CONNECTING to DC$i ===="
+#	for client in ${DC_CLIENTS[$i]}; do
+#		run_swift_client_bg "$client" "${DCS[$i]}"
+#		client_pids="$client_pids $!"
+#	done
+#done
+
+i=0;
+for client in ${DC_CLIENTS[*]}; do
+	j=$(($i % $DC_NUMBER))
+	CLIENT_DC=${DCS[$j]}
+	echo "==== STARTING CLIENT Nº $i @ $client CONNECTING TO $CLIENT_DC ===="
+		run_swift_client_bg "$client" "$CLIENT_DC"
 		client_pids="$client_pids $!"
-	done
+		i=$(($i+1))
 done
 
 echo "==== RUNNING... ===="

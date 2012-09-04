@@ -12,17 +12,48 @@ else
 fi
 
 export EC2_IDENTITY_FILE=swiftcloud.pem
-export EC2_USER=fctple_livefeeds
+export EC2_USER=fctple_SwiftCloud
 
 # PRODUCTION instances
 export EC2_PROD_EU_C1MEDIUM=(
 )
 
-export EC2_PROD_EU_M1SMALL=(
-planetlab1.di.fct.unl.pt
-planetlab2.di.fct.unl.pt
+export EC2_PROD_EU_MICRO=(
+planetlab-3.iscte.pt
+planetlab1.fct.ualg.pt
+)
+
+export PLANETLAB_NODES=(
+planetlab2.fct.ualg.pt
+planetlab-4.iscte.pt
+planetlab-um10.di.uminho.pt
+planetlab-um00.di.uminho.pt
+planetlab1.eurecom.fr
+planetlab2.utt.fr
+#ple2.ipv6.lip6.fr
+)
+
+
+
+# WARNING - PlanetLab nodes are volatile; some may be down...
+export PLANETLAB_NODES_ALL=(
+ple2.ipv6.lip6.fr
+peeramide.irisa.fr
+planetlab-2.imag.fr
 planetlab1.fct.ualg.pt
 planetlab2.fct.ualg.pt
+planetlab-um10.di.uminho.pt
+planetlab-um00.di.uminho.pt
+planetlab1.fct.ualg.pt
+planetlab1.di.fct.unl.pt
+planetlab2.di.fct.unl.pt
+planetlab-1.tagus.ist.utl.pt
+planetlab-2.tagus.ist.utl.pt
+planetlab-1.tagus.ist.utl.pt
+planetlab-2.tagus.ist.utl.pt
+planetlab1.eurecom.fr
+planetlab2.eurecom.fr
+
 )
 
 # TEST instances
@@ -32,7 +63,7 @@ export EC2_TEST_EU=(
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
 export EC2_ALL="${EC2_TEST_EU[*]}"
 export JAR=swiftcloud.jar
-export PROPS=deployment_logging.properties
+export PROPS=all_logging.properties
 export SWIFT_FILES="$JAR $PROPS"
 
 # run_cmd <server> <cmd>
@@ -92,7 +123,8 @@ copy_to() {
 # copy_to_bg <local_file> <server> <remote_file>
 copy_to_bg() {
 	echo "Copying to $2 in background..."
-	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3" &
+#	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3" &
+	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
 }
 
 # copy_from <server> <remote file> <local file>
@@ -110,10 +142,26 @@ deploy_swift_on() {
 }
 
 # deploy_swift_to_many <server1, server2, server3... >
-deploy_swift_on_many() {
+deploy_swift_on_many2() {
 	echo "Installing swift on: $*"
 	for server in $*; do
         deploy_swift_on $server
 	done
 }
 
+# deploy_swift_to_many <server1, server2, server3... >
+deploy_swift_on_many() {
+	echo "Installing swift on: $*"
+	primary=$1
+	echo "Installing on the primary first"
+	deploy_swift_on $primary
+	shift
+	rsync_cmd=":" # no-op
+	rsync_ec2_int="$RSYNC -e '$SSH -o StrictHostKeyChecking=no'"
+	for server in $*; do
+		# deploy_swift_on $server
+		rsync_cmd="$rsync_cmd; $rsync_ec2_int $SWIFT_FILES $server:"
+	done
+	echo "Copying from the primary to other servers."
+	run_cmd $primary $rsync_cmd
+}
