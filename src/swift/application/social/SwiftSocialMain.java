@@ -160,7 +160,9 @@ public class SwiftSocialMain {
             int txnSize = 0;
             // Initialize user data
             List<String> userData = readInputFromFile(usersFileName);
+            int total = userData.size(), counter = 0;
             for (String line : userData) {
+                System.out.printf("\rInitialization:%.1f%%", 100.0*counter++/total);
                 // Divide into smaller transactions.
                 if (txnSize >= 10000) {
                     txn.commit();
