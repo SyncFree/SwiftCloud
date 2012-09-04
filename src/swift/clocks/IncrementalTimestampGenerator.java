@@ -1,5 +1,7 @@
 package swift.clocks;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 
 /**
  * Timestamp generator for a given site. Always generates the consecutive
@@ -11,7 +13,7 @@ package swift.clocks;
 public class IncrementalTimestampGenerator implements TimestampSource<Timestamp> {
 
     private String siteid;
-    private long last;
+    private AtomicLong last = new AtomicLong(0);
 
     public IncrementalTimestampGenerator(String siteid) {
         this(siteid, 0);
@@ -22,12 +24,12 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
             throw new NullPointerException();
         }
         this.siteid = siteid;
-        this.last = last;
+        this.last = new AtomicLong(last);
     }
 
     @Override
-    public synchronized Timestamp generateNew() {
-        return new Timestamp(siteid, ++last);
+    public Timestamp generateNew() {
+        return new Timestamp(siteid, last.incrementAndGet() );
     }
 
 }
