@@ -8,8 +8,8 @@ import sys.net.api.rpc.RpcHandle;
  * 
  * @author preguiça
  */
-public abstract class SeqCommitUpdatesReplyHandler extends AbstractRpcHandler {
-    public abstract void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply);
+public abstract class MultiSeqCommitUpdatesReplyHandler extends AbstractRpcHandler {
+    public abstract void onReceive(RpcHandle conn, MultipleSeqCommitUpdatesRequest reply);
     
 }
 

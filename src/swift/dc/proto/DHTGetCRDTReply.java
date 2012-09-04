@@ -15,7 +15,7 @@ public class DHTGetCRDTReply implements DHT.Reply {
     /**
      * Needed for Kryo serialization
      */
-    public DHTGetCRDTReply() {
+    DHTGetCRDTReply() {
     }
 
     public DHTGetCRDTReply(CRDTObject object) {

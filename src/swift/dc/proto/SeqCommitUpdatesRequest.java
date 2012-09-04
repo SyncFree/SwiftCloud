@@ -30,7 +30,7 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public SeqCommitUpdatesRequest() {
+    SeqCommitUpdatesRequest() {
     }
 
     public SeqCommitUpdatesRequest(final Timestamp baseTimestamp,

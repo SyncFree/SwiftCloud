@@ -26,7 +26,7 @@ public class CommitTSRequest implements RpcMessage {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public CommitTSRequest() {
+    CommitTSRequest() {
     }
 
     public CommitTSRequest(Timestamp timestamp, CausalityClock version, boolean commit,

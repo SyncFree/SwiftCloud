@@ -19,7 +19,7 @@ public class DHTExecCRDTReply implements DHT.Reply {
     /**
      * Needed for Kryo serialization
      */
-    public DHTExecCRDTReply() {
+    DHTExecCRDTReply() {
     }
 
     @Override

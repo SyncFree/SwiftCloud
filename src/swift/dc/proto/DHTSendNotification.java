@@ -21,7 +21,7 @@ public class DHTSendNotification implements DHT.Reply {
     /**
      * Needed for Kryo serialization
      */
-    public DHTSendNotification() {
+    DHTSendNotification() {
     }
 
     public DHTSendNotification(ObjectSubscriptionInfo info, CausalityClock estimatedDCVersion) {

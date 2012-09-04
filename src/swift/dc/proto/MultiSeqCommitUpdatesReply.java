@@ -1,6 +1,7 @@
 package swift.dc.proto;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -11,27 +12,14 @@ import sys.net.api.rpc.RpcMessage;
  * @author preguica
  * @see SeqCommitUpdatesRequest
  */
-public class SeqCommitUpdatesReply implements RpcMessage {
+public class MultiSeqCommitUpdatesReply implements RpcMessage {
     protected CausalityClock dcClock;
 
     /**
-     * Fake constructor for Kryo serialization. Do NOT use. 
-     * REMARK: smd, however it is being used by the sequencer????
+     * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public SeqCommitUpdatesReply() {
+    MultiSeqCommitUpdatesReply() {
     }
-
-    public SeqCommitUpdatesReply(CausalityClock dcClock) {
-        this.dcClock = dcClock;
-    }
-
-    /**
-     * @return commit status
-     */
-    public CausalityClock getDCClock() {
-        return dcClock;
-    }
-
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {

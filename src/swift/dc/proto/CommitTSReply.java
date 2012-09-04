@@ -1,11 +1,6 @@
 package swift.dc.proto;
 
-import java.util.List;
-
-import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;

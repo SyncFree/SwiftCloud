@@ -21,7 +21,7 @@ public class DHTGetCRDT implements DHT.Message {
     /**
      * Needed for Kryo serialization
      */
-    public DHTGetCRDT() {
+    DHTGetCRDT() {
     }
 
     public DHTGetCRDT(String surrogateId, CRDTIdentifier id, SubscriptionType subscribe, CausalityClock version) {

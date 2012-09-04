@@ -23,7 +23,7 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     /**
      * Needed for Kryo serialization
      */
-    public DHTExecCRDT() {
+    DHTExecCRDT() {
     }
 
     public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion, CausalityClock trxVersion) {
