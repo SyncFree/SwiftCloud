@@ -1,6 +1,7 @@
 package swift.utils;
 
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A task with deadline that can be retried a number of times in case of
@@ -10,24 +11,52 @@ import java.util.concurrent.Callable;
  */
 public abstract class CallableWithDeadline<V> implements Callable<V> {
     private final long deadlineTime;
-    private final String taskName;
-
+    
+    final private V defaultResult;
+    private AtomicReference<V> result = new AtomicReference<V>();
+    
+    /**
+     * Sets the result of the call, holding the first non-null result.
+     */
+    protected void setResult( V res ) {
+    	if( result.get() == null )
+    		result.set( res ) ;
+    }
+    
+    /*
+     * Return the current result for the call. Null if there is no result.
+     */
+    protected V getResult() {
+    	V res = result.get() ;
+    	return res == null ? defaultResult : res ;
+    }
+    
     /**
      * Creates callable task without deadline.
      */
-    public CallableWithDeadline(String taskName) {
-        this.taskName = taskName;
+    public CallableWithDeadline(V defaultResult) {
+    	this.defaultResult = defaultResult;
         this.deadlineTime = Long.MAX_VALUE;
     }
+
+//    /**
+//     * Creates callable task with provided deadline in milliseconds.
+//     */
+//    public CallableWithDeadline(long deadlineMillis) {
+//        this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
+//        this.defaultResult = null;
+//        Thread.dumpStack();
+//    }
 
     /**
      * Creates callable task with provided deadline in milliseconds.
      */
-    public CallableWithDeadline(String taskName, long deadlineMillis) {
-        this.taskName = taskName;
+    public CallableWithDeadline(V defaultResult, long deadlineMillis) {
+    	this.defaultResult = defaultResult;
         this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
     }
 
+    int tries = 0 ;
     /**
      * Executes (or retries) a task. Throws an exception if task needs to be
      * retried.
@@ -36,11 +65,14 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
      */
     @Override
     public V call() throws Exception {
-        final V result = callOrFailWithNull();
-        if (result == null) {
+    	V res = result.get();
+    	if( res == null )
+    		res = callOrFailWithNull() ;
+
+    	if (res == null && result.get() == null) {
             throw new Exception("Task needs a retry");
         }
-        return result;
+        return getResult();
     }
 
     /**
@@ -57,9 +89,5 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
 
     public long getDeadlineTime() {
         return deadlineTime;
-    }
-
-    public String toString() {
-        return taskName;
     }
 }
