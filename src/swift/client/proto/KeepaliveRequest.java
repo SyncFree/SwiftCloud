@@ -19,7 +19,7 @@ public class KeepaliveRequest extends ClientRequest {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public KeepaliveRequest() {
+    KeepaliveRequest() {
     }
 
     public KeepaliveRequest(String clientId, final Timestamp timestamp, final CausalityClock version) {

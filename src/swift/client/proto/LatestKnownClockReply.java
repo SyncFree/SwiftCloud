@@ -16,7 +16,7 @@ public class LatestKnownClockReply implements RpcMessage {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public LatestKnownClockReply() {
+    LatestKnownClockReply() {
     }
 
     public LatestKnownClockReply(final CausalityClock clock) {

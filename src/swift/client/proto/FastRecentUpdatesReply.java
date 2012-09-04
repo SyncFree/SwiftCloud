@@ -124,7 +124,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
     /**
      * No-args constructor for Kryo-serialization.
      */
-    public FastRecentUpdatesReply() {
+    FastRecentUpdatesReply() {
     }
 
     public FastRecentUpdatesReply( SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions,

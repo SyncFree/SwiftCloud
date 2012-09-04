@@ -17,7 +17,7 @@ public class FetchObjectDeltaRequest extends FetchObjectVersionRequest {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public FetchObjectDeltaRequest() {
+    FetchObjectDeltaRequest() {
     }
 
     public FetchObjectDeltaRequest(String clientId, CRDTIdentifier id, CausalityClock knownVersion,

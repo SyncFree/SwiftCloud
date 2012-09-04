@@ -32,7 +32,7 @@ public class CommitUpdatesRequest extends ClientRequest {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public CommitUpdatesRequest() {
+    CommitUpdatesRequest() {
     }
 
     public CommitUpdatesRequest(String clientId, final Timestamp baseTimestamp,

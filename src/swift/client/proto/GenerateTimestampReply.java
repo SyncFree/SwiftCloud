@@ -15,7 +15,7 @@ public class GenerateTimestampReply implements RpcMessage {
     protected long validityMillis;
 
     // Fake constructor for Kryo serialization. Do NOT use.
-    public GenerateTimestampReply() {
+    GenerateTimestampReply() {
     }
 
     public GenerateTimestampReply(final Timestamp timestamp, final long validityMillis) {

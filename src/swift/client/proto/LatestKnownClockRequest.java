@@ -13,7 +13,7 @@ public class LatestKnownClockRequest extends ClientRequest {
     /**
      * Constructor for Kryo serialization.
      */
-    public LatestKnownClockRequest() {
+    LatestKnownClockRequest() {
     }
 
     public LatestKnownClockRequest(String clientId) {

@@ -36,7 +36,7 @@ public class FetchObjectVersionReply implements RpcMessage {
     protected CausalityClock estimatedLatestKnownClock;
 
     // Fake constructor for Kryo serialization. Do NOT use.
-    public FetchObjectVersionReply() {
+    FetchObjectVersionReply() {
     }
 
     public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,

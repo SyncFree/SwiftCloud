@@ -21,7 +21,7 @@ public class FastRecentUpdatesRequest extends ClientRequest {
     /**
      * No-args constructor for Kryo-serialization.
      */
-    public FastRecentUpdatesRequest() {
+    FastRecentUpdatesRequest() {
     }
 
     public FastRecentUpdatesRequest(final String clientId, final long maxBlockingTimeMillis) {

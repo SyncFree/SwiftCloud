@@ -35,7 +35,7 @@ public class CommitUpdatesReply implements RpcMessage {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public CommitUpdatesReply() {
+    CommitUpdatesReply() {
     }
 
     public CommitUpdatesReply(CommitStatus status, Timestamp commitTimestamp) {

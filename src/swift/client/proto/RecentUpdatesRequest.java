@@ -22,7 +22,7 @@ public class RecentUpdatesRequest extends ClientRequest {
     /**
      * No-args constructor for Kryo-serialization.
      */
-    public RecentUpdatesRequest() {
+    RecentUpdatesRequest() {
     }
 
     public RecentUpdatesRequest(final String clientId, final CausalityClock lastClock) {

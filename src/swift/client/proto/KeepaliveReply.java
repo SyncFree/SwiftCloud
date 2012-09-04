@@ -14,7 +14,7 @@ public class KeepaliveReply implements RpcMessage {
     protected boolean versionAvailable;
     protected long validityMillis;
 
-    public KeepaliveReply() {
+    KeepaliveReply() {
     }
 
     public KeepaliveReply(boolean timestampRenewed, boolean versionAvailable, long validityMillis) {

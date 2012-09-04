@@ -15,7 +15,7 @@ public class GenerateTimestampRequest extends ClientRequest {
     protected Timestamp previousTimestamp;
 
     // Fake constructor for Kryo serialization. Do NOT use.
-    public GenerateTimestampRequest() {
+    GenerateTimestampRequest() {
     }
 
     public GenerateTimestampRequest(String clientId, CausalityClock dominatedClock, Timestamp previousTimestamp) {

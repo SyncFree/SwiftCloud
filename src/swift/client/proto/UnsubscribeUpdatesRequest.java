@@ -15,7 +15,7 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public UnsubscribeUpdatesRequest() {
+    UnsubscribeUpdatesRequest() {
     }
 
     public UnsubscribeUpdatesRequest(String clientId, CRDTIdentifier uid) {

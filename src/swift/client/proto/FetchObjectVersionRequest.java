@@ -19,7 +19,7 @@ public class FetchObjectVersionRequest extends ClientRequest {
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public FetchObjectVersionRequest() {
+    FetchObjectVersionRequest() {
     }
 
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,

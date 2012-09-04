@@ -42,7 +42,7 @@ public class RecentUpdatesReply implements RpcMessage {
     /**
      * No-args constructor for Kryo-serialization.
      */
-    public RecentUpdatesReply() {
+    RecentUpdatesReply() {
     }
 
     public RecentUpdatesReply(SubscriptionStatus status,
