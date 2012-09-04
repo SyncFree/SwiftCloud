@@ -7,14 +7,17 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
-import sys.Sys;
+import sys.scheduler.PeriodicTask;
+import sys.utils.Threading;
 
+import static sys.Sys.*;
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
  * prototype [Sovran et al. OSDI 2011].
@@ -33,7 +36,10 @@ public class SwiftSocialBenchmark {
     private static long cacheEvictionTimeMillis;
     private static long thinkTime;
     private static int concurrentSessions;
-
+    
+    static AtomicInteger commandsDone = new AtomicInteger(0);
+    static AtomicInteger totalCommands = new AtomicInteger(0);
+    
     public static void main(String[] args) {
         if (args.length < 3) {
             exitWithUsage();
@@ -42,7 +48,7 @@ public class SwiftSocialBenchmark {
         dcName = args[1];
         fileName = args[2];
 
-        Sys.init();
+        sys.Sys.init();
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
             final SwiftImpl swiftClient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
@@ -59,7 +65,7 @@ public class SwiftSocialBenchmark {
             asyncCommit = Boolean.parseBoolean(args[7]);
             thinkTime = Long.valueOf(args[8]);
             concurrentSessions = Integer.valueOf(args[9]);
-
+            
             bufferedOutput = new PrintStream(System.out, false);
             bufferedOutput.println("session_id,command,command_exec_time,time");
 
@@ -75,11 +81,22 @@ public class SwiftSocialBenchmark {
                 final List<String> commands = sessions.get(i);
                 sessionsExecutor.execute(new Runnable() {
                     public void run() {
+                    	//Avoid clients running all at the same time...
+                    	Threading.sleep( Sys.rg.nextInt(5000) );
                         runClientSession(sessionId, commands);
                     }
                 });
             }
 
+// 			  smd - report client progress every 10 seconds...
+/*
+            new PeriodicTask(0.0, 10.0) {
+            	public void run() {
+            		System.err.printf("\r------------>Done:%.1f", 100.0 * commandsDone.get() / totalCommands.get() );
+            	}
+            };
+*/           
+            
             // Wait for all sessions.
             sessionsExecutor.shutdown();
             try {
@@ -112,6 +129,8 @@ public class SwiftSocialBenchmark {
         SwiftSocial socialClient = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
 
+        
+        totalCommands.addAndGet( commands.size() ) ;
         final long sessionStartTime = System.currentTimeMillis();
         final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
         bufferedOutput.println(initSessionLog);
@@ -173,6 +192,7 @@ public class SwiftSocialBenchmark {
                     e.printStackTrace();
                 }
             }
+            commandsDone.incrementAndGet();
         }
         swiftCLient.stop(true);
 
