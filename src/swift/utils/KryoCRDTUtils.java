@@ -1,6 +1,5 @@
 package swift.utils;
 
-import static sys.net.api.Networking.Networking;
 import swift.client.proto.ClientRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
@@ -46,8 +45,6 @@ import swift.dc.proto.DHTGetCRDTReply;
 import swift.dc.proto.DHTSendNotification;
 import sys.net.impl.KryoLib;
 
-import com.esotericsoftware.kryo.Kryo;
-
 /**
  * Registers serializable SwiftCloud classes for static mapping in Kryo.
  * 
@@ -59,59 +56,61 @@ public class KryoCRDTUtils {
      */
     public static void init() {
 
-        KryoLib.register(ClientRequest.class);
-        KryoLib.register(CommitUpdatesRequest.class);
-        KryoLib.register(CommitUpdatesReply.class);
-        KryoLib.register(CommitUpdatesReply.CommitStatus.class);
-        KryoLib.register(FastRecentUpdatesRequest.class);
-        KryoLib.register(FastRecentUpdatesReply.class);
-        KryoLib.register(FastRecentUpdatesReply.ObjectSubscriptionInfo.class);
-        KryoLib.register(FetchObjectDeltaRequest.class);
-        KryoLib.register(FetchObjectVersionRequest.class);
-        KryoLib.register(FetchObjectVersionReply.class);
-        KryoLib.register(FetchObjectVersionReply.FetchStatus.class);
-        KryoLib.register(GenerateTimestampRequest.class);
-        KryoLib.register(GenerateTimestampReply.class);
-        KryoLib.register(KeepaliveRequest.class);
-        KryoLib.register(KeepaliveReply.class);
-        KryoLib.register(LatestKnownClockRequest.class);
-        KryoLib.register(LatestKnownClockReply.class);
-        KryoLib.register(RecentUpdatesRequest.class);
-        KryoLib.register(RecentUpdatesReply.class);
-        KryoLib.register(SubscriptionType.class);
-        KryoLib.register(UnsubscribeUpdatesRequest.class);
+        KryoLib.register(Timestamp.class,0x50);
+        KryoLib.register(TripleTimestamp.class,0x51);
+        KryoLib.register(VersionVectorWithExceptions.class,0x52);
+        KryoLib.register(VersionVectorWithExceptions.Pair.class,0x53);
 
-        KryoLib.register(Timestamp.class);
-        KryoLib.register(TripleTimestamp.class);
-        KryoLib.register(VersionVectorWithExceptions.class);
-        KryoLib.register(VersionVectorWithExceptions.Pair.class);
+        KryoLib.register(CRDTIdentifier.class,0x54);
+        KryoLib.register(BaseCRDT.class,0x55);
+        KryoLib.register(IntegerVersioned.class,0x56);
+        KryoLib.register(IntegerVersioned.UpdatesPerSite.class,0x57);
+        KryoLib.register(RegisterVersioned.class,0x58);
+        KryoLib.register(RegisterVersioned.QueueEntry.class,0x59);
+        KryoLib.register(SetIds.class,0x60);
+        KryoLib.register(SetIntegers.class,0x61);
+        KryoLib.register(SetMsg.class,0x62);
+        KryoLib.register(SetStrings.class,0x63);
+        KryoLib.register(SetVersioned.class,0x64);
 
-        KryoLib.register(CRDTIdentifier.class);
-        KryoLib.register(BaseCRDT.class);
-        KryoLib.register(IntegerVersioned.class);
-        KryoLib.register(IntegerVersioned.UpdatesPerSite.class);
-        KryoLib.register(RegisterVersioned.class);
-        KryoLib.register(RegisterVersioned.QueueEntry.class);
-        KryoLib.register(SetIds.class);
-        KryoLib.register(SetIntegers.class);
-        KryoLib.register(SetMsg.class);
-        KryoLib.register(SetStrings.class);
-        KryoLib.register(SetVersioned.class);
+        
+        KryoLib.register(ClientRequest.class, 0x70);
+        KryoLib.register(CommitUpdatesRequest.class, 0x71);
+        KryoLib.register(CommitUpdatesReply.class, 0x72);
+        KryoLib.register(CommitUpdatesReply.CommitStatus.class, 0x73);
+        KryoLib.register(FastRecentUpdatesRequest.class, 0x74);
+        KryoLib.register(FastRecentUpdatesReply.class, 0x75);
+        KryoLib.register(FastRecentUpdatesReply.ObjectSubscriptionInfo.class, 0x76);
+        KryoLib.register(FetchObjectDeltaRequest.class, 0x77);
+        KryoLib.register(FetchObjectVersionRequest.class, 0x78);
+        KryoLib.register(FetchObjectVersionReply.class, 0x79);
+        KryoLib.register(FetchObjectVersionReply.FetchStatus.class, 0x7A);
+        KryoLib.register(GenerateTimestampRequest.class, 0x7B);
+        KryoLib.register(GenerateTimestampReply.class, 0x7C);
+        KryoLib.register(KeepaliveRequest.class, 0x7D);
+        KryoLib.register(KeepaliveReply.class, 0x7E);
+        KryoLib.register(LatestKnownClockRequest.class,0x7F);
+        KryoLib.register(LatestKnownClockReply.class,0x80);
+        KryoLib.register(RecentUpdatesRequest.class,0x81);
+        KryoLib.register(RecentUpdatesReply.class,0x82);
+        KryoLib.register(SubscriptionType.class,0x83);
+        KryoLib.register(UnsubscribeUpdatesRequest.class,0x84);
 
-        KryoLib.register(CRDTObjectUpdatesGroup.class);
-        KryoLib.register(BaseUpdate.class);
-        KryoLib.register(IntegerUpdate.class);
-        KryoLib.register(RegisterUpdate.class);
-        KryoLib.register(SetInsert.class);
-        KryoLib.register(SetRemove.class);
 
-        KryoLib.register(CommitTSRequest.class);
-        KryoLib.register(CommitTSReply.class);
-        KryoLib.register(DHTExecCRDT.class);
-        KryoLib.register(DHTExecCRDTReply.class);
-        KryoLib.register(DHTGetCRDT.class);
-        KryoLib.register(DHTGetCRDTReply.class);
-        KryoLib.register(DHTSendNotification.class);
+//        KryoLib.register(CRDTObjectOperationsGroup.class, 0x85);
+//        KryoLib.register(BaseOperation.class, 0x86);
+        KryoLib.register(IntegerUpdate.class, 0x87);
+        KryoLib.register(RegisterUpdate.class, 0x88 );
+        KryoLib.register(SetInsert.class, 0x89);
+        KryoLib.register(SetRemove.class, 0x8A);
+
+        KryoLib.register(CommitTSRequest.class, 0x8B);
+        KryoLib.register(CommitTSReply.class, 0x8C);
+        KryoLib.register(DHTExecCRDT.class, 0x8D);
+        KryoLib.register(DHTExecCRDTReply.class, 0x8E);
+        KryoLib.register(DHTGetCRDT.class, 0x8F);
+        KryoLib.register(DHTGetCRDTReply.class, 0x90);
+        KryoLib.register(DHTSendNotification.class, 0x91);
 
         // WISHME: I tried to use Reflections library, but it has plenty of
         // dependencies...
