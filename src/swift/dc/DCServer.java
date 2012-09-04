@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Properties;
 
 import sys.Sys;
+import sys.net.api.rpc.RpcFactory;
 
 /**
  * Single server replying to client request. This class is used only to allow
@@ -21,6 +22,8 @@ public class DCServer {
     int sequencerPort;
     Properties props;
 
+    RpcFactory rpcFactory;
+    
     public DCServer(String sequencerHost, Properties props) {
         this.sequencerHost = sequencerHost;
         int pos = sequencerHost.indexOf(":");
@@ -40,10 +43,17 @@ public class DCServer {
     public void startSurrogServer( int portSurrogate) {
         Sys.init();
 
-        server = new DCSurrogate(Networking.rpcBind(portSurrogate).toDefaultService(), 
-                                Networking.rpcConnect().toDefaultService(), 
-                                Networking.resolve(sequencerHost, sequencerPort), 
-                                props);
+//        server = new DCSurrogate(Networking.rpcBind(portSurrogate).toDefaultService(), 
+//                                Networking.rpcConnect().toDefaultService(), 
+//                                Networking.resolve(sequencerHost, sequencerPort), 
+//                                props);
+        
+        rpcFactory = Networking.rpcBind( portSurrogate);
+        
+        server = new DCSurrogate( rpcFactory.toDefaultService(), 
+        		rpcFactory.toDefaultService(), 
+                Networking.resolve(sequencerHost, sequencerPort), 
+                props);
     }
 
     public static void main(String[] args) {
