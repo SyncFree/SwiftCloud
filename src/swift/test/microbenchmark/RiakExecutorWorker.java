@@ -39,6 +39,7 @@ import swift.test.microbenchmark.interfaces.WorkerManager;
 import swift.test.microbenchmark.objects.StringCopyable;
 import sys.Sys;
 import sys.dht.catadupa.crdts.ORSet;
+import sys.net.impl.KryoSerializer;
 
 public class RiakExecutorWorker implements MicroBenchmarkWorker {
 
@@ -56,7 +57,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
     protected int numExecutedTransactions, writeOps, readOps;
     private RawDataCollector rawData;
     private String outputDir;
-
+    
     public RiakExecutorWorker(WorkerManager manager, String workerID, Integer[] identifiers, double updateRatio,
             Random random, IRiakClient clientServer, int maxTxSize, int runCounter, String outputDir) {
         this.manager = manager;
@@ -77,6 +78,11 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
         manager.onWorkerStart(this);
         startTime = System.currentTimeMillis();
 
+        /*
+         * NOTE NOTE NOTE. Adapted code to work with Kryo V2. Not Tested!!!!!
+         */
+        KryoSerializer serializer = new KryoSerializer();
+
         while (!stop) {
             try {
                 OpType operationType = (random.nextDouble() > updateRatio) ? OpType.READ_ONLY : OpType.UPDATE;
@@ -88,18 +94,18 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                     int randomIndex = (int) Math.floor(random.nextDouble() * identifiers.length);
                     IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
                             .fetch("object" + randomIndex).execute();
-                    bb = ByteBuffer.wrap(riakObj.getValue());
-                    Integer objValue = (Integer) kryo.readObject(bb, Integer.class);
+                    
+                    Integer objValue = serializer.readObject(riakObj.getValue() );
 
                     if (random.nextDouble() > 0.5) {
                         objValue += 10;
                     } else {
                         objValue -= 10;
                     }
-                    bb.clear();
-                    kryo.writeObject(bb, objValue);
-                    bb.flip();
-                    riakObj.setValue(bb.array());
+                    
+                    byte[] data = serializer.writeObject( objValue);
+                    riakObj.setValue(data);
+                    
                     clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store(riakObj);
                     long txEndTime = System.nanoTime();
                     rawData.registerOperation(txEndTime - txStartTime, 1, 1, txStartTime);
@@ -113,8 +119,8 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
                         IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
                                 .fetch("object" + randomIndex).execute();
-                        bb = ByteBuffer.wrap(riakObj.getValue());
-                        Integer objValue = (Integer) kryo.readObject(bb, Integer.class);
+                        
+                        Integer objValue = serializer.readObject( riakObj.getValue() );
                         readOps++;
                     }
                     long txEndTime = System.nanoTime();

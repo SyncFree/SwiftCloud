@@ -6,6 +6,9 @@ import java.util.Random;
 import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
 import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
+import sys.net.api.Networking;
+import sys.net.api.Serializer;
+import sys.net.impl.KryoSerializer;
 
 import com.basho.riak.client.IRiakClient;
 import com.basho.riak.client.RiakRetryFailedException;
@@ -34,21 +37,19 @@ public class RiakInitializerWorker implements MicroBenchmarkWorker {
     public void run() {
         manager.onWorkerStart(this);
         startTime = System.currentTimeMillis();
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
+        
+        KryoSerializer serializer = new KryoSerializer();
         try {
             clientServer.createBucket(RiakMicroBenchmark.TABLE_NAME).allowSiblings(false).execute();
             for (Integer i : identifiers) {
-                kryo.writeObject(buffer, i);
-                buffer.flip();
-                clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store("object" + i, buffer.array())
+            	byte[] data = serializer.writeObject(i) ;
+                clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store("object" + i, data)
                         .execute();
                 // byte[] b =
                 // clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().fetch("object"
                 // + i).execute().getValue();
                 // ByteBuffer bb = ByteBuffer.wrap(b);
                 // System.out.println(kryo.readObject(bb, Integer.class));;
-                buffer.clear();
-
             }
         } catch (RiakRetryFailedException e) {
             e.printStackTrace();
