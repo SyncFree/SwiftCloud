@@ -37,6 +37,15 @@ public class Node {
 		key = locator2key(endpoint.gid());
 	}
 
+	@Override
+	public int hashCode() {
+		return (int)((key >>> 32) ^ key);
+	}
+	
+	public boolean equals( Object other ) {
+		return other != null && ((Node)other).key == key;
+	}
+	
 	public String getDatacenter() {
 		return datacenter;
 	}

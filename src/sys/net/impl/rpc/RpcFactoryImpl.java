@@ -1,21 +1,17 @@
 package sys.net.impl.rpc;
 
-import static sys.Sys.Sys;
 import static sys.utils.Log.Log;
 
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.SoftReference;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
-
-import com.esotericsoftware.kryo.serialize.SimpleSerializer;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
@@ -24,65 +20,63 @@ import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.KryoLib;
 import sys.scheduler.PeriodicTask;
+import sys.scheduler.Task;
 import sys.utils.LongMap;
 import sys.utils.Threading;
 
-import sys.utils.Log;
+import static sys.stats.RpcStats.*;
 
-import static sys.net.impl.KryoLib.*;
+import static sys.Sys.Sys;
+import static sys.net.impl.NetworkingConstants.*;
 
 final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
-	static final long MAX_SERVICE_ID = 1L << 16;
-	static final int RPC_MAX_TIMEOUT = 10000000;
 
-	Endpoint local;
+	Endpoint facEndpoint;
 	ConnectionManager conMgr;
-	List<RpcEndpoint> services = new ArrayList<RpcEndpoint>();
 
 	public RpcFactoryImpl() {
-		this.conMgr = new ConnectionManager();
 
-//		sys.utils.Log.setLevel("", Level.ALL);
-//		sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
-//		sys.utils.Log.setLevel("sys.dht", Level.FINE);
-//		sys.utils.Log.setLevel("sys.net", Level.ALL);
-//		sys.utils.Log.setLevel("sys", Level.ALL);
+//		 sys.utils.Log.setLevel("", Level.OFF);
+//		 sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
+//		 sys.utils.Log.setLevel("sys.dht", Level.OFF);
+//		 sys.utils.Log.setLevel("sys.net", Level.OFF);
+//		 sys.utils.Log.setLevel("sys", Level.WARNING);
 
-		KryoLib.register(RpcPacket.class, new SimpleSerializer<RpcPacket>() {
+		// new PeriodicTask(0.0, 10.0) {
+		// public void run() {
+		// synchronized (conMgr) {
+		// for (final TransportConnection[] i : conMgr.ro_connections.values())
+		// {
+		// new Task(Sys.rg.nextDouble() * 5) {
+		// public void run() {
+		// try {
+		// if (i.length > 0)
+		// i[0].send(new RpcPing(Sys.currentTime()));
+		// } catch (Exception x) {
+		// }
+		// }
+		// };
+		// }
+		// }
+		// }
+		// };
 
-			public RpcPacket read(ByteBuffer bb) {
-				RpcPacket res = new RpcPacket();
-				res.handlerId = bb.getLong();
-				res.replyHandlerId = bb.getLong();
-				res.payload = (RpcMessage) kryo.readClassAndObject(bb);
-				return res;
-			}
-
-			@Override
-			public void write(ByteBuffer bb, RpcPacket pkt) {
-				bb.putLong(pkt.handlerId);
-				bb.putLong(pkt.replyHandlerId);
-				kryo.writeClassAndObject(bb, pkt.payload);
-			}
-		});
-
-		gcStaleHandlers();
+		initStaleHandlersGC_Task();
 	}
 
 	public void setEndpoint(Endpoint local) {
-		this.local = local;
-		this.local.setHandler(this);
+		this.facEndpoint = local;
+		this.facEndpoint.setHandler(this);
+		this.conMgr = new ConnectionManager(local);
 	}
 
 	@Override
-	public RpcEndpoint toService(final int service, final RpcHandler handler) {
-		RpcEndpoint res = new RpcPacket(service, handler);
-		services.add(res);
+	synchronized public RpcEndpoint toService(final int service, final RpcHandler handler) {
+		RpcEndpoint res = getHandler((long) service);
+		if (res == null)
+			res = new RpcPacket(this, service, handler);
 		return res;
 	}
 
@@ -97,58 +91,78 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	}
 
 	@Override
-	public void onAccept(TransportConnection conn) {
-		conMgr.add(conn);
-		Log.finest("Accepted connection from:" + conn.remoteEndpoint());
-	}
-
-	@Override
-	public void onConnect(TransportConnection conn) {
-		Log.finest("Established connection to:" + conn.remoteEndpoint());
-		conMgr.add(conn);
-	}
-
-	@Override
-	public void onFailure(TransportConnection conn) {
-		Log.finest("Connection failed to:" + conn.remoteEndpoint() + "/ cause:" + conn.causeOfFailure());
-		conMgr.remove(conn);
-	}
-
-	@Override
-	public void onClose(TransportConnection conn) {
-		Log.finest("Connection closed to:" + conn.remoteEndpoint());
-		conMgr.remove(conn);
-	}
-
-	public static AtomicInteger rpcCounter = new AtomicInteger();
-	static {
-		new PeriodicTask( 0.0, 5.0 ) {
+	public void onAccept(final TransportConnection conn) {
+		new Task(0) {
 			public void run() {
-				int current = rpcCounter.get();
-				if( current > 0 )
-					Log.finest(String.format("Total RPCs: %.2f K\n", current / 1000.0));
+				conMgr.add(conn);				
+				Log.fine("Accepted connection from:" + conn.remoteEndpoint());
 			}
 		};
 	}
-	
+
+	@Override
+	public void onConnect(final TransportConnection conn) {
+		new Task(0) {
+			public void run() {
+				conMgr.add(conn);				
+				Log.fine("Established connection to:" + conn.remoteEndpoint());
+			}
+		};
+	}
+
+	@Override
+	public void onFailure(final TransportConnection conn) {
+		new Task(0) {
+			public void run() {
+				conMgr.remove(conn);
+				Log.fine("Connection failed to:" + conn.remoteEndpoint() + "/ cause:" + conn.causeOfFailure());
+			}
+		};
+	}
+
+	@Override
+	public void onClose(final TransportConnection conn) {
+		new Task(0) {
+			public void run() {
+				conMgr.remove(conn);
+				Log.fine("Connection closed to:" + conn.remoteEndpoint());
+			}
+		};
+	}
+
+	public void onReceive(final TransportConnection conn, final RpcPing ping) {
+		conn.send(new RpcPong(ping));
+	}
+
+	public void onReceive(final TransportConnection conn, final RpcPong pong) {
+		RpcStats.logRpcRTT(conn.remoteEndpoint(), pong.rtt());
+	}
+
 	public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
-		rpcCounter.incrementAndGet();
-		
-		Log.finest("RPC: " + pkt.payload.getClass() );
-		
-		final RpcPacket handle = getHandle(pkt);
-		if (handle != null) {
+		// double t0 = Sys.timeMillis();
+		RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+
+		Log.finest("RPC: " + pkt.payload.getClass() + " from: " + conn.remoteEndpoint() );
+
+		final RpcPacket handler = getHandler(pkt.handlerId);
+		if (handler != null) {
+
+			pkt.fac = this;
 			pkt.conn = conn;
 			pkt.remote = conn.remoteEndpoint();
-			handle.accept(pkt);
-		} else {
-			Log.finest("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
-			System.err.println("Ooops. No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
-		}
+			handler.deliver(pkt);
+
+			// RpcStats.logRpcExecTime(pkt.payload.getClass(), Sys.timeMillis()
+			// - t0);
+
+		} else
+			Log.warning("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
+
 	}
 
 	@Override
 	public void onReceive(TransportConnection conn, Message m) {
+		System.err.println(m.getClass());
 		throw new NetworkingException("Incoming object is not an RpcPacket???");
 	}
 
@@ -157,257 +171,157 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		Thread.dumpStack();
 	}
 
-	final class ConnectionManager {
-		final int CONNECTION_RETRIES = 3;
-		Map<Endpoint, TransportConnection[]> ro_connections = new HashMap<Endpoint, TransportConnection[]>();
-		Map<Endpoint, Set<TransportConnection>> connections = new HashMap<Endpoint, Set<TransportConnection>>();
+	// synchronized int _g_serial(Object o) {
+	// AtomicInteger x = g_serial.get(o);
+	// if (x == null)
+	// g_serial.put(o, x = new AtomicInteger(0));
+	//
+	// return x.getAndIncrement();
+	// }
+	// Map<Object, AtomicInteger> g_serial = new HashMap<Object,
+	// AtomicInteger>();
 
-		boolean send(Endpoint remote, Message msg) {
-			for (TransportConnection i : connections(remote))
-				if (i.send(msg))
-					return true;
+	RpcPacket getHandler(Long hid) {
 
-			for (int j = 0; j < CONNECTION_RETRIES; j++) {
-				TransportConnection res = local.connect(remote);
-				if (res != null && res.send(msg))
-					return true;
-				Threading.sleep(100);
+		if (hid < RPC_MAX_SERVICE_ID) {
+			synchronized (handlers0) {
+				return handlers0.get(hid);
 			}
-			return false;
-		}
-
-		synchronized void add(TransportConnection conn) {
-			if (!conn.failed()) {
-				Endpoint remote = conn.remoteEndpoint();
-				Set<TransportConnection> cs = connections.get(remote);
-				if( cs == null ) {
-					connections.put(remote, cs = new HashSet<TransportConnection>() );
-					cs.add( conn ) ;
-				}
-				ro_connections.put( remote, cs.toArray( new TransportConnection[ cs.size() ] ) ) ;
+		} else {
+			RpcPacket res;
+			synchronized (handlers1) {
+				res = handlers1.remove(hid);
 			}
-		}
+			if (res == null)
+				return handlers0.get(hid);
+			else if (res.deferredRepliesEnabled)
+				handlers0.put(hid, res);
 
-		synchronized void remove(TransportConnection conn) {
-			Endpoint remote = conn.remoteEndpoint();
-			Set<TransportConnection> cs = connections.get(remote);
-			if( cs != null ) {
-				cs.remove( conn ) ;
-				if( cs.isEmpty() )
-					ro_connections.remove( remote ) ;
-				else
-					ro_connections.put( remote, cs.toArray( new TransportConnection[ cs.size() ] ) ) ;
-			}			
-		}
-
-		synchronized TransportConnection[] connections(Endpoint remote) {
-			TransportConnection[] res = ro_connections.get(remote);
-			return res != null ? res : noConnections;
-		}
-		
-		final TransportConnection[] noConnections = new TransportConnection[0];
-	}
-
-	final public class RpcPacket extends AbstractRpcPacket {
-
-		boolean isWaiting4Reply = false;
-
-		RpcPacket() {
-		}
-
-		RpcPacket(long service, RpcHandler handler) {
-			this.timeout = -1;
-			this.handler = handler;
-			this.handlerId = service;
-			this.replyHandlerId = service;
-			handles.put(this.handlerId, new StaleRef(this));
-		}
-
-		private RpcPacket(Endpoint remote, RpcMessage payload, RpcPacket handle, RpcHandler replyhandler, int timeout) {
-			this.remote = remote;
-			this.payload = payload;
-			this.handler = replyhandler;
-			this.handlerId = handle.replyHandlerId;
-			this.timeout = Math.min(timeout, RPC_MAX_TIMEOUT);
-			if (replyhandler != null) {
-				synchronized (handles) {
-					this.timestamp = Sys.timeMillis();
-					this.replyHandlerId = g_handlers++;
-					handles.put(this.replyHandlerId, new StaleRef(this));
-				}
-			} else
-				this.replyHandlerId = 0L;
-		}
-
-		@Override
-		public Endpoint localEndpoint() {
-			return local;
-		}
-
-		@Override
-		public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
-			RpcPacket pkt = new RpcPacket(remote, msg, this, replyHandler, timeout);
-
-			if (timeout != 0)
-				synchronized (pkt) {
-					// System.out.println("sync for:" + pkt.hashCode() );
-					pkt.isWaiting4Reply = true;
-					if (pkt.sendRpcSuccess(null, this))
-						pkt.waitForReply();
-				}
-			else {
-				pkt.remote = remote;
-				pkt.sendRpcSuccess(null, this);
-			}
-			return pkt;
-		}
-
-		public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
-			RpcPacket pkt = new RpcPacket(remote, msg, this, replyHandler, timeout);
-
-			if (timeout != 0)
-				synchronized (pkt) {
-					// System.out.println("sync for:" + pkt.hashCode() );
-					pkt.isWaiting4Reply = true;
-					if (pkt.sendRpcSuccess(conn, this))
-						pkt.waitForReply();
-				}
-			else
-				pkt.sendRpcSuccess(conn, this);
-			return pkt;
-		}
-
-		final void accept(RpcPacket pkt) {
-			if (isWaiting4Reply) {
-				synchronized (this) {
-					reply = pkt;
-					Threading.notifyOn(this);
-				}
-			} else
-				pkt.payload.deliverTo(pkt, this.handler);
-		}
-
-		final private void waitForReply() {
-			while (reply == null && !timedOut());
-
-			isWaiting4Reply = false;
-			if (reply != null)
-				reply.payload.deliverTo(reply, this.handler);
-		}
-
-		final private boolean timedOut() {
-			int ms = (int)( (timeout < 0 ? RPC_MAX_TIMEOUT : timeout) - (Sys.timeMillis() - timestamp));
-			if (ms > 0)
-				Threading.waitOn(this, ms > 100 ? 100 : ms);
-			return ms <= 0;
-		}
-
-		final private boolean sendRpcSuccess(TransportConnection conn, AbstractRpcPacket handle) {
-			try {
-				if (conn != null && conn.send(this) || conMgr.send(remote, this)) {
-					payload = null;
-					return true;
-				} else {
-					synchronized (handles) {
-						handles.remove(this.replyHandlerId);
-					}
-					if (handler != null)
-						handler.onFailure(this);
-					else if (handle.handler != null)
-						handle.handler.onFailure(this);
-
-					return false;
-				}
-			} catch (Throwable t) {
-				t.printStackTrace();
-				failed = true;
-				failureCause = t;
-
-				if (handler != null)
-					handler.onFailure(this);
-				else
-					handle.handler.onFailure(this);
-
-				return false;
-			}
-		}
-
-		public String toString() {
-			return String.format("RPC(%s,%s,%s)", handlerId, replyHandlerId, this.handler);
-		}
-
-		@Override
-		public void deliverTo(TransportConnection conn, MessageHandler handler) {
-			((RpcFactoryImpl) handler).onReceive(conn, this);
-		}
-
-		
-		@Override
-		public RpcHandle enableStreamingReplies(boolean flag) {
-			streamingIsEnabled = flag;
-			if( streamingIsEnabled )
-				synchronized (handles) {
-					handles.put(replyHandlerId, new StaleRef(this) );
-				}
-			return this;
+			return res;
 		}
 	}
 
-	RpcPacket getHandle(RpcPacket other) {
-		synchronized (handles) {
-			
-			if (other.handlerId < MAX_SERVICE_ID) {
-				StaleRef ref = handles.get(other.handlerId);
-				return ref == null ? null : ref.get();				
-			}
-			else {
-				RpcPacket res = null;
-				StaleRef ref = handles.get(other.handlerId);
-				if( ref != null && (res = ref.get()).streamingIsEnabled )
-					handles.put(res.replyHandlerId, ref);
-				
-				return res;
-			}
-		}
-	}
+	final LongMap<RpcPacket> handlers1 = new LongMap<RpcPacket>();
+	final ConcurrentHashMap<Long, RpcPacket> handlers0 = new ConcurrentHashMap<Long, RpcPacket>();
 
-	void gcStaleHandlers() {
-		Threading.newThread(true, new Runnable() {
-
-			@Override
+	void initStaleHandlersGC_Task() {
+		new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD / (1000 * RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY)) {
 			public void run() {
-				for (;;) {
-					try {
-						StaleRef ref = (StaleRef) refQueue.remove();
-						synchronized (handles) {
-							handles.remove(ref.key);
-							while ((ref = (StaleRef) refQueue.poll()) != null)
-								handles.remove(ref.key);
-						}
-					} catch (Throwable t) {
-						t.printStackTrace();
+				double now = Sys.timeMillis();
+				synchronized (handlers0) {
+					for (Iterator<RpcPacket> it = handlers0.values().iterator(); it.hasNext();) {
+						RpcPacket p = it.next();
+						if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_PERIOD)
+							it.remove();
 					}
 				}
+				synchronized (handlers1) {
+					List<Long> expired = new ArrayList<Long>();
+					for (Iterator<RpcPacket> it = handlers1.values().iterator(); it.hasNext();) {
+						RpcPacket p = it.next();
+						if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_PERIOD)
+							expired.add(p.handlerId);
+					}
+					for (Long i : expired)
+						handlers1.remove(i);
+				}
 			}
+		};
+	}
+}
 
-		}).start();
+final class ConnectionManager {
+
+	final Endpoint localEndpoint;
+	Map<Endpoint, Set<TransportConnection>> connections = new HashMap<Endpoint, Set<TransportConnection>>();
+	Map<Endpoint, TransportConnection[]> ro_connections = Collections.synchronizedMap(new HashMap<Endpoint, TransportConnection[]>());
+
+	ConnectionManager(Endpoint localEndpoint) {
+		this.localEndpoint = localEndpoint;
 	}
 
-	final class StaleRef extends SoftReference<RpcPacket> {
+	boolean send(Endpoint remote, RpcPacket pkt) {
 
-		final long key;
-
-		public StaleRef(RpcPacket referent) {
-			super(referent, refQueue);
-			this.key = referent.replyHandlerId;
+		for (int j = 0; j < RPC_CONNECTION_RETRIES; j++) {
+			for (TransportConnection i : connections(remote))
+				if (sendPacket(i, pkt))
+					return true;
+			Threading.sleep((j + 1) * RPC_CONNECTION_RETRY_DELAY);
 		}
-
+		return false;
 	}
 
-	// [0-MAX_SERVICE_ID[ are reserved for static service handlers.
-	long g_handlers = MAX_SERVICE_ID + Sys.rg.nextInt(100000);
+	void add(TransportConnection conn) {
+		if (!conn.failed()) {
+			Set<TransportConnection> cs;
+			Endpoint remote = conn.remoteEndpoint();
+			synchronized (this) {
+				cs = connections.get(remote);
+				if (cs == null)
+					connections.put(remote, cs = new HashSet<TransportConnection>());
+			}
+			synchronized (cs) {
+				cs.add(conn);
+				ro_connections.put(remote, cs.toArray(new TransportConnection[cs.size()]));
+				Log.finest("Updated connections to:" + conn.remoteEndpoint() + " : " + cs);
+			}
+		}
+	}
 
-	final LongMap<StaleRef> handles = new LongMap<StaleRef>();
-	final ReferenceQueue<RpcPacket> refQueue = new ReferenceQueue<RpcPacket>();
+	void remove(TransportConnection conn) {
+		Endpoint remote = conn.remoteEndpoint();
+		Set<TransportConnection> cs;
+		synchronized (this) {
+			cs = connections.get(remote);
+		}
+		if (cs != null) {
+			synchronized (cs) {
+				cs.remove(conn);
+				if (cs.isEmpty())
+					ro_connections.remove(remote);
+				else
+					ro_connections.put(remote, cs.toArray(new TransportConnection[cs.size()]));
+				Log.finest("Removed connection to:" + conn.remoteEndpoint() + " : " + cs);
+			}
+		}
+	}
 
+	TransportConnection[] connections(Endpoint remote) {
+		TransportConnection[] res = ro_connections.get(remote);
+		if (res != null && res.length > 0)
+			return res;
+
+		Set<TransportConnection> cs;
+		synchronized (this) {
+			cs = connections.get(remote);
+			if (cs == null)
+				connections.put(remote, cs = new HashSet<TransportConnection>());
+		}
+		synchronized (cs) {
+			if (cs.isEmpty()) {
+				localEndpoint.connect(remote);
+			}
+			return noConnections;
+		}
+	}
+
+	final TransportConnection[] noConnections = new TransportConnection[0];
+
+//	boolean sendX(Endpoint remote, Message m) {		
+//		for (TransportConnection i : connections(remote))
+//			if (i.send(m))
+//				return true;
+//		return false;
+//	}
+
+	/**
+	 * Note: Send needs to be done before logging, so the size after serialization is known...
+	 */
+	final static boolean sendPacket(TransportConnection conn, RpcPacket pkt) {
+		try {
+			return conn.send( pkt );
+		} finally {
+			RpcStats.logSentRpcPacket(pkt, conn.remoteEndpoint());
+		}
+	}
 }

@@ -24,6 +24,8 @@ import sys.utils.Threading;
 
 public class DHT_NodeImpl extends CatadupaNode {
 
+	public long ordinalKey = 0;
+	
 	protected static DHT_ClientStub clientStub;
 	protected static _DHT_ServerStub serverStub;
 
@@ -60,12 +62,14 @@ public class DHT_NodeImpl extends CatadupaNode {
 
 	@Override
 	public void onNodeAdded(Node n) {
-		Log.finest("Catadupa added:" + n);
+		ordinalKey = super.db.ordinalKey();
+		Log.finest("Catadupa added:" + n + "; ordKey:" + ordinalKey );
 	}
 
 	@Override
 	public void onNodeRemoved(Node n) {
-		Log.finest("Catadupa removed:" + n);
+		ordinalKey = super.db.ordinalKey();
+		Log.finest("Catadupa removed:" + n + "; ordKey:" + ordinalKey );
 	}
 
 	protected Node resolveNextHop(final DHT.Key key) {

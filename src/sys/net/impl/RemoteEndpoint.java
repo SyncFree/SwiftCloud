@@ -2,6 +2,8 @@ package sys.net.impl;
 
 import java.net.InetSocketAddress;
 
+import com.esotericsoftware.kryo.KryoSerializable;
+
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.MessageHandler;
@@ -16,8 +18,11 @@ import sys.net.api.TransportConnection;
  * @author smd
  * 
  */
-public class RemoteEndpoint extends AbstractEndpoint {
+public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable {
 
+	public RemoteEndpoint() {	
+	}
+	
 	public RemoteEndpoint(final String host, final int tcpPort) {
 		super(new InetSocketAddress(host, tcpPort), 0);
 	}

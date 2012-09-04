@@ -2,6 +2,7 @@ package sys;
 
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 
 import swift.utils.KryoCRDTUtils;
 import sys.dht.DHT_Node;
@@ -10,11 +11,10 @@ import sys.dht.catadupa.KryoCatadupa;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.impl.NetworkingImpl;
 import sys.scheduler.TaskScheduler;
-
-import static sys.net.api.Networking.*;
+import sys.utils.IP;
 
 public class Sys {
-
+	
 	private static final double NANOSECOND = 1e-9;
 
 	public Random rg;
@@ -22,6 +22,7 @@ public class Sys {
 
 	public AtomicLong uploadedBytes = new AtomicLong(1);
 	public AtomicLong downloadedBytes = new AtomicLong(1);
+	public String mainClass;
 
 	private String datacenter = "*";
 
@@ -39,17 +40,22 @@ public class Sys {
 
 	protected Sys() {
 		Sys = this;
+		
+		StackTraceElement[] sta = Thread.currentThread().getStackTrace();
+		mainClass = Thread.currentThread().getStackTrace()[sta.length-1].getClassName() + "@" + IP.localHostAddressString();
 		initInstance();
 	}
 
 	protected void initInstance() {
+		
 		rg = new Random();
 		scheduler = new TaskScheduler();
 		scheduler.start();
-		NetworkingImpl.init();
-//		Networking.setDefaultProvider( TransportProvider.NETTY_IO_TCP ) ;
 		KryoCatadupa.init();
-		KryoCRDTUtils.init();
+		KryoCRDTUtils.init();		
+		
+//		NetworkingImpl.Networking.setDefaultProvider( TransportProvider.NETTY_IO_TCP);
+		NetworkingImpl.init();
 	}
 
 	public void setDatacenter(String datacenter) {
@@ -66,7 +72,7 @@ public class Sys {
 
 	synchronized public static void init() {
 		if (Sys == null) {
-			Sys = new Sys();
+			new Sys();
 		}
 	}
 

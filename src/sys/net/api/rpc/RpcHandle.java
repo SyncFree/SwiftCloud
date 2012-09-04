@@ -86,15 +86,19 @@ public interface RpcHandle {
 	Endpoint remoteEndpoint();
 
 	/**
-	 * By default streaming replies for a given send operation are disabled,
-	 * only the first reply will be accepted.
+	 * By default deferred replies for a given send operation are disabled.
+	 * Only the first reply will be accepted.
+	 * 
+	 * This method allows multiple replies to the same send operation to be received. 
+	 * The reply handler will be hard referenced internally up to the given timeout. After that, it will be
+	 * held as a soft reference and can be reclaimed by the GC, causing late replies to be discarded.
 	 * 
 	 * @param flag
 	 *            - flag to control if accepting multiple replies for a send is
 	 *            enabled or disabled.
 	 * @return the handle that was modified.
 	 */
-	RpcHandle enableStreamingReplies(boolean flag);
+	RpcHandle enableDeferredReplies( int timeout);
 
 	/**
 	 * In blocking mode, this method returns the handle to the reply message.

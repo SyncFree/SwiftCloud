@@ -198,9 +198,8 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	 * Do periodic pair-wise membership (incremental) merge operations.
 	 */
 	double mergePeriod = Config.MEMBERSHIP_MERGE_PERIOD;
-
 	void repairCatadupa() {
-		repairTask = new Task(Sys.rg.nextDouble()) {
+		repairTask = new Task(mergePeriod + Sys.rg.nextDouble()) {
 			double backoff = 0.1;
 
 			@Override
@@ -221,16 +220,17 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 							backoff = 0.1;
 
 							Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + r.clock);
-							Log.finest("--DB---->" + db.membership);
+							Log.finest("--DB---->" + db.membership );
 
 							db.merge(r);
-							Collection<? extends Timestamp> ts = db.clock().delta(r.clock);
-							handle.reply( new DbMergeReply(db.clock(), db.membership.subSet(ts)));
+							Map<MembershipUpdate, Timestamp> delta = db.delta( r.clock) ;
+							if( delta.size() > 0 )
+								handle.reply(new DbMergeReply(db.clock(), delta));
 
 							mergePeriod = Math.min(45, Math.max(10, mergePeriod));
 							reSchedule(mergePeriod + Sys.rg.nextDouble());
 						}
-					});
+					}, 250);
 				}
 				reSchedule(mergePeriod + Sys.rg.nextDouble());
 			}
@@ -238,30 +238,22 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 	}
 
 	@Override
-	synchronized public void onReceive(RpcHandle handle, DbMergeRequest other) {
+	public void onReceive(RpcHandle handle, DbMergeRequest other) {
 
 		Log.finest(self.key + " MyClock:" + db.clock() + " OtherClock:" + other.clock);
 		Log.finest("---DB--->" + db.membership);
 
-		Collection<? extends Timestamp> ts = db.clock().delta(other.clock);
-
-		Log.finest("Stamps:" + ts);
-		Map<MembershipUpdate, Timestamp> delta = db.membership.subSet(ts);
-
+		Map<MembershipUpdate, Timestamp> delta = db.delta( other.clock ) ;
 		Log.finest("Delta:" + delta);
 
-		handle.reply( new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
+		handle.reply(new DbMergeReply(db.clock(), delta), new CatadupaHandler() {
 
 			@Override
 			public void onReceive(DbMergeReply r) {
 				db.merge(r);
-
-				mergePeriod *= r.delta != null ? 1.1 : 0.5;
-				mergePeriod = Math.min(45, Math.max(2.5, mergePeriod));
+				repairTask.reSchedule(mergePeriod + Sys.rg.nextDouble());
 			}
-		});
-
-		mergePeriod = Math.min(45, Math.max(10, mergePeriod));
+		}, 250);
 		repairTask.reSchedule(mergePeriod + Sys.rg.nextDouble());
 	}
 
@@ -300,9 +292,11 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
 	@Override
 	public void onNodeAdded(Node n) {
+		Thread.dumpStack();
 	}
 
 	@Override
 	public void onNodeRemoved(Node n) {
-	}	
+		Thread.dumpStack();
+	}
 }

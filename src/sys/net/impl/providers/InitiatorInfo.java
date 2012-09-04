@@ -1,18 +1,18 @@
 package sys.net.impl.providers;
 
 import sys.net.api.Endpoint;
-import sys.net.api.Message;
 import sys.net.api.MessageHandler;
 import sys.net.api.TransportConnection;
+import sys.net.impl.AbstractMessage;
 
-public class LocalEndpointExchange implements Message {
+public class InitiatorInfo extends AbstractMessage {
 
 	protected Endpoint local;
 
-	public LocalEndpointExchange() {
+	public InitiatorInfo() {
 	}
 
-	public LocalEndpointExchange(Endpoint local) {
+	public InitiatorInfo(Endpoint local) {
 		this.local = local;
 	}
 

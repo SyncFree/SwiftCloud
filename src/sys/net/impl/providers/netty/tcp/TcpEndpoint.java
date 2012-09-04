@@ -27,12 +27,17 @@ import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
+import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.providers.KryoBuffer;
-import sys.net.impl.providers.KryoBufferPool;
-import sys.net.impl.providers.LocalEndpointExchange;
+import sys.net.impl.NetworkingConstants.NIO_ReadBufferDispatchPolicy;
+import sys.net.impl.NetworkingConstants.NIO_ReadBufferPoolPolicy;
+import sys.net.impl.NetworkingConstants.NIO_WriteBufferPoolPolicy;
+import sys.net.impl.providers.KryoInputBuffer;
+import sys.net.impl.providers.BufferPool;
+import sys.net.impl.providers.InitiatorInfo;
+import sys.net.impl.providers.KryoOutputBuffer;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
@@ -41,14 +46,14 @@ import static sys.Sys.Sys;
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
 	ExecutorService bossExecutors, workerExecutors;
-	final KryoBufferPool writeBufferPool = new KryoBufferPool(64);
+	final BufferPool<KryoOutputBuffer> writePool;
 
 	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
 		this.localEndpoint = local;
-		this.gid = Sys.rg.nextLong();
-		
+		this.gid = Sys.rg.nextLong() >>> 1;
+
 		bossExecutors = Executors.newCachedThreadPool();
-		workerExecutors = Executors.newCachedThreadPool();
+		workerExecutors = Executors.newFixedThreadPool(32);
 
 		if (tcpPort >= 0) {
 			ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors, workerExecutors));
@@ -64,20 +69,24 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 			Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
 			super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
 			Log.finest("Bound to: " + this);
-		} else
+			writePool = new BufferPool<KryoOutputBuffer>(64);
+
+		} else {
 			super.setSocketAddress(0);
+			writePool = new BufferPool<KryoOutputBuffer>(4);
+		}
 	}
 
 	public void start() throws IOException {
 		handler = localEndpoint.getHandler();
 
-		while (this.writeBufferPool.remainingCapacity() > 0)
-			this.writeBufferPool.offer(new KryoBuffer());
+		while (this.writePool.remainingCapacity() > 0)
+			this.writePool.offer(new KryoOutputBuffer());
 
 	}
 
 	public TransportConnection connect(Endpoint remote) {
-		final OutgoingConnectionHandler res = new OutgoingConnectionHandler( remote );
+		final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
 		ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors, workerExecutors));
 		bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
 			public ChannelPipeline getPipeline() throws Exception {
@@ -99,6 +108,17 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		boolean failed;
 		Endpoint remote;
 		Throwable cause;
+		NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
+		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
+		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
+
+		final BufferPool<KryoInputBuffer> readPool;
+
+		AbstractConnection() {
+			readPool = new BufferPool<KryoInputBuffer>();
+			while (this.readPool.remainingCapacity() > 0)
+				this.readPool.offer(new KryoInputBuffer());
+		}
 
 		@Override
 		public boolean failed() {
@@ -106,17 +126,24 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		}
 
 		public boolean send(final Message msg) {
-			KryoBuffer outBuf = null;
+			KryoOutputBuffer outBuf = null;
 			try {
-				outBuf = writeBufferPool.take();
+				if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
+					outBuf = writePool.take();
+				else {
+					outBuf = writePool.poll();
+					if (outBuf == null)
+						outBuf = new KryoOutputBuffer();
+				}
 				outBuf.writeClassAndObjectFrame(msg);
-				channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer())).awaitUninterruptibly();
+				ChannelFuture fut = channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
+				fut.awaitUninterruptibly();
 				return true;
 			} catch (Throwable t) {
 				t.printStackTrace();
 			} finally {
 				if (outBuf != null)
-					writeBufferPool.offer(outBuf);
+					writePool.offer(outBuf);
 			}
 			return false;
 		}
@@ -144,13 +171,26 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		}
 
 		public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e) {
+
 			workerExecutors.execute(new Runnable() {
 				public void run() {
+					KryoInputBuffer inBuf = null;
 					try {
-						Message msg = KryoBuffer.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
+						if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
+							inBuf = readPool.take();
+						else {
+							inBuf = readPool.take();
+							if (inBuf == null)
+								inBuf = new KryoInputBuffer();
+						}
+
+						Message msg = inBuf.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
 						msg.deliverTo(AbstractConnection.this, handler);
 					} catch (Throwable t) {
 						t.printStackTrace();
+					} finally {
+						if (inBuf != null)
+							readPool.offer(inBuf);
 					}
 				}
 			});
@@ -172,6 +212,15 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		public void setRemoteEndpoint(Endpoint remote) {
 			this.remote = remote;
 		}
+
+		@Override
+		public boolean sendNow(Message m) {
+			throw new NetworkingException("Not Implemented...");
+		}
+
+		@Override
+		public void setOption(String op, Object value) {
+		}
 	}
 
 	class IncomingConnectionHandler extends AbstractConnection {
@@ -185,20 +234,20 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 		public OutgoingConnectionHandler(Endpoint remote) {
 			super.remote = remote;
 		}
-		
+
 		synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
 			channel = e.getChannel();
-			workerExecutors.execute( new Runnable() {
+			workerExecutors.execute(new Runnable() {
 				public void run() {
-					send(new LocalEndpointExchange(localEndpoint));					
+					send(new InitiatorInfo(localEndpoint));
 				}
 			});
+			Threading.synchronizedNotifyAllOn(this);
 			handler.onConnect(this);
-			Threading.synchronizedNotifyAllOn( this );
 		}
-		
+
 		public String toString() {
-			return "" + localEndpoint + " -> " + remote + ": " + channel.getLocalAddress() ;
+			return "" + localEndpoint + " -> " + remote + ": " + channel.getLocalAddress();
 		}
 	}
 

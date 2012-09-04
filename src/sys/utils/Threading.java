@@ -21,12 +21,27 @@ public class Threading {
 		return res;
 	}
 
-	static public Thread newThread(Runnable r, boolean daemon) {
+	static public Thread newThread(Runnable r, boolean daemon) {		
 		Thread res = new Thread(r);
 		res.setDaemon(daemon);
 		return res;
 	}
 
+	static public Thread newThread(String name, boolean daemon, Runnable r) {
+		Thread res = new Thread(r);
+		res.setName( name);
+		res.setDaemon(daemon);
+		return res;
+	}
+
+	static public Thread newThread(String name, Runnable r, boolean daemon) {		
+		Thread res = new Thread(r);
+		res.setName( name);
+		res.setDaemon(daemon);
+		return res;
+	}
+
+	
 	static public void sleep(int ms) {
 		try {
 			Thread.sleep(ms);

@@ -29,6 +29,8 @@ public class Task implements Comparable<Task> {
 	protected int seqN = g_seqN++;
 	private static int g_seqN;
 
+	protected double period;
+	
 	int queuePosition;
 
 	/**
@@ -59,6 +61,14 @@ public class Task implements Comparable<Task> {
 			owner.registerTask(this);
 	}
 
+	public Task(TaskOwner owner, double due, double period) {
+		this.owner = owner;
+		this.period = period;
+		
+		Scheduler.schedule(this, due);
+		if (owner != null)
+			owner.registerTask(this);
+	}
 	/*
 	 * (non-Javadoc)
 	 * 

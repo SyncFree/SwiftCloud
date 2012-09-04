@@ -1,5 +1,5 @@
 package sys;
 
 public enum RpcServices {
-	CATADUPA, DHT, PUBSUB, TITAN
+	SWIFT, CATADUPA, DHT, PUBSUB, SWIFT_SEQ, SWIFT_DS, TITAN
 }

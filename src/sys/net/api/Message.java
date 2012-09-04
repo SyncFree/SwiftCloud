@@ -24,4 +24,15 @@ public interface Message {
 	 */
 	void deliverTo(final TransportConnection conn, final MessageHandler handler);
 
+	/**
+	 * Records the size of the message after being de-or-serialized...Meant for gathering traffic statistics...
+	 * @param size - the length of the serialized representation of the message
+	 */
+	void setSize( int size ) ;
+	
+	/**
+	 * Retrieves the size of the message after being de-or-serialized...Meant for gathering traffic statistics...
+	 * @return
+	 */
+	int getSize() ;
 }

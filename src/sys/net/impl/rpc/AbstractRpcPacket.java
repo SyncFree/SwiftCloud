@@ -1,16 +1,20 @@
 package sys.net.impl.rpc;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
-import sys.net.api.MessageHandler;
 import sys.net.api.TransportConnection;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.rpc.RpcFactoryImpl.RpcPacket;
+import sys.net.impl.AbstractMessage;
 
-public abstract class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoint {
+abstract class AbstractRpcPacket extends AbstractMessage implements Message, RpcHandle, RpcEndpoint, KryoSerializable {
 
 	long handlerId; // destination service handler
 	long replyHandlerId; // reply handler, 0 = no reply expected.
@@ -25,15 +29,14 @@ public abstract class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoi
 
 	boolean failed = false;
 	Throwable failureCause;
-	boolean streamingIsEnabled = false;
 
-	volatile RpcPacket reply;
+	AbstractRpcPacket reply;
 
-	public AbstractRpcPacket() {
+	protected AbstractRpcPacket() {
 	}
 
-	public Endpoint remote() {
-		return remote;
+	final public Endpoint remote() {
+		return remote != null ? remote : conn.remoteEndpoint();
 	}
 
 	@Override
@@ -73,11 +76,6 @@ public abstract class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoi
 	}
 
 	@Override
-	public Endpoint localEndpoint() {
-		return null;
-	}
-
-	@Override
 	public RpcHandle send(Endpoint dst, RpcMessage m) {
 		return send(dst, m, null, 0);
 	}
@@ -100,9 +98,6 @@ public abstract class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoi
 		return (T) this;
 	}
 
-	public void deliverTo(TransportConnection conn, MessageHandler handler) {
-	}
-
 	@Override
 	public RpcMessage getPayload() {
 		return payload;
@@ -111,5 +106,19 @@ public abstract class AbstractRpcPacket implements Message, RpcHandle, RpcEndpoi
 	@Override
 	public RpcHandle getReply() {
 		return reply;
+	}
+
+	@Override
+	final public void read(Kryo kryo, Input input) {
+		this.handlerId = input.readLong();
+		this.replyHandlerId = input.readLong();
+		this.payload = (RpcMessage) kryo.readClassAndObject(input);
+	}
+
+	@Override
+	final public void write(Kryo kryo, Output output) {
+		output.writeLong(this.handlerId);
+		output.writeLong(this.replyHandlerId);
+		kryo.writeClassAndObject(output, payload);
 	}
 }

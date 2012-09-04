@@ -25,7 +25,7 @@ public class Log {
 	public static Logger Log;
 	public static LogFilter filter;
 
-	public static void setLevel(String packagePrefix, Level level) {
+	synchronized public static void setLevel(String packagePrefix, Level level) {
 		filter.setLevel(packagePrefix, level);
 	}
 
@@ -33,7 +33,7 @@ public class Log {
 		Log = Logger.getAnonymousLogger();
 		ConsoleHandler ch = new ConsoleHandler();
 		ch.setFormatter(new Formatter() {
-			final int TEXT_WIDTH = 100;
+			final int TEXT_WIDTH = 200;
 			final String padding = "                                               ";
 
 			@Override
@@ -64,7 +64,7 @@ public class Log {
 
 		for (int i = stack.length; --i >= 0;)
 			if (name.equals(stack[i].getClassName()))
-				return String.format("[%5s : %4d]", name, stack[i].getLineNumber());
+				return String.format("[%5s : %4d : %.4f]", name, stack[i].getLineNumber(), sys.Sys.Sys.currentTime() );
 		return "[]";
 	}
 
@@ -83,12 +83,12 @@ public class Log {
 
 		Map<String, Integer> resolved = new HashMap<String, Integer>();
 
-		public void setLevel(String regex, Level level) {
+		synchronized public void setLevel(String regex, Level level) {
 			levels.put(regex, level);
 		}
 
 		@Override
-		public boolean isLoggable(LogRecord r) {
+		synchronized public boolean isLoggable(LogRecord r) {
 			String className = r.getSourceClassName();
 			Integer level = resolved.get(className);
 			if (level == null) {

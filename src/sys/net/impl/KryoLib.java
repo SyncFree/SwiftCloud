@@ -1,99 +1,144 @@
 package sys.net.impl;
 
-import java.nio.ByteBuffer;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
+
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
-import com.esotericsoftware.kryo.serialize.SimpleSerializer;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 import sys.dht.api.StringKey;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
-import sys.net.api.CustomKryoSerializer;
-import sys.net.impl.providers.LocalEndpointExchange;
-import sys.net.impl.providers.nio.TcpEndpoint;
+import sys.net.impl.providers.InitiatorInfo;
+import sys.net.impl.rpc.RpcPacket;
 
 public class KryoLib {
 
-	public static <T> void register(Class<T> cl) {
-		if (kryo == null)
-			registry.put(cl, null);
-		else
-			kryo.register(cl);
+	static Kryo kryo = new Kryo();
+	
+	synchronized  public static <T> T copy( T obj ) {
+		return kryo.copy( obj ) ;
 	}
 
-	public static void register(Class<?> cl, Serializer serializer) {
-		if (kryo == null)
-			registry.put(cl, serializer);
-		else
-			kryo.register(cl, serializer);
+	synchronized public static <T> T copyShallow( T obj ) {
+		return kryo.copyShallow( obj ) ;
 	}
 
 	synchronized public static Kryo kryo() {
-		if (kryo == null) {
-			kryo = new Kryo();
-			for (Map.Entry<Class<?>, Serializer> i : registry.entrySet()) {
-				if (i.getValue() == null)
-					kryo.register(i.getClass());
-				else
-					kryo.register(i.getKey(), i.getValue());
+		Kryo res = new _Kryo(registry);
+		for (_Registration i : registry)
+			if (i.ser != null)
+				res.register(i.cl, i.ser, i.id);
+			else
+				res.register(i.cl, i.id);
+
+//		res.setInstantiatorStrategy(new StdInstantiatorStrategy());
+		res.setReferences(false);
+		return res;
+	}
+
+	synchronized public static void register(Class<?> cl, int id) {
+		for( _Registration i : registry )
+			if( i.id == id ) {
+				System.err.println("Already Registered..." + id );
+				Thread.dumpStack();
 			}
-			kryo.setRegistrationOptional(true);
+		registry.add(new _Registration(cl, null, id));
+	}
+
+	synchronized public static <T> void register(Class<T> cl, Serializer<? super T> serializer, int id) {
+		for( _Registration i : registry )
+			if( i.id == id ) {
+				System.err.println("Already Registered..." + id );
+				Thread.dumpStack();
+			}
+		registry.add(new _Registration(cl, serializer, id));
+	}
+
+	synchronized public static void init() {
+		
+		register(LocalEndpoint.class, new Serializer<AbstractEndpoint>() {
+
+			@Override
+			final public AbstractEndpoint read(Kryo kryo, Input input, Class<AbstractEndpoint> arg2) {
+				return new RemoteEndpoint(input.readLong(), input.readLong());
+			}
+
+			@Override
+			final public void write(Kryo kryo, Output output, AbstractEndpoint val) {
+				output.writeLong(val.locator);
+				output.writeLong(val.gid);
+			}
+
+		}, 0x20);
+		register(RemoteEndpoint.class, new Serializer<AbstractEndpoint>() {
+
+			@Override
+			final public AbstractEndpoint read(Kryo kryo, Input input, Class<AbstractEndpoint> arg2) {
+				return new RemoteEndpoint(input.readLong(), input.readLong());
+			}
+
+			@Override
+			final public void write(Kryo kryo, Output output, AbstractEndpoint val) {
+				output.writeLong(val.locator);
+				output.writeLong(val.gid);
+			}
+
+		}, 0x21);
+		
+		
+		register(RpcPacket.class, 0x22);
+		register(InitiatorInfo.class, 0x23);
+		register(DHT_Request.class, 0x24);
+		register(DHT_RequestReply.class, 0x25);
+		register(StringKey.class, 0x26);
+
+	}
+
+	static class _Registration implements Comparable<_Registration>{
+
+		int id;
+		Class<?> cl;
+		Serializer<?> ser;
+
+		_Registration(Class<?> cl, Serializer<?> ser, int id) {
+			this.cl = cl;
+			this.ser = ser;
+			this.id = id;
 		}
-		return kryo;
+		
+		public String toString() {
+			return String.format("<%s, %d>", cl.getSimpleName(), id);
+		}
+
+		public int hashCode() {
+			return id;
+		}
+		
+		public boolean equals( Object other ) {
+			return other != null && ((_Registration)other).id == id;
+		}
+		
+		@Override
+		public int compareTo(_Registration other) {
+			return id - other.id ;
+		}
 	}
-
-	public static void init() {
-
-		register(LocalEndpoint.class, new SimpleSerializer<AbstractEndpoint>() {
-			@Override
-			public void write(ByteBuffer buffer, AbstractEndpoint ep) {
-				buffer.putLong(ep.locator);
-				buffer.putLong(ep.gid);
-			}
-
-			@Override
-			public AbstractEndpoint read(ByteBuffer buffer) {
-				return new RemoteEndpoint(buffer.getLong(), buffer.getLong());
-			}
-		});
-
-		register(RemoteEndpoint.class, new SimpleSerializer<AbstractEndpoint>() {
-
-			@Override
-			public void write(ByteBuffer buffer, AbstractEndpoint ep) {
-				buffer.putLong(ep.locator);
-				buffer.putLong(ep.gid);
-			}
-
-			@Override
-			public AbstractEndpoint read(ByteBuffer buffer) {
-				return new RemoteEndpoint(buffer.getLong(), buffer.getLong());
-			}
-		});
-		register(LocalEndpointExchange.class);
-
-		register(DHT_Request.class);
-		register(DHT_RequestReply.class);
-		register(StringKey.class);
+	
+	private static Set<_Registration> registry = new HashSet<_Registration>();
+	
+	static class _Kryo extends Kryo {
+		SortedSet<_Registration> _registrations;
+		
+		_Kryo( Set<_Registration> rs ) {
+			_registrations = new TreeSet<_Registration>( rs ) ;
+		}
+		
+		public String toString() {
+			return _registrations.toString();
+		}
 	}
-
-	// public static void autoRegister( String packagePrefix ) {
-	// for( Package p : Package.getPackages() ) {
-	// System.out.println( p.getName() );
-	// if( p.getName().startsWith( packagePrefix ) )
-	// for( Class<?> c : p.getClass().getClasses() ) ;
-	// }
-	// }
-	//
-	// private static void processClasse( Class<?> c ) {
-	// if(c.isInstance( CustomKryoSerializer.class) ) {
-	// System.out.println(c);
-	// }
-	// }
-
-	public static Kryo kryo = null;
-	private static Map<Class<?>, Serializer> registry = new LinkedHashMap<Class<?>, Serializer>();
 }

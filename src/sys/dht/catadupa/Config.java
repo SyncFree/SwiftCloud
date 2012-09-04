@@ -15,7 +15,7 @@ abstract public class Config {
 	public double CATADUPA_LOAD_BALANCE_FACTOR = 1e10;
 
 	public double JOIN_ATTEMPT_PERIOD = 10.0;
-	public double MEMBERSHIP_MERGE_PERIOD = 15.0;
+	public double MEMBERSHIP_MERGE_PERIOD = 10.0;
 	public double SEQUENCER_BROADCAST_PERIOD = 5.0;
 
 	public int PUBSUB_MAX_FANOUT = 3;

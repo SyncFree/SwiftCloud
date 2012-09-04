@@ -27,4 +27,13 @@ public class FailedTransportConnection extends AbstractTransport {
 	public Throwable causeOfFailure() {
 		return cause;
 	}
+
+	@Override
+	public boolean sendNow(Message m) {
+		return false;
+	}
+	
+	public String toString() {
+		return "Broken";
+	}
 }

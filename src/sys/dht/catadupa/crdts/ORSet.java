@@ -18,11 +18,11 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 
 	Set<Timestamp> tomb;
 	Map<V, Set<Timestamp>> e2t;
-	Map<Timestamp, Set<V>> t2e;
+	Map<Timestamp, V> t2v;
 
 	public ORSet() {
 		e2t = new HashMap<V, Set<Timestamp>>();
-		t2e = new HashMap<Timestamp, Set<V>>();
+		t2v = new HashMap<Timestamp, V>();
 		tomb = new HashSet<Timestamp>();
 	}
 
@@ -48,17 +48,16 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 
 	@Override
 	public boolean add(V v, Timestamp t) {
-		get(t).add(v);
+		t2v.put( t, v );
 		return get(v).add(t);
 	}
 
 	@Override
 	public boolean remove(Object o) {
-		Set<Timestamp> s = e2t.get(o);
+		Set<Timestamp> s = e2t.remove(o);
 		if (s != null) {
 			tomb.addAll(s);
-			e2t.remove(o);
-			t2e.keySet().removeAll(s);
+			t2v.keySet().removeAll(s);
 		}
 		return false;
 	}
@@ -79,7 +78,7 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 			tomb.addAll(i.getValue());
 		}
 		e2t.clear();
-		t2e.clear();
+		t2v.clear();
 	}
 
 	@Override
@@ -109,36 +108,28 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 			V v = e.getKey();
 			for (Timestamp t : e.getValue())
 				if (!tomb.contains(t)) {
-					Set<Timestamp> s = get(v);
-					if (s.isEmpty())
+					if( get(v).add(t) )
 						added.add(v);
-
-					s.add(t);
-					get(t).add(v);
+					t2v.put( t, v);
 				}
 		}
 
 		for (Timestamp t : newTombs) {
-			Set<V> vs = t2e.remove(t);
-			if (vs != null)
-				for (Iterator<V> it = vs.iterator(); it.hasNext();) {
-					V v = it.next();
-					Set<Timestamp> ts = get(v);
-					ts.remove(t);
-					if (ts.isEmpty()) {
-						it.remove();
-						removed.add(v);
-					}
-				}
+			V v = t2v.remove(t);
+			if( v != null )
+				removed.add(v);
 		}
+		
 		Log.finest("Added:" + added + " " + "Removed:" + removed);
 	}
 
 	public Map<V, Timestamp> subSet(Collection<? extends Timestamp> timestamps) {
 		Map<V, Timestamp> res = new HashMap<V, Timestamp>();
-		for (Timestamp t : timestamps)
-			for (V v : t2e.get(t))
-				res.put(v, t);
+		for (Timestamp t : timestamps) {
+			V v = t2v.get(t);
+			if( v != null )
+				res.put( v, t);
+		}
 		return res;
 	}
 
@@ -149,12 +140,12 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 		return s;
 	}
 
-	private Set<V> get(Timestamp t) {
-		Set<V> s = t2e.get(t);
-		if (s == null)
-			t2e.put(t, s = new HashSet<V>());
-		return s;
-	}
+//	private Set<V> get(Timestamp t) {
+//		Set<V> s = t2e.get(t);
+//		if (s == null)
+//			t2e.put(t, s = new HashSet<V>());
+//		return s;
+//	}
 
 	@Override
 	public String toString() {
@@ -183,7 +174,7 @@ public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 		@Override
 		public void remove() {
 			tomb.addAll(curr.getValue());
-			t2e.entrySet().remove(curr.getValue());
+			t2v.entrySet().remove(curr.getValue());
 			it.remove();
 		}
 	}

@@ -4,7 +4,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 
-import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.TransportConnection;

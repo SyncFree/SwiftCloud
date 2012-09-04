@@ -4,11 +4,14 @@ import static sys.utils.Log.Log;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import sys.Sys;
 import sys.utils.Threading;
 
 /**
@@ -19,13 +22,8 @@ import sys.utils.Threading;
  * @param <T>
  */
 public class RT_Scheduler<T extends Task> extends VT_Scheduler<T> {
-	private static final int MAX_IDLE_IMEOUT = 30;
-	private static final int CORE_POOL_THREADS = 32;
-	private static final int MAX_POOL_THREADS = 64;
 
-	BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(256);
-	BlockingQueue<Runnable> holdQueue2 = new LinkedBlockingQueue<Runnable>();
-	ThreadPoolExecutor threadPool = new ThreadPoolExecutor(CORE_POOL_THREADS, MAX_POOL_THREADS, MAX_IDLE_IMEOUT, TimeUnit.SECONDS, holdQueue);
+	ExecutorService threadPool = Executors.newCachedThreadPool();
 
 	protected RT_Scheduler() {
 		super();
@@ -66,24 +64,10 @@ public class RT_Scheduler<T extends Task> extends VT_Scheduler<T> {
 	@Override
 	public void start() {
 		Log.fine("Task scheduler starting...");
-
-		threadPool.prestartAllCoreThreads();
-		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-		Threading.newThread(this, false).start();
-
-		new PeriodicTask(0.0, 5.0) {
-			public void run() {
-				// Log.finest("Scheduler.executorPool: " +
-				// threadPool.getActiveCount() + " / " +
-				// threadPool.getPoolSize() + " / " +
-				// threadPool.getMaximumPoolSize() + " / " +
-				// threadPool.getQueue().size() );
-			}
-		};
-
+		Threading.newThread("scheduler-dispatcher", this, false).start();
 	}
 
-	final double MIN_WAIT = 0.001;
+	final double MIN_WAIT = 0.005;
 
 	@Override
 	public void run() {
@@ -91,9 +75,9 @@ public class RT_Scheduler<T extends Task> extends VT_Scheduler<T> {
 		while (!stopped) {
 
 			synchronized (queue) {
-				double w = 1;
+				double w = 1.0;
 				while (queue.isEmpty() || (w = queue.peek().due - rt_now()) > MIN_WAIT)
-					Threading.waitOn(queue, 1 + (int) (750 * w));
+					Threading.waitOn(queue, (int) (1000 * w));
 
 				threadPool.execute(new Runnable() {
 					Task t = queue.remove();
@@ -109,10 +93,6 @@ public class RT_Scheduler<T extends Task> extends VT_Scheduler<T> {
 
 	public void executeTask(Task task) {
 		if (task != null && !task.isCancelled) {
-			double w = task.due - rt_now();
-			if (w > MIN_WAIT)
-				Threading.sleep((int) (1000 * w));
-
 			try {
 				task.reset();
 				task.run();

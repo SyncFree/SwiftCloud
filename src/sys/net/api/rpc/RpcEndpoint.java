@@ -20,11 +20,11 @@ public interface RpcEndpoint {
 
 	/**
 	 * 
-	 * Allows sending an invocation message to a (listening) destination
+	 * Sends an invocation message to a (listening) destination
 	 * endpoint
 	 * 
 	 * @param dst
-	 *            the destination of the invocation message
+	 *            the destination of the invocation message, blocking until the message is written to the underlying channel.
 	 * @param m
 	 *            the message being sent
 	 * @return the handle associated for the message
@@ -32,8 +32,8 @@ public interface RpcEndpoint {
 	RpcHandle send(final Endpoint dst, final RpcMessage m);
 
 	/**
-	 * Allows sending an invocation message to a (listening) destination
-	 * endpoint, blocking until a reply is received.
+	 * Sends an invocation message to a (listening) destination
+	 * endpoint, blocking until a reply is received (or the default timeout expires).
 	 * 
 	 * @param dst
 	 *            the destination of the invocation message
@@ -46,7 +46,7 @@ public interface RpcEndpoint {
 	RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler);
 
 	/**
-	 * Allows sending an invocation message to a (listening) destination
+	 * Sends an invocation message to a (listening) destination
 	 * endpoint, blocking until a reply is received or the timeout expires.
 	 * 
 	 * @param dst
@@ -64,7 +64,7 @@ public interface RpcEndpoint {
 	RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler, int timeout);
 
 	/**
-	 * Allows setting the handler responsible for processing incoming invocation
+	 * Sets the handler responsible for processing incoming invocation
 	 * messages
 	 * 
 	 * @param handler
@@ -72,4 +72,5 @@ public interface RpcEndpoint {
 	 * @return itself
 	 */
 	<T extends RpcEndpoint> T setHandler(final RpcHandler handler);
+	
 }

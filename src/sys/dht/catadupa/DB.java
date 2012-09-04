@@ -7,6 +7,7 @@ import static sys.utils.Log.Log;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
@@ -48,6 +49,22 @@ public class DB {
 			k2n.put(i.key, i);
 	}
 
+	public long ordinalKey() {
+		int o = 0, t = 0;
+		for( Node i : k2n.values() )
+			if( i.isOnline() ) {
+				t++;
+			}
+				
+		for( Node i : k2n.values() )
+			if( i.isOnline() )
+				if( i.key != self.key )
+					o++;
+				else
+					break;
+		
+		return (MAX_KEY / t) * o ;
+	}
 	// public void merge( DbMergeReply r ) {
 	// if( r.delta != null ) {
 	// clock().merge( r.clock ) ;
@@ -71,6 +88,12 @@ public class DB {
 		}
 	}
 
+	synchronized Map<MembershipUpdate, Timestamp> delta( LVV otherClock ) {
+		Collection<? extends Timestamp> ts = clock().delta(otherClock);
+		Log.finest("Missing stamps: " + ts);
+		return membership.subSet(ts);
+	}
+	
 	synchronized public Timestamp merge(MembershipUpdate m) {
 		Timestamp ts = rt.recordUpdate(membership);
 		membership.add(m, ts);
@@ -85,10 +108,10 @@ public class DB {
 	synchronized void mergeNodes(MembershipUpdate m) {
 		for (Node i : m.arrivals) {
 			Node old = k2n.put(i.key, i);
-
 			if (!joined) {
 				joined |= i.key == self.key;
 				if (joined) {
+					owner.onNodeAdded( self );
 					Log.fine("Joined Catadupa....");
 				}
 			}

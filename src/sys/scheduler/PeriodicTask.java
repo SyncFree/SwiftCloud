@@ -21,7 +21,6 @@ package sys.scheduler;
  */
 public class PeriodicTask extends Task {
 
-	protected double period;
 	protected double jitter;
 
 	/**
@@ -74,9 +73,8 @@ public class PeriodicTask extends Task {
 	 *            fraction.
 	 */
 	public PeriodicTask(TaskOwner owner, double due, double period, double jitter) {
-		super(owner, due);
+		super(owner, due, period);
 		this.jitter = jitter;
-		this.period = period;
 	}
 
 	@Override

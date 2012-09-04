@@ -5,6 +5,10 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import sys.net.api.Endpoint;
 import sys.net.api.MessageHandler;
 
@@ -92,15 +96,12 @@ abstract public class AbstractEndpoint implements Endpoint {
 
 	@Override
 	public String toString() {
-		return sockAddress.getAddress().getHostAddress() + ":" + sockAddress.getPort() + (gid == 0L ? "" : "/" + Long.toString(gid, 32));
+		if( sockAddress != null )
+			return sockAddress.getAddress().getHostAddress() + ":" + sockAddress.getPort() + (gid == 0L ? "" : "/" + Long.toString(gid, 32));
+		else
+			return "?????????????????????";
 	}
 
-	/**
-	 * Obtains the endpoint locator, ie., an opaque and compact representation
-	 * of the endpoint. Used to serialized endpoints.
-	 * 
-	 * @return the locator for this endpoint
-	 */
 	@SuppressWarnings("unchecked")
 	public <T> T gid() {
 		return (T) new Long(gid);
@@ -118,5 +119,15 @@ abstract public class AbstractEndpoint implements Endpoint {
 			e.printStackTrace();
 		}
 		return null;
+	}
+
+	final public void write(Kryo kryo, Output output) {
+		output.writeLong( this.locator);
+		output.writeLong( this.gid );
+	}
+
+	final public void read(Kryo kryo, Input input) {
+		this.locator = input.readLong();
+		this.gid = input.readLong();
 	}
 }

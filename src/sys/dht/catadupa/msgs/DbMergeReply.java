@@ -14,15 +14,9 @@ import sys.dht.catadupa.crdts.time.Timestamp;
 public class DbMergeReply implements RpcMessage {
 
 	public LVV clock;
-	// public ORSet<MembershipUpdate> delta;
 	public Map<MembershipUpdate, Timestamp> delta;
 
 	DbMergeReply() {
-	}
-
-	public DbMergeReply(LVV clock, ORSet<MembershipUpdate> delta) {
-		this.clock = clock;
-		// this.delta = delta.isEmpty() ? null : delta;
 	}
 
 	public DbMergeReply(LVV clock, Map<MembershipUpdate, Timestamp> delta) {

@@ -18,10 +18,11 @@ import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.utils.Threading;
+import static sys.net.impl.NetworkingConstants.*;
 
 public class DHT_ClientStub implements DHT {
-	private static final int RETRIES = 5;
-	private static final int TIMEOUT = 100;
+//	private static final int RETRIES = 3;
+//	private static final int TIMEOUT = 100;
 	
 	Endpoint dhtEndpoint;
 	RpcEndpoint myEndpoint;
@@ -69,11 +70,11 @@ public class DHT_ClientStub implements DHT {
 		return ref.get();
 	}
 
-	public DHT_RequestReply send( final Endpoint dst, final DHT_Request req) {		
+	public DHT_RequestReply send( final Endpoint dst, final DHT_Request req) {	
 		final AtomicInteger delay = new AtomicInteger(50);
 		final AtomicReference<Endpoint> dhtNode = new AtomicReference<Endpoint>( dst );
 		final AtomicReference<DHT_RequestReply> ref = new AtomicReference<DHT_RequestReply>(null);
-		for( int i = 0; i < RETRIES ; i++ ) {
+		for( int i = 0; i < DHT_CLIENT_RETRIES ; i++ ) {
 			myEndpoint.send( dhtNode.get(), req, new DHT_StubHandler() {
 				
 				public void onFailure( RpcHandle handle ) {
@@ -89,7 +90,7 @@ public class DHT_ClientStub implements DHT {
 					Log.finest(String.format("Got redirection for key: %s to %s", req.key, reply.endpoint ));
 				}
 				
-			}, TIMEOUT);
+			}, DHT_CLIENT_TIMEOUT);
 			if( ref.get() != null )
 				break;
 			else

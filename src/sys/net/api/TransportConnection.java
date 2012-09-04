@@ -33,6 +33,16 @@ public interface TransportConnection {
 	boolean send(final Message m);
 
 	/**
+	 * Sends a message using this connection, as soon as possible...
+	 * 
+	 * @param m
+	 *            the message being sent
+	 * @return false if an error occurred; true if no error occurred.
+	 */
+	boolean sendNow(final Message m);
+
+	
+	/**
 	 * Blocks until a message is received from this connection
 	 * 
 	 * @return the message received
@@ -58,4 +68,9 @@ public interface TransportConnection {
 	 * @return the cause for the connection failure.
 	 */
 	Throwable causeOfFailure();	
+	
+	/**
+	 * 
+	 */
+	void setOption(String op, Object value);
 }

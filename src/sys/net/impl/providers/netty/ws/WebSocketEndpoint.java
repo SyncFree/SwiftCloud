@@ -43,26 +43,31 @@ import org.jboss.netty.handler.codec.http.websocketx.WebSocketVersion;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
+import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.providers.KryoBuffer;
-import sys.net.impl.providers.KryoBufferPool;
-import sys.net.impl.providers.LocalEndpointExchange;
+import sys.net.impl.NetworkingConstants.NIO_ReadBufferDispatchPolicy;
+import sys.net.impl.NetworkingConstants.NIO_ReadBufferPoolPolicy;
+import sys.net.impl.NetworkingConstants.NIO_WriteBufferPoolPolicy;
+import sys.net.impl.providers.KryoInputBuffer;
+import sys.net.impl.providers.BufferPool;
+import sys.net.impl.providers.InitiatorInfo;
+import sys.net.impl.providers.KryoOutputBuffer;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
 public class WebSocketEndpoint extends AbstractLocalEndpoint {
 
 	ExecutorService bossExecutors, workerExecutors;
-	final KryoBufferPool writeBufferPool = new KryoBufferPool(16);
+	final BufferPool<KryoOutputBuffer> writePool;
 
 	public WebSocketEndpoint(Endpoint local, int tcpPort) throws IOException {
 		this.localEndpoint = local;
 		this.gid = Sys.rg.nextLong();
 
 		bossExecutors = Executors.newCachedThreadPool();
-		workerExecutors = Executors.newCachedThreadPool();
+		workerExecutors = Executors.newFixedThreadPool(8);
 
 		if (tcpPort >= 0) {
 			ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors, workerExecutors));
@@ -73,16 +78,18 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			bootstrap.setOption("child.keepAlive", true);
 			Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
 			super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
-		} else
+			writePool = new BufferPool<KryoOutputBuffer>(64);
+		} else {
 			super.setSocketAddress(0);
+			writePool = new BufferPool<KryoOutputBuffer>(4);
+		}
 	}
 
 	public void start() throws IOException {
 		handler = localEndpoint.getHandler();
 
-		while (this.writeBufferPool.remainingCapacity() > 0)
-			this.writeBufferPool.offer(new KryoBuffer());
-
+		while (this.writePool.remainingCapacity() > 0)
+			this.writePool.offer(new KryoOutputBuffer());
 	}
 
 	public TransportConnection connect(Endpoint remote) {
@@ -109,11 +116,14 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 			});
 
 			// Connect
-			ChannelFuture future = bootstrap.connect(rAddr).awaitUninterruptibly().rethrowIfFailed();
-			ch = future.getChannel();
-			handshaker.handshake(ch);
-			Threading.synchronizedWaitOn(outgoing, 5000);
-			return outgoing;
+			ChannelFuture future = bootstrap.connect(rAddr).awaitUninterruptibly();
+			if (future.isSuccess()) {
+				ch = future.getChannel();
+				handshaker.handshake(ch);
+				Threading.synchronizedWaitOn(outgoing, 5000);
+				return outgoing;
+			} else
+				throw new NetworkingException( future.getCause() ) ;
 		} catch (Exception x) {
 			x.printStackTrace();
 		}
@@ -137,6 +147,17 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		Channel channel;
 		boolean failed;
 		Endpoint remote;
+		NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
+		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
+		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
+
+		final BufferPool<KryoInputBuffer> readPool;
+
+		AbstractConnection() {
+			readPool = new BufferPool<KryoInputBuffer>();
+			while (this.readPool.remainingCapacity() > 0)
+				this.readPool.offer(new KryoInputBuffer());
+		}
 
 		@Override
 		public boolean failed() {
@@ -144,18 +165,23 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		}
 
 		public boolean send(final Message msg) {
-			KryoBuffer outBuf = null;
+			KryoOutputBuffer outBuf = null;
 			try {
-				outBuf = writeBufferPool.take();
-				outBuf.writeClassAndObject(msg);
-				WebSocketFrame frame = new BinaryWebSocketFrame(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
-				channel.write(frame).awaitUninterruptibly();
+				if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
+					outBuf = writePool.take();
+				else {
+					outBuf = writePool.poll();
+					if (outBuf == null)
+						outBuf = new KryoOutputBuffer();
+				}
+				outBuf.writeClassAndObjectFrame(msg);
+				channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
 				return true;
 			} catch (Throwable t) {
 				t.printStackTrace();
 			} finally {
 				if (outBuf != null)
-					writeBufferPool.offer(outBuf);
+					writePool.offer(outBuf);
 			}
 			return false;
 		}
@@ -184,13 +210,22 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		protected void handleWebSocketFrame(final ChannelHandlerContext ctx, final WebSocketFrame frame) {
 			workerExecutors.execute(new Runnable() {
 				public void run() {
+					KryoInputBuffer inBuf = null;
 					try {
-						ChannelBuffer buffer = frame.getBinaryData();
-						Message msg = KryoBuffer.readClassAndObject(buffer.toByteBuffer());
-						if (msg != null)
-							msg.deliverTo(AbstractConnection.this, handler);
+						if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
+							inBuf = readPool.take();
+						else {
+							inBuf = readPool.take();
+							if (inBuf == null)
+								inBuf = new KryoInputBuffer();
+						}
+						Message msg = inBuf.readClassAndObject(frame.getBinaryData().toByteBuffer());
+						msg.deliverTo(AbstractConnection.this, handler);
 					} catch (Throwable t) {
 						t.printStackTrace();
+					} finally {
+						if (inBuf != null)
+							readPool.offer(inBuf);
 					}
 				}
 			});
@@ -218,6 +253,17 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 
 		public void setRemoteEndpoint(Endpoint remote) {
 			this.remote = remote;
+		}
+
+		@Override
+		public boolean sendNow(Message m) {
+			throw new NetworkingException("Not Implemented...");
+		}
+
+		@Override
+		public void setOption(String op, Object value) {
+			// TODO Auto-generated method stub
+
 		}
 	}
 
@@ -257,7 +303,7 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 		OutgoingWebSocketHandler(Endpoint remote, WebSocketClientHandshaker handshaker) {
 			this.handshaker = handshaker;
 			this.remote = remote;
-			
+
 		}
 
 		public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
@@ -271,12 +317,12 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 				super.handleWebSocketFrame(ctx, (WebSocketFrame) e.getMessage());
 			else {
 				handshaker.finishHandshake(e.getChannel(), (HttpResponse) e.getMessage());
-				workerExecutors.execute( new Runnable() {
+				workerExecutors.execute(new Runnable() {
 					public void run() {
-						send(new LocalEndpointExchange(localEndpoint));					
+						send(new InitiatorInfo(localEndpoint));
 					}
 				});
-				Threading.synchronizedNotifyAllOn( this );
+				Threading.synchronizedNotifyAllOn(this);
 			}
 		}
 	}
