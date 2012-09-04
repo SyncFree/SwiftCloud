@@ -253,20 +253,24 @@ public class SwiftImpl implements Swift, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(
-                        "getLatestCommittedClock", deadlineMillis) {
+                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(false, deadlineMillis) {
+                	
+                	public String toString() {
+                		return "LatestKnownClockRequest";
+                	}
+                	
                     @Override
                     protected Boolean callOrFailWithNull() {
-                        final AtomicBoolean doneFlag = new AtomicBoolean(false);
                         localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
                                 new LatestKnownClockReplyHandler() {
                                     @Override
                                     public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
                                         updateCommittedVersion(reply.getClock());
-                                        doneFlag.set(true);
+                                        setResult(true);
                                     }
                                 }, Math.min(timeoutMillis, getDeadlineLeft()));
-                        return doneFlag.get();
+                        
+                        return super.getResult();
                     }
                 });
 
@@ -533,18 +537,22 @@ public class SwiftImpl implements Swift, TxnManager {
             WrongTypeException {
         FetchObjectVersionReply reply;
         do {
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(
-                    "fetchObjectVersion", deadlineMillis) {
-                @Override
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(null, deadlineMillis) {
+
+            	public String toString() {
+            		return "FetchObjectVersionRequest";
+            	}
+
+            	
+            	@Override
                 protected FetchObjectVersionReply callOrFailWithNull() {
-                    final AtomicReference<FetchObjectVersionReply> replyRef = new AtomicReference<FetchObjectVersionReply>();
                     localEndpoint.send(serverEndpoint, fetchRequest, new FetchObjectVersionReplyHandler() {
                         @Override
                         public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
-                            replyRef.set(reply);
+                            setResult(reply);
                         }
-                    }, Math.min(timeoutMillis, getDeadlineLeft()));
-                    return replyRef.get();
+                    }, Math.min(timeoutMillis, getDeadlineLeft())).enableDeferredReplies(30000) ;
+                    return getResult();
                 }
             });
             if (reply == null) {
@@ -909,18 +917,22 @@ public class SwiftImpl implements Swift, TxnManager {
             final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>(
                     txn.getAllGlobalOperations());
             // Commit at server.
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>("commitToStore") {
-                @Override
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>(null) {
+                
+            	public String toString() {
+            		return "CommitUpdatesRequest";
+            	}
+            	
+            	@Override
                 protected CommitUpdatesReply callOrFailWithNull() {
-                    final AtomicReference<CommitUpdatesReply> commitReplyRef = new AtomicReference<CommitUpdatesReply>();
                     localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, txn.getGlobalTimestamp(),
                             operationsGroups), new CommitUpdatesReplyHandler() {
                         @Override
                         public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
-                            commitReplyRef.set(reply);
+                            setResult(reply);
                         }
                     }, timeoutMillis);
-                    return commitReplyRef.get();
+                    return super.getResult();
                 }
             });
         } while (reply.getStatus() == CommitStatus.INVALID_TIMESTAMP);
@@ -944,23 +956,27 @@ public class SwiftImpl implements Swift, TxnManager {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         final GenerateTimestampReply reply = retryableTaskExecutor
-                .execute(new CallableWithDeadline<GenerateTimestampReply>("assignGlobalTimestamp") {
-                    @Override
+                .execute(new CallableWithDeadline<GenerateTimestampReply>(null) {
+                	
+                	public String toString() {
+                		return "GenerateTimestampRequest";
+                	}
+                	
+                	@Override
                     protected GenerateTimestampReply callOrFailWithNull() {
-                        final AtomicReference<GenerateTimestampReply> replyRef = new AtomicReference<GenerateTimestampReply>();
                         localEndpoint.send(
                                 serverEndpoint,
                                 new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(), txn
                                         .getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
                                     @Override
                                     public void onReceive(RpcHandle conn, GenerateTimestampReply reply) {
-                                        replyRef.set(reply);
+                                        setResult(reply);
                                     }
                                 }, timeoutMillis);
-                        return replyRef.get();
+                        return super.getResult();
                     }
                 });
-
+        
         // And replace old timestamp in operations with timestamp from server.
         txn.setGlobalTimestamp(reply.getTimestamp());
     }
