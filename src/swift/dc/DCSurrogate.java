@@ -579,10 +579,9 @@ class ClientPubInfo {
 
     synchronized void dumpNewUpdates(RpcHandle conn, FastRecentUpdatesRequest request, CausalityClock clk) {
         this.conn = conn;
-        this.conn.enableStreamingReplies(true); //smd
         
         replyTime = Math.min(replyTime, System.currentTimeMillis() + request.getMaxBlockingTimeMillis());
-        if (hasUpdates)
+        if (hasUpdates) //smd - what's the protocol? client is using exponential backoff waiting for reply...but server does not send them always...
             dumpNotifications(clk);
     }
 
