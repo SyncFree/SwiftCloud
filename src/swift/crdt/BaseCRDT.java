@@ -152,9 +152,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected abstract Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock);
 
     public V copy() {
-//        final Kryo kryo = KryoLib.kryo();
-//        final ObjectBuffer objectBuffer = new ObjectBuffer(kryo);
-//        final V copy = (V) objectBuffer.readClassAndObject(objectBuffer.writeClassAndObject(this));
         final V copy = (V)KryoLib.copy( this ) ;
         copy.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
         return copy;
