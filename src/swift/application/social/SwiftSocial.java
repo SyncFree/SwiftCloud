@@ -209,6 +209,7 @@ public class SwiftSocial {
     }
 
     // FIXME return error code?
+    @SuppressWarnings("unchecked")
     void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);

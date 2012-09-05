@@ -4,16 +4,16 @@ import java.util.Set;
 
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.CRDTIdentifier;
 import swift.crdt.DirectoryVersioned;
-import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
 
 public class DirectoryPutUpdate extends BaseUpdate<DirectoryVersioned> {
-    CRDT<?> val;
+    CRDTIdentifier val;
     Set<TripleTimestamp> toBeRemoved;
     String key;
 
-    public DirectoryPutUpdate(String key, CRDT<?> val, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
+    public DirectoryPutUpdate(String key, CRDTIdentifier val, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
         // TODO Check that key and type of CRDT are consistent
         super(ts);
         this.key = key;
