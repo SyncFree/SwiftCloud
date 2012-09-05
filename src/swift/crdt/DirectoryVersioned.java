@@ -2,7 +2,6 @@ package swift.crdt;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -19,6 +18,10 @@ import swift.utils.Pair;
 @SuppressWarnings("serial")
 public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
     private Map<String, Map<TripleTimestamp, Pair<CRDT<?>, Set<TripleTimestamp>>>> dir;
+
+    public DirectoryVersioned() {
+        this.dir = new HashMap<String, Map<TripleTimestamp, Pair<CRDT<?>, Set<TripleTimestamp>>>>();
+    }
 
     @Override
     public void rollback(Timestamp ts) {
@@ -76,13 +79,13 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
     protected TxnLocalCRDT<DirectoryVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        Map<String, Pair<CRDT<?>, Set<TripleTimestamp>>> payload = new HashMap<String, Pair<CRDT<?>, Set<TripleTimestamp>>>();
+        Map<String, Map<TripleTimestamp, CRDT<?>>> payload = new HashMap<String, Map<TripleTimestamp, CRDT<?>>>();
 
         // generate payload for versionClock
         Set<Entry<String, Map<TripleTimestamp, Pair<CRDT<?>, Set<TripleTimestamp>>>>> entrySet = dir.entrySet();
         for (Entry<String, Map<TripleTimestamp, Pair<CRDT<?>, Set<TripleTimestamp>>>> e : entrySet) {
 
-            Set<Pair<TripleTimestamp, CRDT<?>>> present = new HashSet<Pair<TripleTimestamp, CRDT<?>>>();
+            Map<TripleTimestamp, CRDT<?>> present = new HashMap<TripleTimestamp, CRDT<?>>();
             for (Entry<TripleTimestamp, Pair<CRDT<?>, Set<TripleTimestamp>>> p : e.getValue().entrySet()) {
                 if (versionClock.includes(p.getKey())) {
                     boolean add = true;
@@ -93,22 +96,12 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
                         }
                     }
                     if (add) {
-                        present.add(new Pair<TripleTimestamp, CRDT<?>>(p.getKey(), p.getValue().getFirst().copy()));
+                        present.put(p.getKey(), p.getValue().getFirst().copy());
                     }
                 }
             }
-
             if (!present.isEmpty()) {
-                Iterator<Pair<TripleTimestamp, CRDT<?>>> it = present.iterator();
-                Set<TripleTimestamp> tss = new HashSet<TripleTimestamp>();
-                CRDT<?> merged = it.next().getSecond();
-                while (it.hasNext()) {
-                    Pair<TripleTimestamp, CRDT<?>> next = it.next();
-                    TripleTimestamp ts = next.getFirst();
-                    // TODO COntinue Here!!!
-                }
-
-                payload.put(e.getKey(), new Pair<CRDT<?>, Set<TripleTimestamp>>(merged, tss));
+                payload.put(e.getKey(), present);
             }
         }
 

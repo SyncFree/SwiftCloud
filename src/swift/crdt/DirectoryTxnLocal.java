@@ -12,17 +12,14 @@ import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.DirectoryPutUpdate;
 import swift.crdt.operations.DirectoryRemoveUpdate;
-import swift.utils.Pair;
 
 public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
-    private Map<String, Pair<CRDT<?>, Set<TripleTimestamp>>> dir;
+    private Map<String, Map<TripleTimestamp, CRDT<?>>> dir;
 
     public DirectoryTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, DirectoryVersioned creationState,
-            Map<String, Pair<CRDT<?>, Set<TripleTimestamp>>> payload) {
+            Map<String, Map<TripleTimestamp, CRDT<?>>> payload) {
         super(id, txn, clock, creationState);
-        this.dir = new HashMap<String, Pair<CRDT<?>, Set<TripleTimestamp>>>();
         this.dir = payload;
-        throw new RuntimeException("Not implemented yet!");
     }
 
     @Override
@@ -40,25 +37,25 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
 
         // implemented as remove followed by add
         Set<TripleTimestamp> toBeRemoved = new HashSet<TripleTimestamp>();
-        Pair<CRDT<?>, Set<TripleTimestamp>> old = dir.remove(key);
+        Map<TripleTimestamp, CRDT<?>> old = dir.remove(key);
         if (old != null) {
-            toBeRemoved.addAll(old.getSecond());
+            toBeRemoved.addAll(old.keySet());
         }
 
         TripleTimestamp ts = nextTimestamp();
-        Set<TripleTimestamp> tset = new HashSet<TripleTimestamp>();
-        tset.add(ts);
-        dir.put(key, new Pair<CRDT<?>, Set<TripleTimestamp>>(val, tset));
+        Map<TripleTimestamp, CRDT<?>> entry = new HashMap<TripleTimestamp, CRDT<?>>();
+        entry.put(ts, val);
+        dir.put(key, entry);
 
         registerLocalOperation(new DirectoryPutUpdate(key, val, toBeRemoved, ts));
     }
 
     public void removeNoReturn(String key) {
         // TODO Return removed element?
-        Pair<CRDT<?>, Set<TripleTimestamp>> deleted = dir.remove(key);
+        Map<TripleTimestamp, CRDT<?>> deleted = dir.remove(key);
         if (deleted != null) {
             TripleTimestamp ts = nextTimestamp();
-            registerLocalOperation(new DirectoryRemoveUpdate(key, deleted.getSecond(), ts));
+            registerLocalOperation(new DirectoryRemoveUpdate(key, deleted.keySet(), ts));
         }
     }
 
