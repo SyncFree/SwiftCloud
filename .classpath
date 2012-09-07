@@ -10,9 +10,12 @@
 			<attribute name="javadoc_location" value="http://www.easymock.org/api/easymock/3.1/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="lib/netty-3.4.4.Final.jar"/>
+	<classpathentry kind="lib" path="lib/kryo-2.20-all.jar"/>
+	<classpathentry kind="lib" path="lib/netty-3.5.0.Final.jar"/>
+	<classpathentry kind="lib" path="lib/ssj.jar"/>
+	<classpathentry kind="lib" path="lib/xmlpull-1.1.3.1.jar"/>
+	<classpathentry kind="lib" path="lib/xpp3_min-1.1.4c.jar"/>
+	<classpathentry kind="lib" path="lib/xstream-1.4.3.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="lib/kryo-serializers-0.9.jar"/>
-	<classpathentry kind="lib" path="lib/kryo-1.04-all.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
