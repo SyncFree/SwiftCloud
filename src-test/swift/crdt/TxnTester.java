@@ -13,8 +13,8 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
+import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -54,26 +54,22 @@ public class TxnTester implements TxnHandle {
     public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV,
             ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException {
 
-        if (create) {
-            try {
-                V crdt = classOfV.newInstance();
-                crdt.init(id, cc, ClockFactory.newClock(), true);
-                TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getClock(), this);
-                cache.put(id, localView);
-                return (T) localView;
-            } catch (ClassCastException x) {
-                throw new WrongTypeException(x.getMessage());
-            } catch (InstantiationException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            } catch (IllegalAccessException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-
-        } else {
-            throw new RuntimeException("Not implemented in TxnHandleForTesting!");
+        try {
+            V crdt = classOfV.newInstance();
+            crdt.init(id, cc, ClockFactory.newClock(), true);
+            TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getClock(), this);
+            cache.put(id, localView);
+            return (T) localView;
+        } catch (ClassCastException x) {
+            throw new WrongTypeException(x.getMessage());
+        } catch (InstantiationException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
+
         return null;
 
     }
