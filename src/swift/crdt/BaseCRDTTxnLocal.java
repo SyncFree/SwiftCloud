@@ -9,7 +9,7 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 
 public abstract class BaseCRDTTxnLocal<V extends CRDT<V>> implements TxnLocalCRDT<V> {
     private final TxnHandle txn;
-    private final CRDTIdentifier id;
+    protected final CRDTIdentifier id;
     private final CausalityClock clock;
 
     public BaseCRDTTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, V creationState) {

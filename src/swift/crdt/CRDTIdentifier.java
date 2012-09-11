@@ -28,7 +28,7 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
 
     private String getId() {
         if (id == null) {
-            id = "CRDTId(" + table + "," + key + ")";
+            id = "(" + table + ";" + key + ")";
         }
         return id;
     }

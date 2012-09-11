@@ -1,5 +1,14 @@
 package swift.crdt;
 
+// Typecheck dynamically for conformance of key and CRDT type:
+// val.getClass().getName() -> gives fully qualified name (FQN)
+// or V.getName()
+//
+// For testing conformance:
+// w = Class.forName(FQN)
+// assert(w == v)
+// v.cast(object)
+
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -33,8 +42,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     public Map<String, Collection<CRDTIdentifier>> getValue() {
         Map<String, Collection<CRDTIdentifier>> val = new HashMap<String, Collection<CRDTIdentifier>>();
         for (Entry<String, Map<TripleTimestamp, CRDTIdentifier>> e : dir.entrySet()) {
-            String cname = getClassName(e.getKey());
-            val.put(cname, e.getValue().values());
+            val.put(e.getKey(), e.getValue().values());
         }
         return val;
     }
@@ -51,14 +59,8 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         return name + ":" + c.getName();
     }
 
-    @Override
-    public Object executeQuery(CRDTQuery<DirectoryVersioned> query) {
-        return query.executeAt(this);
-    }
-
-    public <V extends CRDT<V>> void putNoReturn(String key, CRDTIdentifier val, Class<V> c) {
-        // TODO Implement version that returns old value
-
+    // TODO Implement version that returns old value
+    public <V extends CRDT<V>> CRDTIdentifier putNoReturn(String key, Class<V> c) {
         // implemented as remove followed by add
         Set<TripleTimestamp> toBeRemoved = new HashSet<TripleTimestamp>();
         Map<TripleTimestamp, CRDTIdentifier> old = dir.remove(getDirEntry(key, c));
@@ -68,10 +70,12 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
 
         TripleTimestamp ts = nextTimestamp();
         Map<TripleTimestamp, CRDTIdentifier> entry = new HashMap<TripleTimestamp, CRDTIdentifier>();
-        entry.put(ts, val);
+        CRDTIdentifier newEntryId = new CRDTIdentifier("dir", this.id.toString() + "/" + getDirEntry(key, c));
+        entry.put(ts, newEntryId);
         dir.put(getDirEntry(key, c), entry);
 
-        registerLocalOperation(new DirectoryPutUpdate(getDirEntry(key, c), val, toBeRemoved, ts));
+        registerLocalOperation(new DirectoryPutUpdate(getDirEntry(key, c), newEntryId, toBeRemoved, ts));
+        return newEntryId;
     }
 
     public void removeNoReturn(String key) {
@@ -103,12 +107,9 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     public <V extends CRDT<V>> boolean contains(String key, Class<V> c) {
         return dir.containsKey(getDirEntry(key, c));
     }
-    // TODO Typecheck dynamically for conformance of key and CRDT type
-    // val.getClass().getName() -> gives fully qualified name (FQN)
-    // or V.getName()
-    //
-    // For testing conformance:
-    // w = Class.forName(FQN)
-    // assert(w == v)
-    // v.cast(object)
+
+    @Override
+    public Object executeQuery(CRDTQuery<DirectoryVersioned> query) {
+        return query.executeAt(this);
+    }
 }
