@@ -10,10 +10,8 @@ package swift.crdt;
 // v.cast(object)
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
@@ -22,90 +20,133 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.operations.DirectoryPutUpdate;
+import swift.crdt.operations.DirectoryCreateUpdate;
 import swift.crdt.operations.DirectoryRemoveUpdate;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.Pair;
 
 public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
-    private Map<String, Map<TripleTimestamp, CRDTIdentifier>> dir;
+    // Table under which all file system entries are stored
+    // FIXME Can we be there more flexible? Hard-coding this name is just a
+    // quick fix.
+    public static String dirTable = "DIR";
+    private Map<CRDTIdentifier, Set<TripleTimestamp>> dir;
 
     public DirectoryTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, DirectoryVersioned creationState,
-            Map<String, Map<TripleTimestamp, CRDTIdentifier>> payload) {
+            Map<CRDTIdentifier, Set<TripleTimestamp>> payload) {
         super(id, txn, clock, creationState);
         this.dir = payload;
     }
 
     @Override
-    public Map<String, Collection<CRDTIdentifier>> getValue() {
-        Map<String, Collection<CRDTIdentifier>> val = new HashMap<String, Collection<CRDTIdentifier>>();
-        for (Entry<String, Map<TripleTimestamp, CRDTIdentifier>> e : dir.entrySet()) {
-            val.put(e.getKey(), e.getValue().values());
+    public Collection<Pair<String, Class<?>>> getValue() {
+        Collection<Pair<String, Class<?>>> dirEntries = new HashSet<Pair<String, Class<?>>>();
+        for (CRDTIdentifier id : dir.keySet()) {
+            try {
+                String name = getEntryName(id.getKey());
+                String clss = getClassName(id.getKey());
+                Pair<String, Class<?>> entry = new Pair<String, Class<?>>(name, Class.forName(clss));
+                dirEntries.add(entry);
+            } catch (ClassNotFoundException e) {
+                System.err.println("This class is unkown :" + id.getKey());
+                e.printStackTrace();
+            }
         }
-        return val;
+        return dirEntries;
     }
 
-    public String getClassName(String key) {
+    public static String getClassName(String key) {
         return key.split(":")[1];
     }
 
-    public String getEntryName(String key) {
+    public static String getFullPath(String key) {
         return key.split(":")[0];
     }
 
-    public <V extends CRDT<V>> String getDirEntry(String name, Class<V> c) {
+    public static String getEntryName(String key) {
+        String path = getFullPath(key);
+        String[] splitted = path.split("/");
+        return splitted[splitted.length - 1];
+    }
+
+    public static <V extends CRDT<V>> String getDirEntry(String name, Class<V> c) {
         return name + ":" + c.getName();
     }
 
-    // TODO Implement version that returns old value
-    public <V extends CRDT<V>> CRDTIdentifier putNoReturn(String key, Class<V> c) {
+    private static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String fullDirName, String name, Class<V> c) {
+        String prefix = (fullDirName == "" ? "" : fullDirName + "/");
+        return new CRDTIdentifier(DirectoryTxnLocal.dirTable, prefix + getDirEntry(name, c));
+    }
+
+    public <V extends CRDT<V>> CRDTIdentifier createNewEntry(String key, Class<V> c) {
         // implemented as remove followed by add
-        Set<TripleTimestamp> toBeRemoved = new HashSet<TripleTimestamp>();
-        Map<TripleTimestamp, CRDTIdentifier> old = dir.remove(getDirEntry(key, c));
-        if (old != null) {
-            toBeRemoved.addAll(old.keySet());
-        }
-
         TripleTimestamp ts = nextTimestamp();
-        Map<TripleTimestamp, CRDTIdentifier> entry = new HashMap<TripleTimestamp, CRDTIdentifier>();
-        CRDTIdentifier newEntryId = new CRDTIdentifier("dir", this.id.toString() + "/" + getDirEntry(key, c));
-        entry.put(ts, newEntryId);
-        dir.put(getDirEntry(key, c), entry);
-
-        registerLocalOperation(new DirectoryPutUpdate(getDirEntry(key, c), newEntryId, toBeRemoved, ts));
-        return newEntryId;
+        Set<TripleTimestamp> tss = new HashSet<TripleTimestamp>();
+        tss.add(ts);
+        CRDTIdentifier newCRDTId = getCRDTIdentifier(getFullPath(this.id.getKey()), key, c);
+        dir.put(newCRDTId, tss);
+        registerLocalOperation(new DirectoryCreateUpdate(newCRDTId, ts));
+        return newCRDTId;
     }
 
-    public void removeNoReturn(String key) {
-        // TODO Return removed element?
-        Map<TripleTimestamp, CRDTIdentifier> deleted = dir.remove(key);
-        if (deleted != null) {
+    public static <V extends CRDT<V>> CRDTIdentifier createRootId(String key, Class<V> c) {
+        CRDTIdentifier newCRDTId = getCRDTIdentifier("", key, c);
+        return newCRDTId;
+
+    }
+
+    public <V extends CRDT<V>> void removeEntry(String key, Class<V> c) {
+        CRDTIdentifier id = getCRDTIdentifier(getFullPath(this.id.getKey()), key, c);
+        Set<TripleTimestamp> toBeRemoved = dir.remove(id);
+        if (toBeRemoved != null) {
             TripleTimestamp ts = nextTimestamp();
-            registerLocalOperation(new DirectoryRemoveUpdate(key, deleted.keySet(), ts));
+            registerLocalOperation(new DirectoryRemoveUpdate(getCRDTIdentifier(getFullPath(this.id.getKey()), key, c),
+                    toBeRemoved, ts));
+        }
+        if (c.equals(DirectoryVersioned.class)) {
+            try {
+                DirectoryTxnLocal child = (DirectoryTxnLocal) this.getTxnHandle().get(id, false, c);
+                child.deleteDirectoryRecursively(c);
+            } catch (WrongTypeException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (NoSuchObjectException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (VersionNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (NetworkException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
         }
     }
 
-    public <L, V extends CRDT<V>> L get(String key, Class<V> c) {
-        Map<TripleTimestamp, CRDTIdentifier> entries = dir.get(getDirEntry(key, c));
-        for (CRDTIdentifier e : entries.values()) {
-            try {
-                TxnLocalCRDT<?> obj = this.getTxnHandle().get(e, false, c);
-                return (L) obj;
-            } catch (WrongTypeException e1) {
-            } catch (NoSuchObjectException e1) {
-            } catch (VersionNotFoundException e1) {
-            } catch (NetworkException e1) {
-            }
-            // TODO Does it make sense to lift any of these exceptions to the
-            // application code?
+    private <V extends CRDT<V>> void deleteDirectoryRecursively(Class<V> c) throws ClassNotFoundException {
+        for (CRDTIdentifier e : this.dir.keySet()) {
+            removeEntry(getEntryName(e.getKey()), (Class<V>) Class.forName(getClassName(e.getKey())));
         }
-        return null;
+    }
+
+    public <V extends CRDT<V>, L extends TxnLocalCRDT<V>> L get(String key, Class<V> c) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
+        CRDTIdentifier entry = getCRDTIdentifier(getFullPath(this.id.getKey()), key, c);
+        if (dir.keySet().contains(entry)) {
+            return this.getTxnHandle().get(entry, false, c, null);
+        } else {
+            return null;
+        }
     }
 
     public <V extends CRDT<V>> boolean contains(String key, Class<V> c) {
-        return dir.containsKey(getDirEntry(key, c));
+        return dir.containsKey(getCRDTIdentifier(getFullPath(this.id.getKey()), key, c));
     }
 
     @Override

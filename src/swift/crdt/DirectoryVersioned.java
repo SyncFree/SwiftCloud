@@ -12,14 +12,13 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.utils.Pair;
 
 @SuppressWarnings("serial")
 public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
-    private Map<String, Map<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>>> dir;
+    private Map<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>> dir;
 
     public DirectoryVersioned() {
-        this.dir = new HashMap<String, Map<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>>>();
+        this.dir = new HashMap<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>>();
     }
 
     @Override
@@ -41,61 +40,50 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
         op.applyTo(this);
     }
 
-    public void applyPut(String key, CRDTIdentifier val, Set<TripleTimestamp> toBeRemoved, TripleTimestamp uid) {
-        Map<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>> entry = dir.get(key);
-        if (entry == null) {
-            entry = new HashMap<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>>();
-            dir.put(key, entry);
-        }
-        Pair<CRDTIdentifier, Set<TripleTimestamp>> removals = entry.get(uid);
-        if (removals == null) {
-            entry.put(uid, new Pair<CRDTIdentifier, Set<TripleTimestamp>>(val, new HashSet<TripleTimestamp>()));
-        } else {
-            // entry has been removed
-            entry.put(uid, new Pair<CRDTIdentifier, Set<TripleTimestamp>>(val, removals.getSecond()));
+    public void applyPut(CRDTIdentifier entry, TripleTimestamp uid) {
+        Map<TripleTimestamp, Set<TripleTimestamp>> meta = dir.get(entry);
+        if (meta == null) {
+            meta = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
+            meta.put(uid, new HashSet<TripleTimestamp>());
+            dir.put(entry, meta);
         }
     }
 
-    public void applyRemove(String key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp uid) {
-        Map<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>> s = dir.get(key);
+    public void applyRemove(CRDTIdentifier key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp uid) {
+        Map<TripleTimestamp, Set<TripleTimestamp>> s = dir.get(key);
         if (s == null) {
-            s = new HashMap<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>>();
+            s = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
             dir.put(key, s);
         }
-
         for (TripleTimestamp ts : toBeRemoved) {
-            Pair<CRDTIdentifier, Set<TripleTimestamp>> removals = s.get(ts);
+            Set<TripleTimestamp> removals = s.get(ts);
             if (removals == null) {
-                Set<TripleTimestamp> removedUids = new HashSet<TripleTimestamp>();
-                removedUids.add(uid);
-                removals = new Pair<CRDTIdentifier, Set<TripleTimestamp>>(null, removedUids);
-                s.put(ts, removals);
-            } else {
-                removals.getSecond().add(uid);
+                removals = new HashSet<TripleTimestamp>();
             }
+            removals.add(uid);
         }
     }
 
     @Override
     protected TxnLocalCRDT<DirectoryVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        Map<String, Map<TripleTimestamp, CRDTIdentifier>> payload = new HashMap<String, Map<TripleTimestamp, CRDTIdentifier>>();
+        Map<CRDTIdentifier, Set<TripleTimestamp>> payload = new HashMap<CRDTIdentifier, Set<TripleTimestamp>>();
 
         // generate payload for versionClock
-        Set<Entry<String, Map<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>>>> entrySet = dir.entrySet();
-        for (Entry<String, Map<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>>> e : entrySet) {
+        Set<Entry<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>>> entrySet = dir.entrySet();
+        for (Entry<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>> e : entrySet) {
 
-            Map<TripleTimestamp, CRDTIdentifier> present = new HashMap<TripleTimestamp, CRDTIdentifier>();
-            for (Entry<TripleTimestamp, Pair<CRDTIdentifier, Set<TripleTimestamp>>> p : e.getValue().entrySet()) {
-                if (versionClock.includes(p.getKey())) {
+            Set<TripleTimestamp> present = new HashSet<TripleTimestamp>();
+            for (Entry<TripleTimestamp, Set<TripleTimestamp>> meta : e.getValue().entrySet()) {
+                if (versionClock.includes(meta.getKey())) {
                     boolean add = true;
-                    for (TripleTimestamp remTs : p.getValue().getSecond()) {
+                    for (TripleTimestamp remTs : meta.getValue()) {
                         if (versionClock.includes(remTs)) {
                             add = false;
                             break;
                         }
                     }
                     if (add) {
-                        present.put(p.getKey(), p.getValue().getFirst());
+                        present.add(meta.getKey());
                     }
                 }
             }

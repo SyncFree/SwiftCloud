@@ -4,18 +4,19 @@ import java.util.Set;
 
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.CRDTIdentifier;
 import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CRDTUpdate;
 
 public class DirectoryRemoveUpdate extends BaseUpdate<DirectoryVersioned> {
     private Set<TripleTimestamp> toBeRemoved;
-    private String key;
+    private CRDTIdentifier key;
 
     public DirectoryRemoveUpdate() {
         // Method stub for kryo
     }
 
-    public DirectoryRemoveUpdate(String key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
+    public DirectoryRemoveUpdate(CRDTIdentifier key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
         super(ts);
         this.key = key;
         this.toBeRemoved = toBeRemoved;
