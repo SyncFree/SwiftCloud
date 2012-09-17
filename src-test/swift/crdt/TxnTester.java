@@ -55,11 +55,16 @@ public class TxnTester implements TxnHandle {
             ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException {
 
         try {
-            V crdt = classOfV.newInstance();
-            crdt.init(id, cc, ClockFactory.newClock(), true);
-            TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getClock(), this);
-            cache.put(id, localView);
-            return (T) localView;
+            TxnLocalCRDT<?> cached = cache.get(id);
+            if (cached == null && create) {
+                V crdt = classOfV.newInstance();
+                crdt.init(id, cc, ClockFactory.newClock(), true);
+                TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getClock(), this);
+                cache.put(id, localView);
+                return (T) localView;
+            } else {
+                return (T) cached;
+            }
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         } catch (InstantiationException e) {

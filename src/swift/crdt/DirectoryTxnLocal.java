@@ -77,18 +77,51 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     }
 
     private static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String fullDirName, String name, Class<V> c) {
-        String prefix = (fullDirName == "" ? "" : fullDirName + "/");
+        String prefix = (fullDirName == "/" ? "" : fullDirName + "/");
         return new CRDTIdentifier(DirectoryTxnLocal.dirTable, prefix + getDirEntry(name, c));
     }
 
-    public <V extends CRDT<V>> CRDTIdentifier createNewEntry(String key, Class<V> c) {
+    public <V extends CRDT<V>> CRDTIdentifier createNewEntry(String key, Class<V> c) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
         // implemented as remove followed by add
         TripleTimestamp ts = nextTimestamp();
         Set<TripleTimestamp> tss = new HashSet<TripleTimestamp>();
         tss.add(ts);
         CRDTIdentifier newCRDTId = getCRDTIdentifier(getFullPath(this.id.getKey()), key, c);
         dir.put(newCRDTId, tss);
+        this.getTxnHandle().get(newCRDTId, true, c);
         registerLocalOperation(new DirectoryCreateUpdate(newCRDTId, ts));
+
+        // Reconstruct the path to the root for implementing the
+        // add-/update-wins semantics
+        String[] parentDirs = getFullPath(this.id.getKey()).split("/");
+        String name = parentDirs[parentDirs.length - 1];
+        String path = "";
+        for (int i = 1; i < parentDirs.length - 1; i++) {
+            path = path.concat("/");
+            path = path.concat(parentDirs[i]);
+        }
+
+        if (!path.equals("")) {
+            CRDTIdentifier parentId = new CRDTIdentifier(DirectoryTxnLocal.dirTable, getDirEntry(path,
+                    DirectoryVersioned.class));
+            try {
+                DirectoryTxnLocal parent = this.getTxnHandle().get(parentId, false, DirectoryVersioned.class);
+                parent.createNewEntry(name, DirectoryVersioned.class);
+            } catch (WrongTypeException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (NoSuchObjectException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (VersionNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (NetworkException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
         return newCRDTId;
     }
 
@@ -130,7 +163,8 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     }
 
     private <V extends CRDT<V>> void deleteDirectoryRecursively(Class<V> c) throws ClassNotFoundException {
-        for (CRDTIdentifier e : this.dir.keySet()) {
+        Set<CRDTIdentifier> currentEntries = new HashSet<CRDTIdentifier>(this.dir.keySet());
+        for (CRDTIdentifier e : currentEntries) {
             removeEntry(getEntryName(e.getKey()), (Class<V>) Class.forName(getClassName(e.getKey())));
         }
     }
