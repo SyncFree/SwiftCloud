@@ -9,6 +9,10 @@ import swift.crdt.interfaces.CRDTUpdate;
 public class DirectoryCreateUpdate extends BaseUpdate<DirectoryVersioned> {
     CRDTIdentifier entry;
 
+    public DirectoryCreateUpdate() {
+        // method stub for kryo...
+    }
+
     public DirectoryCreateUpdate(CRDTIdentifier val, TripleTimestamp ts) {
         // TODO Check that key and type of CRDT are consistent
         super(ts);

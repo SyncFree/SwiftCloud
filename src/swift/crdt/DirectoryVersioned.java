@@ -2,6 +2,7 @@ package swift.crdt;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -28,12 +29,55 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        throw new RuntimeException("Not implemented yet!");
+        Iterator<Entry<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>>> entries = dir.entrySet().iterator();
+        while (entries.hasNext()) {
+            Entry<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>> e = entries.next();
+            Iterator<Map.Entry<TripleTimestamp, Set<TripleTimestamp>>> perClient = e.getValue().entrySet().iterator();
+            while (perClient.hasNext()) {
+                Map.Entry<TripleTimestamp, Set<TripleTimestamp>> current = perClient.next();
+                Iterator<TripleTimestamp> removals = current.getValue().iterator();
+                while (removals.hasNext()) {
+                    TripleTimestamp ts = removals.next();
+                    if (pruningPoint.includes(ts)) {
+                        perClient.remove();
+                        break;
+                    }
+                }
+            }
+            if (e.getValue().isEmpty()) {
+                entries.remove();
+            }
+        }
     }
 
     @Override
-    protected void mergePayload(DirectoryVersioned otherObject) {
-        throw new RuntimeException("Not implemented yet!");
+    protected void mergePayload(DirectoryVersioned other) {
+        Iterator<Entry<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>>> it = other.dir.entrySet()
+                .iterator();
+        while (it.hasNext()) {
+            Entry<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>> e = it.next();
+
+            Map<TripleTimestamp, Set<TripleTimestamp>> s = dir.get(e.getKey());
+            if (s == null) {
+                Map<TripleTimestamp, Set<TripleTimestamp>> newSet = new HashMap<TripleTimestamp, Set<TripleTimestamp>>(
+                        e.getValue());
+                dir.put(e.getKey(), newSet);
+
+            } else {
+                for (Entry<TripleTimestamp, Set<TripleTimestamp>> otherE : e.getValue().entrySet()) {
+                    boolean exists = false;
+                    for (Entry<TripleTimestamp, Set<TripleTimestamp>> localE : s.entrySet()) {
+                        if (localE.getKey().equals(otherE.getKey())) {
+                            localE.getValue().addAll(otherE.getValue());
+                            exists = true;
+                        }
+                    }
+                    if (!exists) {
+                        s.put(otherE.getKey(), otherE.getValue());
+                    }
+                }
+            }
+        }
     }
 
     protected void execute(CRDTUpdate<DirectoryVersioned> op) {
@@ -99,7 +143,20 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
     protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        throw new RuntimeException("Not implemented yet!");
+        final Set<Timestamp> result = new HashSet<Timestamp>();
+        for (Map<TripleTimestamp, Set<TripleTimestamp>> addsRemoves : dir.values()) {
+            for (final Entry<TripleTimestamp, Set<TripleTimestamp>> addRemoves : addsRemoves.entrySet()) {
+                if (!clock.includes(addRemoves.getKey())) {
+                    result.add(addRemoves.getKey().cloneBaseTimestamp());
+                }
+                for (final TripleTimestamp removeTimestamp : addRemoves.getValue()) {
+                    if (!clock.includes(removeTimestamp)) {
+                        result.add(removeTimestamp.cloneBaseTimestamp());
+                    }
+                }
+            }
+        }
+        return result;
     }
 
 }

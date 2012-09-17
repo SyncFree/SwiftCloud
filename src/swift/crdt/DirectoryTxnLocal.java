@@ -76,7 +76,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         return name + ":" + c.getName();
     }
 
-    private static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String fullDirName, String name, Class<V> c) {
+    public static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String fullDirName, String name, Class<V> c) {
         String prefix = (fullDirName == "/" ? "" : fullDirName + "/");
         return new CRDTIdentifier(DirectoryTxnLocal.dirTable, prefix + getDirEntry(name, c));
     }
