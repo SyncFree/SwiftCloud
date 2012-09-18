@@ -108,7 +108,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                             exists = true;
                         }
                     }
-                    if (!exists) {
+                    if (!exists && !getPruneClock().includes(otherE.getKey())) {
                         s.put(otherE.getKey(), new HashSet<TripleTimestamp>(otherE.getValue()));
                     }
                 }
