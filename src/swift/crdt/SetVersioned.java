@@ -109,7 +109,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                         }
                     }
                     if (!exists) {
-                        s.put(otherE.getKey(), otherE.getValue());
+                        s.put(otherE.getKey(), new HashSet<TripleTimestamp>(otherE.getValue()));
                     }
                 }
             }
