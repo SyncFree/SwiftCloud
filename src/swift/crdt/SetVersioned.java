@@ -108,9 +108,11 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                             exists = true;
                         }
                     }
-                    if (!exists && !getPruneClock().includes(otherE.getKey())) {
+                    if (!exists && !getClock().includes(otherE.getKey())) {
                         s.put(otherE.getKey(), new HashSet<TripleTimestamp>(otherE.getValue()));
                     }
+                    // else if !exists: otherE has been locally removed&pruned,
+                    // do not add it again
                 }
             }
         }
@@ -128,8 +130,9 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                     .iterator();
             while (ourInstanceIter.hasNext()) {
                 final Entry<TripleTimestamp, Set<TripleTimestamp>> ourInstance = ourInstanceIter.next();
-                if (other.getPruneClock().includes(ourInstance.getKey())
+                if (other.getClock().includes(ourInstance.getKey())
                         && !otherInstances.containsKey(ourInstance.getKey())) {
+                    // ourInstance has been removed and pruned at the remote replica.
                     ourInstanceIter.remove();
                 }
             }
