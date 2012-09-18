@@ -113,6 +113,26 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
                 }
             }
         }
+
+        // Remove elements removed&pruned at the incoming replica.
+        Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> ourIt = elems.entrySet().iterator();
+        while (ourIt.hasNext()) {
+            Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> ourE = ourIt.next();
+            Map<TripleTimestamp, Set<TripleTimestamp>> otherInstances = other.elems.get(ourE.getKey());
+            if (otherInstances == null) {
+                // Consider dummy empty map in this case.
+                otherInstances = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
+            }
+            final Iterator<Entry<TripleTimestamp, Set<TripleTimestamp>>> ourInstanceIter = ourE.getValue().entrySet()
+                    .iterator();
+            while (ourInstanceIter.hasNext()) {
+                final Entry<TripleTimestamp, Set<TripleTimestamp>> ourInstance = ourInstanceIter.next();
+                if (other.getPruneClock().includes(ourInstance.getKey())
+                        && !otherInstances.containsKey(ourInstance.getKey())) {
+                    ourInstanceIter.remove();
+                }
+            }
+        }
     }
 
     @Override
