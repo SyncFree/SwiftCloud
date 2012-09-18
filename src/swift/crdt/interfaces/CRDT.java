@@ -25,7 +25,7 @@ import swift.crdt.operations.CRDTObjectUpdatesGroup;
  * together with transaction handle ({@link TxnHandle}), using a local view
  * obtained by {@link #getTxnLocalCopy(CausalityClock, TxnHandle)}.
  * 
- * @author annettebieniusa
+ * @author annettebieniusa, mzawirsk
  * 
  * @param <V>
  *            CvRDT type implementing the interface

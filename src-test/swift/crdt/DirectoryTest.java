@@ -55,7 +55,7 @@ public class DirectoryTest {
 
     @Test
     public void removeTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, ClassNotFoundException {
         // create one element
         dir.createNewEntry("x", IntegerVersioned.class);
         dir = txn
@@ -70,7 +70,7 @@ public class DirectoryTest {
 
     @Test
     public void removeRecursiveTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, ClassNotFoundException {
         DirectoryTxnLocal parent = dir;
         for (int i = 0; i < 5; i++) {
             CRDTIdentifier childDirId = parent.createNewEntry("x" + i, DirectoryVersioned.class);
@@ -87,7 +87,7 @@ public class DirectoryTest {
         assertTrue(dir.contains("y" + 0, DirectoryVersioned.class));
 
         // Test directly one of the subdirectories to be empty
-        CRDTIdentifier subdirId = new CRDTIdentifier(DirectoryTxnLocal.dirTable,
+        CRDTIdentifier subdirId = new CRDTIdentifier(DirectoryTxnLocal.getDirTable(),
                 "/root/x0/x1/x2/x3/x4:swift.crdt.DirectoryVersioned");
         DirectoryTxnLocal subdir = txn.get(subdirId, false, DirectoryVersioned.class);
         assertTrue(subdir.getValue().isEmpty());
@@ -95,7 +95,7 @@ public class DirectoryTest {
 
     @Test
     public void differentEntryTypesTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, ClassNotFoundException {
         dir.createNewEntry("x", IntegerVersioned.class);
         dir = txn
                 .get(DirectoryTxnLocal.createRootId("root", DirectoryVersioned.class), false, DirectoryVersioned.class);
@@ -114,7 +114,7 @@ public class DirectoryTest {
 
     @Test
     public void removeAndReconstructTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, ClassNotFoundException {
         DirectoryTxnLocal parent = dir;
         for (int i = 0; i < 5; i++) {
             CRDTIdentifier childDirId = parent.createNewEntry("x" + i, DirectoryVersioned.class);
@@ -135,8 +135,8 @@ public class DirectoryTest {
             if (i > 0) {
                 assertFalse(parent.contains("y" + i, DirectoryVersioned.class));
             }
-            CRDTIdentifier childDirId = new CRDTIdentifier(DirectoryTxnLocal.dirTable, DirectoryTxnLocal.getDirEntry(
-                    DirectoryTxnLocal.getFullPath(parent.id.getKey()) + "/x" + i, DirectoryVersioned.class));
+            CRDTIdentifier childDirId = new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), DirectoryTxnLocal.getDirEntry(
+                    DirectoryTxnLocal.getFullPath(parent.id) + "/x" + i, DirectoryVersioned.class));
             DirectoryTxnLocal child = txn.get(childDirId, false, DirectoryVersioned.class);
             parent = child;
         }
