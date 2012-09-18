@@ -70,7 +70,8 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     public void removeU(V e, TripleTimestamp uid, Set<TripleTimestamp> set) {
         Map<TripleTimestamp, Set<TripleTimestamp>> s = elems.get(e);
         if (s == null) {
-            return;
+            s = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
+            elems.put(e, s);
         }
 
         for (TripleTimestamp ts : set) {
