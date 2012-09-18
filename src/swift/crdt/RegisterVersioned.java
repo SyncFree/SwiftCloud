@@ -43,6 +43,12 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
+        // Short cut for objects that are rarely updated: If there is only one
+        // value, it must remain
+        if (values.size() == 1) {
+            return;
+        }
+
         // Remove all values older than the pruningPoint, except the single
         // value representing purningPoint - there must be a summary of pruned
         // state.

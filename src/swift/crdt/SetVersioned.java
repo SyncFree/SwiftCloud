@@ -17,7 +17,7 @@ import swift.utils.PrettyPrint;
  * versions of sets, make sure that the elements in the set are either immutable
  * or that they are cloned!
  * 
- * @author vb, annettebieniusa
+ * @author vb, annettebieniusa, mzawirsk
  * 
  * @param <V>
  */
