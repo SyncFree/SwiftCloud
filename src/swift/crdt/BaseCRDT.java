@@ -97,6 +97,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
         pruneClock.merge(otherObject.getPruneClock());
+        prune(pruneClock.clone(), false);
         registeredInStore |= otherObject.isRegisteredInStore();
     }
 
