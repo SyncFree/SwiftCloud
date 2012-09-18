@@ -227,7 +227,7 @@ public class SetMergeTest {
 
     @Test
     public void mergePruned3() {
-
+        // TODO Extract common methods to process the 2 symmetric cases.
         Map<Integer, Set<TripleTimestamp>> rems = new HashMap<Integer, Set<TripleTimestamp>>();
         for (int i = 0; i < 5; i++) {
             TripleTimestamp ts = registerSingleInsertTxn(i, i1, swift1);
@@ -243,7 +243,7 @@ public class SetMergeTest {
 
         Map<Integer, Set<TripleTimestamp>> rems2 = new HashMap<Integer, Set<TripleTimestamp>>();
         for (int i = 0; i < 5; i++) {
-            TripleTimestamp ts = registerSingleInsertTxn(i, i1, swift1);
+            TripleTimestamp ts = registerSingleInsertTxn(i, i2, swift2);
             Set<TripleTimestamp> s = new HashSet<TripleTimestamp>();
             s.add(ts);
             rems2.put(i, s);
