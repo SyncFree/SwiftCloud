@@ -198,6 +198,14 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     protected void copyLoad(SetVersioned<V, T> copy) {
-        copy.elems = new HashMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>>(this.elems);
+        copy.elems = new HashMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>>();
+        for (final Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e : this.elems.entrySet()) {
+            final V v = e.getKey();
+            final Map<TripleTimestamp, Set<TripleTimestamp>> subMap = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
+            for (Entry<TripleTimestamp, Set<TripleTimestamp>> subEntry : e.getValue().entrySet()) {
+                subMap.put(subEntry.getKey(), new HashSet<TripleTimestamp>(subEntry.getValue()));
+            }
+            copy.elems.put(v, subMap);
+        }
     }
 }
