@@ -62,7 +62,6 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
                 Map<TripleTimestamp, Set<TripleTimestamp>> newSet = new HashMap<TripleTimestamp, Set<TripleTimestamp>>(
                         e.getValue());
                 dir.put(e.getKey(), newSet);
-
             } else {
                 for (Entry<TripleTimestamp, Set<TripleTimestamp>> otherE : e.getValue().entrySet()) {
                     boolean exists = false;

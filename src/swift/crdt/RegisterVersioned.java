@@ -19,55 +19,6 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVersioned<V>> {
     private static final long serialVersionUID = 1L;
 
-    // public for sake of Kryo...
-    public static class QueueEntry<V extends Copyable> implements Comparable<QueueEntry<V>>, Serializable {
-        TripleTimestamp ts;
-        CausalityClock c;
-        V value;
-
-        /**
-         * Do not use: Empty constructor only to be used by Kryo serialization.
-         */
-        public QueueEntry() {
-        }
-
-        public QueueEntry(TripleTimestamp ts, CausalityClock c, V value) {
-            this.ts = ts;
-            this.c = c;
-            this.value = value;
-        }
-
-        @Override
-        public int compareTo(QueueEntry<V> other) {
-            CMP_CLOCK result = this.c.compareTo(other.c);
-            switch (result) {
-            case CMP_CONCURRENT:
-            case CMP_EQUALS:
-                if (other.ts == null) {
-                    return 1;
-                } else {
-                    return other.ts.compareTo(this.ts);
-                }
-            case CMP_ISDOMINATED:
-                return 1;
-            case CMP_DOMINATES:
-                return -1;
-            default:
-                return 0;
-            }
-        }
-
-        @Override
-        public String toString() {
-            return value + " -> " + ts + "," + c;
-        }
-
-        public QueueEntry<V> copy() {
-            QueueEntry<V> copyObj = new QueueEntry<V>(ts, c.clone(), (V) value.copy());
-            return copyObj;
-        }
-    }
-
     // Queue holding the versioning information, ordering is compatible with
     // causal dependency, newest entries coming first
     private SortedSet<QueueEntry<V>> values;
@@ -175,4 +126,52 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         return result;
     }
 
+    // public for sake of Kryo...
+    public static class QueueEntry<V extends Copyable> implements Comparable<QueueEntry<V>>, Serializable {
+        TripleTimestamp ts;
+        CausalityClock c;
+        V value;
+
+        /**
+         * Do not use: Empty constructor only to be used by Kryo serialization.
+         */
+        public QueueEntry() {
+        }
+
+        public QueueEntry(TripleTimestamp ts, CausalityClock c, V value) {
+            this.ts = ts;
+            this.c = c;
+            this.value = value;
+        }
+
+        @Override
+        public int compareTo(QueueEntry<V> other) {
+            CMP_CLOCK result = this.c.compareTo(other.c);
+            switch (result) {
+            case CMP_CONCURRENT:
+            case CMP_EQUALS:
+                if (other.ts == null) {
+                    return 1;
+                } else {
+                    return other.ts.compareTo(this.ts);
+                }
+            case CMP_ISDOMINATED:
+                return 1;
+            case CMP_DOMINATES:
+                return -1;
+            default:
+                return 0;
+            }
+        }
+
+        @Override
+        public String toString() {
+            return value + " -> " + ts + "," + c;
+        }
+
+        public QueueEntry<V> copy() {
+            QueueEntry<V> copyObj = new QueueEntry<V>(ts, c.clone(), (V) value.copy());
+            return copyObj;
+        }
+    }
 }

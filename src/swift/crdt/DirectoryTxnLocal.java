@@ -75,7 +75,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     }
 
     public static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String fullDirName, String name, Class<V> c) {
-        String prefix = (fullDirName == "/" ? "" : fullDirName + "/");
+        String prefix = "/".equals(fullDirName) ? "" : fullDirName + "/";
         return new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), prefix + getDirEntry(name, c));
     }
 
@@ -106,7 +106,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
             path = path.concat(parentDirs[i]);
         }
 
-        if (!path.equals("")) {
+        if (!"".equals(path)) {
             CRDTIdentifier parentId = new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), getDirEntry(path,
                     DirectoryVersioned.class));
             DirectoryTxnLocal parent = this.getTxnHandle().get(parentId, false, DirectoryVersioned.class);
@@ -173,5 +173,4 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         }
         return dirEntries;
     }
-
 }

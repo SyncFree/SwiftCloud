@@ -10,6 +10,7 @@ import java.io.Serializable;
  * 
  */
 public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTIdentifier> {
+    private static final long serialVersionUID = 1L;
     private String table;
     private String key;
     private transient String id;
