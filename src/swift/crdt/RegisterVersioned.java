@@ -43,22 +43,20 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        // at least one value should remain after pruning
-        if (values.size() == 1) {
-            return;
-        }
-        // remove all versions older than the pruningPoint
-        SortedSet<QueueEntry<V>> pruned = new TreeSet<QueueEntry<V>>();
-        for (QueueEntry<V> e : values) {
-            if (!pruningPoint.includes(e.ts)) {
-                pruned.add(e);
+        // Remove all values older than the pruningPoint, except the single
+        // value representing purningPoint - there must be a summary of pruned
+        // state.
+        boolean firstMatchSkipped = false;
+        final Iterator<QueueEntry<V>> iter = values.iterator();
+        while (iter.hasNext()) {
+            if (pruningPoint.includes(iter.next().ts)) {
+                if (firstMatchSkipped) {
+                    iter.remove();
+                } else {
+                    firstMatchSkipped = true;
+                }
             }
         }
-        if (pruned.isEmpty()) {
-            pruned = new TreeSet<QueueEntry<V>>();
-            pruned.add(values.first());
-        }
-        values = pruned;
     }
 
     public void update(V val, TripleTimestamp ts, CausalityClock c) {
