@@ -147,7 +147,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     @Override
     public String toString() {
         return PrettyPrint.printMap("{", "}", ";", "->", elems);
-
     }
 
     @Override
