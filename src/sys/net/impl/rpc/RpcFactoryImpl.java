@@ -40,9 +40,9 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 //		 sys.utils.Log.setLevel("", Level.OFF);
 //		 sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
-//		 sys.utils.Log.setLevel("sys.dht", Level.OFF);
-//		 sys.utils.Log.setLevel("sys.net", Level.OFF);
-//		 sys.utils.Log.setLevel("sys", Level.WARNING);
+//		 sys.utils.Log.setLevel("sys.dht", Level.ALL);
+//		 sys.utils.Log.setLevel("sys.net", Level.ALL);
+//		 sys.utils.Log.setLevel("sys", Level.ALL);
 
 		// new PeriodicTask(0.0, 10.0) {
 		// public void run() {

@@ -30,7 +30,7 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 	boolean failed = false;
 	Throwable failureCause;
 
-	AbstractRpcPacket reply;
+	volatile AbstractRpcPacket reply;
 
 	protected AbstractRpcPacket() {
 	}

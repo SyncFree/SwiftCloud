@@ -47,4 +47,8 @@ public class BufferPool<V> {
 	public int remainingCapacity() {
 		return bufferPool.remainingCapacity();
 	}
+	
+	public void release() {
+		bufferPool.clear();
+	}
 }

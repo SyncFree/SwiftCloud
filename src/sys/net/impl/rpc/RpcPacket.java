@@ -20,6 +20,8 @@ final public class RpcPacket extends AbstractRpcPacket {
 	boolean isWaiting4Reply = false;
 	boolean deferredRepliesEnabled = false;
 
+	long rtt;
+	
 	RpcPacket() {
 	}
 
@@ -90,7 +92,8 @@ final public class RpcPacket extends AbstractRpcPacket {
 	}
 
 	final void deliver(AbstractRpcPacket pkt) {
-
+		this.rtt = Sys.timeMillis() - timestamp;
+		
 		if (isWaiting4Reply) {
 			synchronized (this) {
 				reply = pkt;
@@ -106,6 +109,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 		isWaiting4Reply = false;
 		if (reply != null)
 			reply.payload.deliverTo(reply, this.handler);
+		
 	}
 
 	final private boolean timedOut() {

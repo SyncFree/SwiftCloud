@@ -6,10 +6,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 import static sys.Sys.*;
 import sys.net.api.Endpoint;
@@ -23,6 +19,8 @@ import sys.net.impl.providers.KryoInputBuffer;
 import sys.net.impl.providers.BufferPool;
 import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.providers.KryoOutputBuffer;
+import sys.net.impl.providers.MultiQueueExecutor;
+import sys.net.impl.providers.SingleQueueExecutor;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.IO;
 import sys.utils.Threading;
@@ -31,12 +29,9 @@ import static sys.net.impl.NetworkingConstants.*;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
-	final BlockingQueue<Runnable> holdQueue = new ArrayBlockingQueue<Runnable>(16);
-	final ThreadPoolExecutor threadPool = new ThreadPoolExecutor(NIO_CORE_POOL_THREADS, NIO_MAX_POOL_THREADS, NIO_MAX_IDLE_THREAD_IMEOUT, TimeUnit.SECONDS, holdQueue);
-
 	ServerSocketChannel ssc;
-	final BufferPool<KryoOutputBuffer> writePool;
-
+	MultiQueueExecutor executor = new MultiQueueExecutor();
+	
 	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
 		this.localEndpoint = local;
 		this.gid = Sys.rg.nextLong() >>> 1;
@@ -46,16 +41,11 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			ssc.socket().bind(new InetSocketAddress(tcpPort));
 		}
 		super.setSocketAddress(ssc == null ? 0 : ssc.socket().getLocalPort());
-		writePool = new BufferPool<KryoOutputBuffer>(ssc != null ? 64 : 4);
 	}
 
 	public void start() throws IOException {
 
 		handler = localEndpoint.getHandler();
-		threadPool.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-
-		while (this.writePool.remainingCapacity() > 0)
-			this.writePool.offer(new KryoOutputBuffer());
 
 		if (ssc != null)
 			Threading.newThread("accept", true, this).start();
@@ -108,14 +98,16 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		Throwable cause;
 		SocketChannel channel;
 		final BufferPool<KryoInputBuffer> readPool;
+		final BufferPool<KryoOutputBuffer> writePool;
 
 		NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
 		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
-		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
+		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL;
 
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
 			this.readPool = new BufferPool<KryoInputBuffer>();
+			this.writePool = new BufferPool<KryoOutputBuffer>();
 		}
 
 		@Override
@@ -124,6 +116,9 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			while (this.readPool.remainingCapacity() > 0)
 				this.readPool.offer(new _ReadBuffer());
 
+			while (this.writePool.remainingCapacity() > 0)
+				this.writePool.offer(new KryoOutputBuffer());
+
 			try {
 				for (;;) {
 					KryoInputBuffer inBuf;
@@ -131,14 +126,14 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
 						inBuf = readPool.take();
 					else {
-						inBuf = readPool.take();
+						inBuf = readPool.poll();
 						if (inBuf == null)
 							inBuf = new _ReadBuffer();
 					}
 					if (inBuf.readFrom(channel)) {
 
 						if (execPolicy == NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL)
-							threadPool.execute(inBuf);
+							executor.execute( this, inBuf);
 						else
 							inBuf.run();
 
@@ -177,9 +172,12 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				}
 			}
 		}
-
 		final public boolean send(final Message m) {
+			boolean res = _send(m);			
+			return res;
+		}
 
+		final public boolean _send(final Message m) {
 			KryoOutputBuffer outBuf = null;
 			try {
 				if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
@@ -193,7 +191,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				m.setSize(size);
 				return true;
 			} catch (Throwable t) {
-				// t.printStackTrace();
+				//t.printStackTrace();
 
 				cause = t;
 				isBroken = true;
