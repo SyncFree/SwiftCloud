@@ -28,6 +28,7 @@ import swift.exceptions.WrongTypeException;
 public class DirectoryMergeTest {
     SwiftTester swift1, swift2;
     DirectoryVersioned i1, i2;
+    String dirTable = "DIR";
 
     private void merge() {
         swift1.merge(i1, i2, swift2);
@@ -48,8 +49,8 @@ public class DirectoryMergeTest {
 
     private TripleTimestamp registerInsert(String child, DirectoryVersioned i, TxnTester txn) {
         TripleTimestamp ts = txn.nextTimestamp();
-        CRDTIdentifier childId = DirectoryTxnLocal.getCRDTIdentifier(DirectoryTxnLocal.getFullPath(i.id), child,
-                DirectoryVersioned.class);
+        CRDTIdentifier childId = DirectoryTxnLocal.getCRDTIdentifier(dirTable, DirectoryTxnLocal.getFullPath(i.id),
+                child, DirectoryVersioned.class);
         txn.registerOperation(i, new DirectoryCreateUpdate(childId, ts));
         return ts;
     }
@@ -62,20 +63,20 @@ public class DirectoryMergeTest {
     }
 
     private void registerRemove(String child, Set<TripleTimestamp> rems, DirectoryVersioned i, TxnTester txn) {
-        CRDTIdentifier childId = DirectoryTxnLocal.getCRDTIdentifier(DirectoryTxnLocal.getFullPath(i.id), child,
-                DirectoryVersioned.class);
+        CRDTIdentifier childId = DirectoryTxnLocal.getCRDTIdentifier(dirTable, DirectoryTxnLocal.getFullPath(i.id),
+                child, DirectoryVersioned.class);
         txn.registerOperation(i, new DirectoryRemoveUpdate(childId, rems, txn.nextTimestamp()));
     }
 
     @Before
     public void setUp() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         i1 = new DirectoryVersioned();
-        i1.init(new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), DirectoryTxnLocal.getDirEntry("/root",
-                DirectoryVersioned.class)), ClockFactory.newClock(), ClockFactory.newClock(), true);
+        i1.init(new CRDTIdentifier(dirTable, DirectoryTxnLocal.getDirEntry("/root", DirectoryVersioned.class)),
+                ClockFactory.newClock(), ClockFactory.newClock(), true);
 
         i2 = new DirectoryVersioned();
-        i2.init(new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), DirectoryTxnLocal.getDirEntry("/root",
-                DirectoryVersioned.class)), ClockFactory.newClock(), ClockFactory.newClock(), true);
+        i2.init(new CRDTIdentifier(dirTable, DirectoryTxnLocal.getDirEntry("/root", DirectoryVersioned.class)),
+                ClockFactory.newClock(), ClockFactory.newClock(), true);
         swift1 = new SwiftTester("client1");
         swift2 = new SwiftTester("client2");
     }

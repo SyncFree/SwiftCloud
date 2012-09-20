@@ -29,21 +29,22 @@ import swift.utils.Pair;
  * Some information on dynamic type checking in Java for compliance of
  * identifiers and CRDT types:
  * 
- * To obtain the fully qualified name of a class: val.getClass().getName()
+ * To obtain the fully qualified name of a class: val.getClass().getName() or
  * V.getName()
  * 
- * To reconstruct the class and type-safe casts: w = Class.forName(FQN) assert(w
- * == v) v.cast(object)
+ * To reconstruct the class and type-safe casts: w = Class.forName(FQN);
+ * assert(w == v); v.cast(object)
  */
 
 public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
-    private static String dirTable = "DIR";
-    private Map<CRDTIdentifier, Set<TripleTimestamp>> dir;
+    private final String dirTable;
+    private final Map<CRDTIdentifier, Set<TripleTimestamp>> dir;
 
     public DirectoryTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, DirectoryVersioned creationState,
             Map<CRDTIdentifier, Set<TripleTimestamp>> payload) {
         super(id, txn, clock, creationState);
         this.dir = payload;
+        this.dirTable = id.getTable();
     }
 
     public static String getClassName(CRDTIdentifier id) {
@@ -61,26 +62,25 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     }
 
     /**
-     * Table under which all file system entries are stored.
-     * <p>
-     * FIXME Can we be there more flexible? Hard-coding this name is just quick
-     * fix.
+     * Table under which all entries for this directory (and all its
+     * subdirectories) are stored.
      */
-    public static String getDirTable() {
-        return dirTable;
+    public String getDirTable() {
+        return this.dirTable;
     }
 
     public static <V extends CRDT<V>> String getDirEntry(String name, Class<V> c) {
         return name + ":" + c.getName();
     }
 
-    public static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String fullDirName, String name, Class<V> c) {
+    public static <V extends CRDT<V>> CRDTIdentifier getCRDTIdentifier(String table, String fullDirName, String name,
+            Class<V> c) {
         String prefix = "/".equals(fullDirName) ? "" : fullDirName + "/";
-        return new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), prefix + getDirEntry(name, c));
+        return new CRDTIdentifier(table, prefix + getDirEntry(name, c));
     }
 
-    public static <V extends CRDT<V>> CRDTIdentifier createRootId(String key, Class<V> c) {
-        CRDTIdentifier newCRDTId = getCRDTIdentifier("", key, c);
+    public static <V extends CRDT<V>> CRDTIdentifier createRootId(String table, String key, Class<V> c) {
+        CRDTIdentifier newCRDTId = getCRDTIdentifier(table, "", key, c);
         return newCRDTId;
 
     }
@@ -91,7 +91,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         TripleTimestamp ts = nextTimestamp();
         Set<TripleTimestamp> tss = new HashSet<TripleTimestamp>();
         tss.add(ts);
-        CRDTIdentifier newCRDTId = getCRDTIdentifier(getFullPath(this.id), key, c);
+        CRDTIdentifier newCRDTId = getCRDTIdentifier(dirTable, getFullPath(this.id), key, c);
         dir.put(newCRDTId, tss);
         this.getTxnHandle().get(newCRDTId, true, c);
         registerLocalOperation(new DirectoryCreateUpdate(newCRDTId, ts));
@@ -107,8 +107,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         }
 
         if (!"".equals(path)) {
-            CRDTIdentifier parentId = new CRDTIdentifier(DirectoryTxnLocal.getDirTable(), getDirEntry(path,
-                    DirectoryVersioned.class));
+            CRDTIdentifier parentId = new CRDTIdentifier(getDirTable(), getDirEntry(path, DirectoryVersioned.class));
             DirectoryTxnLocal parent = this.getTxnHandle().get(parentId, false, DirectoryVersioned.class);
             parent.createNewEntry(name, DirectoryVersioned.class);
         }
@@ -117,11 +116,11 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
 
     public <V extends CRDT<V>> void removeEntry(String key, Class<V> c) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
-        CRDTIdentifier id = getCRDTIdentifier(getFullPath(this.id), key, c);
+        CRDTIdentifier id = getCRDTIdentifier(dirTable, getFullPath(this.id), key, c);
         Set<TripleTimestamp> toBeRemoved = dir.remove(id);
         if (toBeRemoved != null) {
             TripleTimestamp ts = nextTimestamp();
-            registerLocalOperation(new DirectoryRemoveUpdate(getCRDTIdentifier(getFullPath(this.id), key, c),
+            registerLocalOperation(new DirectoryRemoveUpdate(getCRDTIdentifier(dirTable, getFullPath(this.id), key, c),
                     toBeRemoved, ts));
         }
         if (c.equals(DirectoryVersioned.class)) {
@@ -140,7 +139,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
 
     public <V extends CRDT<V>, L extends TxnLocalCRDT<V>> L get(String key, Class<V> c) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        CRDTIdentifier entry = getCRDTIdentifier(getFullPath(this.id), key, c);
+        CRDTIdentifier entry = getCRDTIdentifier(dirTable, getFullPath(this.id), key, c);
         if (dir.keySet().contains(entry)) {
             return this.getTxnHandle().get(entry, false, c, null);
         } else {
@@ -149,7 +148,7 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
     }
 
     public <V extends CRDT<V>> boolean contains(String key, Class<V> c) {
-        return dir.containsKey(getCRDTIdentifier(getFullPath(this.id), key, c));
+        return dir.containsKey(getCRDTIdentifier(dirTable, getFullPath(this.id), key, c));
     }
 
     @Override
