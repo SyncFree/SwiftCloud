@@ -47,20 +47,15 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     public void removeU(V e, TripleTimestamp uid, Set<TripleTimestamp> set) {
         Map<TripleTimestamp, Set<TripleTimestamp>> s = elems.get(e);
         if (s == null) {
-            s = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
-            elems.put(e, s);
+            return;
         }
 
         for (TripleTimestamp ts : set) {
             Set<TripleTimestamp> removals = s.get(ts);
-            if (removals == null) {
-                removals = new HashSet<TripleTimestamp>();
-                removals.add(uid);
-                s.put(ts, removals);
-
-            } else {
+            if (removals != null) {
                 removals.add(uid);
             }
+            // else: element uid has been already pruned
         }
     }
 
