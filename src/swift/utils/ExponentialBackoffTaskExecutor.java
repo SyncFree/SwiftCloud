@@ -4,6 +4,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import sys.scheduler.PeriodicTask;
+import sys.utils.Threading;
 
 /**
  * Executor of {@link CallableWithDeadline} tasks using exponential back-off in
@@ -48,14 +49,14 @@ public class ExponentialBackoffTaskExecutor {
                 return task.call();
             } catch (Exception x) {
                 interRetryWaitTime *= retryWaitTimeMultiplier;
+                
+                //smd DEBUG
+                interRetryWaitTime = Math.min( 5000, interRetryWaitTime);
+                
                 reportRetry(interRetryWaitTime, task);
                 deadlineLeft = task.getDeadlineLeft();
                 if (interRetryWaitTime <= deadlineLeft) {
-                    try {
-                        Thread.sleep(Math.min(deadlineLeft, interRetryWaitTime));
-                    } catch (InterruptedException e) {
-                        // TODO: support interrupts better.
-                    }
+                	Threading.synchronizedWaitOn( task, (int)Math.min(deadlineLeft, interRetryWaitTime) );                    
                 } else {
                     deadlineLeft = -1;
                 }

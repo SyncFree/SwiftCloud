@@ -3,6 +3,8 @@ package swift.utils;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicReference;
 
+import sys.utils.Threading;
+
 /**
  * A task with deadline that can be retried a number of times in case of
  * (transient) failure.
@@ -10,6 +12,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * @author mzawirski
  */
 public abstract class CallableWithDeadline<V> implements Callable<V> {
+
+	private long startTime = sys.Sys.Sys.timeMillis(), rtt = -1L;
     private final long deadlineTime;
     
     final private V defaultResult;
@@ -21,6 +25,11 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
     protected void setResult( V res ) {
     	if( result.get() == null )
     		result.set( res ) ;
+    	
+    	if( rtt < 0 ) {
+    		rtt = sys.Sys.Sys.timeMillis() - startTime;
+    	}
+    	Threading.synchronizedNotifyAllOn(this);
     }
     
     /*
