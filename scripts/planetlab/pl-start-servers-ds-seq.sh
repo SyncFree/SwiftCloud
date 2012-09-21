@@ -21,6 +21,7 @@ servers_start() {
 
 #        swift_app_cmd -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=9418 -Djava.rmi.server.hostname=$seq swift.dc.DCSequencerServer -name "X$i" -servers $srv -sequencers $other_seq
 
+        #swift_app_cmd swift.dc.DCSequencerServer -name "X$i"
         swift_app_cmd swift.dc.DCSequencerServer -name "X$i" -servers $srv -sequencers $other_seq
 
         run_cmd_bg $seq $CMD

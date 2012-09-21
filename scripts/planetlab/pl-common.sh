@@ -18,25 +18,36 @@ export EC2_USER=fctple_SwiftCloud
 export EC2_PROD_EU_C1MEDIUM=(
 )
 
+
 export EC2_PROD_EU_MICRO=(
-planetlab-3.iscte.pt
+ec2-54-247-59-85.eu-west-1.compute.amazonaws.com
+ec2-54-247-59-196.eu-west-1.compute.amazonaws.com
+)
+
+export PLANETLAB_SCOUTS=(
 planetlab1.fct.ualg.pt
+planetlab2.fct.ualg.pt
+)
+
+export PLANETLAB_CLIENTS=(
+planetlab1.di.fct.unl.pt
+planetlab2.di.fct.unl.pt
+planetlab-1.iscte.pt
+planetlab-2.iscte.pt
 )
 
 export PLANETLAB_NODES=(
-planetlab2.fct.ualg.pt
-planetlab-4.iscte.pt
-planetlab-um10.di.uminho.pt
-planetlab-um00.di.uminho.pt
-planetlab1.eurecom.fr
-planetlab2.utt.fr
-#ple2.ipv6.lip6.fr
+planetlab2.di.fct.unl.pt
+planetlab-1.iscte.pt
+planetlab-2.iscte.pt
 )
-
 
 
 # WARNING - PlanetLab nodes are volatile; some may be down...
 export PLANETLAB_NODES_ALL=(
+ait21.us.es
+ait05.us.es
+
 ple2.ipv6.lip6.fr
 peeramide.irisa.fr
 planetlab-2.imag.fr

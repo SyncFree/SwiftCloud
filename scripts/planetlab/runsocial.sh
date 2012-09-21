@@ -9,19 +9,18 @@
 DCS[0]=${EC2_PROD_EU_MICRO[0]}
 DCSEQ[0]=${EC2_PROD_EU_MICRO[0]}
 
-DCS[1]=${EC2_PROD_EU_MICRO[1]}
-DCSEQ[1]=${EC2_PROD_EU_MICRO[1]}
+#DCS[1]=${EC2_PROD_EU_MICRO[1]}
+#DCSEQ[1]=${EC2_PROD_EU_MICRO[1]}
 
 DC_CLIENTS=("${PLANETLAB_NODES[@]}")
 
 MACHINES="${DCS[*]} ${DCSEQ[*]} ${DC_CLIENTS[*]}"
 INIT_DB_DC=${DCS[0]}
-INIT_DB_CLIENT=${DCS[1]}
-
+INIT_DB_CLIENT=${DC_CLIENTS[0]}
 
 # INPUT DATA PARAMS
-INPUT_USERS=2500
-INPUT_ACTIVE_USERS=50
+INPUT_USERS=1500
+INPUT_ACTIVE_USERS=10
 INPUT_USER_FRIENDS=25
 INPUT_USER_BIASED_OPS=9
 INPUT_USER_RANDOM_OPS=1
@@ -32,15 +31,18 @@ FILE_CMDS_PREFIX=input/commands.txt
 # BENCHMARK PARAMS
 NOTIFICATIONS=false
 ISOLATION=REPEATABLE_READS
-CACHING=STRICTLY_MOST_RECENT
-CACHE_EVICTION_TIME_MS=120 #120000
+CACHING=CACHED
+CACHE_EVICTION_TIME_MS=5000 #120000
 ASYNC_COMMIT=false
 THINK_TIME_MS=0
-MAX_CONCURRENT_SESSIONS_PER_JVM=20
+MAX_CONCURRENT_SESSIONS_PER_JVM=5
 
 
 DC_NUMBER=${#DCS[@]}
 CLIENTS_NUMBER=${#DC_CLIENTS[@]}
+
+echo "DCS: " $DC_NUMBER "CLIENTS: " $CLIENTS_NUMBER
+
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
 scripts/planetlab/pl-kill.sh $MACHINES
@@ -71,7 +73,7 @@ run_swift_client_bg() {
 	client=$1
 	server=$2
 	input_file=$3
-	swift_app_cmd_nostdout -Xmx512m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7777 -Djava.rmi.server.hostname=$client swift.application.social.SwiftSocialBenchmark run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $MAX_CONCURRENT_SESSIONS_PER_JVM
+	swift_app_cmd_nostdout -Xmx256m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7777 -Djava.rmi.server.hostname=$client swift.application.social.SwiftSocialBenchmark run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $MAX_CONCURRENT_SESSIONS_PER_JVM
 	run_cmd_bg $client $CMD
 }
 
