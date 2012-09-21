@@ -97,7 +97,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 		if (isWaiting4Reply) {
 			synchronized (this) {
 				reply = pkt;
-				Threading.notifyOn(this);
+				Threading.notifyAllOn(this);
 			}
 		} else
 			pkt.payload.deliverTo(pkt, this.handler);

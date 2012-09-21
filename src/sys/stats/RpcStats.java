@@ -25,12 +25,12 @@ public class RpcStats extends XmlExternalizable {
 
 	synchronized public void logSentRpcPacket(RpcPacket pkt, Endpoint dst) {
 		String type = pkt.getPayload().getClass().getName();
-		valueFor( inMsgTraffic, type, true).tally( Sys.currentTime(), pkt.getSize() ) ;
+		valueFor( outMsgTraffic, type, true).tally( Sys.currentTime(), pkt.getSize() ) ;
 	}
 
 	synchronized public void logReceivedRpcPacket(RpcPacket pkt, Endpoint src) {
 		String type = pkt.getPayload().getClass().getName();
-		valueFor( outMsgTraffic, type, true).tally( Sys.currentTime(), pkt.getSize() ) ;
+		valueFor( inMsgTraffic, type, true).tally( Sys.currentTime(), pkt.getSize() ) ;
 	}
 
 	synchronized public void logRpcExecTime(Class<?> cl, double time) {

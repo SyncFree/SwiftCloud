@@ -139,7 +139,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	}
 
 	public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
-		// double t0 = Sys.timeMillis();
+//		double t0 = Sys.timeMillis();
 		RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
 
 		Log.finest("RPC: " + pkt.payload.getClass() + " from: " + conn.remoteEndpoint() );
