@@ -1,23 +1,38 @@
-package swift.application.social;
+package swift.application.social.cdn;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.sun.org.apache.bcel.internal.generic.GETSTATIC;
+
+import swift.application.social.Commands;
+import swift.application.social.SwiftSocial;
+import swift.application.social.SwiftSocialMain;
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
+import sys.net.api.Networking.TransportProvider;
+import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
+import swift.application.social.Message;
 
 import static sys.Sys.*;
+import static sys.net.api.Networking.Networking;
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
  * prototype [Sovran et al. OSDI 2011].
@@ -25,20 +40,17 @@ import static sys.Sys.*;
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.
  */
-public class SwiftSocialBenchmark {
+public class SwiftSocialBenchmarkServer {
+	public static int PORT = 11111;
+	
     private static String dcName;
     private static String fileName = "scripts/commands.txt";
     private static IsolationLevel isolationLevel;
     private static CachePolicy cachePolicy;
     private static boolean subscribeUpdates;
-    private static PrintStream bufferedOutput;
     private static boolean asyncCommit;
     private static long cacheEvictionTimeMillis;
     private static long thinkTime;
-    private static int concurrentSessions;
-    
-    static AtomicInteger commandsDone = new AtomicInteger(0);
-    static AtomicInteger totalCommands = new AtomicInteger(0);
     
     public static void main(String[] args) {
         if (args.length < 3) {
@@ -47,8 +59,8 @@ public class SwiftSocialBenchmark {
         final String command = args[0];
         dcName = args[1];
         fileName = args[2];
-
         sys.Sys.init();
+
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
             final SwiftImpl swiftClient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
@@ -57,57 +69,30 @@ public class SwiftSocialBenchmark {
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
             swiftClient.stop(true);
             System.out.println("Finished populating db with users.");
+            System.exit(0);            
         } else if (command.equals("run") && args.length == 10) {
             isolationLevel = IsolationLevel.valueOf(args[3]);
             cachePolicy = CachePolicy.valueOf(args[4]);
             cacheEvictionTimeMillis = Long.valueOf(args[5]);
             subscribeUpdates = Boolean.parseBoolean(args[6]);
             asyncCommit = Boolean.parseBoolean(args[7]);
-            thinkTime = Long.valueOf(args[8]);
-            concurrentSessions = Integer.valueOf(args[9]);
-            
-            bufferedOutput = new PrintStream(System.out, false);
-            bufferedOutput.println("session_id,command,command_exec_time,time");
-
-            // Read all sessions from the file.
-            final List<List<String>> sessions = readSessionsCommands(fileName, 0, Integer.MAX_VALUE);
-
-            // Kick off all sessions, throughput is limited by
-            // concurrentSessions.
-            final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions);
-            System.err.println("Spawning session threads.");
-            for (int i = 0; i < sessions.size(); i++) {
-                final int sessionId = i;
-                final List<String> commands = sessions.get(i);
-                sessionsExecutor.execute(new Runnable() {
-                    public void run() {
-                    	//Avoid clients running all at the same time...
-                    	Threading.sleep( Sys.rg.nextInt(5000) );
-                        runClientSession(sessionId, commands);
-                    }
-                });
-            }
-
-// 			  smd - report client progress every 10 seconds...
-            new PeriodicTask(0.0, 10.0) {
-            	public void run() {
-            		System.err.printf("\r------------>Done:%.1f", 100.0 * commandsDone.get() / totalCommands.get() );
-            	}
-            };
-            
-            // Wait for all sessions.
-            sessionsExecutor.shutdown();
-            try {
-                sessionsExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            System.err.println("Session threads completed.");
-        } else {
-            exitWithUsage();
+            thinkTime = Long.valueOf(args[8]);            
         }
-        System.exit(0);
-    }
+        
+        Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new CdnRpcHandler() {
+				
+				@Override
+				public void onReceive(final RpcHandle handle, final CdnRpc m) {
+					String sessionId = handle.remoteEndpoint().toString();
+					List<String> cmds = new ArrayList<String>();
+					cmds.add( m.payload );
+					execCommands(sessionId, cmds );
+					handle.reply( new CdnRpc("OK") );
+				}				
+			});
+
+//        System.err.println("SwiftSocial Server Ready...");
+     }
 
     private static void exitWithUsage() {
         System.out.println("Usage 1: init <surrogate addr> <users filename>");
@@ -121,19 +106,10 @@ public class SwiftSocialBenchmark {
         System.exit(1);
     }
 
-    private static void runClientSession(final int sessionId, final List<String> commands) {
-        Swift swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
-                Integer.MAX_VALUE, cacheEvictionTimeMillis);
-        SwiftSocial socialClient = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
-                asyncCommit);
-
-        
-        totalCommands.addAndGet( commands.size() ) ;
-        final long sessionStartTime = System.currentTimeMillis();
-        final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
-        bufferedOutput.println(initSessionLog);
+    private static void execCommands( String sessionId, Collection<String> commands ) {
+    	SwiftSocial socialClient = getSession( sessionId ).swiftSocial;
+    	
         for (String cmdLine : commands) {
-            final long txnStartTime = System.currentTimeMillis();
             String[] toks = cmdLine.split(";");
             final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
             switch (cmd) {
@@ -177,12 +153,6 @@ public class SwiftSocialBenchmark {
                 System.err.println("Exiting...");
                 System.exit(1);
             }
-            final long now = System.currentTimeMillis();
-            final long txnExecTime = now - txnStartTime;
-            final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
-            bufferedOutput.println(log);
-
-            // TODO: Do not wait constant time, use a random distribution.
             if (thinkTime > 0) {
                 try {
                     Thread.sleep(thinkTime);
@@ -190,43 +160,29 @@ public class SwiftSocialBenchmark {
                     e.printStackTrace();
                 }
             }
-            commandsDone.incrementAndGet();
         }
-        swiftCLient.stop(true);
-
-        final long now = System.currentTimeMillis();
-        final long sessionExecTime = now - sessionStartTime;
-        bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
-        bufferedOutput.flush();
     }
+    
+    static Session getSession( String sessionId ) {
+    	Session res = sessions.get( sessionId );
+    	if( res == null ) {
+    		sessions.put( sessionId, res = new Session() );
+    	}
+    	return res;
+    }
+    
+    static Map<String, Session> sessions = new HashMap<String, Session>();
+    
+    static class Session {
+    	final Swift swiftCLient;
+    	final SwiftSocial swiftSocial;
+    	
+    	Session() {
+    		swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
+	                Integer.MAX_VALUE, cacheEvictionTimeMillis);
 
-    /**
-     * Reads sessions [firstSession, firstSession + sessionsNumber) from the
-     * file. Indexing starts from 0.
-     */
-    private static List<List<String>> readSessionsCommands(final String fileName, final int firstSession,
-            final int sessionsNumber) {
-        final List<String> cmds = SwiftSocialMain.readInputFromFile(fileName);
-        final List<List<String>> sessionsCmds = new ArrayList<List<String>>();
-
-        List<String> sessionCmds = new ArrayList<String>();
-        for (int currentSession = 0, currentCmd = 0; currentSession < firstSession + sessionsNumber
-                && currentCmd < cmds.size(); currentCmd++) {
-            final String cmd = cmds.get(currentCmd);
-            if (currentSession >= firstSession) {
-                sessionCmds.add(cmd);
-            }
-
-            final String[] toks = cmd.split(";");
-            final Commands cmdType = Commands.valueOf(toks[0].toUpperCase());
-            if (cmdType == Commands.LOGOUT) {
-                if (currentSession >= firstSession && currentSession < firstSession + sessionsNumber) {
-                    sessionsCmds.add(sessionCmds);
-                }
-                sessionCmds = new ArrayList<String>();
-                currentSession++;
-            }
-        }
-        return sessionsCmds;
+    		swiftSocial = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
+    	                asyncCommit);
+    	}
     }
 }

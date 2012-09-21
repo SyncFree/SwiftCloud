@@ -48,7 +48,7 @@ public class SwiftSocial {
     }
 
     // FIXME Return type integer encoding error msg?
-    boolean login(String loginName, String passwd) {
+    public boolean login(String loginName, String passwd) {
         logger.info("Got login request from user " + loginName);
 
         // Check if user is already logged in
@@ -111,7 +111,7 @@ public class SwiftSocial {
         return false;
     }
 
-    void logout(String loginName) {
+    public void logout(String loginName) {
         currentUser = null;
         // FIXME End session? handle cookies?
         logger.info(loginName + " successfully logged out");
@@ -186,6 +186,7 @@ public class SwiftSocial {
     }
 
     @SuppressWarnings("unchecked")
+	public
     User read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
@@ -210,6 +211,7 @@ public class SwiftSocial {
 
     // FIXME return error code?
     @SuppressWarnings("unchecked")
+	public
     void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
@@ -232,7 +234,7 @@ public class SwiftSocial {
         }
     }
 
-    void updateStatus(String msg, long date) {
+    public void updateStatus(String msg, long date) {
         logger.info("Update status for " + this.currentUser.loginName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
@@ -315,7 +317,7 @@ public class SwiftSocial {
         }
     }
 
-    void befriend(String receiverName) {
+    public void befriend(String receiverName) {
         logger.info("Befriending " + receiverName);
         TxnHandle txn = null;
         try {
@@ -343,7 +345,7 @@ public class SwiftSocial {
         }
     }
 
-    Set<Friend> readFriendList(String name) {
+    public Set<Friend> readFriendList(String name) {
         logger.info("Get friends of " + name);
         Set<Friend> friends = new HashSet<Friend>();
         TxnHandle txn = null;

@@ -164,7 +164,7 @@ public class SwiftSocialMain {
             for (String line : userData) {
                 System.out.printf("\rInitialization:%.1f%%", 100.0*counter++/total);
                 // Divide into smaller transactions.
-                if (txnSize >= 10000) {
+                if (txnSize >= 100) {
                     txn.commit();
                     txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
                     txnSize = 0;
