@@ -1,24 +1,21 @@
 package swift.crdt.operations;
 
-import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.RegisterVersioned;
-import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.Copyable;
 
 public class RegisterUpdate<V extends Copyable> extends BaseUpdate<RegisterVersioned<V>> {
     private V val;
-    private CausalityClock c;
+    private int lamportClock;
 
     // required for kryo
     public RegisterUpdate() {
     }
 
-    public RegisterUpdate(TripleTimestamp ts, V val, CausalityClock c) {
+    public RegisterUpdate(TripleTimestamp ts, int lamportClock, V val) {
         super(ts);
+        this.lamportClock = lamportClock;
         this.val = val;
-        this.c = c;
     }
 
     public V getVal() {
@@ -26,21 +23,7 @@ public class RegisterUpdate<V extends Copyable> extends BaseUpdate<RegisterVersi
     }
 
     @Override
-    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        // WISHME: extract as a CausalityClock method?
-        if (c.includes(oldTs)) {
-            c.drop(oldTs);
-            c.record(newTs);
-        }
-    }
-
-    @Override
     public void applyTo(RegisterVersioned<V> register) {
-        register.update(val, getTimestamp(), c);
-    }
-
-    @Override
-    public CRDTUpdate<RegisterVersioned<V>> withBaseTimestamp(Timestamp ts) {
-        return new RegisterUpdate<V>(getTimestamp().withBaseTimestamp(ts), val, c);
+        register.update(lamportClock, getTimestamp(), val);
     }
 }

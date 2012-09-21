@@ -66,7 +66,7 @@ public class KryoCRDTUtils {
         KryoLib.register(IntegerVersioned.class,0x56);
         KryoLib.register(IntegerVersioned.UpdatesPerSite.class,0x57);
         KryoLib.register(RegisterVersioned.class,0x58);
-        KryoLib.register(RegisterVersioned.QueueEntry.class,0x59);
+        KryoLib.register(RegisterVersioned.UpdateEntry.class,0x59);
         KryoLib.register(SetIds.class,0x60);
         KryoLib.register(SetIntegers.class,0x61);
         KryoLib.register(SetMsg.class,0x62);

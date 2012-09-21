@@ -6,6 +6,7 @@ import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
@@ -26,7 +27,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
     protected CRDTIdentifier id;
     protected CausalityClock dependencyClock;
-    protected Timestamp baseTimestamp;
+    protected TimestampMapping timestampMapping;
     protected List<CRDTUpdate<V>> operations;
     protected V creationState;
 
@@ -43,9 +44,9 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      * @param baseTimestamp
      * @param creationState
      */
-    public CRDTObjectUpdatesGroup(CRDTIdentifier id, Timestamp baseTimestamp, V creationState) {
+    public CRDTObjectUpdatesGroup(CRDTIdentifier id, Timestamp clientTimestamp, V creationState) {
         this.id = id;
-        this.baseTimestamp = baseTimestamp;
+        this.timestampMapping = new TimestampMapping(clientTimestamp);
         this.operations = new LinkedList<CRDTUpdate<V>>();
         this.creationState = creationState;
     }
@@ -62,44 +63,11 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      * @return base timestamp of all operations in the sequence
      */
     public Timestamp getBaseTimestamp() {
-        return baseTimestamp;
+        return timestampMapping.getClientTimestamp();
     }
 
-    /**
-     * Creates a copy of this group of operations with another base timestamp
-     * and dependency clock for all operations in the group.
-     * 
-     * @param otherBaseTimestamp
-     *            base timestamp to be used by all operations in the copy
-     * @param dependencyClock
-     *            dependency clock for the new copy of operations group
-     * @return a copy of the group with a different base timestamp
-     */
-    public synchronized CRDTObjectUpdatesGroup<V> withBaseTimestampAndDependency(Timestamp otherBaseTimestamp,
-            final CausalityClock otherDependencyClock) {
-        final CRDTObjectUpdatesGroup<V> copy = new CRDTObjectUpdatesGroup<V>(id, otherBaseTimestamp,
-                creationState);
-        copy.dependencyClock = otherDependencyClock;
-        for (final CRDTUpdate<V> op : operations) {
-            copy.append(op.withBaseTimestamp(otherBaseTimestamp));
-        }
-        copy.replaceDependeeOperationTimestamp(baseTimestamp, otherBaseTimestamp);
-        return copy;
-    }
-
-    /**
-     * Replaces base timestamp of dependee operation(s) with the new one for all
-     * operations in the group.
-     * 
-     * @param oldTs
-     *            old base timestamp of a dependee operation
-     * @param newTs
-     *            new base timestamp of a depenedee operation
-     */
-    public synchronized void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        for (CRDTUpdate<V> op : operations) {
-            op.replaceDependeeOperationTimestamp(oldTs, newTs);
-        }
+    public TimestampMapping getTimestampMapping() {
+        return timestampMapping;
     }
 
     /**

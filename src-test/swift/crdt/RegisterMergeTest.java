@@ -230,9 +230,9 @@ public class RegisterMergeTest {
     @Test
     public void testGetUpdateTimestampsSince() {
         final CausalityClock updatesSince = i1.getClock().clone();
-        assertTrue(i1.getUpdateTimestampsSince(updatesSince).isEmpty());
+        assertTrue(i1.getUpdateSystemTimestampsSince(updatesSince).isEmpty());
 
         registerSingleUpdateTxn(1, i1, swift1);
-        assertEquals(1, i1.getUpdateTimestampsSince(updatesSince).size());
+        assertEquals(1, i1.getUpdateSystemTimestampsSince(updatesSince).size());
     }
 }

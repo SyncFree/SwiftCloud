@@ -1,80 +1,80 @@
 package swift.clocks;
 
-
-/**
- * Timestamp implementation with two-dimensional counter (which accounts for
- * triple together with siteId).
- */
 // TODO: provide custom serializer or Kryo-lize the class
-public class TripleTimestamp extends Timestamp {
+public class TripleTimestamp implements Comparable<TripleTimestamp> {
     private static final long serialVersionUID = 1L;
-    protected long secondaryCounter;
+    protected Timestamp clientTimestamp;
+    protected long distinguishingCounter;
+    protected TimestampMapping mapping;
 
+    /**
+     * DO NOT USE: Kryo-hack constructor.
+     */
     public TripleTimestamp() {
     }
-    /**
-     * Creates triple counter with default maximum value for primary counter.
-     * 
-     * @param siteId
-     * @param primaryCounter
-     * @param secondaryCounter
-     */
-    TripleTimestamp(final String siteId, final long primaryCounter, final long secondaryCounter) {
-        super(siteId, primaryCounter);
-        this.secondaryCounter = secondaryCounter;
+
+    TripleTimestamp(final Timestamp clientTimestamp, final long distinguishingCounter) {
+        this.clientTimestamp = clientTimestamp;
+        this.distinguishingCounter = distinguishingCounter;
+        this.mapping = new TimestampMapping(clientTimestamp);
     }
 
-    /**
-     * Returns the size of this object in bytes
-     * 
-     * @return
-     */
-    public int size() {
-        return super.size() + (Long.SIZE / Byte.SIZE);
+    public Timestamp getClientTimestamp() {
+        return clientTimestamp;
+    }
+
+    public void setMapping(TimestampMapping mapping) {
+        if (!clientTimestamp.equals(mapping.getClientTimestamp())) {
+            throw new IllegalArgumentException("Attempt to assign incompatible timestamp mapping");
+        }
+        this.mapping = mapping;
+    }
+
+    public TimestampMapping getMapping() {
+        return mapping;
     }
 
     @Override
-    public long getSecondaryCounter() {
-        return secondaryCounter;
+    public int compareTo(TripleTimestamp o) {
+        final int tsResult = clientTimestamp.compareTo(o.clientTimestamp);
+        if (tsResult != 0) {
+            return tsResult;
+        }
+        return Long.signum(distinguishingCounter - o.distinguishingCounter);
     }
 
-    /**
-     * Returns true if this timestamp is equal to the given Timestamp. If the
-     * given object is a TripleTimestamp, returns true if they share the same
-     * base timestamp.
-     */
-    public boolean includes(Object obj) {
+    @Override
+    public boolean equals(Object obj) {
         if (!(obj instanceof TripleTimestamp)) {
             return false;
         }
-        return compareTo((Timestamp) obj) == 0;
+        return compareTo((TripleTimestamp) obj) == 0;
     }
 
     public int hashCode() {
-        return super.hashCode() ^ (int) secondaryCounter;
+        return clientTimestamp.hashCode() ^ (int) distinguishingCounter;
     }
 
     public String toString() {
-        return "(" + getIdentifier() + "," + getCounter() + "," + secondaryCounter + ")";
+        return "(" + clientTimestamp.getIdentifier() + "," + clientTimestamp.getCounter() + "," + distinguishingCounter
+                + "," + mapping.toString() + ")";
     }
 
-    public Timestamp clone() {
-        return new TripleTimestamp(getIdentifier(), getCounter(), secondaryCounter);
+    public TripleTimestamp copy() {
+        final TripleTimestamp copy = new TripleTimestamp(clientTimestamp, distinguishingCounter);
+        copy.mapping = mapping.copy();
+        return copy;
     }
 
-    public Timestamp cloneBaseTimestamp() {
-        return new Timestamp(getIdentifier(), getCounter());
+    public boolean timestampsIntersect(CausalityClock clock) {
+        return mapping.timestampsIntersect(clock);
     }
 
-    /**
-     * Creates a copy of this timestamp using a different base timestamp
-     * (identifiers and counter).
-     * 
-     * @param baseTimestamp
-     *            base timestamp - source of identifier and counter
-     * @return a copy of this timestamp with the provided base
-     */
-    public TripleTimestamp withBaseTimestamp(final Timestamp baseTimestamp) {
-        return new TripleTimestamp(baseTimestamp.getIdentifier(), baseTimestamp.getCounter(), getSecondaryCounter());
+    public void addSystemTimestamp(Timestamp ts) {
+        mapping.addSystemTimestamp(ts);
+    }
+
+    public void addSystemTimestamps(TimestampMapping mapping) {
+        mapping.addSystemTimestamps(mapping);
     }
 }

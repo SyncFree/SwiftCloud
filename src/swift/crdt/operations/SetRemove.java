@@ -1,14 +1,9 @@
 package swift.crdt.operations;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Set;
 
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.SetVersioned;
-import swift.crdt.interfaces.CRDTUpdate;
 
 public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseUpdate<T> {
     private V val;
@@ -33,26 +28,7 @@ public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseUpdate<T> {
     }
 
     @Override
-    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        final List<TripleTimestamp> newIds = new LinkedList<TripleTimestamp>();
-        final Iterator<TripleTimestamp> iter = ids.iterator();
-        while (iter.hasNext()) {
-            final TripleTimestamp id = iter.next();
-            if (oldTs.includes(id)) {
-                newIds.add(id.withBaseTimestamp(newTs));
-                iter.remove();
-            }
-        }
-        ids.addAll(newIds);
-    }
-
-    @Override
     public void applyTo(T crdt) {
         crdt.removeU(val, getTimestamp(), ids);
-    }
-
-    @Override
-    public CRDTUpdate<T> withBaseTimestamp(Timestamp ts) {
-        return new SetRemove<V, T>(getTimestamp().withBaseTimestamp(ts), val, ids);
     }
 }

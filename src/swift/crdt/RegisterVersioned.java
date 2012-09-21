@@ -8,7 +8,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.CausalityClock.CMP_CLOCK;
+import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
@@ -19,23 +19,64 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVersioned<V>> {
     private static final long serialVersionUID = 1L;
 
-    // Queue holding the versioning information, ordering is compatible with
-    // causal dependency, newest entries coming first
-    private SortedSet<QueueEntry<V>> values;
+    public static class UpdateEntry<V extends Copyable> implements Comparable<UpdateEntry<V>>, Serializable {
+        private static final long serialVersionUID = 4540422641079766746L;
+
+        int lamportClock;
+        TripleTimestamp ts;
+        V value;
+
+        // Kryo USE ONLY.
+        UpdateEntry() {
+        }
+
+        UpdateEntry(int lamportClock, final TripleTimestamp ts, V value) {
+            this.lamportClock = lamportClock;
+            this.ts = ts;
+            this.value = value;
+        }
+
+        @Override
+        public int compareTo(UpdateEntry<V> o) {
+            if (lamportClock != o.lamportClock) {
+                return o.lamportClock - lamportClock;
+            }
+            return ts.compareTo(o.ts);
+        }
+
+        @SuppressWarnings({ "unchecked" })
+        @Override
+        public boolean equals(Object obj) {
+            if (!(obj instanceof UpdateEntry)) {
+                return false;
+            }
+            return compareTo((UpdateEntry<V>) obj) == 0;
+        }
+
+        @SuppressWarnings("unchecked")
+        public UpdateEntry<V> copy() {
+            return new UpdateEntry<V>(lamportClock, ts, (V) value.copy());
+        }
+    }
+
+    // List of register updates, the order is a deterministic linear extension
+    // of causal dependency relation. Recent update comes first.
+    private SortedSet<UpdateEntry<V>> values;
 
     public RegisterVersioned() {
-        this.values = new TreeSet<QueueEntry<V>>();
+        this.values = new TreeSet<UpdateEntry<V>>();
     }
 
     @Override
     public void rollback(Timestamp ts) {
-        Iterator<QueueEntry<V>> it = values.iterator();
+        // FIXME: deal with mappings
+        final CausalityClock tsAsClock = ClockFactory.newClock();
+        tsAsClock.record(ts);
+
+        final Iterator<UpdateEntry<V>> it = values.iterator();
         while (it.hasNext()) {
-            QueueEntry<V> entry = it.next();
-            if (!entry.c.includes(ts)) {
-                break;
-            }
-            if (entry.ts.equals(ts)) {
+            UpdateEntry<V> entry = it.next();
+            if (entry.ts.timestampsIntersect(tsAsClock)) {
                 it.remove();
             }
         }
@@ -53,10 +94,12 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         // value representing purningPoint - there must be a summary of pruned
         // state.
         boolean firstMatchSkipped = false;
-        final Iterator<QueueEntry<V>> iter = values.iterator();
+        final Iterator<UpdateEntry<V>> iter = values.iterator();
         while (iter.hasNext()) {
-            if (pruningPoint.includes(iter.next().ts)) {
+            final UpdateEntry<V> entry = iter.next();
+            if (entry.ts.timestampsIntersect(pruningPoint)) {
                 if (firstMatchSkipped) {
+                    unregisterTimestampUsage(entry.ts);
                     iter.remove();
                 } else {
                     firstMatchSkipped = true;
@@ -65,35 +108,36 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         }
     }
 
-    public void update(V val, TripleTimestamp ts, CausalityClock c) {
-        values.add(new QueueEntry<V>(ts, c, val));
+    public void update(int lamportClock, TripleTimestamp updateTimestamp, V val) {
+        values.add(new UpdateEntry<V>(lamportClock, updateTimestamp, val));
+        registerTimestampUsage(updateTimestamp);
     }
 
     @Override
     protected void mergePayload(RegisterVersioned<V> otherObject) {
-        CMP_CLOCK cmpClock = otherObject.getPruneClock().compareTo(getPruneClock());
-        if (cmpClock == CMP_CLOCK.CMP_DOMINATES) {
-            pruneImpl(otherObject.getPruneClock());
-        } else {
-            if (cmpClock == CMP_CLOCK.CMP_ISDOMINATED) {
-                otherObject.pruneImpl(getPruneClock());
+        values.addAll(otherObject.values);
+        for (final UpdateEntry<V> entry : otherObject.values) {
+            if (values.add(entry)) {
+                registerTimestampUsage(entry.ts);
             }
         }
-        values.addAll(otherObject.values);
     }
 
     @Override
     protected TxnLocalCRDT<RegisterVersioned<V>> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final RegisterVersioned<V> creationState = isRegisteredInStore() ? null : new RegisterVersioned<V>();
-        RegisterTxnLocal<V> localview = new RegisterTxnLocal<V>(id, txn, versionClock, creationState,
-                value(versionClock));
-        return localview;
+        final UpdateEntry<V> value = value(versionClock);
+        if (value != null) {
+            return new RegisterTxnLocal<V>(id, txn, versionClock, creationState, value.value, value.lamportClock + 1);
+        } else {
+            return new RegisterTxnLocal<V>(id, txn, versionClock, creationState, null, 0);
+        }
     }
 
-    private V value(CausalityClock versionClock) {
-        for (QueueEntry<V> e : values) {
-            if (versionClock.includes(e.ts)) {
-                return e.value;
+    private UpdateEntry<V> value(CausalityClock versionClock) {
+        for (UpdateEntry<V> e : values) {
+            if (e.ts.timestampsIntersect(versionClock)) {
+                return e;
             }
         }
         return null;
@@ -109,73 +153,101 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         op.applyTo(this);
     }
 
-    @Override
     public RegisterVersioned<V> copy() {
         RegisterVersioned<V> copyObj = new RegisterVersioned<V>();
-        for (QueueEntry<V> e : values) {
+        for (UpdateEntry<V> e : values) {
             copyObj.values.add(e.copy());
         }
         copyBase(copyObj);
         return copyObj;
     }
 
-    @Override
-    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        final Set<Timestamp> result = new HashSet<Timestamp>();
-        for (QueueEntry<V> e : values) {
-            if (!clock.includes(e.ts)) {
-                result.add(e.ts.cloneBaseTimestamp());
-            }
-        }
-        return result;
-    }
-
-    // public for sake of Kryo...
-    public static class QueueEntry<V extends Copyable> implements Comparable<QueueEntry<V>>, Serializable {
-        TripleTimestamp ts;
-        CausalityClock c;
-        V value;
-
-        /**
-         * Do not use: Empty constructor only to be used by Kryo serialization.
-         */
-        public QueueEntry() {
-        }
-
-        public QueueEntry(TripleTimestamp ts, CausalityClock c, V value) {
-            this.ts = ts;
-            this.c = c;
-            this.value = value;
-        }
-
-        @Override
-        public int compareTo(QueueEntry<V> other) {
-            CMP_CLOCK result = this.c.compareTo(other.c);
-            switch (result) {
-            case CMP_CONCURRENT:
-            case CMP_EQUALS:
-                if (other.ts == null) {
-                    return 1;
-                } else {
-                    return other.ts.compareTo(this.ts);
-                }
-            case CMP_ISDOMINATED:
-                return 1;
-            case CMP_DOMINATES:
-                return -1;
-            default:
-                return 0;
-            }
-        }
-
-        @Override
-        public String toString() {
-            return value + " -> " + ts + "," + c;
-        }
-
-        public QueueEntry<V> copy() {
-            QueueEntry<V> copyObj = new QueueEntry<V>(ts, c.clone(), (V) value.copy());
-            return copyObj;
-        }
-    }
+    // TODO(Marek): The following piece of code is useful if one wants to
+    // implement MV+LWWRegister but requires an extra bit of work to implement
+    // pruning.
+    //
+    // /**
+    // * A node of a causal history DAG with a value of type V.
+    // *
+    // * @author zawir
+    // * @param <V>
+    // */
+    // public static class DAGNode<V extends Copyable> implements
+    // Comparable<DAGNode<V>> {
+    // UpdateTimestamp ts;
+    // V value;
+    // List<DAGNode<V>> successors;
+    //
+    // public DAGNode() {
+    // }
+    //
+    // public DAGNode(final UpdateTimestamp ts, V value) {
+    // this.ts = ts;
+    // this.value = value;
+    // this.successors = new LinkedList<DAGNode<V>>();
+    // }
+    //
+    // public void addSuccessor(final DAGNode<V> successor) {
+    // successors.add(successor);
+    // }
+    //
+    // public Collection<DAGNode<V>> getLatestNodes(final CausalityClock
+    // visibleClock) {
+    // final HashSet<UpdateTimestamp> visitedIds = new
+    // HashSet<UpdateTimestamp>();
+    // final HashMap<UpdateTimestamp, DAGNode<V>> latestNodes = new
+    // HashMap<UpdateTimestamp, DAGNode<V>>();
+    // if (!ts.timestampsIntersect(visibleClock)) {
+    // throw new IllegalArgumentException(
+    // "The provided visibleClock does not include the root of causal history");
+    // }
+    // getLatestNodesRecursive(visitedIds, latestNodes, visibleClock);
+    // return latestNodes.values();
+    // }
+    //
+    // public DAGNode<V> getLatestNode(final CausalityClock visibleClock) {
+    // final Collection<DAGNode<V>> latestNodes = getLatestNodes(visibleClock);
+    // }
+    //
+    // /**
+    // *
+    // * @param visitedIds
+    // * @param latestNodes
+    // * @return true when the successor is valid
+    // */
+    // private boolean getLatestNodesRecursive(HashSet<UpdateTimestamp>
+    // visitedIds,
+    // HashMap<UpdateTimestamp, DAGNode<V>> latestNodes, final CausalityClock
+    // visibleClock) {
+    // if (!ts.timestampsIntersect(visibleClock)) {
+    // return false;
+    // }
+    //
+    // if (visitedIds.add(ts)) {
+    // boolean foundSucc = false;
+    // for (final DAGNode<V> succ : successors) {
+    // if (succ.getLatestNodesRecursive(visitedIds, latestNodes, visibleClock))
+    // {
+    // foundSucc = true;
+    // }
+    // }
+    // if (!foundSucc) {
+    // latestNodes.put(ts, this);
+    // }
+    // }
+    // return true;
+    // }
+    //
+    // public V getValue() {
+    // return value;
+    // }
+    //
+    // /**
+    // * Total-order comparator based on unique update id.
+    // */
+    // @Override
+    // public int compareTo(DAGNode<V> o) {
+    // return ts.compareTo(o.ts);
+    // }
+    // }
 }

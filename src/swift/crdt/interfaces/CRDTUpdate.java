@@ -11,28 +11,17 @@ import swift.clocks.TripleTimestamp;
 public interface CRDTUpdate<V extends CRDT<V>> {
 
     /**
-     * Returns the timestamp associated to the operations.
+     * Returns the id associated to the operations.
      */
     TripleTimestamp getTimestamp();
 
     /**
-     * Returns a deep copy of this operation with another base timestamp.
+     * Adds a system timestamp to this update.
      * 
      * @param ts
-     *            base timestamp to use in the copy
+     *            new target system timestamp
      */
-    CRDTUpdate<V> withBaseTimestamp(Timestamp ts);
-
-    /**
-     * Replaces base timestamp of dependee operation(s) of this operation with
-     * the new one.
-     * 
-     * @param oldTs
-     *            old base timestamp of a dependent operation
-     * @param newTs
-     *            new base timestamp of a dependent operation
-     */
-    void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs);
+    void addSystemTimestamp(Timestamp ts);
 
     /**
      * Applies operation to the given object instance.

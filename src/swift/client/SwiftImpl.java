@@ -787,7 +787,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
         final Set<Timestamp> recentUpdates;
         try {
-            recentUpdates = newCrdtVersion.getUpdateTimestampsSince(subscription.readVersion);
+            recentUpdates = newCrdtVersion.getUpdateSystemTimestampsSince(subscription.readVersion);
         } catch (IllegalArgumentException x) {
             // Object has been pruned since then, look at the values.
             // This is a very bizzare case.

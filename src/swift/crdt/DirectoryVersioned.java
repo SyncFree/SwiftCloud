@@ -2,6 +2,8 @@ package swift.crdt;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,13 +30,24 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        PayloadHelper.pruneImpl(this.dir, pruningPoint);
+        final List<TripleTimestamp> releasedTimestampUsages = PayloadHelper.pruneImpl(this.dir, pruningPoint);
+        for (final TripleTimestamp ts : releasedTimestampUsages) {
+            unregisterTimestampUsage(ts);
+        }
     }
 
     @Override
     protected void mergePayload(DirectoryVersioned other) {
+        final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
+        final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
         PayloadHelper.mergePayload(this.dir, this.getClock(), this.getPruneClock(), other.dir, other.getClock(),
-                other.getPruneClock());
+                other.getPruneClock(), newTimestampUsages, releasedTimestampUsages);
+        for (final TripleTimestamp ts : newTimestampUsages) {
+            registerTimestampUsage(ts);
+        }
+        for (final TripleTimestamp ts : releasedTimestampUsages) {
+            unregisterTimestampUsage(ts);
+        }
     }
 
     protected void execute(CRDTUpdate<DirectoryVersioned> op) {
@@ -71,11 +84,6 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
         final DirectoryVersioned creationState = isRegisteredInStore() ? null : new DirectoryVersioned();
         DirectoryTxnLocal localView = new DirectoryTxnLocal(id, txn, versionClock, creationState, payload);
         return localView;
-    }
-
-    @Override
-    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        return PayloadHelper.getUpdateTimestampsSinceImpl(this.dir, clock);
     }
 
 }

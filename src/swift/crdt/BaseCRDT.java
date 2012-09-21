@@ -1,10 +1,18 @@
 package swift.crdt;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CRDTUpdate;
@@ -36,6 +44,12 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected transient CRDTIdentifier id;
     // registration status
     protected transient boolean registeredInStore;
+    // mapping from active client-assigned Timestamp to TripleTimestamp
+    protected Map<Timestamp, List<TripleTimestamp>> clientTimestampsInUse;
+
+    public BaseCRDT() {
+        clientTimestampsInUse = new HashMap<Timestamp, List<TripleTimestamp>>();
+    }
 
     @Override
     public void init(CRDTIdentifier id, CausalityClock clock, CausalityClock pruneClock, boolean registeredInStore) {
@@ -78,6 +92,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      */
     protected abstract void pruneImpl(CausalityClock pruningPoint);
 
+    @SuppressWarnings("unchecked")
     @Override
     public void merge(CRDT<V> otherObject) {
         // FIXME: it's more involved than that!
@@ -94,11 +109,42 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         // "Cannot merge with an object version lower or concurrent with pruning point of this version");
         // }
 
+        // FIXME: merge mappings!!
+
         mergePayload((V) otherObject);
+        mergeTimestampMappings((V) otherObject);
         getClock().merge(otherObject.getClock());
         pruneClock.merge(otherObject.getPruneClock());
         prune(pruneClock.clone(), false);
         registeredInStore |= otherObject.isRegisteredInStore();
+    }
+
+    protected Iterator<TimestampMapping> iteratorTimestampMappings() {
+        final Iterator<List<TripleTimestamp>> iter = clientTimestampsInUse.values().iterator();
+        return new Iterator<TimestampMapping>() {
+            @Override
+            public boolean hasNext() {
+                return iter.hasNext();
+            }
+
+            @Override
+            public TimestampMapping next() {
+                // Get any timestamp, they should all use the same mappings.
+                return iter.next().get(0).getMapping();
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    protected void mergeTimestampMappings(V otherObject) {
+        final Iterator<TimestampMapping> iter = otherObject.iteratorTimestampMappings();
+        while (iter.hasNext()) {
+            updateTimestampUsageMapping(iter.next());
+        }
     }
 
     /**
@@ -110,6 +156,51 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      */
     protected abstract void mergePayload(V otherObject);
 
+    protected void registerTimestampUsage(final TripleTimestamp ts) {
+        List<TripleTimestamp> timestampsForClient = clientTimestampsInUse.get(ts.getClientTimestamp());
+        if (timestampsForClient == null) {
+            timestampsForClient = new LinkedList<TripleTimestamp>();
+            clientTimestampsInUse.put(ts.getClientTimestamp(), timestampsForClient);
+        }
+        boolean updated = false;
+        for (final TripleTimestamp existingTs : timestampsForClient) {
+            if (!updated) {
+                // Update added mappings - unify it with existing
+                // timestamps.
+                ts.addSystemTimestamps(existingTs.getMapping());
+                updated = true;
+            }
+            // Update existing timestamp mappings - unify them with the added
+            // one.
+            existingTs.getMapping().addSystemTimestamps(ts.getMapping());
+        }
+        timestampsForClient.add(ts);
+    }
+
+    protected void updateTimestampUsageMapping(final TimestampMapping mapping) {
+        List<TripleTimestamp> timestampsForClient = clientTimestampsInUse.get(mapping.getClientTimestamp());
+        if (timestampsForClient == null) {
+            return;
+        }
+        for (final TripleTimestamp existingTs : timestampsForClient) {
+            existingTs.getMapping().addSystemTimestamps(mapping);
+        }
+    }
+
+    // FIXME: ideally, clientTimestampsInUse should be a weak reference map, so
+    // we do not need to unregister timestamps explicitly, but how it plays with
+    // Kryo serialization is unknown.
+    protected void unregisterTimestampUsage(final TripleTimestamp ts) {
+        List<TripleTimestamp> timestampsForClient = clientTimestampsInUse.get(ts.getClientTimestamp());
+        if (timestampsForClient == null) {
+            throw new IllegalStateException("Timestamp to unregister cannot be found");
+        }
+        timestampsForClient.remove(ts);
+        if (timestampsForClient.isEmpty()) {
+            clientTimestampsInUse.remove(ts.getClientTimestamp());
+        }
+    }
+
     @Override
     public boolean execute(CRDTObjectUpdatesGroup<V> ops, final CRDTOperationDependencyPolicy dependenciesPolicy) {
         final CausalityClock dependencyClock = ops.getDependency();
@@ -120,22 +211,22 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             }
         } else if (dependenciesPolicy == CRDTOperationDependencyPolicy.RECORD_BLINDLY) {
             updatesClock.merge(dependencyClock);
-        }
-
-        // Otherwise: IGNORE
-        if (!updatesClock.record(ops.getBaseTimestamp())) {
-            // Operations group is already included in the state.
-            return false;
-        }
+        } // else: dependenciesPolicy ==IGNORE
 
         if (ops.hasCreationState()) {
             registeredInStore = true;
         }
 
-        for (final CRDTUpdate<V> op : ops.getOperations()) {
-            execute(op);
+        final boolean newOperation = updatesClock.record(ops.getBaseTimestamp());
+        if (newOperation) {
+            for (final CRDTUpdate<V> op : ops.getOperations()) {
+                execute(op);
+            }
+        } else {
+            updateTimestampUsageMapping(ops.getTimestampMapping());
         }
-        return true;
+
+        return newOperation;
     }
 
     /**
@@ -191,15 +282,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
     }
 
-    @Override
-    public Set<Timestamp> getUpdateTimestampsSince(CausalityClock clock) {
-        final CMP_CLOCK pruneCmp = clock.compareTo(pruneClock);
-        if (pruneCmp == CMP_CLOCK.CMP_CONCURRENT || pruneCmp == CMP_CLOCK.CMP_ISDOMINATED) {
-            throw new IllegalArgumentException();
-        }
-        return getUpdateTimestampsSinceImpl(clock);
-    }
-
     /**
      * Finds all operations that have been performed strictly after clock on the
      * object.
@@ -209,7 +291,19 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      * @return set of timestamps for operations that have been performed since
      *         clock
      */
-    protected abstract Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock);
+    @Override
+    public Set<Timestamp> getUpdateSystemTimestampsSince(CausalityClock clock) {
+        if (clock.compareTo(pruneClock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
+            throw new IllegalArgumentException();
+        }
+
+        final Set<Timestamp> result = new HashSet<Timestamp>();
+        final Iterator<TimestampMapping> iter = iteratorTimestampMappings();
+        while (iter.hasNext()) {
+            result.addAll(iter.next().getTimestampsIntersection(clock));
+        }
+        return result;
+    }
 
     @Override
     // TODO Check that all class which override this method either create deep
@@ -235,5 +329,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      */
     protected void copyBase(V object) {
         object.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
+        // FIXME: unify copy() implementations and serialization - should this
+        // clientTimestampsInUse be here or not (it is not transient)?
+        object.clientTimestampsInUse = KryoLib.copy(clientTimestampsInUse);
     }
 }

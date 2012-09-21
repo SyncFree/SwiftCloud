@@ -268,11 +268,11 @@ public class SetMergeTest {
     @Test
     public void testGetUpdateTimestampsSince() {
         final CausalityClock updatesSince = i1.getClock().clone();
-        assertTrue(i1.getUpdateTimestampsSince(updatesSince).isEmpty());
+        assertTrue(i1.getUpdateSystemTimestampsSince(updatesSince).isEmpty());
 
         final TripleTimestamp ts = registerSingleInsertTxn(1, i1, swift1);
         registerSingleRemoveTxn(1, Collections.singleton(ts), i1, swift1);
-        assertEquals(2, i1.getUpdateTimestampsSince(updatesSince).size());
+        assertEquals(2, i1.getUpdateSystemTimestampsSince(updatesSince).size());
     }
 
     @Test

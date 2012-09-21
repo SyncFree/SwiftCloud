@@ -2,6 +2,8 @@ package swift.crdt;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -42,6 +44,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
             elems.put(e, entry);
         }
         entry.put(uid, new HashSet<TripleTimestamp>());
+        registerTimestampUsage(uid);
     }
 
     public void removeU(V e, TripleTimestamp uid, Set<TripleTimestamp> set) {
@@ -54,15 +57,24 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
             Set<TripleTimestamp> removals = s.get(ts);
             if (removals != null) {
                 removals.add(uid);
+                registerTimestampUsage(uid);
             }
-            // else: element uid has been already pruned
+            // else: element uid has been already removed&pruned
         }
     }
 
     @Override
     protected void mergePayload(T other) {
+        final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
+        final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
         PayloadHelper.mergePayload(this.elems, this.getClock(), this.getPruneClock(), other.elems, other.getClock(),
-                other.getPruneClock());
+                other.getPruneClock(), newTimestampUsages, releasedTimestampUsages);
+        for (final TripleTimestamp ts : newTimestampUsages) {
+            registerTimestampUsage(ts);
+        }
+        for (final TripleTimestamp ts : releasedTimestampUsages) {
+            unregisterTimestampUsage(ts);
+        }
     }
 
     @Override
@@ -86,12 +98,10 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        PayloadHelper.pruneImpl(this.elems, pruningPoint);
-    }
-
-    @Override
-    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        return PayloadHelper.getUpdateTimestampsSinceImpl(this.elems, clock);
+        final List<TripleTimestamp> releasedTimestampUsages = PayloadHelper.pruneImpl(this.elems, pruningPoint);
+        for (final TripleTimestamp ts : releasedTimestampUsages) {
+            unregisterTimestampUsage(ts);
+        }
     }
 
     protected void copyLoad(SetVersioned<V, T> copy) {

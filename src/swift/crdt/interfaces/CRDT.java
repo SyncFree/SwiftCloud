@@ -178,7 +178,7 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      *             or clock is dominated or concurrent to
      *             {@link #getPruneClock()}
      */
-    Set<Timestamp> getUpdateTimestampsSince(final CausalityClock clock);
+    Set<Timestamp> getUpdateSystemTimestampsSince(final CausalityClock clock);
 
     /**
      * @return a deep copy of this object

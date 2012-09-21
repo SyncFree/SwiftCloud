@@ -8,20 +8,18 @@ package swift.clocks;
  */
 public class IncrementalTripleTimestampGenerator implements TimestampSource<TripleTimestamp> {
 
-    private String siteid;
-    private long counter;
+    private final Timestamp ts;
     private long last;
 
     public IncrementalTripleTimestampGenerator(Timestamp ts) {
-        this.siteid = ts.getIdentifier();
-        this.counter = ts.getCounter();
+        this.ts = ts;
         this.last = Timestamp.MIN_VALUE;
 
     }
 
     @Override
     public synchronized TripleTimestamp generateNew() {
-        return new TripleTimestamp(siteid, counter, ++last);
+        return new TripleTimestamp(ts, ++last);
     }
 
 }

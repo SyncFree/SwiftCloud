@@ -18,18 +18,16 @@ import swift.utils.Pair;
 
 public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     private static final long serialVersionUID = 1L;
-    // Map of site id to updates
-    private Map<String, UpdatesPerSite> updates;
+    // Map of updateId to integer deltas
+    private Map<TripleTimestamp, Integer> updates;
     // Current value with respect to the updatesClock
     private int currentValue;
 
     // Value with respect to the pruneClock
-    private Map<String, Pair<Integer, TripleTimestamp>> pruneVector;
     private int pruneValue;
 
     public IntegerVersioned() {
-        this.updates = new HashMap<String, UpdatesPerSite>();
-        this.pruneVector = new HashMap<String, Pair<Integer, TripleTimestamp>>();
+        this.updates = new HashMap<TripleTimestamp, Integer>();
     }
 
     private int value(CausalityClock snapshotClock) {
@@ -43,22 +41,16 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         return retValue;
     }
 
-    private int filterUpdates(CausalityClock clk) {
+    private int filterUapdates(CausalityClock clk) {
         int retValue = 0;
-        for (Entry<String, UpdatesPerSite> entry : updates.entrySet()) {
-            retValue += entry.getValue().filterUpdates(clk);
+        for (final int delta : updates.values()) {
+            retValue += delta;
         }
         return retValue;
     }
 
     public void applyUpdate(int n, TripleTimestamp ts) {
-        String siteId = ts.getIdentifier();
-        UpdatesPerSite v = updates.get(siteId);
-        if (v == null) {
-            v = new UpdatesPerSite();
-            updates.put(siteId, v);
-        }
-        v.add(n, ts);
+        updates.put(ts, n);
         currentValue += n;
     }
 
@@ -80,6 +72,11 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     @Override
     protected void mergePayload(IntegerVersioned other) {
+        currentValue = 0;
+        final HashMap<TripleTimestamp, Integer> newUpdates = new HashMap<UpdateTimestamp, Integer>();
+        for (final Entry<TripleTimestamp, Integer> otherUpdate: other.updates) {
+            if (otherUpdate.getKey().timestampsIntersect(getPruneClock())) {
+        }
         Map<String, Pair<Integer, TripleTimestamp>> newPruneVector = new HashMap<String, Pair<Integer, TripleTimestamp>>();
         for (Entry<String, Pair<Integer, TripleTimestamp>> e : pruneVector.entrySet()) {
             Pair<Integer, TripleTimestamp> v = other.pruneVector.get(e.getKey());
