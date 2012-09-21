@@ -309,15 +309,18 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     @Override
     public void onReceive(final RpcHandle conn, GenerateTimestampRequest request) {
         DCConstants.DCLogger.info("GenerateTimestampRequest client = " + request.getClientId());
+
         final ClientPubInfo session = getSession(request.getClientId());
 
-        sequencerClientEndpoint.send(sequencerServerEndpoint, request, new GenerateTimestampReplyHandler() {
+        RpcHandle res = sequencerClientEndpoint.send(sequencerServerEndpoint, request, new GenerateTimestampReplyHandler() {
             @Override
             public void onReceive(RpcHandle conn0, GenerateTimestampReply reply) {
                 DCConstants.DCLogger.info("GenerateTimestampRequest: forwarding reply");
                 conn.reply(reply);
             }
-        });
+        }, 15);
+        if( res.failed() )
+        	System.out.println( request.getClass() + "-> failed...");
     }
 
     @Override
@@ -502,7 +505,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                     }
                 }
             }
-        });
+        }, 0);
     }
 
 }
