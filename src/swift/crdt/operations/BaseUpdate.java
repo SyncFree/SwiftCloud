@@ -1,6 +1,7 @@
 package swift.crdt.operations;
 
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
@@ -22,7 +23,7 @@ public abstract class BaseUpdate<V extends CRDT<V>> implements CRDTUpdate<V> {
     }
 
     @Override
-    public void addSystemTimestamp(Timestamp ts) {
-        this.ts.addSystemTimestamp(ts);
+    public void setTimestampMapping(TimestampMapping mapping) {
+        ts.setMapping(mapping);
     }
 }

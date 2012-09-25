@@ -1,5 +1,9 @@
 package swift.client.proto;
 
+import java.util.Collections;
+import java.util.LinkedList;
+import java.util.List;
+
 import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
@@ -13,24 +17,25 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class CommitUpdatesReply implements RpcMessage {
     public enum CommitStatus {
-        COMMITTED,
         /**
-         * The transaction has been already committed using another timestamp.
+         * The transaction has been committed using a known timestamp or
+         * timestamps given in the reply.
          */
-        ALREADY_COMMITTED,
+        COMMITTED_WITH_KNOWN_TIMESTAMPS,
         /**
-         * The transaction cannot be committed, because provided timestamp is
-         * invalid. Client can retry to commit using another timestamp.
+         * The transaction has been committed using an unknown timestamp, which
+         * is included somewhere in the clock given the reply.
          */
-        INVALID_TIMESTAMP,
+        COMMITTED_WITH_KNOWN_CLOCK_RANGE,
         /**
-         * The transaction cannot be committed, because a given operation
-         * is invalid         */
+         * The transaction cannot be committed, because a given operation is
+         * invalid for some reason.
+         */
         INVALID_OPERATION
     }
 
     protected CommitStatus status;
-    protected Timestamp commitTimestamp;
+    protected List<Timestamp> systemTimestamps;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -38,9 +43,15 @@ public class CommitUpdatesReply implements RpcMessage {
     CommitUpdatesReply() {
     }
 
-    public CommitUpdatesReply(CommitStatus status, Timestamp commitTimestamp) {
+    public CommitUpdatesReply(CommitStatus status, List<Timestamp> systemTimestamps) {
         this.status = status;
-        this.commitTimestamp = commitTimestamp;
+        this.systemTimestamps = new LinkedList<Timestamp>(systemTimestamps);
+    }
+
+    public CommitUpdatesReply(CommitStatus status, Timestamp systemTimestamp) {
+        this.status = status;
+        this.systemTimestamps = new LinkedList<Timestamp>(systemTimestamps);
+        this.systemTimestamps.add(systemTimestamp);
     }
 
     /**
@@ -54,8 +65,8 @@ public class CommitUpdatesReply implements RpcMessage {
      * @return timestamp using which the transaction has been committed; null if
      *         {@link #getStatus()} is {@link CommitStatus#INVALID_TIMESTAMP}
      */
-    public Timestamp getCommitTimestamp() {
-        return commitTimestamp;
+    public List<Timestamp> getCommitTimestamps() {
+        return Collections.unmodifiableList(systemTimestamps);
     }
 
     @Override

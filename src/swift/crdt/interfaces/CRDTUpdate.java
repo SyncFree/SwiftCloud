@@ -1,6 +1,7 @@
 package swift.crdt.interfaces;
 
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 
 /**
@@ -15,6 +16,8 @@ public interface CRDTUpdate<V extends CRDT<V>> {
      */
     TripleTimestamp getTimestamp();
 
+    void setTimestampMapping(TimestampMapping mapping);
+    
     /**
      * Adds a system timestamp to this update.
      * 

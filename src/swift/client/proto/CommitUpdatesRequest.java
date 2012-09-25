@@ -1,11 +1,11 @@
 package swift.client.proto;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
@@ -13,8 +13,8 @@ import sys.net.api.rpc.RpcHandler;
 /**
  * Client request to commit set of updates to the store.
  * <p>
- * All updates use the same timestamp. Updates are organized into atomic groups
- * of updates per each object.
+ * All updates use the same client timestamp. Updates are organized into atomic
+ * groups of updates per each object.
  * 
  * @author mzawirski
  */
@@ -23,10 +23,11 @@ import sys.net.api.rpc.RpcHandler;
 // dependency CausalityClock is shared by all updates).
 public class CommitUpdatesRequest extends ClientRequest {
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
-    protected Timestamp baseTimestamp;
-    // Optimization HACK! dependencyClock is stored together for transfer time
-    // only. We should have a cleaner way to do it, perhaps with Kryo
-    // serializer?
+    // Optimization HACK! dependencyClock and timestampMapping are unified to
+    // limit data structure size and message size.
+    // We should have a cleaner way to do it, perhaps with Kryo serializer?
+    // Shall we really share these instances?
+    protected TimestampMapping timestampMapping;
     protected CausalityClock dependencyClock;
 
     /**
@@ -38,12 +39,15 @@ public class CommitUpdatesRequest extends ClientRequest {
     public CommitUpdatesRequest(String clientId, final Timestamp baseTimestamp,
             List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
         super(clientId);
-        this.baseTimestamp = baseTimestamp;
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups.size());
         // Part of optimization hack.
         for (final CRDTObjectUpdatesGroup<?> ops : objectUpdateGroups) {
-            this.dependencyClock = ops.getDependency();
-            this.objectUpdateGroups.add(ops.withBaseTimestampAndDependency(baseTimestamp, null));
+            if (this.dependencyClock == null) {
+                this.dependencyClock = ops.getDependency();
+                this.timestampMapping = ops.getTimestampMapping();
+            }
+            ops.init(this.timestampMapping, this.dependencyClock);
+            this.objectUpdateGroups.add(ops);
         }
     }
 
@@ -53,7 +57,7 @@ public class CommitUpdatesRequest extends ClientRequest {
      *         updates use TripleTimestamps with this base Timestamp
      */
     public Timestamp getBaseTimestamp() {
-        return baseTimestamp;
+        return timestampMapping.getClientTimestamp();
     }
 
     /**
@@ -62,10 +66,6 @@ public class CommitUpdatesRequest extends ClientRequest {
      *         {@link #getBaseTimestamp()}
      */
     public List<CRDTObjectUpdatesGroup<?>> getObjectUpdateGroups() {
-        // // Part of optimization hack: make sure dependencies are filled in.
-        for (final CRDTObjectUpdatesGroup<?> ops : objectUpdateGroups) {
-            ops.setDependency(dependencyClock);
-        }
         return objectUpdateGroups;
     }
 

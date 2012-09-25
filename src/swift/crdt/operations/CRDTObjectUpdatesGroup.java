@@ -60,13 +60,27 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     }
 
     /**
+     * @param mapping
+     * @param dependencyClock
+     */
+    public synchronized void init(final TimestampMapping mapping, CausalityClock dependencyClock) {
+        this.timestampMapping = mapping;
+        this.dependencyClock = dependencyClock;
+    }
+
+    /**
      * @return base timestamp of all operations in the sequence
      */
-    public Timestamp getBaseTimestamp() {
+    public synchronized Timestamp getBaseTimestamp() {
         return timestampMapping.getClientTimestamp();
     }
 
-    public TimestampMapping getTimestampMapping() {
+    public synchronized void addSystemTimestamp(final Timestamp ts) {
+        timestampMapping.addSystemTimestamp(ts);
+    }
+
+    public synchronized TimestampMapping getTimestampMapping() {
+        // FIXME: release read-only copy to the client!
         return timestampMapping;
     }
 
@@ -80,15 +94,6 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      */
     public synchronized CausalityClock getDependency() {
         return dependencyClock;
-    }
-
-    /**
-     * Sets the dependency clock of operation group.
-     * 
-     * @see #getDependency()
-     */
-    public synchronized void setDependency(CausalityClock dependencyClock) {
-        this.dependencyClock = dependencyClock;
     }
 
     /**
@@ -106,6 +111,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      *            next operation to be applied within the transaction
      */
     public synchronized void append(CRDTUpdate<V> op) {
+        op.setTimestampMapping(timestampMapping);
         operations.add(op);
     }
 
