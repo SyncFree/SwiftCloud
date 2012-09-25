@@ -76,9 +76,6 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
         if (getCounter() != ot.getCounter()) {
             return Long.signum(getCounter() - ot.getCounter());
         }
-        if (getSecondaryCounter() != ot.getSecondaryCounter()) {
-            return Long.signum(getSecondaryCounter() - ot.getSecondaryCounter());
-        }
         return siteid.compareTo(ot.siteid);
     }
 
@@ -102,12 +99,5 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
      */
     public long getCounter() {
         return counter;
-    }
-
-    /**
-     * @return value of the secondary counter
-     */
-    public long getSecondaryCounter() {
-        return MIN_VALUE;
     }
 }
