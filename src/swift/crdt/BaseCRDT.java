@@ -109,8 +109,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         // "Cannot merge with an object version lower or concurrent with pruning point of this version");
         // }
 
-        // FIXME: merge mappings!!
-
         mergePayload((V) otherObject);
         mergeTimestampMappings((V) otherObject);
         getClock().merge(otherObject.getClock());
