@@ -22,17 +22,7 @@ public class IntegerUpdate extends BaseUpdate<IntegerVersioned> {
     }
 
     @Override
-    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        // Integer operation does not rely on any timestamp dependency.
-    }
-
-    @Override
     public void applyTo(IntegerVersioned crdt) {
         crdt.applyUpdate(val, getTimestamp());
-    }
-
-    @Override
-    public CRDTUpdate<IntegerVersioned> withBaseTimestamp(Timestamp ts) {
-        return new IntegerUpdate(getTimestamp().withBaseTimestamp(ts), val);
     }
 }
