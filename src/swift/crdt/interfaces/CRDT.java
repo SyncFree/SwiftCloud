@@ -185,4 +185,9 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      */
     V copy();
 
+    public abstract void discardScoutClock(final String scoutId);
+
+    // FIXME: should be it a CausalityClock, do we allow holes?
+    public abstract void augmentWithScoutClock(final Timestamp latestAppliedScoutTimestamp);
+
 }

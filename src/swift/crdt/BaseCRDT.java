@@ -92,6 +92,16 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      */
     protected abstract void pruneImpl(CausalityClock pruningPoint);
 
+    @Override
+    public void augmentWithScoutClock(final Timestamp latestAppliedScoutTimestamp) {
+        updatesClock.recordAllUntil(latestAppliedScoutTimestamp);
+    }
+
+    @Override
+    public void discardScoutClock(final String scoutId) {
+        updatesClock.drop(scoutId);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void merge(CRDT<V> otherObject) {
