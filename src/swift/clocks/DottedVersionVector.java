@@ -351,4 +351,12 @@ public class DottedVersionVector implements CausalityClock {
         throw new UnsupportedOperationException();
     }
 
+    @Override
+    public void recordAllUntil(Timestamp timestamp) {
+        // FIXME: it can be horribly inefficient, improve!
+        for (long i = Timestamp.MIN_VALUE + 1; i < timestamp.getCounter(); i++) {
+            record(new Timestamp(timestamp.getIdentifier(), i));
+        }
+    }
+
 }

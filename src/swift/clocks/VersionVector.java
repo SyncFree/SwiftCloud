@@ -1,10 +1,12 @@
 package swift.clocks;
 
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
+import swift.clocks.VersionVectorWithExceptions.Pair;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -41,6 +43,11 @@ public class VersionVector implements CausalityClock {
         Long i = vv.get(cc.getIdentifier());
         vv.put(cc.getIdentifier(), cc.getCounter());
         return i == null || i < cc.getCounter();
+    }
+
+    @Override
+    public void recordAllUntil(Timestamp timestamp) {
+        record(timestamp);
     }
 
     /**

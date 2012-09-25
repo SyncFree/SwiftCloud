@@ -801,7 +801,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
     public void drop(String siteId) {
         vv.remove(siteId);
     }
-
+    
     @Override
     public void drop(final Timestamp cc) {
         LinkedList<Pair> l = vv.get(cc.getIdentifier());
@@ -840,6 +840,19 @@ public class VersionVectorWithExceptions implements CausalityClock {
                 numPairs++;
                 return;
             }
+        }
+    }
+
+    @Override
+    public void recordAllUntil(Timestamp timestamp) {
+        if (vv.containsKey(timestamp.getIdentifier())) {
+            for (long i = Timestamp.MIN_VALUE + 1; i < timestamp.getCounter(); i++) {
+                record(new Timestamp(timestamp.getIdentifier(), i));
+            }
+        } else {
+            final LinkedList<Pair> l = new LinkedList<Pair>();
+            vv.put(timestamp.getIdentifier(), l);
+            l.add(new Pair(Timestamp.MIN_VALUE + 1, timestamp.getCounter()));
         }
     }
 }

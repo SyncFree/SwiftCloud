@@ -42,6 +42,17 @@ public interface CausalityClock extends Serializable {
     boolean record(Timestamp ec);
 
     /**
+     * Records all events from the source of a given timestamp until the
+     * timestamp.
+     * <p>
+     * E.g. recordAllUntil(siteId="abc", counter=3) causes events ("abc", 1),
+     * ("abc", 2), ("abc", 3) to be recorded.
+     * 
+     * @param timestamp the highest event timestamp to record for the source
+     */
+    void recordAllUntil(Timestamp timestamp);
+
+    /**
      * Checks if a given event clock is reflected in this clock
      * 
      * @param t
@@ -68,7 +79,7 @@ public interface CausalityClock extends Serializable {
      * @return Returns an event clock.
      */
     long getLatestCounter(String siteid);
-    
+
     /**
      * Checks whether the clock contains any event recorder at the provided
      * site.
@@ -143,5 +154,4 @@ public interface CausalityClock extends Serializable {
      * @return true if there are exceptions
      */
     boolean hasExceptions();
-
 }

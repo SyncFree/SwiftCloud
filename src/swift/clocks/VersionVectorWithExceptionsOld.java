@@ -3,10 +3,12 @@ package swift.clocks;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.LinkedList;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import swift.clocks.VersionVectorWithExceptions.Pair;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -397,4 +399,22 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
             drop(id);
         }
     }
+
+    @Override
+    public void recordAllUntil(Timestamp timestamp) {
+        final Long maxValueForEntry = vv.get(timestamp.getIdentifier());
+        if (maxValueForEntry == null || maxValueForEntry < timestamp.getCounter()) {
+            vv.put(timestamp.getIdentifier(), timestamp.getCounter());
+        }
+        final Iterator<Long> exceptionsIter = excludedTimestamps.get(timestamp.getIdentifier()).iterator();
+        while (exceptionsIter.hasNext()) {
+            if (exceptionsIter.next() < timestamp.getCounter()) {
+                exceptionsIter.remove();
+            } else {
+                // Optimization: make use ofthe fact that the set is ordered.
+                break;
+            }
+        }
+    }
+
 }
