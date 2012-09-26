@@ -1,9 +1,11 @@
 package swift.client.proto;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
@@ -18,7 +20,7 @@ import sys.net.api.rpc.RpcMessage;
 public class CommitUpdatesReply implements RpcMessage {
     public enum CommitStatus {
         /**
-         * The transaction has been committed using a known timestamp or
+         * The transaction has been committed using known timestamp or
          * timestamps given in the reply.
          */
         COMMITTED_WITH_KNOWN_TIMESTAMPS,
@@ -35,23 +37,34 @@ public class CommitUpdatesReply implements RpcMessage {
     }
 
     protected CommitStatus status;
-    protected List<Timestamp> systemTimestamps;
+    protected List<Timestamp> commitTimestamps;
+    protected CausalityClock commitClock;
 
     /**
-     * Fake constructor for Kryo serialization. Do NOT use.
+     * Create a reply with known commit system timestamps.
+     * 
+     * @param systemTimestamps
      */
-    CommitUpdatesReply() {
+    public CommitUpdatesReply(Timestamp... systemTimestamps) {
+        this.status = CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS;
+        this.commitTimestamps = new LinkedList<Timestamp>(Arrays.asList(systemTimestamps));
     }
 
-    public CommitUpdatesReply(CommitStatus status, List<Timestamp> systemTimestamps) {
-        this.status = status;
-        this.systemTimestamps = new LinkedList<Timestamp>(systemTimestamps);
+    /**
+     * Create a reply with known imprecise commitClock.
+     * 
+     * @param commitClock
+     */
+    public CommitUpdatesReply(CausalityClock commitClock) {
+        this.status = CommitStatus.COMMITTED_WITH_KNOWN_CLOCK_RANGE;
+        this.commitClock = commitClock;
     }
 
-    public CommitUpdatesReply(CommitStatus status, Timestamp systemTimestamp) {
-        this.status = status;
-        this.systemTimestamps = new LinkedList<Timestamp>(systemTimestamps);
-        this.systemTimestamps.add(systemTimestamp);
+    /**
+     * Create a reply with invalid status..
+     */
+    public CommitUpdatesReply() {
+        this.status = CommitStatus.INVALID_OPERATION;
     }
 
     /**
@@ -62,11 +75,23 @@ public class CommitUpdatesReply implements RpcMessage {
     }
 
     /**
-     * @return timestamp using which the transaction has been committed; null if
-     *         {@link #getStatus()} is {@link CommitStatus#INVALID_TIMESTAMP}
+     * @return when status is
+     *         {@link CommitStatus#COMMITTED_WITH_KNOWN_TIMESTAMPS}, a list of
+     *         system timestamps that are known at DC to represent the commit of
+     *         the transaction; otherwise null
      */
     public List<Timestamp> getCommitTimestamps() {
-        return Collections.unmodifiableList(systemTimestamps);
+        return Collections.unmodifiableList(commitTimestamps);
+    }
+
+    /**
+     * @return when status is
+     *         {@link CommitStatus#COMMITTED_WITH_KNOWN_CLOCK_RANGE}, an
+     *         imprecise clock including transaction commit timestamp; otherwise
+     *         null
+     */
+    public CausalityClock getImpreciseCommitClock() {
+        return commitClock;
     }
 
     @Override
