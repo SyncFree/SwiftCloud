@@ -24,4 +24,9 @@ public enum CachePolicy {
      * contain compatible version.
      */
     CACHED;
+    /*
+     * TODO(mzawirski): it seems a common requirement is to have something like
+     * CACHED+trigger temporary updates subscription; CACHED mode without
+     * updates subscription is a pretty rare case.
+     */
 }
