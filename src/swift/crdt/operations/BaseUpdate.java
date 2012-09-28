@@ -1,6 +1,5 @@
 package swift.crdt.operations;
 
-import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
