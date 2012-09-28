@@ -3,7 +3,7 @@ package swift.client;
 import java.util.HashMap;
 import java.util.Map;
 
-import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
@@ -34,11 +34,13 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle implements TxnHandle {
      *            manager maintaining this transaction
      * @param cachePolicy
      *            cache policy used by this transaction
-     * @param localTimestamp
-     *            local timestamp used for local operations of this transaction
+     * @param timestampMapping
+     *            timestamp and timestamp mapping information used for all
+     *            update of this transaction
      */
-    RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final Timestamp localTimestamp) {
-        super(manager, cachePolicy, localTimestamp);
+    RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy,
+            final TimestampMapping timestampMapping) {
+        super(manager, cachePolicy, timestampMapping);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 

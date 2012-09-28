@@ -3,7 +3,6 @@ package swift.clocks;
 // TODO: provide custom serializer or Kryo-lize the class
 public class TripleTimestamp implements Comparable<TripleTimestamp> {
     private static final long serialVersionUID = 1L;
-    protected Timestamp clientTimestamp;
     protected long distinguishingCounter;
     protected TimestampMapping mapping;
 
@@ -13,18 +12,17 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
     public TripleTimestamp() {
     }
 
-    TripleTimestamp(final Timestamp clientTimestamp, final long distinguishingCounter) {
-        this.clientTimestamp = clientTimestamp;
+    TripleTimestamp(final TimestampMapping timestampMapping, final long distinguishingCounter) {
         this.distinguishingCounter = distinguishingCounter;
-        this.mapping = new TimestampMapping(clientTimestamp);
+        this.mapping = timestampMapping;
     }
 
     public Timestamp getClientTimestamp() {
-        return clientTimestamp;
+        return mapping.getClientTimestamp();
     }
 
     public void setMapping(TimestampMapping mapping) {
-        if (!clientTimestamp.equals(mapping.getClientTimestamp())) {
+        if (!getClientTimestamp().equals(mapping.getClientTimestamp())) {
             throw new IllegalArgumentException("Attempt to assign incompatible timestamp mapping");
         }
         this.mapping = mapping;
@@ -36,7 +34,7 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
 
     @Override
     public int compareTo(TripleTimestamp o) {
-        final int tsResult = clientTimestamp.compareTo(o.clientTimestamp);
+        final int tsResult = getClientTimestamp().compareTo(o.getClientTimestamp());
         if (tsResult != 0) {
             return tsResult;
         }
@@ -52,18 +50,16 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
     }
 
     public int hashCode() {
-        return clientTimestamp.hashCode() ^ (int) distinguishingCounter;
+        return getClientTimestamp().hashCode() ^ (int) distinguishingCounter;
     }
 
     public String toString() {
-        return "(" + clientTimestamp.getIdentifier() + "," + clientTimestamp.getCounter() + "," + distinguishingCounter
-                + "," + mapping.toString() + ")";
+        return "(" + getClientTimestamp().getIdentifier() + "," + getClientTimestamp().getCounter() + ","
+                + distinguishingCounter + "," + mapping.toString() + ")";
     }
 
     public TripleTimestamp copy() {
-        final TripleTimestamp copy = new TripleTimestamp(clientTimestamp, distinguishingCounter);
-        copy.mapping = mapping.copy();
-        return copy;
+        return new TripleTimestamp(mapping.copy(), distinguishingCounter);
     }
 
     public boolean timestampsIntersect(CausalityClock clock) {

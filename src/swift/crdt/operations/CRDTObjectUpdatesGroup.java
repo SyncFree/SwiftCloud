@@ -44,9 +44,9 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      * @param baseTimestamp
      * @param creationState
      */
-    public CRDTObjectUpdatesGroup(CRDTIdentifier id, Timestamp clientTimestamp, V creationState) {
+    public CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, V creationState) {
         this.id = id;
-        this.timestampMapping = new TimestampMapping(clientTimestamp);
+        this.timestampMapping = timestampMapping;
         this.operations = new LinkedList<CRDTUpdate<V>>();
         this.creationState = creationState;
     }

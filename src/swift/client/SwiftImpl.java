@@ -463,7 +463,7 @@ public class SwiftImpl implements Swift, TxnManager {
             for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
                 final CRDTObjectUpdatesGroup<V> localOps;
                 try {
-                    localOps = (CRDTObjectUpdatesGroup<V>) dependentTxn.getObjectLocalOperations(id);
+                    localOps = (CRDTObjectUpdatesGroup<V>) dependentTxn.getObjectUpdates(id);
                 } catch (ClassCastException x) {
                     throw new WrongTypeException(x.getMessage());
                 }
@@ -873,6 +873,7 @@ public class SwiftImpl implements Swift, TxnManager {
         txn.markLocallyCommitted();
         logger.info("transaction " + txn.getLocalTimestamp() + " commited locally");
         if (txn.isReadOnly()) {
+            // FIXME: to avoid holes, add it to the clock?
             // Read-only transaction can be immediately discarded.
             txn.markGloballyCommitted();
             logger.info("read-only transaction " + txn.getLocalTimestamp() + " (virtually) commited globally");
