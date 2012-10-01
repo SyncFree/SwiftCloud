@@ -49,7 +49,10 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
+import swift.clocks.ReturnableTimestampSourceDecorator;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
+import swift.clocks.TimestampSource;
 import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
@@ -58,6 +61,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -80,6 +84,12 @@ import sys.net.api.rpc.RpcEndpoint;
  */
 public class SwiftImpl implements Swift, TxnManager {
     // TODO: server failover
+    // TODO: option: reading from stable committed vv
+
+    // WISHME: notifications are quite CPU/memory scans-intensive at the
+    // moment; consider more efficient implementation if this is an issue
+    // (especially for scenarios where dummy TxnHandle.UPDATES_SUBSCRIBER is
+    // employed).
 
     // WISHME: This class uses very coarse-grained locking, but given the
     // complexity of causality tracking and timestamps remapping, unless we
@@ -100,7 +110,7 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
-    private static final String CLIENT_CLOCK_ID = "client";
+    private static final String SCOUT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     /**
@@ -142,8 +152,14 @@ public class SwiftImpl implements Swift, TxnManager {
                 timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
-    private static String generateClientId() {
+    private static String generateScoutId() {
         return UUID.randomUUID().toString();
+    }
+
+    private static void assertIsGlobalClock(CausalityClock version) {
+        if (version.hasEventFrom(SCOUT_CLOCK_ID)) {
+            throw new IllegalArgumentException("transaction requested visibility of local transaction");
+        }
     }
 
     private boolean stopFlag;
@@ -154,31 +170,36 @@ public class SwiftImpl implements Swift, TxnManager {
     private final Endpoint serverEndpoint;
 
     // Cache of objects.
-    // Best-effort invariant: if object is in the cache, it must include all
+    // Best-effort invariant: if object is in the cache, it includes all
     // updates of locally and globally committed locally-originating
     // transactions.
     private final TimeBoundedObjectsCache objectsCache;
 
     // Invariant: committedVersion only grows.
     private final CausalityClock committedVersion;
-    private IncrementalTimestampGenerator clientTimestampGenerator;
+    private ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
 
     // Invariant: there is at most one pending (open) transaction.
     private AbstractTxnHandle pendingTxn;
+    // Last locally committed txn clock + dependencies.
+    private CausalityClock lastLocallyCommittedTxnClock;
+    // Last globally committed txn clock + dependencies.
+    private CausalityClock lastGloballyCommittedTxnClock;
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
     private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
+
     // Thread sequentially committing transactions from the queue.
     private final CommitterThread committerThread;
-    // Local dependencies of a pending transaction.
-    private final LinkedList<AbstractTxnHandle> pendingTxnLocalDependencies;
 
     // Update subscriptions stuff.
     // id -> update subscription information
     private final Map<CRDTIdentifier, UpdateSubscription> objectUpdateSubscriptions;
     // map from tripletimestamp of an uncommitted update to objects that may
     // await notification.
-    private final Map<Timestamp, Set<CRDTIdentifier>> uncommittedUpdatesObjectsToNotify;
+    // FIXME: the mapping needs to be from the client Timestamp to
+    // (TimestampMapping, Set<ID>) to allow timestamp mapping merging
+    private final Map<TimestampMapping, Set<CRDTIdentifier>> uncommittedUpdatesObjectsToNotify;
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
     private final ExecutorService notificationsSubscriberExecutor;
@@ -190,7 +211,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeBoundedObjectsCache objectsCache,
             int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
-        this.clientId = generateClientId();
+        this.clientId = generateScoutId();
         this.timeoutMillis = timeoutMillis;
         this.deadlineMillis = deadlineMillis;
         this.notificationTimeoutMillis = notificationTimeoutMillis;
@@ -198,15 +219,17 @@ public class SwiftImpl implements Swift, TxnManager {
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
         this.locallyCommittedTxnsQueue = new LinkedList<AbstractTxnHandle>();
-        this.pendingTxnLocalDependencies = new LinkedList<AbstractTxnHandle>();
+        this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
+        this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedVersion = ClockFactory.newClock();
-        this.clientTimestampGenerator = new IncrementalTimestampGenerator(CLIENT_CLOCK_ID);
+        this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
+                new IncrementalTimestampGenerator(SCOUT_CLOCK_ID));
         this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
                 INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.committerThread = new CommitterThread();
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
-        this.uncommittedUpdatesObjectsToNotify = new HashMap<Timestamp, Set<CRDTIdentifier>>();
+        this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
         this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(1);
         this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(1);
         this.notificationsThread = new NotoficationsProcessorThread();
@@ -249,16 +272,17 @@ public class SwiftImpl implements Swift, TxnManager {
         assertNoPendingTransaction();
         assertRunning();
 
-        final Timestamp localTimestamp = clientTimestampGenerator.generateNew();
+        final TimestampMapping timestampMapping = new TimestampMapping(clientTimestampGenerator.generateNew());
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(false, deadlineMillis) {
-                	
-                	public String toString() {
-                		return "LatestKnownClockRequest";
-                	}
-                	
+                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(false,
+                        deadlineMillis) {
+
+                    public String toString() {
+                        return "LatestKnownClockRequest";
+                    }
+
                     @Override
                     protected Boolean callOrFailWithNull() {
                         localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
@@ -269,7 +293,7 @@ public class SwiftImpl implements Swift, TxnManager {
                                         setResult(true);
                                     }
                                 }, Math.min(timeoutMillis, getDeadlineLeft()));
-                        
+
                         return super.getResult();
                     }
                 });
@@ -282,13 +306,14 @@ public class SwiftImpl implements Swift, TxnManager {
             // clock of all previous SI transaction (monotonic reads), since
             // commitedVersion only grows.
             final CausalityClock snapshotClock = committedVersion.clone();
-            setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, localTimestamp, snapshotClock));
-            logger.info("SI transaction " + localTimestamp + " started with global snapshot point: " + snapshotClock);
+            snapshotClock.merge(lastLocallyCommittedTxnClock);
+            setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, timestampMapping, snapshotClock));
+            logger.info("SI transaction " + timestampMapping + " started with snapshot point: " + snapshotClock);
             return pendingTxn;
 
         case REPEATABLE_READS:
-            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, localTimestamp));
-            logger.info("REPEATABLE READS transaction " + localTimestamp + " started");
+            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping));
+            logger.info("REPEATABLE READS transaction " + timestampMapping + " started");
             return pendingTxn;
 
         case READ_COMMITTED:
@@ -305,22 +330,19 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        committedVersion.merge(clock);
-        final AbstractTxnHandle commitingTxn = locallyCommittedTxnsQueue.peekFirst();
-        final Timestamp commitingTxnTimestamp = commitingTxn == null ? null : commitingTxn.getGlobalTimestamp();
-        if (commitingTxnTimestamp != null && clock.includes(commitingTxnTimestamp)) {
-            // We observe global visibility (and possibly updates) of locally
-            // committed transaction before the CommitUpdatesReply has been
-            // received.
-            applyGloballyCommittedTxn(commitingTxn);
+        if (committedVersion.merge(clock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+            // No changes.
+            return;
         }
+        // FIXME: discard the transaction log entries included in
+        // durableCommittedVersion
 
         // Go through updates to notify and see if any become committed.
-        final Iterator<Entry<Timestamp, Set<CRDTIdentifier>>> iter = uncommittedUpdatesObjectsToNotify.entrySet()
-                .iterator();
+        final Iterator<Entry<TimestampMapping, Set<CRDTIdentifier>>> iter = uncommittedUpdatesObjectsToNotify
+                .entrySet().iterator();
         while (iter.hasNext()) {
-            final Entry<Timestamp, Set<CRDTIdentifier>> entry = iter.next();
-            if (committedVersion.includes(entry.getKey())) {
+            final Entry<TimestampMapping, Set<CRDTIdentifier>> entry = iter.next();
+            if (entry.getKey().timestampsIntersect(committedVersion)) {
                 iter.remove();
                 for (final CRDTIdentifier id : entry.getValue()) {
                     final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
@@ -349,10 +371,10 @@ public class SwiftImpl implements Swift, TxnManager {
 
         // Try to get the latest one.
         final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.getAndTouch(id) == null);
-        final CausalityClock globalVersion = clockWithLocallyCommittedDependencies(committedVersion);
-        globalVersion.drop(CLIENT_CLOCK_ID);
         try {
-            fetchObjectVersion(id, create, classOfV, globalVersion, false, updatesListener != null, true);
+            final CausalityClock fetchClock = committedVersion.clone();
+            fetchClock.merge(lastGloballyCommittedTxnClock);
+            fetchObjectVersion(id, create, classOfV, fetchClock, false, updatesListener != null, true);
         } catch (VersionNotFoundException x) {
             if (fetchRequired) {
                 throw x;
@@ -378,16 +400,13 @@ public class SwiftImpl implements Swift, TxnManager {
             final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
-        assertIsGlobalClock(version);
 
         TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView != null) {
             return localView;
         }
 
-        final CausalityClock globalVersion = clockWithLocallyCommittedDependencies(version);
-        globalVersion.drop(CLIENT_CLOCK_ID);
-        fetchObjectVersion(id, create, classOfV, globalVersion, true, updatesListener != null, true);
+        fetchObjectVersion(id, create, classOfV, version, true, updatesListener != null, true);
 
         localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView == null) {
@@ -397,20 +416,20 @@ public class SwiftImpl implements Swift, TxnManager {
         return localView;
     }
 
-    private CausalityClock clockWithLocallyCommittedDependencies(CausalityClock clock) {
-        clock = clock.clone();
-        for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
-            // Include in clock those dependent transactions that already
-            // committed globally after the pending transaction started.
-            if (dependentTxn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
-                clock.record(dependentTxn.getGlobalTimestamp());
-            } else {
-                clock.record(dependentTxn.getLocalTimestamp());
-            }
-        }
-        return clock;
-    }
-
+    /**
+     * Returns a view of an object version from the cache, if the object is
+     * available in the appropriate version.
+     * 
+     * @param id
+     * @param clock
+     *            requested object version or null to specify the most recent
+     *            version available
+     * @param classOfV
+     * @param updatesListener
+     * @return object view or null if the object is unavailable in the
+     *         appropriate version
+     * @throws WrongTypeException
+     */
     @SuppressWarnings("unchecked")
     private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(CRDTIdentifier id,
             CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException {
@@ -425,69 +444,58 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (clock == null) {
-            // Return the latest committed version or, if unavailable, old
-            // cached version if it is all committed.
-            switch (crdt.getClock().compareTo(committedVersion)) {
+            // Set the requested clock to the latest committed version including
+            // prior scout's transactions (the most recent thing we would like
+            // to read).
+            clock = committedVersion.clone();
+            clock.merge(lastLocallyCommittedTxnClock);
+
+            // Check if such a recent version is available in the cache. If not,
+            // take the intersection of the clocks.
+            switch (crdt.getClock().compareTo(clock)) {
             case CMP_ISDOMINATED:
-            case CMP_EQUALS:
                 clock = crdt.getClock().clone();
                 break;
+            case CMP_EQUALS:
             case CMP_DOMINATES:
-                clock = committedVersion.clone();
+                // Leave clock as it is.
                 break;
             case CMP_CONCURRENT:
-                // FIXME: consider intersection of both!
-                // need to think a bit if it is safe or not?
+                // FIXME: can we request an intersection of the two clocks?
+                logger.warning("IMPLEMENT ME: cached object clock is incomparable with "
+                        + "committedVersion+lastCommittedTxnClock, so we were unable to serve a cached version");
                 return null;
             default:
                 throw new UnsupportedOperationException();
             }
 
         }
-        clock = clockWithLocallyCommittedDependencies(clock);
-        final CausalityClock globalClock = clock.clone();
-        globalClock.drop(CLIENT_CLOCK_ID);
 
-        if (crdt.getClock().compareTo(globalClock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)
-                || globalClock.compareTo(crdt.getPruneClock()).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
-            // No appropriate version found.
+        final TxnLocalCRDT<V> crdtView;
+        try {
+            crdtView = crdt.getTxnLocalCopy(clock, pendingTxn);
+        } catch (IllegalStateException x) {
+            // No appropriate version found in the object from the cache.
             return null;
         }
 
-        final V crdtReturned;
-        // Are there any local dependencies to apply on the cached object?
-        if (clock.hasEventFrom(CLIENT_CLOCK_ID)) {
-            crdtReturned = crdt.copy();
-            // Apply them on sandboxed copy of an object, since these operations
-            // use local timestamps.
-            for (final AbstractTxnHandle dependentTxn : pendingTxnLocalDependencies) {
-                final CRDTObjectUpdatesGroup<V> localOps;
-                try {
-                    localOps = (CRDTObjectUpdatesGroup<V>) dependentTxn.getObjectUpdates(id);
-                } catch (ClassCastException x) {
-                    throw new WrongTypeException(x.getMessage());
-                }
-                if (localOps != null) {
-                    crdtReturned.execute(localOps, CRDTOperationDependencyPolicy.IGNORE);
-                }
-            }
-        } else {
-            crdtReturned = crdt;
-        }
-        final TxnLocalCRDT<V> crdtView = crdtReturned.getTxnLocalCopy(clock, pendingTxn);
         if (updatesListener != null) {
-            final UpdateSubscription subscription = addUpdateSubscription(crdtReturned, crdtView, updatesListener);
+            final UpdateSubscription subscription = addUpdateSubscription(crdt, crdtView, updatesListener);
             if (subscription.hasListener()) {
-                handleObjectNewVersionTryNotify(id, subscription, crdtReturned);
+                // Trigger update listener if we already know updates more
+                // recent than the returned version.
+                handleObjectNewVersionTryNotify(id, subscription, crdt);
             }
         }
         return crdtView;
     }
 
     private <V extends CRDT<V>> void fetchObjectVersion(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final CausalityClock version, final boolean strictUnprunedVersion, final boolean subscribeUpdates,
+            final CausalityClock globalVersion, final boolean strictUnprunedVersion, final boolean subscribeUpdates,
             final boolean txnTriggered) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
+        assertIsGlobalClock(globalVersion);
+
         final V crdt;
         synchronized (this) {
             try {
@@ -498,9 +506,10 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (crdt == null) {
-            fetchObjectFromScratch(id, create, classOfV, version, strictUnprunedVersion, subscribeUpdates, txnTriggered);
+            fetchObjectFromScratch(id, create, classOfV, globalVersion, strictUnprunedVersion, subscribeUpdates,
+                    txnTriggered);
         } else {
-            fetchObjectByRefresh(id, create, classOfV, crdt, version, strictUnprunedVersion, subscribeUpdates,
+            fetchObjectByRefresh(id, create, classOfV, crdt, globalVersion, strictUnprunedVersion, subscribeUpdates,
                     txnTriggered);
         }
     }
@@ -523,6 +532,8 @@ public class SwiftImpl implements Swift, TxnManager {
         final CausalityClock oldCrdtClock;
         synchronized (this) {
             oldCrdtClock = cachedCrdt.getClock().clone();
+            oldCrdtClock.drop(SCOUT_CLOCK_ID);
+            assertIsGlobalClock(oldCrdtClock);
         }
 
         // WISHME: we should replace it with deltas or operations list
@@ -537,21 +548,22 @@ public class SwiftImpl implements Swift, TxnManager {
             WrongTypeException {
         FetchObjectVersionReply reply;
         do {
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(null, deadlineMillis) {
+            // FIXME: deduct previous iterations' attempts from deadlineMillis?
+            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(null,
+                    deadlineMillis) {
 
-            	public String toString() {
-            		return "FetchObjectVersionRequest";
-            	}
+                public String toString() {
+                    return "FetchObjectVersionRequest";
+                }
 
-            	
-            	@Override
+                @Override
                 protected FetchObjectVersionReply callOrFailWithNull() {
                     localEndpoint.send(serverEndpoint, fetchRequest, new FetchObjectVersionReplyHandler() {
                         @Override
                         public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
                             setResult(reply);
                         }
-                    }, Math.min(timeoutMillis, getDeadlineLeft())).enableDeferredReplies(30000) ;
+                    }, Math.min(timeoutMillis, getDeadlineLeft())).enableDeferredReplies(30000);
                     return getResult();
                 }
             });
@@ -581,7 +593,8 @@ public class SwiftImpl implements Swift, TxnManager {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
-            crdt.init(request.getUid(), fetchReply.getVersion(), fetchReply.getPruneClock(), false);
+
+            crdt.init(request.getUid(), fetchReply.getVersion(), ClockFactory.newClock(), false);
             break;
         case VERSION_NOT_FOUND:
         case OK:
@@ -599,7 +612,7 @@ public class SwiftImpl implements Swift, TxnManager {
         synchronized (this) {
             updateCommittedVersion(fetchReply.getEstimatedLatestKnownClock());
 
-            final V cacheCRDT;
+            V cacheCRDT;
             try {
                 if (clientTriggered) {
                     cacheCRDT = (V) objectsCache.getAndTouch(request.getUid());
@@ -614,17 +627,28 @@ public class SwiftImpl implements Swift, TxnManager {
                     || crdt.getClock().compareTo(cacheCRDT.getClock())
                             .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
                 // If clock >= cacheCrdt.clock, it 1) does not make sense to
-                // merge, 2) received version may have desirable pruneClock.
+                // merge, 2) received version may have different pruneClock,
+                // which could be either helpful or not depending on the case.
                 objectsCache.add(crdt);
+                cacheCRDT = crdt;
             } else {
-                try {
-                    cacheCRDT.merge(crdt);
-                } catch (IllegalStateException x) {
-                    logger.warning("cannot merge in received object version due to concurrent pruning, retrying fetch");
-                    // It should happen only temporarily during failover etc.
-                    return false;
-                }
+                cacheCRDT.merge(crdt);
             }
+            // Apply any local updates that may not be present in received
+            // version.
+            try {
+                for (final AbstractTxnHandle localTxn : locallyCommittedTxnsQueue) {
+                    final CRDTObjectUpdatesGroup<V> objectUpdates = (CRDTObjectUpdatesGroup<V>) localTxn
+                            .getObjectUpdates(request.getUid());
+                    if (objectUpdates != null) {
+                        cacheCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.CHECK);
+                    }
+                }
+            } catch (IllegalStateException x) {
+                logger.warning("Local transaction cannot be applied on the version received from the store - strange, retrying");
+                return false;
+            }
+
             UpdateSubscription subscription = objectUpdateSubscriptions.get(request.getUid());
             if (request.getSubscriptionType() != SubscriptionType.NONE && subscription == null) {
                 // Add temporary subscription entry without specifying full
@@ -733,14 +757,14 @@ public class SwiftImpl implements Swift, TxnManager {
         for (final CRDTObjectUpdatesGroup<?> op : ops) {
             if (!crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
                 if (logger.isLoggable(Level.INFO)) {
-                    logger.info("update " + op.getBaseTimestamp() + " was already included in the state of object "
+                    logger.info("update " + op.getClientTimestamp() + " was already included in the state of object "
                             + id);
                 }
                 // Already applied update.
                 continue;
             }
             if (subscription != null && subscription.hasListener()) {
-                handleObjectUpdatesTryNotify(id, subscription, Collections.singleton(op.getBaseTimestamp()));
+                handleObjectUpdatesTryNotify(id, subscription, Collections.singleton(op.getClientTimestamp()));
             }
         }
         crdt.getClock().merge(outputClock);
@@ -830,7 +854,7 @@ public class SwiftImpl implements Swift, TxnManager {
                         return;
                     }
                     version = clockWithLocallyCommittedDependencies(committedVersion);
-                    version.drop(CLIENT_CLOCK_ID);
+                    version.drop(SCOUT_CLOCK_ID);
                 }
                 try {
                     fetchObjectVersion(id, false, BaseCRDT.class, version, false, true, false);
@@ -861,7 +885,9 @@ public class SwiftImpl implements Swift, TxnManager {
     public synchronized void discardTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
         setPendingTxn(null);
-        logger.info("local transaction " + txn.getLocalTimestamp() + " rolled back");
+        logger.info("local transaction " + txn.getTimestampMapping() + " rolled back");
+        // Return and reuse last timestamp to avoid holes in VV.
+        clientTimestampGenerator.returnLastTimestamp();
     }
 
     @Override
@@ -871,21 +897,37 @@ public class SwiftImpl implements Swift, TxnManager {
 
         // Big WISHME: write disk log and allow local recovery.
         txn.markLocallyCommitted();
-        logger.info("transaction " + txn.getLocalTimestamp() + " commited locally");
+        logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         if (txn.isReadOnly()) {
-            // FIXME: to avoid holes, add it to the clock?
             // Read-only transaction can be immediately discarded.
-            txn.markGloballyCommitted();
-            logger.info("read-only transaction " + txn.getLocalTimestamp() + " (virtually) commited globally");
+            // Return and reuse last timestamp to avoid holes in VV.
+            clientTimestampGenerator.returnLastTimestamp();
+            logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
         } else {
-            for (final AbstractTxnHandle dependeeTxn : pendingTxnLocalDependencies) {
-                // Replace timestamps of transactions that globally committed
-                // when this transaction was pending.
-                if (dependeeTxn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
-                    txn.includeGlobalDependency(dependeeTxn.getLocalTimestamp(), dependeeTxn.getGlobalTimestamp());
+            for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
+                // Try to apply changes in a cached copy of an object.
+                final CRDT<?> crdt = objectsCache.getWithoutTouch(opsGroup.getTargetUID());
+                if (crdt == null) {
+                    logger.warning("object evicted from the local cache prior to local commit");
+                } else {
+                    try {
+                        crdt.execute(opsGroup, CRDTOperationDependencyPolicy.CHECK);
+                    } catch (IllegalStateException x) {
+                        logger.warning("transaction dependencies unavailable in the local cache during local commit");
+                    }
+                    // Subscribe updates if they were requested.
+                    final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
+                    if (subscription != null && opsGroup.hasCreationState()) {
+                        // FIXME: check for 1PC
+                        asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
+                    }
                 }
             }
-            // Update transaction is queued up for global commit.
+            lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
+            lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
+            objectsCache.recordOnAll(txn.getTimestampMapping().getClientTimestamp());
+
+            // Transaction is queued up for global commit.
             addLocallyCommittedTransaction(txn);
         }
         setPendingTxn(null);
@@ -899,135 +941,61 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     /**
-     * Stubborn commit procedure, tries to get a global timestamp for a
-     * transaction and commit using this timestamp. Repeats until it succeeds.
+     * Stubborn commit procedure. Repeats until it succeeds.
      * 
      * @param txn
      *            locally committed transaction
      */
-    private void commitToStore(final AbstractTxnHandle txn) {
+    private void commitTxnGlobally(final AbstractTxnHandle txn) {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
-        if (txn.getUpdatesDependencyClock().hasEventFrom(CLIENT_CLOCK_ID)) {
-            throw new IllegalStateException("Trying to commit to data store with client clock");
-        }
 
+        txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
         CommitUpdatesReply reply;
-        do {
-            assignGlobalTimestamp(txn);
+        final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>(
+                txn.getAllUpdates());
+        // Commit at server.
+        reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>(null) {
 
-            final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>(
-                    txn.getAllGlobalOperations());
-            // Commit at server.
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>(null) {
-                
-            	public String toString() {
-            		return "CommitUpdatesRequest";
-            	}
-            	
-            	@Override
-                protected CommitUpdatesReply callOrFailWithNull() {
-                    localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, txn.getGlobalTimestamp(),
-                            operationsGroups), new CommitUpdatesReplyHandler() {
-                        @Override
-                        public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
-                            setResult(reply);
-                        }
-                    }, timeoutMillis);
-                    return super.getResult();
-                }
-            });
-        } while (reply.getStatus() == CommitStatus.INVALID_TIMESTAMP);
-
-        if (reply.getStatus() == CommitStatus.ALREADY_COMMITTED) {
-            // FIXME Perhaps we could move this complexity to RequestTimestamp
-            // on server side? Otherwise we need to keep track of all global
-            // timestamps we previously tried.
-            throw new UnsupportedOperationException("transaction committed under another timestamp, unsupported case");
-        }
-        logger.info("transaction " + txn.getLocalTimestamp() + " commited globally as " + txn.getGlobalTimestamp());
-    }
-
-    /**
-     * Requests and assigns a new global timestamp for the transaction.
-     * 
-     * @param txn
-     *            locally committed transaction
-     */
-    private void assignGlobalTimestamp(final AbstractTxnHandle txn) {
-        txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
-
-        final GenerateTimestampReply reply = retryableTaskExecutor
-                .execute(new CallableWithDeadline<GenerateTimestampReply>(null) {
-                	
-                	public String toString() {
-                		return "GenerateTimestampRequest";
-                	}
-                	
-                	@Override
-                    protected GenerateTimestampReply callOrFailWithNull() {
-                        localEndpoint.send(
-                                serverEndpoint,
-                                new GenerateTimestampRequest(clientId, txn.getUpdatesDependencyClock(), txn
-                                        .getGlobalTimestamp()), new GenerateTimestampReplyHandler() {
-                                    @Override
-                                    public void onReceive(RpcHandle conn, GenerateTimestampReply reply) {
-                                        setResult(reply);
-                                    }
-                                }, timeoutMillis);
-                        return super.getResult();
-                    }
-                });
-        
-        // And replace old timestamp in operations with timestamp from server.
-        txn.setGlobalTimestamp(reply.getTimestamp());
-    }
-
-    /**
-     * Applies globally committed transaction locally using a global timestamp.
-     * 
-     * @param txn
-     *            globally committed transaction to apply locally
-     */
-    private synchronized void applyGloballyCommittedTxn(AbstractTxnHandle txn) {
-        txn.assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
-        if (txn.getStatus() == TxnStatus.COMMITTED_GLOBAL) {
-            return;
-        }
-
-        txn.markGloballyCommitted();
-        for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllGlobalOperations()) {
-            // Try to apply changes in a cached copy of an object.
-            final CRDT<?> crdt = objectsCache.getWithoutTouch(opsGroup.getTargetUID());
-            if (crdt == null) {
-                logger.warning("object evicted from the local cache before global commit");
-            } else {
-                crdt.execute(opsGroup, CRDTOperationDependencyPolicy.IGNORE);
-                // Subscribe updates if they were requested.
-                final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
-                if (subscription != null && opsGroup.hasCreationState()) {
-                    asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
-                }
+            public String toString() {
+                return "CommitUpdatesRequest";
             }
-        }
-        objectsCache.recordOnAll(txn.getGlobalTimestamp());
 
-        final Iterator<AbstractTxnHandle> localTxnIter = locallyCommittedTxnsQueue.iterator();
-        if (localTxnIter.next() != txn) {
-            throw new IllegalStateException("Internal error: committed transaction was not the first from the queue");
-        }
-        localTxnIter.remove();
-        while (localTxnIter.hasNext()) {
-            final AbstractTxnHandle dependingTxn = localTxnIter.next();
-            dependingTxn.includeGlobalDependency(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
-            // pendingTxn will map timestamp later inside commitToStore().
+            @Override
+            protected CommitUpdatesReply callOrFailWithNull() {
+                localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, operationsGroups),
+                        new CommitUpdatesReplyHandler() {
+                            @Override
+                            public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
+                                setResult(reply);
+                            }
+                        }, timeoutMillis);
+                return super.getResult();
+            }
+        });
 
-            // TODO [tricky]: to implement IsolationLevel.READ_COMMITTED we may
-            // need to replace timestamps in pending transaction too.
+        synchronized (this) {
+            switch (reply.getStatus()) {
+            case COMMITTED_WITH_KNOWN_TIMESTAMPS:
+                for (final Timestamp ts : reply.getCommitTimestamps()) {
+                    txn.addSystemTimestamp(ts);
+                    lastGloballyCommittedTxnClock.record(ts);
+                    committedVersion.record(ts);
+                }
+                break;
+            case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
+                lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
+                break;
+            case INVALID_OPERATION:
+                throw new IllegalStateException("DC replied to commit request with INVALID_OPERATION");
+                // break;
+            default:
+                throw new UnsupportedOperationException("unknown commit status: " + reply.getStatus());
+            }
+            lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
+            lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
+            locallyCommittedTxnsQueue.removeFirst();
+            logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
         }
-        for (final UpdateSubscription subscription : objectUpdateSubscriptions.values()) {
-            subscription.replaceReadVersionTimestamp(txn.getLocalTimestamp(), txn.getGlobalTimestamp());
-        }
-        committedVersion.record(txn.getGlobalTimestamp());
     }
 
     private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
@@ -1042,10 +1010,6 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private synchronized void setPendingTxn(final AbstractTxnHandle txn) {
         pendingTxn = txn;
-        pendingTxnLocalDependencies.clear();
-        if (txn != null) {
-            pendingTxnLocalDependencies.addAll(locallyCommittedTxnsQueue);
-        }
     }
 
     private void assertNoPendingTransaction() {
@@ -1064,12 +1028,6 @@ public class SwiftImpl implements Swift, TxnManager {
     private void assertRunning() {
         if (stopFlag) {
             throw new IllegalStateException("client is stopped");
-        }
-    }
-
-    private void assertIsGlobalClock(CausalityClock version) {
-        if (version.hasEventFrom(CLIENT_CLOCK_ID)) {
-            throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
     }
 
@@ -1092,8 +1050,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 if (stopFlag && (!stopGracefully || nextToCommit == null)) {
                     return;
                 }
-                commitToStore(nextToCommit);
-                applyGloballyCommittedTxn(nextToCommit);
+                commitTxnGlobally(nextToCommit);
             }
         }
     }
@@ -1167,19 +1124,6 @@ public class SwiftImpl implements Swift, TxnManager {
                     listenerRef.onObjectUpdate(txnRef, id, crdtRef);
                 }
             };
-        }
-
-        public void replaceReadVersionTimestamp(Timestamp localTimestamp, Timestamp globalTimestamp) {
-            if (!hasListener()) {
-                return;
-            }
-
-            // Objects in cache always use global timestamp, so we need to map
-            // stuff.
-            if (readVersion.includes(localTimestamp)) {
-                readVersion.drop(localTimestamp);
-                readVersion.record(globalTimestamp);
-            }
         }
     }
 }

@@ -250,9 +250,11 @@ abstract class AbstractTxnHandle implements TxnHandle {
      * 
      * @param clock
      *            clock to include in the dependency clock of this transaction
+     * @throws IllegalStateException
+     *             when transaction is not pending or locally committed
      */
     protected void updateUpdatesDependencyClock(final CausalityClock clock) {
-        assertStatus(TxnStatus.PENDING);
+        assertStatus(TxnStatus.PENDING, TxnStatus.COMMITTED_LOCAL);
         updatesDependencyClock.merge(clock);
     }
 
