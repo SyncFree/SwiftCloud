@@ -71,12 +71,16 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     /**
      * @return base timestamp of all operations in the sequence
      */
-    public synchronized Timestamp getBaseTimestamp() {
+    public synchronized Timestamp getClientTimestamp() {
         return timestampMapping.getClientTimestamp();
     }
 
     public synchronized void addSystemTimestamp(final Timestamp ts) {
         timestampMapping.addSystemTimestamp(ts);
+    }
+
+    public synchronized List<Timestamp> getTimestamps() {
+        return timestampMapping.getTimestamps();
     }
 
     public synchronized TimestampMapping getTimestampMapping() {

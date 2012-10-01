@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+// FIXME: make it thread-safe?
 public class TimestampMapping {
     /** Stable client-assigned timestamp */
     protected Timestamp clientTimestamp;
@@ -41,16 +42,6 @@ public class TimestampMapping {
             }
         }
         return false;
-    }
-
-    public List<Timestamp> getTimestampsIntersection(final CausalityClock clock) {
-        final LinkedList<Timestamp> result = new LinkedList<Timestamp>();
-        for (final Timestamp ts : timestamps) {
-            if (clock.includes(ts)) {
-                result.add(ts);
-            }
-        }
-        return result;
     }
 
     public void addSystemTimestamp(final Timestamp ts) {

@@ -147,7 +147,7 @@ public class SwiftImplTest extends EasyMockSupport {
                 assertEquals(txn1Timestamp, request.getBaseTimestamp());
                 assertEquals(1, request.getObjectUpdateGroups().size());
                 // Verify message integrity.
-                assertEquals(request.getBaseTimestamp(), request.getObjectUpdateGroups().get(0).getBaseTimestamp());
+                assertEquals(request.getBaseTimestamp(), request.getObjectUpdateGroups().get(0).getClientTimestamp());
 
                 ((CommitUpdatesReplyHandler) replyHandler).onReceive(null, new CommitUpdatesReply(
                         CommitStatus.COMMITTED, request.getBaseTimestamp()));

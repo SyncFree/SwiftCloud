@@ -105,7 +105,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @SuppressWarnings("unchecked")
     @Override
     public void merge(CRDT<V> otherObject) {
-        // FIXME: it's more involved than that!
+        // FIXME: Verify if we can really leave it without this checks.
         // if
         // (updatesClock.compareTo(otherObject.getPruneClock()).is(CMP_CLOCK.CMP_CONCURRENT,
         // CMP_CLOCK.CMP_ISDOMINATED)) {
@@ -225,7 +225,10 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             registeredInStore = true;
         }
 
-        final boolean newOperation = updatesClock.record(ops.getBaseTimestamp());
+        boolean newOperation = false;
+        for (final Timestamp timestamp : ops.getTimestamps()) {
+            newOperation |= updatesClock.record(timestamp);
+        }
         if (newOperation) {
             for (final CRDTUpdate<V> op : ops.getOperations()) {
                 execute(op);
@@ -258,6 +261,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @Override
     public TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn) {
         assertGreaterEqualsPruneClock(versionClock);
+        assertLessEqualsClock(versionClock);
         return getTxnLocalCopyImpl(versionClock, txn);
     }
 
@@ -273,6 +277,16 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      *         snapshot at versionClock
      */
     protected abstract TxnLocalCRDT<V> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn);
+
+    protected void assertLessEqualsClock(CausalityClock clock) {
+        if (getClock() == null) {
+            return;
+        }
+        final CMP_CLOCK clockCmp = getClock().compareTo(clock);
+        if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
+            throw new IllegalStateException("provided clock is not less or equal to the clock");
+        }
+    }
 
     protected void assertGreaterEqualsPruneClock(CausalityClock clock) {
         if (getPruneClock() == null) {
@@ -290,25 +304,19 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
     }
 
-    /**
-     * Finds all operations that have been performed strictly after clock on the
-     * object.
-     * 
-     * @param clock
-     *            reference time
-     * @return set of timestamps for operations that have been performed since
-     *         clock
-     */
     @Override
-    public Set<Timestamp> getUpdateSystemTimestampsSince(CausalityClock clock) {
+    public Set<TimestampMapping> getUpdateSystemTimestampsSince(CausalityClock clock) {
         if (clock.compareTo(pruneClock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
             throw new IllegalArgumentException();
         }
 
-        final Set<Timestamp> result = new HashSet<Timestamp>();
+        final Set<TimestampMapping> result = new HashSet<TimestampMapping>();
         final Iterator<TimestampMapping> iter = iteratorTimestampMappings();
         while (iter.hasNext()) {
-            result.addAll(iter.next().getTimestampsIntersection(clock));
+            final TimestampMapping mapping = iter.next();
+            if (!mapping.timestampsIntersect(clock)) {
+                result.add(mapping.copy());
+            }
         }
         return result;
     }

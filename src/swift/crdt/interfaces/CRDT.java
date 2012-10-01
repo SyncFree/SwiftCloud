@@ -5,6 +5,7 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -63,9 +64,6 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * 
      * @param crdt
      *            object state to merge with
-     * @throws IllegalStateException
-     *             when clock of one of the crdts is concurrent with or
-     *             dominated by prune clock of one of the crdts
      */
     void merge(CRDT<V> crdt);
 
@@ -153,7 +151,7 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      *            the returned state is restricted to the specified version
      * @param txn
      * @return a copy of an object, including clocks, uid and txnHandle.
-     * @throws IllegalArgumentException
+     * @throws IllegalStateException
      *             when versionClock is not >= {@link #getPruneClock()}
      */
     TxnLocalCRDT<V> getTxnLocalCopy(CausalityClock versionClock, TxnHandle txn);
@@ -171,14 +169,14 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * 
      * @param clock
      *            clock to look for updates
-     * @return set of timestamps of operations on object since clock, can be
-     *         empty
+     * @return set of timestamp mapping copies, representing all known
+     *         operations that were not included in the clock; can be empty
      * @throws IllegalArgumentException
      *             when clock dominates or is concurrent to {@link #getClock()},
      *             or clock is dominated or concurrent to
      *             {@link #getPruneClock()}
      */
-    Set<Timestamp> getUpdateSystemTimestampsSince(final CausalityClock clock);
+    Set<TimestampMapping> getUpdateSystemTimestampsSince(final CausalityClock clock);
 
     /**
      * @return a deep copy of this object
