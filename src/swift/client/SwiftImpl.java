@@ -3,8 +3,6 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -12,19 +10,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.client.proto.CommitUpdatesReply;
-import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
@@ -37,9 +32,6 @@ import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.client.proto.FetchObjectVersionReplyHandler;
 import swift.client.proto.FetchObjectVersionRequest;
-import swift.client.proto.GenerateTimestampReply;
-import swift.client.proto.GenerateTimestampReplyHandler;
-import swift.client.proto.GenerateTimestampRequest;
 import swift.client.proto.LatestKnownClockReply;
 import swift.client.proto.LatestKnownClockReplyHandler;
 import swift.client.proto.LatestKnownClockRequest;
@@ -52,7 +44,6 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.ReturnableTimestampSourceDecorator;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
-import swift.clocks.TimestampSource;
 import swift.crdt.BaseCRDT;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
@@ -61,7 +52,6 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
-import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -73,11 +63,11 @@ import swift.exceptions.WrongTypeException;
 import swift.utils.CallableWithDeadline;
 import swift.utils.ExponentialBackoffTaskExecutor;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 
 /**
- * Implementation of Swift client and transactions manager.
+ * Implementation of Swift scout and transactions manager.
  * 
  * @see Swift, TxnManager
  * @author mzawirski
@@ -195,10 +185,8 @@ public class SwiftImpl implements Swift, TxnManager {
     // Update subscriptions stuff.
     // id -> update subscription information
     private final Map<CRDTIdentifier, UpdateSubscription> objectUpdateSubscriptions;
-    // map from tripletimestamp of an uncommitted update to objects that may
-    // await notification.
-    // FIXME: the mapping needs to be from the client Timestamp to
-    // (TimestampMapping, Set<ID>) to allow timestamp mapping merging
+    // map from timestamp mapping of an uncommitted update to objects that may
+    // await notification with this mapping
     private final Map<TimestampMapping, Set<CRDTIdentifier>> uncommittedUpdatesObjectsToNotify;
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
@@ -374,6 +362,7 @@ public class SwiftImpl implements Swift, TxnManager {
         try {
             final CausalityClock fetchClock = committedVersion.clone();
             fetchClock.merge(lastGloballyCommittedTxnClock);
+            fetchClock.drop(SCOUT_CLOCK_ID);
             fetchObjectVersion(id, create, classOfV, fetchClock, false, updatesListener != null, true);
         } catch (VersionNotFoundException x) {
             if (fetchRequired) {
@@ -406,7 +395,9 @@ public class SwiftImpl implements Swift, TxnManager {
             return localView;
         }
 
-        fetchObjectVersion(id, create, classOfV, version, true, updatesListener != null, true);
+        final CausalityClock globalVersion = version.clone();
+        globalVersion.drop(SCOUT_CLOCK_ID);
+        fetchObjectVersion(id, create, classOfV, globalVersion, true, updatesListener != null, true);
 
         localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
         if (localView == null) {
@@ -461,7 +452,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 // Leave clock as it is.
                 break;
             case CMP_CONCURRENT:
-                // FIXME: can we request an intersection of the two clocks?
+                // TODO: can we request an intersection of the two clocks?
                 logger.warning("IMPLEMENT ME: cached object clock is incomparable with "
                         + "committedVersion+lastCommittedTxnClock, so we were unable to serve a cached version");
                 return null;
@@ -494,8 +485,6 @@ public class SwiftImpl implements Swift, TxnManager {
             final CausalityClock globalVersion, final boolean strictUnprunedVersion, final boolean subscribeUpdates,
             final boolean txnTriggered) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
-        assertIsGlobalClock(globalVersion);
-
         final V crdt;
         synchronized (this) {
             try {
@@ -728,7 +717,7 @@ public class SwiftImpl implements Swift, TxnManager {
             if (subscription != null) {
                 if (subscription.hasListener()) {
                     if (!ops.isEmpty()) {
-                        // There still listener waiting, make some efforts to
+                        // There is still listener waiting, make some efforts to
                         // fire the notification.
                         asyncSubscribeObjectUpdates(id);
                     }
@@ -740,8 +729,7 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        final CMP_CLOCK clkCmp = crdt.getClock().compareTo(dependencyClock);
-        if (clkCmp == CMP_CLOCK.CMP_ISDOMINATED || clkCmp == CMP_CLOCK.CMP_CONCURRENT) {
+        if (crdt.getClock().compareTo(dependencyClock).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
             // Ooops, we missed some update or messages were ordered.
             logger.info("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
             if (subscription != null && !ops.isEmpty()) {
@@ -764,36 +752,40 @@ public class SwiftImpl implements Swift, TxnManager {
                 continue;
             }
             if (subscription != null && subscription.hasListener()) {
-                handleObjectUpdatesTryNotify(id, subscription, Collections.singleton(op.getClientTimestamp()));
+                handleObjectUpdatesTryNotify(id, subscription, op.getTimestampMapping());
             }
         }
         crdt.getClock().merge(outputClock);
     }
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id, UpdateSubscription subscription,
-            Collection<? extends Timestamp> updateTimestamps) {
+            TimestampMapping... timestampMappings) {
         if (stopFlag) {
             logger.info("Update received after client has been stopped -> ignoring");
             return;
         }
 
-        Map<Timestamp, CRDTIdentifier> uncommittedUpdates = new HashMap<Timestamp, CRDTIdentifier>();
-        for (final Timestamp ts : updateTimestamps) {
-            if (!subscription.readVersion.includes(ts)) {
-                if (committedVersion.includes(ts)) {
+        Map<TimestampMapping, CRDTIdentifier> uncommittedUpdates = new HashMap<TimestampMapping, CRDTIdentifier>();
+        for (final TimestampMapping tm : timestampMappings) {
+            if (!tm.timestampsIntersect(subscription.readVersion)) {
+                if (tm.timestampsIntersect(committedVersion)) {
                     notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
                     return;
                 }
-                uncommittedUpdates.put(ts, id);
+                uncommittedUpdates.put(tm, id);
             }
         }
         // There was no committed timestamp we could notify about, so put
         // them the queue of updates to notify when they are committed.
-        for (final Entry<Timestamp, CRDTIdentifier> entry : uncommittedUpdates.entrySet()) {
+        for (final Entry<TimestampMapping, CRDTIdentifier> entry : uncommittedUpdates.entrySet()) {
             Set<CRDTIdentifier> ids = uncommittedUpdatesObjectsToNotify.get(entry.getKey());
             if (ids == null) {
                 ids = new HashSet<CRDTIdentifier>();
-                uncommittedUpdatesObjectsToNotify.put(entry.getKey(), ids);
+                uncommittedUpdatesObjectsToNotify.put(entry.getKey().copy(), ids);
+            } else {
+                // FIXME: merge timestamp mappings for entry.getKey().
+                // TRICKY! Should we also apply these mappings to objects, it
+                // must be consistent!
             }
             ids.add(entry.getValue());
             if (logger.isLoggable(Level.INFO)) {
@@ -809,20 +801,21 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        final Set<Timestamp> recentUpdates;
+        final Set<TimestampMapping> recentUpdates;
         try {
-            recentUpdates = newCrdtVersion.getUpdateSystemTimestampsSince(subscription.readVersion);
+            recentUpdates = newCrdtVersion.getUpdatesTimestampMappingsSince(subscription.readVersion);
         } catch (IllegalArgumentException x) {
-            // Object has been pruned since then, look at the values.
-            // This is a very bizzare case.
+            // Object has been pruned since then, approximate by comparing old
+            // and new txn views. This is a very bizzare case.
             logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
             final TxnLocalCRDT<V> newView = newCrdtVersion.getTxnLocalCopy(committedVersion, subscription.txn);
+            // FIXME: make sure that views are comparable!
             if (!newView.equals(subscription.crdtView.getValue())) {
                 notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
             }
             return;
         }
-        handleObjectUpdatesTryNotify(id, subscription, recentUpdates);
+        handleObjectUpdatesTryNotify(id, subscription, recentUpdates.toArray(new TimestampMapping[0]));
     }
 
     private synchronized UpdateSubscription addUpdateSubscription(final CRDT<?> crdt, final TxnLocalCRDT<?> localView,
@@ -831,10 +824,12 @@ public class SwiftImpl implements Swift, TxnManager {
         // Overwriting old entry and even subscribing again is fine, the
         // interface specifies clearly that the latest get() matters.
         final UpdateSubscription oldSubscription = objectUpdateSubscriptions.put(crdt.getUID(), updateSubscription);
-        if (oldSubscription == null && crdt.isRegisteredInStore()) {
-            // If object is not in the store yet, wait until
-            // applyGloballyCommittedTxn() with actual subscription.
-            asyncSubscribeObjectUpdates(crdt.getUID());
+        if (oldSubscription == null) {
+            if (crdt.isRegisteredInStore()) {
+                asyncSubscribeObjectUpdates(crdt.getUID());
+            }
+            // else: newly created object, wait until untilcommitTxnGlobally()
+            // with subscription.
         }
         return updateSubscription;
     }
@@ -853,7 +848,8 @@ public class SwiftImpl implements Swift, TxnManager {
                     if (!objectUpdateSubscriptions.containsKey(id)) {
                         return;
                     }
-                    version = clockWithLocallyCommittedDependencies(committedVersion);
+                    version = committedVersion.clone();
+                    version.merge(lastLocallyCommittedTxnClock);
                     version.drop(SCOUT_CLOCK_ID);
                 }
                 try {
@@ -895,7 +891,7 @@ public class SwiftImpl implements Swift, TxnManager {
         assertPendingTransaction(txn);
         assertRunning();
 
-        // Big WISHME: write disk log and allow local recovery.
+        // TODO / WISHME: write disk log and allow local recovery.
         txn.markLocallyCommitted();
         logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         if (txn.isReadOnly()) {
@@ -915,17 +911,11 @@ public class SwiftImpl implements Swift, TxnManager {
                     } catch (IllegalStateException x) {
                         logger.warning("transaction dependencies unavailable in the local cache during local commit");
                     }
-                    // Subscribe updates if they were requested.
-                    final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
-                    if (subscription != null && opsGroup.hasCreationState()) {
-                        // FIXME: check for 1PC
-                        asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
-                    }
                 }
             }
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
-            objectsCache.recordOnAll(txn.getTimestampMapping().getClientTimestamp());
+            objectsCache.recordOnAll(txn.getTimestampMapping());
 
             // Transaction is queued up for global commit.
             addLocallyCommittedTransaction(txn);
@@ -993,8 +983,19 @@ public class SwiftImpl implements Swift, TxnManager {
             }
             lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
             lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
+            objectsCache.recordOnAll(txn.getTimestampMapping());
             locallyCommittedTxnsQueue.removeFirst();
             logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
+
+            // Subscribe updates for newly created objects if they were
+            // requested. It can be done only at this stage once the objects are
+            // in the store.
+            for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
+                final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
+                if (subscription != null && opsGroup.hasCreationState()) {
+                    asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
+                }
+            }
         }
     }
 
@@ -1034,8 +1035,7 @@ public class SwiftImpl implements Swift, TxnManager {
     /**
      * Thread continuously committing locally committed transactions. The thread
      * takes the oldest locally committed transaction one by one, tries to
-     * commit it to the store and applies to it to local cache and depender
-     * transactions.
+     * commit it to the store and update relevant clock information.
      */
     private class CommitterThread extends Thread {
 
