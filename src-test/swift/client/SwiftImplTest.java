@@ -1,18 +1,15 @@
 package swift.client;
 
-import static org.easymock.EasyMock.expectLastCall;
-
-import java.util.Collections;
-import java.util.LinkedList;
-
 import static org.easymock.EasyMock.eq;
+import static org.easymock.EasyMock.expectLastCall;
 import static org.easymock.EasyMock.isA;
 import static org.easymock.EasyMock.same;
-import static org.easymock.EasyMock.anyInt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.util.Collections;
 
 import org.easymock.EasyMockSupport;
 import org.junit.After;
@@ -21,7 +18,6 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import swift.client.proto.CommitUpdatesReply;
-import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
@@ -50,9 +46,9 @@ import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
@@ -66,6 +62,7 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author mzawirski
  */
+// FIXME: adapt to 1PC
 public class SwiftImplTest extends EasyMockSupport {
     private RpcEndpoint mockLocalEndpoint;
     private Endpoint mockServerEndpoint;
@@ -86,7 +83,8 @@ public class SwiftImplTest extends EasyMockSupport {
 
     private SwiftImpl createSwift() {
         return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new TimeBoundedObjectsCache(120 * 1000),
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_DEADLINE_MILLIS);
+                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS,
+                SwiftImpl.DEFAULT_DEADLINE_MILLIS);
     }
 
     @After
@@ -149,8 +147,9 @@ public class SwiftImplTest extends EasyMockSupport {
                 // Verify message integrity.
                 assertEquals(request.getBaseTimestamp(), request.getObjectUpdateGroups().get(0).getClientTimestamp());
 
-                ((CommitUpdatesReplyHandler) replyHandler).onReceive(null, new CommitUpdatesReply(
-                        CommitStatus.COMMITTED, request.getBaseTimestamp()));
+                // FIXME: adapt to 1PC
+                ((CommitUpdatesReplyHandler) replyHandler).onReceive(null,
+                        new CommitUpdatesReply(request.getBaseTimestamp()));
                 return null;
             }
         });
@@ -239,9 +238,9 @@ public class SwiftImplTest extends EasyMockSupport {
         }
 
         @SuppressWarnings("unchecked")
-    	@Override
-    	public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
-    		return (T)this;
-    	}
+        @Override
+        public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
+            return (T) this;
+        }
     }
 }

@@ -28,6 +28,7 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
@@ -70,31 +71,31 @@ public class RPCBenchmark {
         // kryo.register(TestRequest.class);
         // kryo.register(TestReply.class);
 
-        serverEndpoint = Networking.rpcBind(SERVER_PORT, TransportProvider.DEFAULT).toService(0, new RpcServer() );
+        serverEndpoint = Networking.rpcBind(SERVER_PORT, TransportProvider.DEFAULT).toService(0, new RpcServer());
         clientEndpoint = Networking.rpcConnect().toDefaultService();
         clientToServerEndpoint = Networking.resolve("localhost", SERVER_PORT);
 
         causalityClock1 = ClockFactory.newClock();
-        final Timestamp site1Timestamp = new IncrementalTimestampGenerator("site1").generateNew();
-        causalityClock1.record(site1Timestamp);
-        final Timestamp site2Timestamp = new IncrementalTimestampGenerator("site2").generateNew();
-        causalityClock1.record(site2Timestamp);
+        final TimestampMapping site1Timestamp = new TimestampMapping(
+                new IncrementalTimestampGenerator("site1").generateNew());
+        causalityClock1.record(site1Timestamp.getClientTimestamp());
+        final TimestampMapping site2Timestamp = new TimestampMapping(
+                new IncrementalTimestampGenerator("site2").generateNew());
+        causalityClock1.record(site2Timestamp.getClientTimestamp());
 
         integer = new IntegerVersioned();
         integer.init(objectId, causalityClock1, ClockFactory.newClock(), true);
         final CRDTObjectUpdatesGroup<IntegerVersioned> opGroup1 = new CRDTObjectUpdatesGroup<IntegerVersioned>(
-                objectId, site1Timestamp, null);
+                objectId, site1Timestamp, null, ClockFactory.newClock());
         opGroup1.append(new IntegerUpdate(new IncrementalTripleTimestampGenerator(site1Timestamp).generateNew(), 1));
-        opGroup1.setDependency(ClockFactory.newClock());
         integer.execute(opGroup1, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 
         final CRDTObjectUpdatesGroup<IntegerVersioned> opGroup2 = new CRDTObjectUpdatesGroup<IntegerVersioned>(
-                objectId, site2Timestamp, null);
+                objectId, site2Timestamp, null, ClockFactory.newClock());
         opGroup2.append(new IntegerUpdate(new IncrementalTripleTimestampGenerator(site2Timestamp).generateNew(), 1));
-        opGroup2.setDependency(ClockFactory.newClock());
         integer.execute(opGroup2, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 
-        System.out.println("Waiting 10s...");
+        System.out.println("Waiting 1s...");
         // (to select JVM using VisualVM profiler)
         try {
             Thread.sleep(1000);
@@ -126,7 +127,8 @@ public class RPCBenchmark {
         }
         assertEquals(RPCS_NUMBER, receivedAcks.get());
         final long duration = System.currentTimeMillis() - startTime;
-        System.out.println("10000 ping RPCs executed in " + duration + "ms");
+        System.out.printf("%d ping RPCs executed in %dms, throughput=%.2f RPCs/s", RPCS_NUMBER, duration,
+                ((double) RPCS_NUMBER / (double) duration * 1000.0));
     }
 
     private class RpcServer implements SwiftServer {
