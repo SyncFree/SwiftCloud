@@ -6,13 +6,13 @@ import swift.crdt.interfaces.Copyable;
 
 public class RegisterUpdate<V extends Copyable> extends BaseUpdate<RegisterVersioned<V>> {
     private V val;
-    private int lamportClock;
+    private long lamportClock;
 
     // required for kryo
     public RegisterUpdate() {
     }
 
-    public RegisterUpdate(TripleTimestamp ts, int lamportClock, V val) {
+    public RegisterUpdate(TripleTimestamp ts, long lamportClock, V val) {
         super(ts);
         this.lamportClock = lamportClock;
         this.val = val;

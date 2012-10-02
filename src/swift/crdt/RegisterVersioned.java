@@ -22,7 +22,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
     public static class UpdateEntry<V extends Copyable> implements Comparable<UpdateEntry<V>>, Serializable {
         private static final long serialVersionUID = 4540422641079766746L;
 
-        int lamportClock;
+        long lamportClock;
         TripleTimestamp ts;
         V value;
 
@@ -30,7 +30,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         UpdateEntry() {
         }
 
-        UpdateEntry(int lamportClock, final TripleTimestamp ts, V value) {
+        UpdateEntry(long lamportClock, final TripleTimestamp ts, V value) {
             this.lamportClock = lamportClock;
             this.ts = ts;
             this.value = value;
@@ -39,7 +39,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         @Override
         public int compareTo(UpdateEntry<V> o) {
             if (lamportClock != o.lamportClock) {
-                return o.lamportClock - lamportClock;
+                return Long.signum(o.lamportClock - lamportClock);
             }
             return ts.compareTo(o.ts);
         }
@@ -108,7 +108,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         }
     }
 
-    public void update(int lamportClock, TripleTimestamp updateTimestamp, V val) {
+    public void update(long lamportClock, TripleTimestamp updateTimestamp, V val) {
         values.add(new UpdateEntry<V>(lamportClock, updateTimestamp, val));
         registerTimestampUsage(updateTimestamp);
     }
