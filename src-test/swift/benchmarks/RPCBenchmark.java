@@ -135,7 +135,7 @@ public class RPCBenchmark {
         @Override
         public void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
             conn.reply(new FetchObjectVersionReply(FetchStatus.OK, integer, causalityClock1, emptyClock,
-                    causalityClock1));
+                    causalityClock1, causalityClock1));
         }
 
         @Override

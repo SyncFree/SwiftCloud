@@ -83,8 +83,8 @@ public class SwiftImplTest extends EasyMockSupport {
 
     private SwiftImpl createSwift() {
         return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new TimeBoundedObjectsCache(120 * 1000),
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS,
-                SwiftImpl.DEFAULT_DEADLINE_MILLIS);
+                SwiftImpl.DEFAULT_DISASTER_SAFE, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
+                SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_DEADLINE_MILLIS);
     }
 
     @After
@@ -104,7 +104,8 @@ public class SwiftImplTest extends EasyMockSupport {
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
-                ((LatestKnownClockReplyHandler) replyHandler).onReceive(null, new LatestKnownClockReply(serverClock));
+                ((LatestKnownClockReplyHandler) replyHandler).onReceive(null, new LatestKnownClockReply(serverClock,
+                        serverClock));
                 return null;
             }
         });
@@ -114,7 +115,7 @@ public class SwiftImplTest extends EasyMockSupport {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FetchObjectVersionReply fetchReply = new FetchObjectVersionReply(FetchStatus.OBJECT_NOT_FOUND,
-                        null, serverClock, ClockFactory.newClock(), serverClock);
+                        null, serverClock, ClockFactory.newClock(), serverClock, serverClock);
                 ((FetchObjectVersionReplyHandler) replyHandler).onReceive(null, fetchReply);
                 return null;
             }
@@ -167,7 +168,7 @@ public class SwiftImplTest extends EasyMockSupport {
                 ((FastRecentUpdatesReplyHandler) replyHandler).onReceive(
                         null,
                         new FastRecentUpdatesReply(SubscriptionStatus.ACTIVE, Collections
-                                .<ObjectSubscriptionInfo> emptyList(), ClockFactory.newClock()));
+                                .<ObjectSubscriptionInfo> emptyList(), ClockFactory.newClock(), ClockFactory.newClock()));
                 return null;
             }
         }).anyTimes();

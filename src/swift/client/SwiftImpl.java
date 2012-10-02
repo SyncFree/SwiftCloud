@@ -74,7 +74,6 @@ import sys.net.api.rpc.RpcHandle;
  */
 public class SwiftImpl implements Swift, TxnManager {
     // TODO: server failover
-    // TODO: option: reading from stable committed vv
 
     // WISHME: notifications are quite CPU/memory scans-intensive at the
     // moment; consider more efficient implementation if this is an issue
@@ -92,9 +91,11 @@ public class SwiftImpl implements Swift, TxnManager {
 
     // WISHME: subscribe updates of frequently accessed objects
 
+    // The two below yield the following sequence of wait times: 10, 20, 40...
     public static final int RPC_RETRY_WAIT_TIME_MULTIPLIER = 2;
     public static final int INIT_RPC_RETRY_WAIT_TIME_MILLIS = 10;
-    // The two above yield the following sequence of wait times: 10, 20, 40...
+
+    public static final boolean DEFAULT_DISASTER_SAFE = true;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
@@ -114,8 +115,8 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort) {
-        return newInstance(serverHostname, serverPort, DEFAULT_TIMEOUT_MILLIS, DEFAULT_DEADLINE_MILLIS,
-                DEFAULT_CACHE_EVICTION_MILLIS);
+        return newInstance(serverHostname, serverPort, DEFAULT_DISASTER_SAFE, DEFAULT_TIMEOUT_MILLIS,
+                DEFAULT_DEADLINE_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS);
     }
 
     /**
@@ -126,6 +127,10 @@ public class SwiftImpl implements Swift, TxnManager {
      *            hostname of storage server
      * @param serverPort
      *            TCP port of storage server
+     * @param disasterSafe
+     *            when true, only disaster safe committed (and local)
+     *            transactions are read by transactions, so the client virtually
+     *            never blocks due to system failures
      * @param timeoutMillis
      *            socket-level timeout for server replies in milliseconds
      * @param deadlineMillis
@@ -135,11 +140,11 @@ public class SwiftImpl implements Swift, TxnManager {
      *            eviction time for non-accessed objects in the cache
      * @return instance of Swift client
      */
-    public static SwiftImpl newInstance(String serverHostname, int serverPort, int timeoutMillis, int deadlineMillis,
-            long cacheEvictionTimeMillis) {
+    public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe, int timeoutMillis,
+            int deadlineMillis, long cacheEvictionTimeMillis) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
                 Networking.resolve(serverHostname, serverPort), new TimeBoundedObjectsCache(cacheEvictionTimeMillis),
-                timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
+                disasterSafe, timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
     private static String generateScoutId() {
@@ -165,16 +170,22 @@ public class SwiftImpl implements Swift, TxnManager {
     // transactions.
     private final TimeBoundedObjectsCache objectsCache;
 
-    // Invariant: committedVersion only grows.
-    private final CausalityClock committedVersion;
-    private ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
+    // CLOCKS: all clocks grow over time. Careful with references, use copies.
 
-    // Invariant: there is at most one pending (open) transaction.
-    private AbstractTxnHandle pendingTxn;
+    // A clock known to be committed at the store.
+    private final CausalityClock committedVersion;
+    // A clock known to be committed at the store and eventually observable
+    // across the system even in case of disaster affecting part of the store.
+    private final CausalityClock committedDisasterDurableVersion;
     // Last locally committed txn clock + dependencies.
     private CausalityClock lastLocallyCommittedTxnClock;
     // Last globally committed txn clock + dependencies.
     private CausalityClock lastGloballyCommittedTxnClock;
+    // Generator of local timestamps.
+    private ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
+
+    // Invariant: there is at most one pending (open) transaction.
+    private AbstractTxnHandle pendingTxn;
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
     private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
@@ -193,13 +204,19 @@ public class SwiftImpl implements Swift, TxnManager {
     private final ExecutorService notificationsSubscriberExecutor;
     private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
+    // OPTIONS
     private final int timeoutMillis;
     private final int notificationTimeoutMillis;
     private final int deadlineMillis;
+    // If true, only disaster safe committed (and local) transactions are read
+    // by transactions, so the client virtually never blocks due to systen
+    // failures.
+    private boolean disasterSafe;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeBoundedObjectsCache objectsCache,
-            int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
+            boolean disasterSafe, int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
         this.clientId = generateScoutId();
+        this.disasterSafe = disasterSafe;
         this.timeoutMillis = timeoutMillis;
         this.deadlineMillis = deadlineMillis;
         this.notificationTimeoutMillis = notificationTimeoutMillis;
@@ -209,6 +226,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.locallyCommittedTxnsQueue = new LinkedList<AbstractTxnHandle>();
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
+        this.committedDisasterDurableVersion = ClockFactory.newClock();
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
                 new IncrementalTimestampGenerator(SCOUT_CLOCK_ID));
@@ -277,7 +295,7 @@ public class SwiftImpl implements Swift, TxnManager {
                                 new LatestKnownClockReplyHandler() {
                                     @Override
                                     public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
-                                        updateCommittedVersion(reply.getClock());
+                                        updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
                                         setResult(true);
                                     }
                                 }, Math.min(timeoutMillis, getDeadlineLeft()));
@@ -293,7 +311,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // Invariant: for SI snapshotClock of a new transaction dominates
             // clock of all previous SI transaction (monotonic reads), since
             // commitedVersion only grows.
-            final CausalityClock snapshotClock = committedVersion.clone();
+            final CausalityClock snapshotClock = getCommittedVersion(true);
             snapshotClock.merge(lastLocallyCommittedTxnClock);
             setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, timestampMapping, snapshotClock));
             logger.info("SI transaction " + timestampMapping + " started with snapshot point: " + snapshotClock);
@@ -312,25 +330,28 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private synchronized void updateCommittedVersion(final CausalityClock clock) {
-        if (clock == null) {
+    private synchronized void updateCommittedVersions(final CausalityClock newCommittedVersion,
+            final CausalityClock newCommittedDisasterDurableVersion) {
+        if (newCommittedVersion == null || newCommittedDisasterDurableVersion == null) {
             logger.warning("server returned null clock");
             return;
         }
 
-        if (committedVersion.merge(clock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+        if (this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)
+                && this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
+                        CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
             // No changes.
             return;
         }
         // FIXME: discard the transaction log entries included in
-        // durableCommittedVersion
+        // committedDisasterDurableVersion... if we had stored them :-)
 
         // Go through updates to notify and see if any become committed.
         final Iterator<Entry<TimestampMapping, Set<CRDTIdentifier>>> iter = uncommittedUpdatesObjectsToNotify
                 .entrySet().iterator();
         while (iter.hasNext()) {
             final Entry<TimestampMapping, Set<CRDTIdentifier>> entry = iter.next();
-            if (entry.getKey().timestampsIntersect(committedVersion)) {
+            if (entry.getKey().timestampsIntersect(getCommittedVersion(false))) {
                 iter.remove();
                 for (final CRDTIdentifier id : entry.getValue()) {
                     final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
@@ -340,6 +361,20 @@ public class SwiftImpl implements Swift, TxnManager {
                 }
             }
         }
+    }
+
+    private synchronized CausalityClock getCommittedVersion(boolean copy) {
+        CausalityClock result;
+        if (disasterSafe) {
+            result = committedDisasterDurableVersion;
+        } else {
+            result = committedVersion;
+        }
+
+        if (copy) {
+            result = result.clone();
+        }
+        return result;
     }
 
     @Override
@@ -360,7 +395,7 @@ public class SwiftImpl implements Swift, TxnManager {
         // Try to get the latest one.
         final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.getAndTouch(id) == null);
         try {
-            final CausalityClock fetchClock = committedVersion.clone();
+            final CausalityClock fetchClock = getCommittedVersion(true);
             fetchClock.merge(lastGloballyCommittedTxnClock);
             fetchClock.drop(SCOUT_CLOCK_ID);
             fetchObjectVersion(id, create, classOfV, fetchClock, false, updatesListener != null, true);
@@ -399,7 +434,7 @@ public class SwiftImpl implements Swift, TxnManager {
         globalVersion.drop(SCOUT_CLOCK_ID);
         fetchObjectVersion(id, create, classOfV, globalVersion, true, updatesListener != null, true);
 
-        localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
+        localView = getCachedObjectForTxn(id, version.clone(), classOfV, updatesListener);
         if (localView == null) {
             // It should not happen normally.
             throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
@@ -438,7 +473,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // Set the requested clock to the latest committed version including
             // prior scout's transactions (the most recent thing we would like
             // to read).
-            clock = committedVersion.clone();
+            clock = getCommittedVersion(true);
             clock.merge(lastLocallyCommittedTxnClock);
 
             // Check if such a recent version is available in the cache. If not,
@@ -599,7 +634,8 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         synchronized (this) {
-            updateCommittedVersion(fetchReply.getEstimatedCommittedVersion());
+            updateCommittedVersions(fetchReply.getEstimatedCommittedVersion(),
+                    fetchReply.getEstimatedDisasterDurableCommittedVersion());
 
             V cacheCRDT;
             try {
@@ -674,7 +710,8 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects");
 
-        updateCommittedVersion(notifications.getEstimatedCommittedVersion());
+        updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
+                notifications.getEstimatedDisasterDurableCommittedVersion());
         if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
             // Process notifications.
             for (final ObjectSubscriptionInfo subscriptionInfo : notifications.getSubscriptions()) {
@@ -768,7 +805,7 @@ public class SwiftImpl implements Swift, TxnManager {
         Map<TimestampMapping, CRDTIdentifier> uncommittedUpdates = new HashMap<TimestampMapping, CRDTIdentifier>();
         for (final TimestampMapping tm : timestampMappings) {
             if (!tm.timestampsIntersect(subscription.readVersion)) {
-                if (tm.timestampsIntersect(committedVersion)) {
+                if (tm.timestampsIntersect(getCommittedVersion(false))) {
                     notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
                     return;
                 }
@@ -808,7 +845,8 @@ public class SwiftImpl implements Swift, TxnManager {
             // Object has been pruned since then, approximate by comparing old
             // and new txn views. This is a very bizzare case.
             logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
-            final TxnLocalCRDT<V> newView = newCrdtVersion.getTxnLocalCopy(committedVersion, subscription.txn);
+            final TxnLocalCRDT<V> newView = newCrdtVersion
+                    .getTxnLocalCopy(getCommittedVersion(false), subscription.txn);
             // FIXME: make sure that views are comparable!
             if (!newView.equals(subscription.crdtView.getValue())) {
                 notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
@@ -848,7 +886,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     if (!objectUpdateSubscriptions.containsKey(id)) {
                         return;
                     }
-                    version = committedVersion.clone();
+                    version = getCommittedVersion(true);
                     version.merge(lastLocallyCommittedTxnClock);
                     version.drop(SCOUT_CLOCK_ID);
                 }
