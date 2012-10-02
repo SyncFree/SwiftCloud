@@ -12,7 +12,7 @@ import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
 /**
- * Server confirmation of committed updates.
+ * Server confirmation of committed updates, with information on used timestamp.
  * 
  * @author mzawirski
  * @see CommitUpdatesRequest

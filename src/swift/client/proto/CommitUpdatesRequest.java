@@ -12,8 +12,9 @@ import sys.net.api.rpc.RpcHandler;
 /**
  * Client request to commit set of updates to the store.
  * <p>
- * All updates use the same client timestamp. Updates are organized into atomic
- * groups of updates per each object.
+ * All updates use the same client timestamp and will receive a system
+ * timestamp(s) during commit. Updates are organized into atomic groups of
+ * updates per each object.
  * 
  * @author mzawirski
  */

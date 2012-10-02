@@ -4,7 +4,8 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 /**
- * Client request to get the latest known clock at the server.
+ * Client request to get the latest known committed versions at the server.
+ * 
  * 
  * @author mzawirski
  */

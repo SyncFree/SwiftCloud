@@ -7,6 +7,8 @@ import sys.net.api.rpc.RpcHandler;
 
 /**
  * Client request to generate a timestamp for a transaction.
+ * <p>
+ * DEPRECATED, client does not request a timestamp directly anymore!
  * 
  * @author mzawirski
  */

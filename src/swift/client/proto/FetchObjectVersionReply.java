@@ -34,18 +34,20 @@ public class FetchObjectVersionReply implements RpcMessage {
     protected CausalityClock version;
     protected CausalityClock pruneClock;
     protected CausalityClock estimatedLatestKnownClock;
+    protected CausalityClock estimatedDisasterDurableLatestKnownClock;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     FetchObjectVersionReply() {
     }
 
     public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
-            CausalityClock estimatedLatestKnownClock) {
+            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock) {
         this.status = status;
         this.crdt = crdt;
         this.version = version;
         this.pruneClock = pruneClock;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
+        this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
     }
 
     /**
@@ -89,8 +91,16 @@ public class FetchObjectVersionReply implements RpcMessage {
      * @return estimation of the latest committed clock in the store, dominated
      *         by or equals {@link #getVersion()}
      */
-    public CausalityClock getEstimatedLatestKnownClock() {
+    public CausalityClock getEstimatedCommittedVersion() {
         return estimatedLatestKnownClock;
+    }
+
+    /**
+     * @return estimation of the latest committed clock in the store, durable
+     *         even in case of distaster affecting fragment of the store
+     */
+    public CausalityClock getEstimatedDisasterDurableCommittedVersion() {
+        return estimatedDisasterDurableLatestKnownClock;
     }
 
     @Override

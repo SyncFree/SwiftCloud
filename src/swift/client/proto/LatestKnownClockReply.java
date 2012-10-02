@@ -12,6 +12,7 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class LatestKnownClockReply implements RpcMessage {
     private CausalityClock clock;
+    private CausalityClock disasterDurableClock;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -19,16 +20,26 @@ public class LatestKnownClockReply implements RpcMessage {
     LatestKnownClockReply() {
     }
 
-    public LatestKnownClockReply(final CausalityClock clock) {
+    public LatestKnownClockReply(final CausalityClock clock, final CausalityClock disasterDurableClock) {
         this.clock = clock;
+        this.disasterDurableClock = disasterDurableClock;
     }
 
     /**
-     * @return latest known clock in the system, i.e. valid snapshot point
+     * @return latest known clock in the store, i.e. valid snapshot point
      *         candidate
      */
     public CausalityClock getClock() {
         return clock;
+    }
+
+    /**
+     * @return latest known clock in the store, i.e. valid snapshot point
+     *         candidate, durable in even in case of disaster affecting fragment
+     *         of the store
+     */
+    public CausalityClock getDistasterDurableClock() {
+        return disasterDurableClock;
     }
 
     @Override

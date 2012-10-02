@@ -7,6 +7,8 @@ import sys.net.api.rpc.RpcMessage;
 
 /**
  * Timestamp given by the server to the client.
+ * <p>
+ * DEPRECATED, client does not request a timestamp directly anymore!
  * 
  * @author mzawirski
  */

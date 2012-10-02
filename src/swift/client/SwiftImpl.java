@@ -599,7 +599,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         synchronized (this) {
-            updateCommittedVersion(fetchReply.getEstimatedLatestKnownClock());
+            updateCommittedVersion(fetchReply.getEstimatedCommittedVersion());
 
             V cacheCRDT;
             try {
@@ -674,7 +674,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects");
 
-        updateCommittedVersion(notifications.getEstimatedLatestKnownClock());
+        updateCommittedVersion(notifications.getEstimatedCommittedVersion());
         if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
             // Process notifications.
             for (final ObjectSubscriptionInfo subscriptionInfo : notifications.getSubscriptions()) {
