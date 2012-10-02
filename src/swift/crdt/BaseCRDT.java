@@ -225,9 +225,9 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             registeredInStore = true;
         }
 
-        boolean newOperation = false;
+        boolean newOperation = true;
         for (final Timestamp timestamp : ops.getTimestamps()) {
-            newOperation |= updatesClock.record(timestamp);
+            newOperation &= updatesClock.record(timestamp);
         }
         if (newOperation) {
             for (final CRDTUpdate<V> op : ops.getOperations()) {
@@ -305,7 +305,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     }
 
     @Override
-    public Set<TimestampMapping> getUpdateSystemTimestampsSince(CausalityClock clock) {
+    public Set<TimestampMapping> getUpdatesTimestampMappingsSince(CausalityClock clock) {
         if (clock.compareTo(pruneClock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
             throw new IllegalArgumentException();
         }

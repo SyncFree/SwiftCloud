@@ -6,7 +6,7 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
@@ -109,8 +109,8 @@ class TimeBoundedObjectsCache {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    void recordOnAll(final Timestamp timestamp) {
-        final CRDTObjectUpdatesGroup dummyOp = new CRDTObjectUpdatesGroup(null, timestamp, null);
+    void recordOnAll(final TimestampMapping timestampMapping) {
+        final CRDTObjectUpdatesGroup dummyOp = new CRDTObjectUpdatesGroup(null, timestampMapping, null, null);
         for (final Entry entry : entries.values()) {
             entry.object.execute(dummyOp, CRDTOperationDependencyPolicy.IGNORE);
         }

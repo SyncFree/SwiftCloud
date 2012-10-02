@@ -18,6 +18,7 @@ import swift.exceptions.WrongTypeException;
 public class RegisterMergeTest {
     RegisterVersioned<IntegerWrap> i1, i2;
     SwiftTester swift1, swift2;
+    static String[] CLIENT_IDS = new String[] { "client1", "client2" };
 
     private <V extends Copyable> RegisterTxnLocal<V> getTxnLocal(RegisterVersioned<V> i, TxnTester txn) {
         return (RegisterTxnLocal<V>) TesterUtils.getTxnLocal(i, txn);
@@ -35,7 +36,16 @@ public class RegisterMergeTest {
 
     private void registerUpdate(int value, RegisterVersioned<IntegerWrap> i, TxnTester txn) {
         txn.registerOperation(i,
-                new RegisterUpdate<IntegerWrap>(txn.nextTimestamp(), new IntegerWrap(value), txn.getClock()));
+                new RegisterUpdate<IntegerWrap>(txn.nextTimestamp(), getLamportClockFromVV(txn.getClock()),
+                        new IntegerWrap(value)));
+    }
+
+    private long getLamportClockFromVV(CausalityClock clock) {
+        long acc = 0;
+        for (final String id : CLIENT_IDS) {
+            acc += clock.getLatestCounter(id);
+        }
+        return acc;
     }
 
     @Before
@@ -45,8 +55,8 @@ public class RegisterMergeTest {
 
         i2 = new RegisterVersioned<IntegerWrap>();
         i2.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
-        swift1 = new SwiftTester("client1");
-        swift2 = new SwiftTester("client2");
+        swift1 = new SwiftTester(CLIENT_IDS[0]);
+        swift2 = new SwiftTester(CLIENT_IDS[1]);
     }
 
     // Merge with empty set
@@ -230,9 +240,9 @@ public class RegisterMergeTest {
     @Test
     public void testGetUpdateTimestampsSince() {
         final CausalityClock updatesSince = i1.getClock().clone();
-        assertTrue(i1.getUpdateSystemTimestampsSince(updatesSince).isEmpty());
+        assertTrue(i1.getUpdatesTimestampMappingsSince(updatesSince).isEmpty());
 
         registerSingleUpdateTxn(1, i1, swift1);
-        assertEquals(1, i1.getUpdateSystemTimestampsSince(updatesSince).size());
+        assertEquals(1, i1.getUpdatesTimestampMappingsSince(updatesSince).size());
     }
 }

@@ -10,6 +10,7 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDT;
@@ -30,7 +31,7 @@ public class TxnTester implements TxnHandle {
     private Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
-    private Timestamp ts;
+    private TimestampMapping tm;
 
     public TxnTester(String siteId, CausalityClock cc) {
         this(siteId, cc, new IncrementalTimestampGenerator(siteId, 0).generateNew());
@@ -40,8 +41,8 @@ public class TxnTester implements TxnHandle {
         this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         this.objectOperations = new HashMap<CRDT<?>, CRDTObjectUpdatesGroup<?>>();
         this.cc = latestVersion;
-        this.ts = ts;
-        this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
+        this.tm = new TimestampMapping(ts);
+        this.timestampGenerator = new IncrementalTripleTimestampGenerator(tm);
     }
 
     public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
@@ -84,7 +85,9 @@ public class TxnTester implements TxnHandle {
         for (final Entry<CRDT<?>, CRDTObjectUpdatesGroup<?>> entry : objectOperations.entrySet()) {
             entry.getKey().execute((CRDTObjectUpdatesGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
         }
-        cc.record(ts);
+        for (final Timestamp ts : tm.getTimestamps()) {
+            cc.record(ts);
+        }
     }
 
     @Override
@@ -109,8 +112,7 @@ public class TxnTester implements TxnHandle {
 
     // Short-cut for testing purpose
     public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTUpdate<V> op) {
-        final CRDTObjectUpdatesGroup<V> opGroup = new CRDTObjectUpdatesGroup<V>(obj.getUID(), ts, null)
-                .withBaseTimestampAndDependency(ts, cc);
+        final CRDTObjectUpdatesGroup<V> opGroup = new CRDTObjectUpdatesGroup<V>(obj.getUID(), tm, null, cc.clone());
         opGroup.append(op);
         objectOperations.put(obj, opGroup);
     }

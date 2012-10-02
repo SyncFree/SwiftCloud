@@ -215,10 +215,10 @@ public class IntegerMergeTest {
     @Test
     public void testGetUpdateTimestampsSince() {
         final CausalityClock updatesSince = i1.getClock().clone();
-        assertTrue(i1.getUpdateSystemTimestampsSince(updatesSince).isEmpty());
+        assertTrue(i1.getUpdatesTimestampMappingsSince(updatesSince).isEmpty());
 
         registerSingleUpdateTxn(1, i1, swift1);
-        assertEquals(1, i1.getUpdateSystemTimestampsSince(updatesSince).size());
+        assertEquals(1, i1.getUpdatesTimestampMappingsSince(updatesSince).size());
     }
 
     @Test

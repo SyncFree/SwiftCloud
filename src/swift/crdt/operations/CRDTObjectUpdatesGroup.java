@@ -14,8 +14,8 @@ import swift.crdt.interfaces.CRDTUpdate;
 /**
  * Representation of an atomic sequence of update operations on an object.
  * <p>
- * The sequence of operations shares a base Timestamp (two dimensional
- * timestamp), which is the unit of visibility of operations group. Each
+ * The sequence of operations shares a base TimestampMapping based on unique
+ * client timestamp, which is the unit of visibility of operations group. Each
  * individual operation has a unique TripleTimestamp based on the common
  * timestamp.
  * <p>
@@ -43,12 +43,15 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      * @param id
      * @param baseTimestamp
      * @param creationState
+     * @param dependencyClock
      */
-    public CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, V creationState) {
+    public CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, V creationState,
+            final CausalityClock dependencyClock) {
         this.id = id;
         this.timestampMapping = timestampMapping;
         this.operations = new LinkedList<CRDTUpdate<V>>();
         this.creationState = creationState;
+        this.dependencyClock = dependencyClock;
     }
 
     /**
@@ -60,16 +63,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     }
 
     /**
-     * @param mapping
-     * @param dependencyClock
-     */
-    public synchronized void init(final TimestampMapping mapping, CausalityClock dependencyClock) {
-        this.timestampMapping = mapping;
-        this.dependencyClock = dependencyClock;
-    }
-
-    /**
-     * @return base timestamp of all operations in the sequence
+     * @return base client timestamp of all operations in the sequence
      */
     public synchronized Timestamp getClientTimestamp() {
         return timestampMapping.getClientTimestamp();

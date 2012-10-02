@@ -279,10 +279,10 @@ public class DirectoryMergeTest {
     @Test
     public void testGetUpdateTimestampsSince() {
         final CausalityClock updatesSince = i1.getClock().clone();
-        assertTrue(i1.getUpdateTimestampsSince(updatesSince).isEmpty());
+        assertTrue(i1.getUpdatesTimestampMappingsSince(updatesSince).isEmpty());
 
         final TripleTimestamp ts = registerSingleInsertTxn("x", i1, swift1);
         registerSingleRemoveTxn("x", Collections.singleton(ts), i1, swift1);
-        assertEquals(2, i1.getUpdateTimestampsSince(updatesSince).size());
+        assertEquals(2, i1.getUpdatesTimestampMappingsSince(updatesSince).size());
     }
 }

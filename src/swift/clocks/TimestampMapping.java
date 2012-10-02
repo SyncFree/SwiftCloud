@@ -4,12 +4,23 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
-// FIXME: make it thread-safe?
+// FIXME: make it thread-safe or document as thread-hostile?
+/**
+ * TODO: document the timestamp mapping idea!
+ * 
+ * @author mzawirski
+ */
 public class TimestampMapping {
     /** Stable client-assigned timestamp */
     protected Timestamp clientTimestamp;
     /** Sorted client- and all system-assigned timestamps */
     protected List<Timestamp> timestamps;
+
+    /**
+     * USED ONLY BY Kyro!
+     */
+    public TimestampMapping() {
+    }
 
     public TimestampMapping(Timestamp clientTimestamp) {
         this.clientTimestamp = clientTimestamp;
