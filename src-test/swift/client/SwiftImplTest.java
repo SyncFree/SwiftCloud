@@ -95,6 +95,7 @@ public class SwiftImplTest extends EasyMockSupport {
         }
     }
 
+    @Ignore
     @Test
     public void testSingleSITxnCreateObject() throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {

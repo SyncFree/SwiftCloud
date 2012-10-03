@@ -57,6 +57,11 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         public UpdateEntry<V> copy() {
             return new UpdateEntry<V>(lamportClock, ts, (V) value.copy());
         }
+        
+        @Override
+        public String toString() {
+            return value.toString();
+        }
     }
 
     // List of register updates, the order is a deterministic linear extension
@@ -115,7 +120,6 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     @Override
     protected void mergePayload(RegisterVersioned<V> otherObject) {
-        values.addAll(otherObject.values);
         for (final UpdateEntry<V> entry : otherObject.values) {
             if (values.add(entry)) {
                 registerTimestampUsage(entry.ts);

@@ -58,9 +58,10 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
         Map<TripleTimestamp, Set<TripleTimestamp>> meta = dir.get(entry);
         if (meta == null) {
             meta = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
-            meta.put(uid, new HashSet<TripleTimestamp>());
             dir.put(entry, meta);
         }
+        meta.put(uid, new HashSet<TripleTimestamp>());
+        registerTimestampUsage(uid);
     }
 
     public void applyRemove(CRDTIdentifier key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp uid) {
@@ -73,6 +74,7 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
             Set<TripleTimestamp> removals = s.get(ts);
             if (removals != null) {
                 removals.add(uid);
+                registerTimestampUsage(uid);
             }
         }
     }
