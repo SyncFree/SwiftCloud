@@ -254,7 +254,7 @@ public class DirectoryMergeTest {
 
         Map<String, Set<TripleTimestamp>> rems2 = new HashMap<String, Set<TripleTimestamp>>();
         for (int i = 0; i < 5; i++) {
-            TripleTimestamp ts = registerSingleInsertTxn(Integer.toString(i), i1, swift1);
+            TripleTimestamp ts = registerSingleInsertTxn(Integer.toString(i), i2, swift2);
             Set<TripleTimestamp> s = new HashSet<TripleTimestamp>();
             s.add(ts);
             rems2.put(Integer.toString(i), s);
