@@ -1140,8 +1140,6 @@ public class SwiftImpl implements Swift, TxnManager {
             return listener != null;
         }
 
-        // FIXME: it seems more reasonable to call it after we make sure the
-        // triggering update is included in committedVersion!
         public Runnable generateListenerNotification(final CRDTIdentifier id) {
             if (!hasListener()) {
                 throw new IllegalStateException("Trying to notify already notified updates listener");
