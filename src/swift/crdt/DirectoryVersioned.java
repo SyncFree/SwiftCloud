@@ -66,15 +66,14 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
     public void applyRemove(CRDTIdentifier key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp uid) {
         Map<TripleTimestamp, Set<TripleTimestamp>> s = dir.get(key);
         if (s == null) {
-            s = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
-            dir.put(key, s);
+            return;
         }
+
         for (TripleTimestamp ts : toBeRemoved) {
             Set<TripleTimestamp> removals = s.get(ts);
-            if (removals == null) {
-                removals = new HashSet<TripleTimestamp>();
+            if (removals != null) {
+                removals.add(uid);
             }
-            removals.add(uid);
         }
     }
 
