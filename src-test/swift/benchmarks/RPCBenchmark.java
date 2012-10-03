@@ -7,6 +7,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import swift.client.proto.CommitUpdatesRequest;
@@ -27,7 +28,6 @@ import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.IncrementalTripleTimestampGenerator;
-import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerVersioned;
@@ -37,12 +37,10 @@ import swift.crdt.operations.IntegerUpdate;
 import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.Sys;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.AbstractRpcHandler;
-import sys.net.api.rpc.RpcHandle;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
-
-import static sys.net.api.Networking.*;
 
 /**
  * Simple RPC+Kryo benchmark.
@@ -110,7 +108,17 @@ public class RPCBenchmark {
     }
 
     @Test
-    public void test1000RPC() {
+    public void test10RPC() {
+        testRPC(10);
+    }
+
+    @Test
+    @Ignore
+    public void test20000RPC() {
+        testRPC(20000);
+    }
+
+    private void testRPC(int rpcsNumber) {
         final AtomicLong receivedAcks = new AtomicLong();
         final FetchObjectVersionReplyHandler countingReplyHandler = new FetchObjectVersionReplyHandler() {
             @Override
@@ -120,15 +128,14 @@ public class RPCBenchmark {
         };
 
         final long startTime = System.currentTimeMillis();
-        final int RPCS_NUMBER = 20000;
-        for (int i = 0; i < RPCS_NUMBER; i++) {
+        for (int i = 0; i < rpcsNumber; i++) {
             clientEndpoint.send(clientToServerEndpoint, new FetchObjectVersionRequest("client", objectId,
                     causalityClock1, true, SubscriptionType.NONE), countingReplyHandler);
         }
-        assertEquals(RPCS_NUMBER, receivedAcks.get());
+        assertEquals(rpcsNumber, receivedAcks.get());
         final long duration = System.currentTimeMillis() - startTime;
-        System.out.printf("%d ping RPCs executed in %dms, throughput=%.2f RPCs/s", RPCS_NUMBER, duration,
-                ((double) RPCS_NUMBER / (double) duration * 1000.0));
+        System.out.printf("%d ping RPCs executed in %dms, throughput=%.2f RPCs/s", rpcsNumber, duration,
+                ((double) rpcsNumber / (double) duration * 1000.0));
     }
 
     private class RpcServer implements SwiftServer {
