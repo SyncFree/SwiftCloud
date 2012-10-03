@@ -25,6 +25,7 @@ import swift.exceptions.WrongTypeException;
  * @author annettebieniusa
  * 
  */
+// TODO: All CRDTs w/mappings need a test for multi-mappings and pruning
 public class DirectoryMergeTest {
     SwiftTester swift1, swift2;
     DirectoryVersioned i1, i2;

@@ -15,6 +15,7 @@ import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
 // TODO: tests for concurrent RegisterUpdates or sequential RegisterUpdates with some interleavings.
+// TODO: All CRDTs w/mappings need a test for multi-mappings and pruning
 public class RegisterMergeTest {
     RegisterVersioned<IntegerWrap> i1, i2;
     SwiftTester swift1, swift2;

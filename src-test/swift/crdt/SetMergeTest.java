@@ -21,6 +21,7 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 
+//TODO: All CRDTs w/mappings need a test for multi-mappings and pruning
 public class SetMergeTest {
     SwiftTester swift1, swift2;
     SetIntegers i1, i2;
