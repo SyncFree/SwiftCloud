@@ -12,12 +12,14 @@ import swift.crdt.interfaces.TxnHandle;
 public class SwiftTester implements Swift {
     public CausalityClock latestVersion;
     private IncrementalTimestampGenerator clientTimestampGenerator;
+    private IncrementalTimestampGenerator globalTimestampGenerator;
     private String id;
 
     public SwiftTester(String id) {
         this.id = id;
         this.latestVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new IncrementalTimestampGenerator(id);
+        this.globalTimestampGenerator = new IncrementalTimestampGenerator("global:" + id);
     }
 
     @Override
@@ -26,7 +28,7 @@ public class SwiftTester implements Swift {
     }
 
     public TxnTester beginTxn() {
-        return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew());
+        return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew(), globalTimestampGenerator.generateNew());
     }
 
     public <V extends CRDT<V>> void merge(V local, V other, SwiftTester otherSwift) {

@@ -23,9 +23,8 @@ import swift.clocks.TripleTimestamp;
 public final class PayloadHelper {
 
     public static <V extends Object> void mergePayload(Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> base,
-            CausalityClock baseClock, CausalityClock basePrunePoint,
-            Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> other, CausalityClock otherClock,
-            CausalityClock otherPrunePoint, List<TripleTimestamp> outputTimestampsToRegister,
+            CausalityClock baseClock, Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> other,
+            CausalityClock otherClock, List<TripleTimestamp> outputTimestampsToRegister,
             List<TripleTimestamp> outputTimestampsToUnregister) {
         Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> it = other.entrySet().iterator();
         while (it.hasNext()) {

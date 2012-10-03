@@ -31,18 +31,21 @@ public class TxnTester implements TxnHandle {
     private Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
     private CausalityClock cc;
     private TimestampSource<TripleTimestamp> timestampGenerator;
+    private Timestamp globalTimestamp;
     private TimestampMapping tm;
 
     public TxnTester(String siteId, CausalityClock cc) {
-        this(siteId, cc, new IncrementalTimestampGenerator(siteId, 0).generateNew());
+        this(siteId, cc, new IncrementalTimestampGenerator(siteId).generateNew(), new IncrementalTimestampGenerator(
+                "global:" + siteId).generateNew());
     }
 
-    public TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts) {
+    public TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts, final Timestamp globalTs) {
         this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         this.objectOperations = new HashMap<CRDT<?>, CRDTObjectUpdatesGroup<?>>();
         this.cc = latestVersion;
         this.tm = new TimestampMapping(ts);
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(tm);
+        this.globalTimestamp = globalTs;
     }
 
     public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
@@ -82,7 +85,14 @@ public class TxnTester implements TxnHandle {
 
     @Override
     public void commit() {
+        commit(false);
+    }
+
+    public void commit(boolean globalCommit) {
         for (final Entry<CRDT<?>, CRDTObjectUpdatesGroup<?>> entry : objectOperations.entrySet()) {
+            if (globalCommit) {
+                entry.getValue().addSystemTimestamp(globalTimestamp);
+            }
             entry.getKey().execute((CRDTObjectUpdatesGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
         }
         for (final Timestamp ts : tm.getTimestamps()) {

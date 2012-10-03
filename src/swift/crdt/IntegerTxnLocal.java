@@ -22,6 +22,7 @@ public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
     public void add(int n) {
         val += n;
         TripleTimestamp ts = nextTimestamp();
+        // TODO: this would be a cool case for coalescing many updates.
         registerLocalOperation(new IntegerUpdate(ts, n));
     }
 
@@ -32,5 +33,13 @@ public class IntegerTxnLocal extends BaseCRDTTxnLocal<IntegerVersioned> {
     @Override
     public Object executeQuery(CRDTQuery<IntegerVersioned> query) {
         return query.executeAt(this);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof IntegerTxnLocal)) {
+            return false;
+        }
+        return ((IntegerTxnLocal) obj).val == this.val;
     }
 }

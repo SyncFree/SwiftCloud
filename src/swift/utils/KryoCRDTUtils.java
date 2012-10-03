@@ -64,7 +64,6 @@ public class KryoCRDTUtils {
         KryoLib.register(CRDTIdentifier.class,0x54);
         KryoLib.register(BaseCRDT.class,0x55);
         KryoLib.register(IntegerVersioned.class,0x56);
-        KryoLib.register(IntegerVersioned.UpdatesPerSite.class,0x57);
         KryoLib.register(RegisterVersioned.class,0x58);
         KryoLib.register(RegisterVersioned.UpdateEntry.class,0x59);
         KryoLib.register(SetIds.class,0x60);

@@ -40,8 +40,8 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
     protected void mergePayload(DirectoryVersioned other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
-        PayloadHelper.mergePayload(this.dir, this.getClock(), this.getPruneClock(), other.dir, other.getClock(),
-                other.getPruneClock(), newTimestampUsages, releasedTimestampUsages);
+        PayloadHelper.mergePayload(this.dir, this.getClock(), other.dir, other.getClock(), newTimestampUsages,
+                releasedTimestampUsages);
         for (final TripleTimestamp ts : newTimestampUsages) {
             registerTimestampUsage(ts);
         }

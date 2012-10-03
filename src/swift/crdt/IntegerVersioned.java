@@ -1,11 +1,9 @@
 package swift.crdt;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
@@ -14,9 +12,9 @@ import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.utils.Pair;
 
 public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
+
     private static final long serialVersionUID = 1L;
     // Map of updateId to integer deltas
     private Map<TripleTimestamp, Integer> updates;
@@ -25,9 +23,11 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
     // Value with respect to the pruneClock
     private int pruneValue;
+    private Map<String, Integer> prunedValuesPerSite;
 
     public IntegerVersioned() {
         this.updates = new HashMap<TripleTimestamp, Integer>();
+        this.prunedValuesPerSite = new HashMap<String, Integer>();
     }
 
     private int value(CausalityClock snapshotClock) {
@@ -37,169 +37,124 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
             return currentValue;
         }
         int retValue = pruneValue;
-        retValue += filterUpdates(snapshotClock);
+        retValue += getAggregateOfUpdatesIncluded(snapshotClock);
         return retValue;
     }
 
-    private int filterUapdates(CausalityClock clk) {
-        int retValue = 0;
-        for (final int delta : updates.values()) {
-            retValue += delta;
+    /**
+     * @param clk
+     *            clock restricting the set of updates; null represents a clock
+     *            including all updates
+     * @return aggregate value of updates included in clk
+     */
+    private int getAggregateOfUpdatesIncluded(CausalityClock clk) {
+        int acc = 0;
+
+        for (final Entry<TripleTimestamp, Integer> update : updates.entrySet()) {
+            if (clk == null || update.getKey().timestampsIntersect(clk)) {
+                acc += update.getValue();
+            }
         }
-        return retValue;
+        return acc;
     }
 
     public void applyUpdate(int n, TripleTimestamp ts) {
         updates.put(ts, n);
+        registerTimestampUsage(ts);
         currentValue += n;
-    }
-
-    private int getAggregateOfUpdates() {
-        int changes = 0;
-        for (UpdatesPerSite v : updates.values()) {
-            changes += v.getUpates();
-        }
-        return changes;
-    }
-
-    private int getAggregateOfPrune() {
-        int changes = 0;
-        for (Pair<Integer, TripleTimestamp> v : pruneVector.values()) {
-            changes += v.getFirst();
-        }
-        return changes;
     }
 
     @Override
     protected void mergePayload(IntegerVersioned other) {
-        currentValue = 0;
-        final HashMap<TripleTimestamp, Integer> newUpdates = new HashMap<UpdateTimestamp, Integer>();
-        for (final Entry<TripleTimestamp, Integer> otherUpdate: other.updates) {
-            if (otherUpdate.getKey().timestampsIntersect(getPruneClock())) {
+        mergePrunedPayload(other);
+
+        // Look for individual local updates that we can now remove because we
+        // merged them in as a pruned state.
+        final Iterator<Entry<TripleTimestamp, Integer>> thisUpdatesIter = updates.entrySet().iterator();
+        while (thisUpdatesIter.hasNext()) {
+            final Entry<TripleTimestamp, Integer> update = thisUpdatesIter.next();
+            final TripleTimestamp uid = update.getKey();
+            // TODO: this is a really trick code here, due to the fact we
+            // other.getPruneClock() may be imprecise - it misses local
+            // timestamps.
+            // It means there may exist an update in this.updates that is using
+            // a client timestamp mapping only, which is included in other.clock
+            // and actually pruned in other's payload, but the local timestamp
+            // is not included in other.pruneClock. Yuck!
+            if (uid.timestampsIntersect(other.getClock())) {
+                if (!other.updates.containsKey(uid)) {
+                    thisUpdatesIter.remove();
+                    unregisterTimestampUsage(uid);
+                }
+            }
         }
-        Map<String, Pair<Integer, TripleTimestamp>> newPruneVector = new HashMap<String, Pair<Integer, TripleTimestamp>>();
-        for (Entry<String, Pair<Integer, TripleTimestamp>> e : pruneVector.entrySet()) {
-            Pair<Integer, TripleTimestamp> v = other.pruneVector.get(e.getKey());
-            if (v == null) {
-                newPruneVector.put(e.getKey(), e.getValue());
+
+        // Look for individual remote updates that we should incorporate.
+        final Iterator<Entry<TripleTimestamp, Integer>> otherUpdatesIter = other.updates.entrySet().iterator();
+        while (otherUpdatesIter.hasNext()) {
+            final Entry<TripleTimestamp, Integer> update = otherUpdatesIter.next();
+            final TripleTimestamp uid = update.getKey();
+            if (!uid.timestampsIntersect(getClock())) {
+                updates.put(uid, update.getValue());
+                registerTimestampUsage(uid);
+            }
+        }
+
+        // Update current value.
+        currentValue = pruneValue + getAggregateOfUpdatesIncluded(null);
+    }
+
+    private void mergePrunedPayload(IntegerVersioned other) {
+        int sumOfNewlyPrunedUpdates = 0;
+        Iterator<Entry<String, Integer>> otherPrunedValuesIter = other.prunedValuesPerSite.entrySet().iterator();
+        while (otherPrunedValuesIter.hasNext()) {
+            final Entry<String, Integer> otherPrunedValue = otherPrunedValuesIter.next();
+            final String otherSite = otherPrunedValue.getKey();
+            Integer value = prunedValuesPerSite.get(otherSite);
+            if (value == null) {
+                value = 0;
+            }
+            value += otherPrunedValue.getValue();
+            sumOfNewlyPrunedUpdates += otherPrunedValue.getValue();
+            ;
+            if (value != 0) {
+                prunedValuesPerSite.put(otherSite, value);
             } else {
-                if (e.getValue().getSecond().compareTo(v.getSecond()) < 0) {
-                    newPruneVector.put(e.getKey(), v);
-                } else {
-                    newPruneVector.put(e.getKey(), e.getValue());
-                }
-                other.pruneVector.remove(e.getKey());
+                prunedValuesPerSite.remove(otherSite);
             }
         }
-        newPruneVector.putAll(other.pruneVector);
-        pruneVector = newPruneVector;
-        pruneValue = getAggregateOfPrune();
-
-        cleanUpdatesFromPruned(updates);
-        cleanUpdatesFromPruned(other.updates);
-
-        for (Entry<String, UpdatesPerSite> e : other.updates.entrySet()) {
-            UpdatesPerSite v = updates.get(e.getKey());
-            if (v == null) {
-                v = e.getValue();
-                updates.put(e.getKey(), new UpdatesPerSite(e.getValue()));
-            } else {
-                v.updates.addAll(e.getValue().updates);
-            }
-        }
-        currentValue = pruneValue + getAggregateOfUpdates();
-    }
-
-    private void cleanUpdatesFromPruned(Map<String, UpdatesPerSite> updates2) {
-
-        Iterator<Entry<String, UpdatesPerSite>> itSites = updates2.entrySet().iterator();
-        while (itSites.hasNext()) {
-            Entry<String, UpdatesPerSite> updatesPerSite = itSites.next();
-            Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
-            while (addTSit.hasNext()) {
-                Pair<Integer, TripleTimestamp> ts = addTSit.next();
-                if (this.getPruneClock().includes(ts.getSecond())) {
-                    addTSit.remove();
-                }
-            }
-            if (updatesPerSite.getValue().isEmpty()) {
-                itSites.remove();
-            }
-        }
-    }
-
-    @Override
-    public boolean equals(Object other) {
-        // TODO do we need to compare objects? should it be oblivious to
-        // pruning?
-        if (!(other instanceof IntegerVersioned)) {
-            return false;
-        }
-        IntegerVersioned that = (IntegerVersioned) other;
-        return that.currentValue == this.currentValue && that.updates.equals(this.updates);
-    }
-
-    private int rollbackUpdates(Timestamp rollbackEvent) {
-        int delta = 0;
-        Iterator<Entry<String, UpdatesPerSite>> itSites = updates.entrySet().iterator();
-        while (itSites.hasNext()) {
-            Entry<String, UpdatesPerSite> updatesPerSite = itSites.next();
-            Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
-            while (addTSit.hasNext()) {
-                Pair<Integer, TripleTimestamp> ts = addTSit.next();
-                if (rollbackEvent.includes(ts.getSecond())) {
-                    addTSit.remove();
-                    delta += ts.getFirst();
-                }
-            }
-            if (updatesPerSite.getValue().updates.isEmpty()) {
-                itSites.remove();
-            }
-        }
-        return delta;
+        pruneValue += sumOfNewlyPrunedUpdates;
     }
 
     @Override
     public void rollback(Timestamp rollbackEvent) {
-        this.currentValue += rollbackUpdates(rollbackEvent);
+        throw new UnsupportedOperationException();
     }
 
     @Override
     protected void pruneImpl(CausalityClock c) {
-        int sumOfDeltas = 0;
-        Iterator<Entry<String, UpdatesPerSite>> itSites = updates.entrySet().iterator();
-        while (itSites.hasNext()) {
-            int delta = 0;
-            TripleTimestamp pruneMax = null;
-
-            Entry<String, UpdatesPerSite> updatesPerSite = itSites.next();
-            Iterator<Pair<Integer, TripleTimestamp>> addTSit = updatesPerSite.getValue().iterator();
-            while (addTSit.hasNext()) {
-                Pair<Integer, TripleTimestamp> ts = addTSit.next();
-                if (c.includes(ts.getSecond())) {
-                    addTSit.remove();
-                    delta += ts.getFirst();
-                    if (pruneMax == null || pruneMax.compareTo(ts.getSecond()) < 0) {
-                        pruneMax = ts.getSecond();
-                    }
+        int sumOfNewlyPrunedUpdates = 0;
+        Iterator<Entry<TripleTimestamp, Integer>> updatesIter = updates.entrySet().iterator();
+        while (updatesIter.hasNext()) {
+            final Entry<TripleTimestamp, Integer> update = updatesIter.next();
+            final TripleTimestamp uid = update.getKey();
+            if (uid.timestampsIntersect(c)) {
+                final String summarySite = uid.getSelectedSystemTimestamp().getIdentifier();
+                Integer value = prunedValuesPerSite.get(summarySite);
+                if (value == null) {
+                    value = 0;
                 }
+                value += update.getValue();
+                sumOfNewlyPrunedUpdates += update.getValue();
+                if (value != 0) {
+                    prunedValuesPerSite.put(summarySite, value);
+                } else {
+                    prunedValuesPerSite.remove(summarySite);
+                }
+                updatesIter.remove();
             }
-
-            if (updatesPerSite.getValue().updates.isEmpty()) {
-                itSites.remove();
-            }
-
-            String siteId = updatesPerSite.getKey();
-            Pair<Integer, TripleTimestamp> priorPruned = pruneVector.get(siteId);
-            if (priorPruned == null || priorPruned.getFirst() == null) {
-                pruneVector.put(siteId, new Pair<Integer, TripleTimestamp>(delta, pruneMax));
-            } else {
-                Integer priorPruneValue = priorPruned.getFirst();
-                pruneVector.put(siteId, new Pair<Integer, TripleTimestamp>(priorPruneValue + delta, pruneMax));
-            }
-            sumOfDeltas += delta;
         }
-        pruneValue += sumOfDeltas;
+        pruneValue += sumOfNewlyPrunedUpdates;
     }
 
     protected TxnLocalCRDT<IntegerVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
@@ -214,70 +169,15 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        final Set<Timestamp> result = new HashSet<Timestamp>();
-        for (Entry<String, UpdatesPerSite> entry : updates.entrySet()) {
-            for (Pair<Integer, TripleTimestamp> set : entry.getValue().updates) {
-                if (!clock.includes(set.getSecond())) {
-                    result.add(set.getSecond().cloneBaseTimestamp());
-                }
-            }
-        }
-        return result;
-    }
-
-    @Override
     public IntegerVersioned copy() {
         IntegerVersioned copy = new IntegerVersioned();
-        copy.updates.putAll(this.updates);
+        for (final Entry<TripleTimestamp, Integer> update : updates.entrySet()) {
+            copy.updates.put(update.getKey(), update.getValue());
+        }
         copy.currentValue = this.currentValue;
-        copy.pruneVector.putAll(this.pruneVector);
+        copy.prunedValuesPerSite.putAll(this.prunedValuesPerSite);
         copy.pruneValue = this.pruneValue;
         copyBase(copy);
         return copy;
-    }
-
-    // public for sake of Kryo...
-    public static class UpdatesPerSite {
-        public final Set<Pair<Integer, TripleTimestamp>> updates;
-
-        /** Do not use: Constructor only to be used by Kryo serialization */
-        public UpdatesPerSite() {
-            this.updates = new HashSet<Pair<Integer, TripleTimestamp>>();
-        }
-
-        public boolean isEmpty() {
-            return updates.isEmpty();
-        }
-
-        public UpdatesPerSite(UpdatesPerSite value) {
-            this.updates = new HashSet<Pair<Integer, TripleTimestamp>>(value.updates);
-        }
-
-        public Iterator<Pair<Integer, TripleTimestamp>> iterator() {
-            return updates.iterator();
-        }
-
-        public int getUpates() {
-            int acc = 0;
-            for (Pair<Integer, TripleTimestamp> v : updates) {
-                acc += v.getFirst();
-            }
-            return acc;
-        }
-
-        public void add(int n, TripleTimestamp ts) {
-            updates.add(new Pair<Integer, TripleTimestamp>(n, ts));
-        }
-
-        public int filterUpdates(CausalityClock clk) {
-            int acc = 0;
-            for (Pair<Integer, TripleTimestamp> v : updates) {
-                if (clk.includes(v.getSecond())) {
-                    acc += v.getFirst();
-                }
-            }
-            return acc;
-        }
     }
 }

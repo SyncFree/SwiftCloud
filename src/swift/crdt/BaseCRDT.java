@@ -157,7 +157,13 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     /**
      * Merges the payload of the object with the payload of another object
-     * having the same CRDT type.
+     * having the same CRDT type. Note that {@link #pruneImpl(CausalityClock)}
+     * is always called immediatelly afterwards, clock and pruneCLock are also
+     * updated, but the implementation may already perform some pruning
+     * necessary during merge.
+     * <p>
+     * Unused timestamp mappings should be discarded during the merge; the
+     * remaining mappings will be merged by this base class after this call.
      * 
      * @param otherObject
      *            object to merge with

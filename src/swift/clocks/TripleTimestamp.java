@@ -73,4 +73,8 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
     public void addSystemTimestamps(TimestampMapping mapping) {
         mapping.addSystemTimestamps(mapping);
     }
+
+    public Timestamp getSelectedSystemTimestamp() {
+        return mapping.getSelectedSystemTimestamp();
+    }
 }

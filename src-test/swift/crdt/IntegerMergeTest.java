@@ -33,7 +33,7 @@ public class IntegerMergeTest {
     private void registerSingleUpdateTxn(int value, IntegerVersioned i, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn();
         registerUpdate(value, i, txn);
-        txn.commit();
+        txn.commit(true);
     }
 
     @Before
@@ -214,7 +214,7 @@ public class IntegerMergeTest {
     }
 
     @Test
-    public void testGetUpdateTimestampsSince() {
+    public void testTimestampsInUse() {
         final CausalityClock updatesSince = i1.getClock().clone();
         assertTrue(i1.getUpdatesTimestampMappingsSince(updatesSince).isEmpty());
 

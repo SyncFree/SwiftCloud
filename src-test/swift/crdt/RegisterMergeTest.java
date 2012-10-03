@@ -239,7 +239,7 @@ public class RegisterMergeTest {
     }
 
     @Test
-    public void testGetUpdateTimestampsSince() {
+    public void testTimestampsInUse() {
         final CausalityClock updatesSince = i1.getClock().clone();
         assertTrue(i1.getUpdatesTimestampMappingsSince(updatesSince).isEmpty());
 
