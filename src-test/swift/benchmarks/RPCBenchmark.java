@@ -93,13 +93,13 @@ public class RPCBenchmark {
         opGroup2.append(new IntegerUpdate(new IncrementalTripleTimestampGenerator(site2Timestamp).generateNew(), 1));
         integer.execute(opGroup2, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
 
-        System.out.println("Waiting 1s...");
-        // (to select JVM using VisualVM profiler)
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException x) {
-        }
-        System.out.println("Starting the test...");
+        // System.out.println("Waiting 1s...");
+        // // (to select JVM using VisualVM profiler)
+        // try {
+        // Thread.sleep(1000);
+        // } catch (InterruptedException x) {
+        // }
+        // System.out.println("Starting the test...");
     }
 
     @After
