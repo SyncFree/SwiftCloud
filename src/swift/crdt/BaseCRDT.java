@@ -242,7 +242,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             // Apply operations using a separate copy of mappings to ensure
             // isolation.
             final TimestampMapping mappingsBackup = ops.getTimestampMapping();
-            final TimestampMapping mappingsCopy = ops.getTimestampMapping();
+            final TimestampMapping mappingsCopy = mappingsBackup.copy();
             for (final CRDTUpdate<V> op : ops.getOperations()) {
                 op.setTimestampMapping(mappingsCopy);
                 execute(op);

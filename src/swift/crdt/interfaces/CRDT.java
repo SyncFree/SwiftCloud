@@ -66,7 +66,9 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * <p>
      * In the outcome, updates and clocks of provided object are reflected in
      * this object. Pruning is also unioned, the output pruneClock is merge of
-     * the two clocks.
+     * the two clocks. The mappings of the instance given in the argument maybe
+     * used directly during merge without copying, i.e. the instance in the
+     * argument may observe changed mappings after merge.
      * <p>
      * IMPLEMENTATION LIMITATION: note that the incoming crdt pruneClock
      * information may miss local timestamps (the transaction timestamps of

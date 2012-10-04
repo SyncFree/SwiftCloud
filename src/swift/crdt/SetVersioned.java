@@ -78,15 +78,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (!(o instanceof SetVersioned)) {
-            return false;
-        }
-        SetVersioned<?, ?> that = (SetVersioned<?, ?>) o;
-        return that.elems.equals(this.elems);
-    }
-
-    @Override
     public String toString() {
         return PrettyPrint.printMap("{", "}", ";", "->", elems);
     }
