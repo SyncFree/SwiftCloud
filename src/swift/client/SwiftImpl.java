@@ -1134,6 +1134,10 @@ public class SwiftImpl implements Swift, TxnManager {
             // updates
         }
 
+        /**
+         * @return true if there is listener registered; only subscription
+         *         without listener can be stopped
+         */
         public boolean hasListener() {
             return listener != null;
         }
