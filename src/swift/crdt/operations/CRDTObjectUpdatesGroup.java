@@ -16,10 +16,10 @@ import swift.crdt.interfaces.CRDTUpdate;
  * <p>
  * The sequence of operations shares a base TimestampMapping based on unique
  * client timestamp, which is the unit of visibility of operations group. Each
- * individual operation has a unique TripleTimestamp based on the common
- * timestamp.
+ * individual operation has a unique id based on the common timestamp.
  * <p>
- * Thread-safe.
+ * Thread-safe. Beware that mappings instance is normally shared and may be
+ * mutable, use {@link #withCopiedMapping()} when appropriate.
  * 
  * @author mzawirski
  */
@@ -65,19 +65,31 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     /**
      * @return base client timestamp of all operations in the sequence
      */
-    public synchronized Timestamp getClientTimestamp() {
+    public Timestamp getClientTimestamp() {
         return timestampMapping.getClientTimestamp();
     }
 
+    /**
+     * Adds a system timestamp for this transaction.
+     * 
+     * @param ts
+     */
     public synchronized void addSystemTimestamp(final Timestamp ts) {
         timestampMapping.addSystemTimestamp(ts);
     }
 
+    /**
+     * @return all timestamp assigned to this transaction
+     */
     public synchronized List<Timestamp> getTimestamps() {
         return timestampMapping.getTimestamps();
     }
 
-    public synchronized TimestampMapping getTimestampMapping() {
+    /**
+     * @return timestamp mapping information for this transaction; carefully,
+     *         this is a reference to a mutable object
+     */
+    public TimestampMapping getTimestampMapping() {
         // FIXME: release read-only copy to the client!
         return timestampMapping;
     }
@@ -109,7 +121,6 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      *            next operation to be applied within the transaction
      */
     public synchronized void append(CRDTUpdate<V> op) {
-        op.setTimestampMapping(timestampMapping);
         operations.add(op);
     }
 

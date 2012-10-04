@@ -209,7 +209,10 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         if (timestampsForClient == null) {
             throw new IllegalStateException("Timestamp to unregister cannot be found");
         }
-        timestampsForClient.remove(ts);
+        // Remove precisely one instance.
+        if (!timestampsForClient.remove(ts)) {
+            throw new IllegalStateException("Could not find timestamp for usage unregister");
+        }
         if (timestampsForClient.isEmpty()) {
             clientTimestampsInUse.remove(ts.getClientTimestamp());
         }
@@ -236,8 +239,14 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             newOperation &= updatesClock.record(timestamp);
         }
         if (newOperation) {
+            // Apply operations using a separate copy of mappings to ensure
+            // isolation.
+            final TimestampMapping mappingsBackup = ops.getTimestampMapping();
+            final TimestampMapping mappingsCopy = ops.getTimestampMapping();
             for (final CRDTUpdate<V> op : ops.getOperations()) {
+                op.setTimestampMapping(mappingsCopy);
                 execute(op);
+                op.setTimestampMapping(mappingsBackup);
             }
         } else {
             updateTimestampUsageMapping(ops.getTimestampMapping());

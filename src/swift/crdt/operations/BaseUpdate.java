@@ -13,16 +13,16 @@ public abstract class BaseUpdate<V extends CRDT<V>> implements CRDTUpdate<V> {
     }
 
     protected BaseUpdate(TripleTimestamp ts) {
-        this.ts = ts.copy();
+        this.ts = ts;
     }
 
     @Override
     public TripleTimestamp getTimestamp() {
         return this.ts;
     }
-
+    
     @Override
-    public void setTimestampMapping(TimestampMapping mapping) {
-        ts.setMapping(mapping);
+    public void setTimestampMapping(final TimestampMapping mapping) {
+        ts = ts.copyWithMappings(mapping);
     }
 }

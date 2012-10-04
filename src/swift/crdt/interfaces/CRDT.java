@@ -78,10 +78,12 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     void merge(CRDT<V> crdt);
 
     /**
-     * Executes a group of atomic operations on this object.
+     * Executes a group of atomic operations on this object or updates the
+     * timestamp mapping if the operations were already executed.
      * <p>
      * In the outcome, operations and their timestamp are reflected in the state
-     * of this object.
+     * of this object. Note that only a copy of timestamp mappings is used to
+     * perform operations, so the original timestamps are well-isolated.
      * 
      * @param ops
      *            operation group to be executed
@@ -138,7 +140,8 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
 
     /**
      * Returns the causality clock including timestamps of all update operations
-     * reflected in the object state.
+     * reflected in the object state. The clock may also include timestamps of
+     * transactions that did not updated this object.
      * 
      * @return causality clock associated to object
      */
@@ -154,8 +157,11 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     CausalityClock getPruneClock();
 
     /**
-     * Creates a copy of an object with optionally restricted state according to
-     * versionClock.
+     * Creates a view of an object in particular version provided by the
+     * versionClock. Returned view should not share any mutable state with this
+     * object, since they can be concurrently modified. If the object is not
+     * registered in the store, it should generate a registration operation at
+     * this point.
      * 
      * @param versionClock
      *            the returned state is restricted to the specified version
@@ -193,9 +199,23 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      */
     V copy();
 
-    public abstract void discardScoutClock(final String scoutId);
-
+    /**
+     * Auguments update clock of this object with a set of timestamps known to
+     * be applied.
+     * 
+     * @param latestAppliedScoutTimestamp
+     *            last timestamp to include in the clock; this timestamp and all
+     *            lower timestamp of the same scout will be included
+     */
     // FIXME: should be it a CausalityClock, do we allow holes?
     public abstract void augmentWithScoutClock(final Timestamp latestAppliedScoutTimestamp);
+
+    /**
+     * Discards from the update clock all timestamps of the provided scout.
+     * 
+     * @param scoutId
+     *            id of the scout whose timestamps will be discarded
+     */
+    public abstract void discardScoutClock(final String scoutId);
 
 }

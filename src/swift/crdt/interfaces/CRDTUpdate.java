@@ -16,19 +16,20 @@ public interface CRDTUpdate<V extends CRDT<V>> {
     TripleTimestamp getTimestamp();
 
     /**
-     * Set timestamp mapping information for this update. Note that the provided
-     * mapping should be a non-strict superset of the old one.
-     * 
-     * @param mapping
-     *            timestamp mapping to install
-     */
-    void setTimestampMapping(TimestampMapping mapping);
-
-    /**
      * Applies operation to the given object instance.
      * 
      * @param crdt
      *            object where operation is applied
      */
     void applyTo(V crdt);
+
+    // Dirty tricks: sharing and unsharing a timestamp mapping instance to save
+    // space and message size... and avoid troubles.
+    /**
+     * Sets new timestamp mapping for a timestamp
+     * 
+     * @param mapping
+     *            a timestamp mapping reference, compatible with the orginal one
+     */
+    void setTimestampMapping(TimestampMapping mapping);
 }
