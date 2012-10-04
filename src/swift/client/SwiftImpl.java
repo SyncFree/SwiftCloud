@@ -101,7 +101,6 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
-    private static final String SCOUT_CLOCK_ID = "client";
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     /**
@@ -149,12 +148,6 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private static String generateScoutId() {
         return UUID.randomUUID().toString();
-    }
-
-    private static void assertIsGlobalClock(CausalityClock version) {
-        if (version.hasEventFrom(SCOUT_CLOCK_ID)) {
-            throw new IllegalArgumentException("transaction requested visibility of local transaction");
-        }
     }
 
     private boolean stopFlag;
@@ -229,7 +222,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committedDisasterDurableVersion = ClockFactory.newClock();
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
-                new IncrementalTimestampGenerator(SCOUT_CLOCK_ID));
+                new IncrementalTimestampGenerator(clientId));
         this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
                 INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.committerThread = new CommitterThread();
@@ -397,7 +390,7 @@ public class SwiftImpl implements Swift, TxnManager {
         try {
             final CausalityClock fetchClock = getCommittedVersion(true);
             fetchClock.merge(lastGloballyCommittedTxnClock);
-            fetchClock.drop(SCOUT_CLOCK_ID);
+            fetchClock.drop(clientId);
             fetchObjectVersion(id, create, classOfV, fetchClock, false, updatesListener != null, true);
         } catch (VersionNotFoundException x) {
             if (fetchRequired) {
@@ -431,7 +424,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         final CausalityClock globalVersion = version.clone();
-        globalVersion.drop(SCOUT_CLOCK_ID);
+        globalVersion.drop(clientId);
         fetchObjectVersion(id, create, classOfV, globalVersion, true, updatesListener != null, true);
 
         localView = getCachedObjectForTxn(id, version.clone(), classOfV, updatesListener);
@@ -556,7 +549,7 @@ public class SwiftImpl implements Swift, TxnManager {
         final CausalityClock oldCrdtClock;
         synchronized (this) {
             oldCrdtClock = cachedCrdt.getClock().clone();
-            oldCrdtClock.drop(SCOUT_CLOCK_ID);
+            oldCrdtClock.drop(clientId);
             assertIsGlobalClock(oldCrdtClock);
         }
 
@@ -847,8 +840,7 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
             final TxnLocalCRDT<V> newView = newCrdtVersion
                     .getTxnLocalCopy(getCommittedVersion(false), subscription.txn);
-            // FIXME: make sure that views are comparable!
-            if (!newView.equals(subscription.crdtView.getValue())) {
+            if (!newView.getValue().equals(subscription.crdtView.getValue())) {
                 notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
             }
             return;
@@ -888,7 +880,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     }
                     version = getCommittedVersion(true);
                     version.merge(lastLocallyCommittedTxnClock);
-                    version.drop(SCOUT_CLOCK_ID);
+                    version.drop(clientId);
                 }
                 try {
                     fetchObjectVersion(id, false, BaseCRDT.class, version, false, true, false);
@@ -1067,6 +1059,12 @@ public class SwiftImpl implements Swift, TxnManager {
     private void assertRunning() {
         if (stopFlag) {
             throw new IllegalStateException("client is stopped");
+        }
+    }
+
+    private void assertIsGlobalClock(CausalityClock version) {
+        if (version.hasEventFrom(clientId)) {
+            throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
     }
 
