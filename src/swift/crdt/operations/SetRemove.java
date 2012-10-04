@@ -1,5 +1,6 @@
 package swift.crdt.operations;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import swift.clocks.TripleTimestamp;
@@ -16,7 +17,10 @@ public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseUpdate<T> {
     public SetRemove(TripleTimestamp ts, V val, Set<TripleTimestamp> ids) {
         super(ts);
         this.val = val;
-        this.ids = ids;
+        this.ids = new HashSet<TripleTimestamp>();
+        for (final TripleTimestamp id : ids) {
+            this.ids.add(id.copyWithCleanedMappings());
+        }
     }
 
     public V getVal() {

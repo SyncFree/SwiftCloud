@@ -1,5 +1,6 @@
 package swift.crdt.operations;
 
+import java.util.HashSet;
 import java.util.Set;
 
 import swift.clocks.TripleTimestamp;
@@ -17,7 +18,10 @@ public class DirectoryRemoveUpdate extends BaseUpdate<DirectoryVersioned> {
     public DirectoryRemoveUpdate(CRDTIdentifier key, Set<TripleTimestamp> toBeRemoved, TripleTimestamp ts) {
         super(ts);
         this.key = key;
-        this.toBeRemoved = toBeRemoved;
+        this.toBeRemoved = new HashSet<TripleTimestamp>();
+        for (final TripleTimestamp toBeRemovedTs : toBeRemoved) {
+            this.toBeRemoved.add(toBeRemovedTs.copyWithCleanedMappings());
+        }
     }
 
     @Override
