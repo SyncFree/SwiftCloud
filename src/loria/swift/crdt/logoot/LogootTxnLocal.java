@@ -105,7 +105,7 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
      */
     private void delete(int position, int offset) {
         for (int cmpt = 1; cmpt <= offset; cmpt++) {
-            registerLocalOperation(new LogootDelete(doc.idTable.get(position + cmpt)));
+            registerLocalOperation(new LogootDelete(doc.idTable.get(position + cmpt), nextTimestamp()));
         }
         doc.delete(position, offset);
     }
@@ -140,10 +140,6 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
 
     @Override
     public String getText() {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 1 ; i < doc.document.size()-1; ++i) {
-            sb.append(doc.document.get(i)).append('\n');
-        }
-        return sb.toString();
+        return doc.toString();
     }
 }

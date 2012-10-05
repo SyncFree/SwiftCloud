@@ -20,6 +20,7 @@ package loria.swift.crdt.logoot;
 
 import java.io.Serializable;
 import java.util.*;
+import swift.clocks.TripleTimestamp;
 
 /**
  * Logoot identifier. A list of Component.
@@ -30,6 +31,11 @@ public class LogootIdentifier implements Comparable<LogootIdentifier>, Serializa
 
     public LogootIdentifier(int capacity) {
         id = new ArrayList<Component>(capacity);
+    }
+
+    LogootIdentifier(Component component) {
+        id = new ArrayList<Component>(1);
+        id.add(component);
     }
 
     public ArrayList<Component> getID() {
@@ -124,5 +130,9 @@ public class LogootIdentifier implements Comparable<LogootIdentifier>, Serializa
             o.id.add(c.clone());
         }
         return o;
+    }
+
+    public Component getLastComponent() {
+        return id.get(id.size()-1);
     }
 }

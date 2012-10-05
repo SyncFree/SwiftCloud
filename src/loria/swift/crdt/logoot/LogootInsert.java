@@ -57,6 +57,6 @@ public class LogootInsert extends BaseUpdate<LogootVersionned> {
 
     @Override
     public void applyTo(LogootVersionned crdt) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        crdt.getDoc().insert(identif, content);
     }
 }

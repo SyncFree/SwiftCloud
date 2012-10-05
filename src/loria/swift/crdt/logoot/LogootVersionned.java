@@ -18,47 +18,111 @@
  */
 package loria.swift.crdt.logoot;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Set;
-import loria.swift.application.filesystem.mapper.Content;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.BaseCRDT;
 import swift.crdt.interfaces.CRDTUpdate;
-import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
 /**
- *
- * @author mehdi urso
+ * Logoot CRDT with versionning.
+ * @author urso
  */
 public class LogootVersionned extends BaseCRDT<LogootVersionned> {
 
-    @Override
-    protected void pruneImpl(CausalityClock pruningPoint) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    private LogootDocumentWithTombstones<String> doc;
+
+    public LogootVersionned() {
+        this.doc = new LogootDocumentWithTombstones<String>();
+    }
+
+    LogootDocumentWithTombstones<String> getDoc() {
+        return doc;
     }
 
     @Override
-    protected void mergePayload(LogootVersionned otherObject) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    protected void mergePayload(LogootVersionned other) {
+        doc.merge(other.doc);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof LogootVersionned)) {
+            return false;
+        }
+        return doc.equals(((LogootVersionned)o).doc);
+    }
+
+    @Override
+    public String toString() {
+        return "{" + doc.idTable + " | " + doc.document + " | " + doc.tombstones + "}";
+    }
+    
+    private static boolean greater(CausalityClock pruningPoint, Set<TripleTimestamp> tbs) {
+        for (TripleTimestamp ts : tbs) {
+            if (pruningPoint.includes(ts)) {
+                return true;
+            }
+        }
+        return false;
+    }
+        
+    @Override
+    protected void pruneImpl(CausalityClock pruningPoint) {
+        final LogootDocumentWithTombstones<String> newDoc = new LogootDocumentWithTombstones<String>();
+        newDoc.idTable.clear(); // optimization 
+        newDoc.document.clear();
+        newDoc.tombstones.clear();
+        int n = doc.idTable.size();
+        
+        for (int i = 0; i < n; ++i) {
+            Set<TripleTimestamp> tbs = doc.tombstones.get(i);
+            if (tbs == null || !greater(pruningPoint, tbs)) {
+                newDoc.idTable.add(doc.idTable.get(i));
+                newDoc.document.add(doc.document.get(i));
+                newDoc.tombstones.add(doc.tombstones.get(i));
+            }
+        }
+        doc = newDoc; 
+    }
+
+    // Not sure of exact usage.
+    @Override
+    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
+        final Set<Timestamp> result = new HashSet<Timestamp>();
+        final int n = doc.idTable.size();
+        
+        for (int i = 0; i < n; ++i) {
+            TripleTimestamp tins = doc.idTable.get(i).getLastComponent().getTs();
+            if (!clock.includes(tins)) {
+                result.add(tins.cloneBaseTimestamp());
+            }
+            Set<TripleTimestamp> tbs = doc.tombstones.get(i);
+            if (tbs != null) {
+                for (TripleTimestamp tdel : tbs) {
+                    if (!clock.includes(tdel)) {
+                        result.add(tdel.cloneBaseTimestamp());
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
 
     @Override
     protected void execute(CRDTUpdate<LogootVersionned> op) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        op.applyTo(this);
     }
 
     @Override
     protected TxnLocalCRDT<LogootVersionned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        return new LogootTxnLocal(id, txn, versionClock, this, new LogootDocument());    
-    }
-
-    @Override
-    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final LogootVersionned creationState = isRegisteredInStore() ? null : new LogootVersionned();
+        return new LogootTxnLocal(id, txn, versionClock, creationState, getValue(versionClock)); 
     }
 
     @Override
@@ -66,4 +130,19 @@ public class LogootVersionned extends BaseCRDT<LogootVersionned> {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    private LogootDocument getValue(CausalityClock versionClock) {
+        final LogootDocument<String> view = new LogootDocument<String>();
+        view.idTable.clear(); // optimization 
+        view.document.clear();
+        int n = doc.idTable.size();
+        
+        for (int i = 0; i < n; ++i) {
+            Set<TripleTimestamp> tbs = doc.tombstones.get(i);
+            if (tbs == null || !greater(versionClock, tbs)) {
+                view.idTable.add(doc.idTable.get(i));
+                view.document.add(doc.document.get(i));
+            }
+        }
+        return view; 
+    }
 }

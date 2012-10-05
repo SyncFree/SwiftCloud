@@ -19,6 +19,7 @@
 package loria.swift.crdt.logoot;
 
 import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.operations.BaseUpdate;
 
@@ -30,8 +31,8 @@ public class LogootDelete extends BaseUpdate<LogootVersionned> {
     
     final private LogootIdentifier identif;
     
-    public LogootDelete(LogootIdentifier identif) {
-        super(identif.getComponentAt(identif.length()-1).getTs());
+    public LogootDelete(LogootIdentifier identif, TripleTimestamp ts) {
+        super(ts);
         this.identif = identif;
     }
 
@@ -51,6 +52,6 @@ public class LogootDelete extends BaseUpdate<LogootVersionned> {
 
     @Override
     public void applyTo(LogootVersionned crdt) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        crdt.getDoc().delete(identif, getTimestamp());
     }
 }
