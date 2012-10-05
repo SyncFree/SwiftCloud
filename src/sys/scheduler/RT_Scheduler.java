@@ -1,17 +1,9 @@
 package sys.scheduler;
 
-import static sys.utils.Log.Log;
-
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
-import sys.Sys;
 import sys.utils.Threading;
 
 /**
@@ -23,6 +15,10 @@ import sys.utils.Threading;
  */
 public class RT_Scheduler<T extends Task> extends VT_Scheduler<T> {
 
+	private static Logger Log = Logger.getLogger( RT_Scheduler.class.getName() );
+
+
+	
 	ExecutorService threadPool = Executors.newCachedThreadPool();
 
 	protected RT_Scheduler() {

@@ -12,16 +12,11 @@ import sys.dht.catadupa.Catadupa.Scope;
 import sys.dht.test.KVS;
 import sys.dht.test.msgs.StoreData;
 import sys.dht.test.msgs.StoreDataReply;
-import sys.utils.Log;
 import sys.utils.Threading;
 
 public class Main {
 
 	public static void main(String[] args) throws Exception {
-		Log.setLevel("", Level.OFF);
-		Log.setLevel("sys.dht.catadupa", Level.ALL);
-		Log.setLevel("sys.net", Level.SEVERE);
-		Log.setLevel("sys", Level.ALL);
 
 		sys.Sys.init();
 

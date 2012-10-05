@@ -4,7 +4,7 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class PubSubRpcHandler implements RpcHandler {
+public class PubSubRpcHandler<K,P> implements RpcHandler {
 
 	@Override
 	public void onReceive(RpcMessage m) {
@@ -25,7 +25,7 @@ public class PubSubRpcHandler implements RpcHandler {
 		Thread.dumpStack();
 	}
 
-	public void onReceive(RpcHandle conn, PubSubNotification m) {
+	public void onReceive(RpcHandle conn, PubSubNotification<K,P> m) {
 		Thread.dumpStack();
 	}
 }

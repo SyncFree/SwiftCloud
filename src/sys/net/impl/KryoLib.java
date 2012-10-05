@@ -1,8 +1,7 @@
 package sys.net.impl;
 
 import java.util.*;
-
-import org.objenesis.strategy.StdInstantiatorStrategy;
+import java.util.logging.Logger;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
@@ -16,7 +15,8 @@ import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.rpc.RpcPacket;
 
 public class KryoLib {
-
+	private static Logger Log = Logger.getLogger( RpcPacket.class.getName() );
+	
 	static Kryo kryo = new Kryo();
 	
 	synchronized  public static <T> T copy( T obj ) {
@@ -43,7 +43,7 @@ public class KryoLib {
 	synchronized public static void register(Class<?> cl, int id) {
 		for( _Registration i : registry )
 			if( i.id == id ) {
-				System.err.println("Already Registered..." + id );
+				Log.severe("Already Registered..." + id );
 				Thread.dumpStack();
 			}
 		registry.add(new _Registration(cl, null, id));
@@ -52,7 +52,7 @@ public class KryoLib {
 	synchronized public static <T> void register(Class<T> cl, Serializer<? super T> serializer, int id) {
 		for( _Registration i : registry )
 			if( i.id == id ) {
-				System.err.println("Already Registered..." + id );
+				Log.severe("Already Registered..." + id );
 				Thread.dumpStack();
 			}
 		registry.add(new _Registration(cl, serializer, id));

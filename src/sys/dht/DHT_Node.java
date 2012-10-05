@@ -1,7 +1,9 @@
 package sys.dht;
 
 import static sys.Sys.Sys;
-import static sys.utils.Log.Log;
+
+import java.util.logging.Logger;
+
 import sys.dht.api.DHT;
 import sys.dht.discovery.Discovery;
 import sys.dht.impl.DHT_ClientStub;
@@ -10,6 +12,7 @@ import sys.net.api.Endpoint;
 import sys.utils.Threading;
 
 public class DHT_Node extends DHT_NodeImpl {
+	private static Logger Log = Logger.getLogger("sys.dht");
 
 	public static final String DHT_ENDPOINT = "DHT_ENDPOINT";
 

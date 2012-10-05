@@ -1,10 +1,10 @@
 package sys.dht.impl;
 
 import static sys.net.api.Networking.Networking;
-import static sys.utils.Log.Log;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Logger;
 
 import sys.RpcServices;
 import sys.dht.api.DHT;
@@ -21,6 +21,8 @@ import sys.utils.Threading;
 import static sys.net.impl.NetworkingConstants.*;
 
 public class DHT_ClientStub implements DHT {
+	private static Logger Log = Logger.getLogger( DHT_ClientStub.class.getName() );
+	
 //	private static final int RETRIES = 3;
 //	private static final int TIMEOUT = 100;
 	

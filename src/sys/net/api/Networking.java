@@ -1,6 +1,5 @@
 package sys.net.api;
 
-import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
 
 /**

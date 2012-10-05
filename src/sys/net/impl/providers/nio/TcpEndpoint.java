@@ -1,34 +1,39 @@
 package sys.net.impl.providers.nio;
 
-import static sys.utils.Log.Log;
+import static sys.Sys.Sys;
+import static sys.net.impl.NetworkingConstants.NIO_CONNECTION_TIMEOUT;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.logging.Logger;
 
-import static sys.Sys.*;
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.FailedTransportConnection;
+import sys.net.impl.NetworkingConstants.NIO_ReadBufferDispatchPolicy;
+import sys.net.impl.NetworkingConstants.NIO_ReadBufferPoolPolicy;
+import sys.net.impl.NetworkingConstants.NIO_WriteBufferPoolPolicy;
 import sys.net.impl.providers.AbstractTransport;
-import sys.net.impl.providers.KryoInputBuffer;
 import sys.net.impl.providers.BufferPool;
 import sys.net.impl.providers.InitiatorInfo;
+import sys.net.impl.providers.KryoInputBuffer;
 import sys.net.impl.providers.KryoOutputBuffer;
 import sys.net.impl.providers.MultiQueueExecutor;
-import sys.net.impl.providers.SingleQueueExecutor;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.IO;
 import sys.utils.Threading;
 
-import static sys.net.impl.NetworkingConstants.*;
+import com.esotericsoftware.kryo.KryoException;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
+	private static Logger Log = Logger.getLogger( TcpEndpoint.class.getName() );
+	
 	ServerSocketChannel ssc;
 	MultiQueueExecutor executor = new MultiQueueExecutor();
 	
@@ -60,7 +65,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			}
 			return new FailedTransportConnection(localEndpoint, remote, null);
 		} catch (Throwable t) {
-			// t.printStackTrace();
+			//t.printStackTrace();
 			Log.severe("Cannot connect to: <" + remote + "> :" + t.getMessage());
 			return new FailedTransportConnection(localEndpoint, remote, t);
 		}
@@ -76,7 +81,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				new IncomingConnection(channel);
 			}
 		} catch (Exception x) {
-			// x.printStackTrace();
+			//x.printStackTrace();
 			Log.severe("Unexpected error in incoming endpoint: " + localEndpoint);
 		}
 		IO.close(ssc);
@@ -102,7 +107,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
 		NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
 		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
-		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL;
+		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
 
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
@@ -144,13 +149,13 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					}
 				}
 			} catch (Throwable t) {
-				// t.printStackTrace();
+				//t.printStackTrace();
 				cause = t;
 				handler.onFailure(this);
 			}
 			isBroken = true;
 			IO.close(channel);
-			Log.fine("Closed connection to:" + remote);
+			Log.fine("Closed connection to: " + remote);
 		}
 
 		final class _ReadBuffer extends KryoInputBuffer {
@@ -161,23 +166,26 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					msg = super.readClassAndObject();
 					msg.setSize( super.contentLength ) ;
 				} catch (Throwable t) {
-					// t.printStackTrace();
+					
+					if( t instanceof KryoException )
+						t.printStackTrace();
+					
+					Log.severe("Serialization Exception: " + t.getMessage() );
 					return;
+					
+				} finally {
+					readPool.offer(this);					
 				}
-				readPool.offer(this);
 				try {
 					msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
 				} catch (Throwable t) {
 					t.printStackTrace();
+					Log.warning("Dispatch Exception: " + t.getClass() + " caused by: " + msg.getClass() + " received from: " + remoteEndpoint() + " with " + super.contentLength );
 				}
 			}
 		}
-		final public boolean send(final Message m) {
-			boolean res = _send(m);			
-			return res;
-		}
 
-		final public boolean _send(final Message m) {
+		final public boolean send(final Message m) {
 			KryoOutputBuffer outBuf = null;
 			try {
 				if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
@@ -191,7 +199,8 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				m.setSize(size);
 				return true;
 			} catch (Throwable t) {
-				//t.printStackTrace();
+				if( t instanceof KryoException )
+					t.printStackTrace();
 
 				cause = t;
 				isBroken = true;
@@ -257,7 +266,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		public IncomingConnection(SocketChannel channel) throws IOException {
 			super.channel = channel;
 			super.type = "in";
-			Threading.newThread("incoming-tcp-channel-reader", true, this).start();
+			Threading.newThread("incoming-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
 		}
 	}
 
@@ -282,7 +291,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			}
 			this.send(new InitiatorInfo(localEndpoint));
 			handler.onConnect(this);
-			Threading.newThread("outgoing-tcp-channel-reader", true, this).start();
+			Threading.newThread("outgoing-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
 
 			// new Task(Sys.rg.nextDouble() * 10) {
 			// public void run() {

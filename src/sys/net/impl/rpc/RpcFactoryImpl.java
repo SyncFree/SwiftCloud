@@ -1,7 +1,5 @@
 package sys.net.impl.rpc;
 
-import static sys.utils.Log.Log;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -11,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
@@ -33,16 +31,12 @@ import static sys.net.impl.NetworkingConstants.*;
 
 final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
+	private static Logger Log = Logger.getLogger( RpcFactoryImpl.class.getName() );
+
 	Endpoint facEndpoint;
 	ConnectionManager conMgr;
 
 	public RpcFactoryImpl() {
-
-//		 sys.utils.Log.setLevel("", Level.OFF);
-//		 sys.utils.Log.setLevel("sys.dht.catadupa", Level.ALL);
-//		 sys.utils.Log.setLevel("sys.dht", Level.ALL);
-//		 sys.utils.Log.setLevel("sys.net", Level.ALL);
-//		 sys.utils.Log.setLevel("sys", Level.ALL);
 
 		// new PeriodicTask(0.0, 10.0) {
 		// public void run() {
@@ -94,8 +88,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	public void onAccept(final TransportConnection conn) {
 		new Task(0) {
 			public void run() {
-				conMgr.add(conn);				
-				Log.fine("Accepted connection from:" + conn.remoteEndpoint());
+				conMgr.add(conn);
+				Log.info("Accepted connection from:" + conn.remoteEndpoint());
 			}
 		};
 	}
@@ -104,8 +98,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	public void onConnect(final TransportConnection conn) {
 		new Task(0) {
 			public void run() {
-				conMgr.add(conn);				
-				Log.fine("Established connection to:" + conn.remoteEndpoint());
+				conMgr.add(conn);
+				Log.info("Established connection to:" + conn.remoteEndpoint());
 			}
 		};
 	}
@@ -115,7 +109,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		new Task(0) {
 			public void run() {
 				conMgr.remove(conn);
-				Log.fine("Connection failed to:" + conn.remoteEndpoint() + "/ cause:" + conn.causeOfFailure());
+				Log.info("Connection failed to:" + conn.remoteEndpoint() + "/ cause:" + conn.causeOfFailure());
 			}
 		};
 	}
@@ -125,7 +119,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 		new Task(0) {
 			public void run() {
 				conMgr.remove(conn);
-				Log.fine("Connection closed to:" + conn.remoteEndpoint());
+				Log.info("Connection closed to:" + conn.remoteEndpoint());
 			}
 		};
 	}
@@ -139,10 +133,12 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 	}
 
 	public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
-//		double t0 = Sys.timeMillis();
+		// double t0 = Sys.timeMillis();
 		RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
 
-		Log.finest("RPC: " + pkt.payload.getClass() + " from: " + conn.remoteEndpoint() );
+		Log.info("RPC: " + pkt.payload.getClass() + " from: " + conn.remoteEndpoint());
+		// System.err.println("RPC: " + pkt.payload.getClass() + " from: " +
+		// conn.remoteEndpoint() );
 
 		final RpcPacket handler = getHandler(pkt.handlerId);
 		if (handler != null) {
@@ -232,6 +228,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 final class ConnectionManager {
 
+	private static Logger Log = Logger.getLogger("sys.rpc");
+
 	final Endpoint localEndpoint;
 	Map<Endpoint, Set<TransportConnection>> connections = new HashMap<Endpoint, Set<TransportConnection>>();
 	Map<Endpoint, TransportConnection[]> ro_connections = Collections.synchronizedMap(new HashMap<Endpoint, TransportConnection[]>());
@@ -307,19 +305,20 @@ final class ConnectionManager {
 
 	final TransportConnection[] noConnections = new TransportConnection[0];
 
-//	boolean sendX(Endpoint remote, Message m) {		
-//		for (TransportConnection i : connections(remote))
-//			if (i.send(m))
-//				return true;
-//		return false;
-//	}
+	// boolean sendX(Endpoint remote, Message m) {
+	// for (TransportConnection i : connections(remote))
+	// if (i.send(m))
+	// return true;
+	// return false;
+	// }
 
 	/**
-	 * Note: Send needs to be done before logging, so the size after serialization is known...
+	 * Note: Send needs to be done before logging, so the size after
+	 * serialization is known...
 	 */
 	final static boolean sendPacket(TransportConnection conn, RpcPacket pkt) {
 		try {
-			return conn.send( pkt );
+			return conn.send(pkt);
 		} finally {
 			RpcStats.logSentRpcPacket(pkt, conn.remoteEndpoint());
 		}

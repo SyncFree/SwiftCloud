@@ -2,19 +2,19 @@ package sys;
 
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import swift.utils.KryoCRDTUtils;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.catadupa.KryoCatadupa;
-import sys.net.api.Networking.TransportProvider;
 import sys.net.impl.NetworkingImpl;
 import sys.scheduler.TaskScheduler;
 import sys.utils.IP;
 
 public class Sys {
-	
+	public static Logger SysLog = Logger.getLogger( Sys.class.getName() );
+
 	private static final double NANOSECOND = 1e-9;
 
 	public Random rg;

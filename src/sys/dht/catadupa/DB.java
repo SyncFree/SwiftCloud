@@ -2,7 +2,6 @@ package sys.dht.catadupa;
 
 import static sys.Sys.Sys;
 import static sys.dht.catadupa.Config.Config;
-import static sys.utils.Log.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,6 +11,7 @@ import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.logging.Logger;
 
 import sys.dht.catadupa.crdts.CRDTRuntime;
 import sys.dht.catadupa.crdts.ORSet;
@@ -27,6 +27,9 @@ import sys.dht.catadupa.msgs.DbMergeReply;
  */
 public class DB {
 
+	private static Logger Log = Logger.getLogger( DB.class.getName() );
+
+	
 	final long KEY_RANGE = 1L << Config.NODE_KEY_LENGTH;
 	final long MAX_KEY = (1L << Config.NODE_KEY_LENGTH) - 1L;
 	final long SLICE_RANDOM_OFFSET = new Random(100).nextLong() >>> 10;

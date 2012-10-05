@@ -1,11 +1,10 @@
 package sys.net.impl.providers.netty.tcp;
 
-import static sys.utils.Log.Log;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.logging.Logger;
 
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
@@ -45,6 +44,10 @@ import static sys.Sys.Sys;
 
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
+	private static Logger Log = Logger.getLogger( TcpEndpoint.class.getName() );
+
+
+	
 	ExecutorService bossExecutors, workerExecutors;
 	final BufferPool<KryoOutputBuffer> writePool;
 

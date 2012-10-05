@@ -2,7 +2,9 @@ package sys.dht.impl;
 
 import static sys.Sys.Sys;
 import static sys.dht.catadupa.Config.Config;
-import static sys.utils.Log.Log;
+
+import java.util.logging.Logger;
+
 import sys.RpcServices;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
@@ -10,19 +12,17 @@ import sys.dht.api.DHT.Handle;
 import sys.dht.catadupa.CatadupaNode;
 import sys.dht.catadupa.Node;
 import sys.dht.discovery.Discovery;
-import sys.dht.impl.msgs.DHT_ReplyReply;
 import sys.dht.impl.msgs.DHT_Request;
 import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.dht.impl.msgs.DHT_ResolveKey;
 import sys.dht.impl.msgs.DHT_ResolveKeyReply;
 import sys.dht.impl.msgs.DHT_StubHandler;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.impl.rpc.RpcFactoryImpl;
-import sys.pubsub.impl.PubSubService;
+import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
 
 public class DHT_NodeImpl extends CatadupaNode {
+	private static Logger Log = Logger.getLogger( DHT_NodeImpl.class.getName() );
 
 	public long ordinalKey = 0;
 	
@@ -56,8 +56,6 @@ public class DHT_NodeImpl extends CatadupaNode {
 		Discovery.register(name, serverStub.getEndpoint().localEndpoint());
 
 		clientStub = new DHT_ClientStub( serverStub.getEndpoint(), serverStub.getEndpoint().localEndpoint() );
-
-		new PubSubService(rpcFactory);
 	}
 
 	@Override

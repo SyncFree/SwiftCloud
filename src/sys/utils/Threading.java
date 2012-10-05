@@ -42,15 +42,15 @@ public class Threading {
 	}
 
 	
-	static public void sleep(int ms) {
+	static public void sleep(long ms) {
 		try {
 			Thread.sleep(ms);
 		} catch (InterruptedException x) {
 			x.printStackTrace();
 		}
 	}
-
-	static public void sleep(int ms, int ns) {
+	
+	static public void sleep(long ms, int ns) {
 		try {
 			Thread.sleep(ms, ns);
 		} catch (InterruptedException x) {
@@ -93,7 +93,7 @@ public class Threading {
 		}
 	}
 
-	static public void synchronizedWaitOn(Object o, int ms) {
+	static public void synchronizedWaitOn(Object o, long ms) {
 		synchronized (o) {
 			try {
 				o.wait(ms);

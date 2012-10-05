@@ -3,18 +3,23 @@ package sys.net.impl.rpc;
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_TIMEOUT;
-import static sys.utils.Log.Log;
+
+import java.util.logging.Logger;
 
 
 import sys.net.api.Endpoint;
 import sys.net.api.MessageHandler;
 import sys.net.api.TransportConnection;
+import sys.net.api.rpc.RpcFactory;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.utils.Threading;
 
 final public class RpcPacket extends AbstractRpcPacket {
+
+	private static Logger Log = Logger.getLogger( RpcPacket.class.getName() );
+
 
 	RpcFactoryImpl fac;
 	boolean isWaiting4Reply = false;
@@ -59,7 +64,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 
 	@Override
 	public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
-//		Log.finest("Sending: " + msg + " to " + remote );
+		Log.finest("Sending: " + msg + " to " + remote );
 
 		RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout);
 		if (timeout != 0)
@@ -99,8 +104,12 @@ final public class RpcPacket extends AbstractRpcPacket {
 				reply = pkt;
 				Threading.notifyAllOn(this);
 			}
-		} else
-			pkt.payload.deliverTo(pkt, this.handler);
+		} else {
+			if( this.handler != null )
+				pkt.payload.deliverTo(pkt, this.handler);
+			else
+				Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null", pkt.getClass(), pkt.remote() ) );
+		}
 	}
 
 	final private void waitForReply() {
@@ -166,5 +175,10 @@ final public class RpcPacket extends AbstractRpcPacket {
 	
 	// [0-MAX_SERVICE_ID[ are reserved for static service handlers.
 	static long g_handlers = RPC_MAX_SERVICE_ID;
+
+	@Override
+	public RpcFactory getFactory() {
+		return fac;
+	}
 
 }

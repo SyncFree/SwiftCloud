@@ -5,12 +5,12 @@ import java.net.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Serializer;
 import sys.utils.Threading;
 
-import static sys.utils.Log.*;
 import static sys.net.api.Networking.*;
 
 /**
@@ -21,10 +21,14 @@ import static sys.net.api.Networking.*;
  * Used as a zero configuration debug convenience when running in a single
  * machine or local network.
  * 
- * @author SÃ©rgio Duarte (smd@fct.unl.pt)
+ * @author SŽrgio Duarte (smd@fct.unl.pt)
  * 
  */
 public class Discovery implements Runnable {
+	private static Logger Log = Logger.getLogger( Discovery.class.getName() );
+
+
+	
 	private static final String GROUP_PORT = "9099";
 	private static final String GROUP_ADDR = "239.239.239.239";
 

@@ -1,12 +1,9 @@
 package sys.dht.catadupa;
 
-import static sys.utils.Log.Log;
-
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.logging.Logger;
 
 import sys.dht.catadupa.riak.Riak;
 import sys.dht.discovery.Discovery;
@@ -18,6 +15,8 @@ import sys.net.api.Endpoint;
  * 
  */
 public class SeedDB {
+	private static Logger Log = Logger.getLogger( SeedDB.class.getName() );
+
 
 	static String RIAK_KEY = "seedDB";
 	static String RIAK_BUCKET = "swift.catadupa";

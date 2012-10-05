@@ -1,11 +1,10 @@
 package sys.net.impl;
 
-import static sys.utils.Log.Log;
-
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.logging.Logger;
 
 import sys.net.api.Serializer;
 import sys.net.api.SerializerException;
@@ -13,6 +12,8 @@ import sys.net.impl.providers.KryoInputBuffer;
 import sys.net.impl.providers.KryoOutputBuffer;
 
 public class KryoSerializer implements Serializer {
+
+	private static Logger Log = Logger.getLogger( KryoSerializer.class.getName() );
 
 	private KryoInputBuffer input;
 	private KryoOutputBuffer output;

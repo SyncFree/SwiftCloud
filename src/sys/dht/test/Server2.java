@@ -11,11 +11,9 @@ import sys.dht.catadupa.Catadupa.Scope;
 import sys.dht.test.msgs.StoreData;
 import sys.dht.test.msgs.StoreDataReply;
 import sys.pubsub.PubSub;
-import sys.utils.Log;
 import sys.utils.Threading;
 
 import static sys.Sys.*;
-import static sys.pubsub.PubSub.*;
 
 /* 
  * An example of the server-side of the DHT. As such, this will instantiate a
@@ -37,11 +35,6 @@ import static sys.pubsub.PubSub.*;
 public class Server2 {
 
 	public static void main(String[] args) throws Exception {
-		Log.setLevel("", Level.ALL);
-		Log.setLevel("sys.dht.catadupa", Level.FINER);
-		Log.setLevel("sys.dht", Level.FINEST);
-		Log.setLevel("sys.net", Level.ALL);
-		Log.setLevel("sys", Level.ALL);
 
 		sys.Sys.init();
 		Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(3));
@@ -56,8 +49,6 @@ public class Server2 {
 				System.out.printf("Got request for <%s, %s>\n", key, request.data);
 				conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
 
-				PubSub.addRemoteSubscriber("xxx", null); //Hacked...
-				PubSub.publish("xxx", "asjdajshdajhd asdajdhahsdjahsdja ajdahdjd");
 			}
 		});
 
@@ -67,15 +58,6 @@ public class Server2 {
 		DHT stub = Sys.getDHT_ClientStub();
 
 		System.out.println(stub.localEndpoint());
-
-		PubSub.subscribe("xxx", new Handler() {
-
-			@Override
-			public void notify(String group, Object payload) {
-				System.err.println(group + "---" + payload);
-			}
-
-		});
 
 		while (stub != null) {
 			String key = "" + Sys.rg.nextInt(1000);

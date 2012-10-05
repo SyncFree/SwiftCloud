@@ -5,36 +5,43 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import sys.RpcServices;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcFactory;
 import sys.pubsub.PubSub;
 
-public class PubSubService extends PubSub {
+public class PubSubService<K, P> extends PubSub<K, P> {
 
+	private int pubSubId;
 	private RpcEndpoint svc;
 	private RpcFactory factory;
 
-	private Map<String, Set<Handler>> localSubscribers;
-	private Map<String, Set<Endpoint>> remoteSubscribers;
+	private Map<K, Set<Endpoint>> remoteSubscribers;
+	private Map<K, Set<Handler<K, P>>> localSubscribers;
 
-	public PubSubService(RpcFactory fac) {
+	public PubSubService(RpcEndpoint srv, int pubSubId ) {
+		this.factory = srv.getFactory();
+		this.pubSubId = pubSubId;
+		init();
+	}
+	
+	public PubSubService(RpcFactory fac, int pubSubId ) {
 		this.factory = fac;
+		this.pubSubId = pubSubId;
 		init();
 	}
 
 	void init() {
-		localSubscribers = new HashMap<String, Set<Handler>>();
-		remoteSubscribers = new HashMap<String, Set<Endpoint>>();
+		localSubscribers = new HashMap<K, Set<Handler<K, P>>>();
+		remoteSubscribers = new HashMap<K, Set<Endpoint>>();
 
-		svc = factory.toService(RpcServices.PUBSUB.ordinal(), new PubSubRpcHandler() {
-			public void onReceive(RpcHandle conn, PubSubNotification m) {
-				conn.reply(new PubSubAck(localSubscribers(m.group, false).size()));
-
-				for (Handler i : localSubscribers(m.group, true)) {
-					i.notify(m.group, m.payload);
+		svc = factory.toService(pubSubId, new PubSubRpcHandler<K, P>() {
+			@Override
+			public void onReceive(RpcHandle conn, PubSubNotification<K, P> m) {
+				conn.reply(new PubSubAck(localSubscribers(m.key, false).size()));
+				for (Handler<K, P> i : localSubscribers(m.key, true)) {
+					i.notify(m.key, m.info);
 				}
 			}
 		});
@@ -43,54 +50,56 @@ public class PubSubService extends PubSub {
 	// GC needs work.
 	// Remove a remote subscriber upon first or a certain number of failures.
 	// Use ack to reset suspicion?
-	public void publish(final String group, final Object payload) {
-		for (Endpoint i : remoteSubscribers(group, true)) {
-			svc.send(i, new PubSubNotification(group, payload), new PubSubRpcHandler() {
+	public void publish(final K key, final P info) {
+
+		for (Endpoint i : remoteSubscribers(key, true)) {
+			svc.send(i, new PubSubNotification<K, P>(key, info), new PubSubRpcHandler<K, P>() {
 				public void onFailure(RpcHandle handle) {
-					removeRemoteSubscriber(group, handle.remoteEndpoint());
+					removeRemoteSubscriber(key, handle.remoteEndpoint());
 				}
 
 				public void onReceive(final RpcHandle handle, final PubSubAck ack) {
 					if (ack.totalSubscribers() <= 0) {
-						removeRemoteSubscriber(group, handle.remoteEndpoint());
+						removeRemoteSubscriber(key, handle.remoteEndpoint());
 					}
 				}
-			});
+			}, 0);
 		}
 
-		for (Handler i : localSubscribers(group, true)) {
-			i.notify(group, payload);
+		for (Handler<K, P> i : localSubscribers(key, true)) {
+			i.notify(key, info);
 		}
 	}
 
-	synchronized public void addRemoteSubscriber(String group, Endpoint subscriber) {
-		remoteSubscribers(group, false).add(subscriber);
+	synchronized public void addRemoteSubscriber(K key, Endpoint subscriber) {
+		// System.err.printf("Adding Remote :%s, %s\n", key, subscriber );
+		remoteSubscribers(key, false).add(subscriber);
 	}
 
-	synchronized void removeRemoteSubscriber(String group, Endpoint subscriber) {
-		remoteSubscribers(group, false).remove(subscriber);
+	synchronized void removeRemoteSubscriber(K key, Endpoint subscriber) {
+		remoteSubscribers(key, false).remove(subscriber);
 	}
 
-	synchronized public void subscribe(String group, Handler handler) {
-		localSubscribers(group, false).add(handler);
+	synchronized public void subscribe(K key, Handler<K, P> handler) {
+		// System.err.printf("Adding Local :%s, %s\n", key, handler );
+		localSubscribers(key, false).add(handler);
 	}
 
-	synchronized public void unsubscribe(String group, Handler handler) {
-		localSubscribers(group, false).remove(handler);
+	synchronized public void unsubscribe(K key, Handler<K, P> handler) {
+		localSubscribers(key, false).remove(handler);
 	}
 
-	synchronized private Set<Handler> localSubscribers(String group, boolean clone) {
-		Set<Handler> res = localSubscribers.get(group);
+	synchronized private Set<Handler<K, P>> localSubscribers(K key, boolean clone) {
+		Set<Handler<K, P>> res = localSubscribers.get(key);
 		if (res == null)
-			localSubscribers.put(group, res = new HashSet<Handler>());
-		return clone ? new HashSet<Handler>(res) : res;
+			localSubscribers.put(key, res = new HashSet<Handler<K, P>>());
+		return clone ? new HashSet<Handler<K, P>>(res) : res;
 	}
 
-	synchronized private Set<Endpoint> remoteSubscribers(String group, boolean clone) {
-		Set<Endpoint> res = remoteSubscribers.get(group);
+	synchronized private Set<Endpoint> remoteSubscribers(K key, boolean clone) {
+		Set<Endpoint> res = remoteSubscribers.get(key);
 		if (res == null)
-			remoteSubscribers.put(group, res = new HashSet<Endpoint>());
+			remoteSubscribers.put(key, res = new HashSet<Endpoint>());
 		return clone ? new HashSet<Endpoint>(res) : res;
 	}
-
 }

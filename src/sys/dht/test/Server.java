@@ -1,25 +1,16 @@
 package sys.dht.test;
 
+import static sys.Sys.Sys;
+
 import java.util.Random;
-import java.util.logging.Level;
 
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
-import sys.dht.api.StringKey;
 import sys.dht.catadupa.Catadupa;
-import sys.dht.catadupa.SeedDB;
 import sys.dht.catadupa.Catadupa.Scope;
 import sys.dht.test.msgs.StoreData;
 import sys.dht.test.msgs.StoreDataReply;
-import sys.net.api.Networking;
-import sys.pubsub.PubSub;
-import sys.utils.Log;
 import sys.utils.Threading;
-
-import static sys.Sys.*;
-import static sys.pubsub.PubSub.*;
-
-import static sys.net.api.Networking.*;
 
 /* 
  * An example of the server-side of the DHT. As such, this will instantiate a
@@ -41,11 +32,6 @@ import static sys.net.api.Networking.*;
 public class Server {
 
 	public static void main(String[] args) throws Exception {
-		Log.setLevel("", Level.OFF);
-		Log.setLevel("sys.dht.catadupa", Level.FINEST);
-		Log.setLevel("sys.dht", Level.FINEST);
-		Log.setLevel("sys.net", Level.FINEST);
-		Log.setLevel("sys", Level.FINEST);
 
 		sys.Sys.init();
 

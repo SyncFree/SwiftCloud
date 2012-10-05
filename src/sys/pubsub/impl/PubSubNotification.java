@@ -4,26 +4,26 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class PubSubNotification implements RpcMessage {
+public class PubSubNotification<K,P> implements RpcMessage {
 
-	String group;
-	Object payload;
+	K key;
+	P info;
 
-	public PubSubNotification() {
+	//for kryo
+	PubSubNotification() {
 	}
 
-	PubSubNotification(String group, Object payload) {
-		this.group = group;
-		this.payload = payload;
+	PubSubNotification(K key, P info) {
+		this.key = key;
+		this.info = info;
 	}
 
-	public String group() {
-		return group;
+	public K key() {
+		return key;
 	}
-
-	@SuppressWarnings("unchecked")
-	public <T> T payload() {
-		return (T) payload;
+	
+	public P info() {
+		return info;
 	}
 
 	@Override

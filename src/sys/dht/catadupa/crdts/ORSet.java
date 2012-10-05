@@ -1,6 +1,5 @@
 package sys.dht.catadupa.crdts;
 
-import static sys.utils.Log.Log;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,11 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Map.Entry;
+import java.util.logging.Logger;
 
 import sys.dht.catadupa.crdts.time.Timestamp;
 
 public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 
+	private static Logger Log = Logger.getLogger("sys.dht.catadupa");
+	
 	Set<Timestamp> tomb;
 	Map<V, Set<Timestamp>> e2t;
 	Map<Timestamp, V> t2v;

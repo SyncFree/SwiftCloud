@@ -2,13 +2,12 @@ package sys.dht.catadupa;
 
 import static sys.Sys.Sys;
 import static sys.dht.catadupa.Config.Config;
-import static sys.utils.Log.Log;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import sys.dht.catadupa.crdts.time.Timestamp;
 import sys.dht.catadupa.msgs.CatadupaCast;
@@ -29,6 +28,8 @@ import sys.scheduler.Task;
  * 
  */
 public class CatadupaNode extends LocalNode implements MembershipListener {
+
+	private static Logger Log = Logger.getLogger( CatadupaNode.class.getName() );
 
 	protected DB db;
 	Task sequencerTask, repairTask;

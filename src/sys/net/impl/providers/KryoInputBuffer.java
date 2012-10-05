@@ -1,11 +1,10 @@
 package sys.net.impl.providers;
 
-import static sys.utils.Log.Log;
-
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.logging.Logger;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -17,6 +16,9 @@ import static sys.Sys.*;
 import static sys.net.impl.NetworkingConstants.*;
 
 public class KryoInputBuffer implements Runnable {
+
+	private static Logger Log = Logger.getLogger( KryoInputBuffer.class.getName() );
+
 
 	final Kryo kryo = KryoLib.kryo();
 
@@ -97,7 +99,7 @@ public class KryoInputBuffer implements Runnable {
 			in.setPosition(0);
 			return (T) kryo.readClassAndObject(in);
 		} catch (Exception x) {
-			throw new RuntimeException(x);
+			throw new RuntimeException( x.getMessage() );
 		}
 	}
 

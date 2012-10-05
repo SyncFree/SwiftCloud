@@ -3,8 +3,8 @@ package sys.net.impl.providers;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.logging.Logger;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
@@ -14,10 +14,11 @@ import sys.net.impl.KryoLib;
 import static sys.Sys.*;
 
 import static sys.net.impl.NetworkingConstants.*;
-import static sys.utils.Log.Log;
 
 public class KryoOutputBuffer implements Runnable {
 
+	private static Logger Log = Logger.getLogger( KryoOutputBuffer.class.getName() );
+	
 	final Kryo kryo = KryoLib.kryo();
 
 	Output out;
