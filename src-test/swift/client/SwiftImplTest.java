@@ -52,6 +52,7 @@ import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcFactory;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -240,9 +241,14 @@ public class SwiftImplTest extends EasyMockSupport {
         }
 
         @SuppressWarnings("unchecked")
+    	@Override
+    	public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
+    		return (T)this;
+    	}
+
         @Override
-        public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
-            return (T) this;
+        public RpcFactory getFactory() {
+            return null;
         }
     }
 }
