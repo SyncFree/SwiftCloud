@@ -4,10 +4,11 @@ import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.Copyable;
+import swift.crdt.interfaces.TxnGetterSetter;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.RegisterUpdate;
 
-public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> {
+public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> implements TxnGetterSetter<V> {
     private V val;
     private long nextLamportClock;
 
@@ -18,12 +19,14 @@ public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<Regis
         this.nextLamportClock = nextLamportClock;
     }
 
+    @Override
     public void set(V v) {
         val = v;
         TripleTimestamp ts = nextTimestamp();
         registerLocalOperation(new RegisterUpdate<V>(ts, nextLamportClock++, v));
     }
 
+    @Override
     public V getValue() {
         return val;
     }

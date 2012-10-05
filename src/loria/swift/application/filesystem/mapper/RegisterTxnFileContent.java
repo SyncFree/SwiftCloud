@@ -4,13 +4,12 @@
  */
 package loria.swift.application.filesystem.mapper;
 
-import loria.swift.application.filesystem.mapper.FileContent;
-import swift.application.filesystem.StringCopyable;
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.RegisterTxnLocal;
 import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.TxnHandle;
+import swift.test.microbenchmark.objects.StringCopyable;
 
 /**
  * Rhough file content using register (no merge!).
@@ -29,6 +28,6 @@ public class RegisterTxnFileContent extends RegisterTxnLocal<StringCopyable> imp
 
     @Override
     public String getText() {
-        return getValue().getString();
+        return getValue().toString();
     }
 }

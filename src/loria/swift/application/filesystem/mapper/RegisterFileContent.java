@@ -1,10 +1,11 @@
 package loria.swift.application.filesystem.mapper;
 
-import swift.application.filesystem.StringCopyable;
+
 import swift.clocks.CausalityClock;
 import swift.crdt.*;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.test.microbenchmark.objects.StringCopyable;
 
 public class RegisterFileContent extends RegisterVersioned<StringCopyable> {
 

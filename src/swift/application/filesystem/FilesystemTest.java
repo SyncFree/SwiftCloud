@@ -1,3 +1,4 @@
+
 package swift.application.filesystem;
 
 import java.nio.ByteBuffer;
@@ -45,7 +46,7 @@ public class FilesystemTest {
 
             // create a root directory
             logger.info("Creating file system");
-            Filesystem fs = new FilesystemBasic(txn, "test", "DIR", RegisterVersioned.class);
+            Filesystem fs = new FilesystemBasic(txn, "test", "DIR");
             txn.commit();
 
             logger.info("Creating directories and subdirectories");

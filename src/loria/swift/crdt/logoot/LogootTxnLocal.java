@@ -10,17 +10,19 @@ import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.diff.EditList;
 import org.eclipse.jgit.diff.RawText;
 import org.eclipse.jgit.diff.RawTextComparator;
+import swift.application.filesystem.Blob;
 import swift.clocks.CausalityClock;
 import swift.crdt.BaseCRDTTxnLocal;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDTQuery;
+import swift.crdt.interfaces.TxnGetterSetter;
 import swift.crdt.interfaces.TxnHandle;
 
 /**
  * Logoot transaction. Is also a FileContent.
  * @author urso
  */
-public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implements FileContent {
+public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implements  TxnGetterSetter<Blob>,FileContent {
     private static final long BOUND = 1000000000l;
     private static final int NBBIT = 64;
     final static long max = Long.MAX_VALUE;
@@ -114,8 +116,8 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
         doc.delete(position, offset);
     }
     
-    @Override
-    public List<String> getValue() {
+    
+    public List<String> getValues() {
         return doc.document;
     }
 
@@ -145,5 +147,15 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
     @Override
     public String getText() {
         return doc.toString();
+    }
+
+    @Override
+    public void set(Blob v) {
+        this.set(new String (v.get()));
+    }
+
+    @Override
+    public Blob getValue() {
+        return new Blob(this.getText().getBytes());
     }
 }

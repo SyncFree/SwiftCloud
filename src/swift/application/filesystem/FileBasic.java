@@ -8,7 +8,14 @@ public class FileBasic implements IFile {
     public int size;
     private ByteBuffer bb;
 
-    public FileBasic(Blob b) throws IOException {
+    public FileBasic() {
+         bb = ByteBuffer.allocate(MAX_SIZE);
+         size=0;
+    }
+
+    
+    
+    public FileBasic(Blob b)  {
         byte[] init = b.get();
         bb = ByteBuffer.allocate(MAX_SIZE);
         bb.put(init);
@@ -43,7 +50,7 @@ public class FileBasic implements IFile {
     }
 
     @Override
-    public void reset(byte[] data) throws IOException {
+    public void reset(byte[] data)  {
         bb.clear();
         bb.put(data);
         size = data.length;
