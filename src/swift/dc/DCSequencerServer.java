@@ -197,6 +197,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         }
         synchronized (this) {
             this.currentState.merge(request.getDcNotUsed());
+            this.stableClock.merge(request.getDcNotUsed());
         }
     }
 
@@ -394,6 +395,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             if (curTime - entry.getValue().longValue() > 2 * DCConstants.DEFAULT_TRXIDTIME) {
                 it.remove();
                 currentState.record(entry.getKey());
+                stableClock.record(entry.getKey());
                 notUsed.record(entry.getKey());
             }
         }
@@ -414,8 +416,10 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, Timestamp cltTs, boolean commit) {
         boolean hasTS = pendingTS.remove(t) != null || ((! t.getIdentifier().equals( this.siteId)) && ! currentState.includes(t));
-        currentState.merge(clk);
+        currentState.merge(clk);    //nmp: not sure why is this here
         currentState.record(t);
+        if( sequencers.size() == 0)
+            stableClock.record(t);
         clientClock.record(cltTs);
         return hasTS;
     }
@@ -564,7 +568,10 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
             synchronized (this) {
                 currentState.merge(request.getDcNotUsed());
+                stableClock.merge(request.getDcNotUsed());
                 currentState.record(request.getTimestamp());
+                if( sequencers.size() == 0)
+                    stableClock.record(request.getTimestamp());
                 clientClock.record(request.getCltTimestamp());
             }
             return;
