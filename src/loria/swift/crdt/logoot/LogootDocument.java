@@ -18,8 +18,6 @@
  */
 package loria.swift.crdt.logoot;
 
-import java.math.BigInteger;
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -40,7 +38,7 @@ public class LogootDocument<T> {
         document.addAll(position + 1, lc);
     }
     
-    public void remove(int position, int offset) {
+    public void delete(int position, int offset) {
         idTable.removeRangeOffset(position + 1, offset);
         document.removeRangeOffset(position + 1, offset);
     }

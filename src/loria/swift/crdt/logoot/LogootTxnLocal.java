@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import loria.swift.application.filesystem.FileContent;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.BaseCRDTTxnLocal;
@@ -12,7 +13,7 @@ import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 
-public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootVersionned<V>> {
+public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootVersionned<V>> implements FileContent {
     private final LogootDocument<V> doc;
     private final Random ran = new Random();
     private static final long BOUND = 1000000000l;
@@ -92,7 +93,17 @@ public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootV
         }
         doc.insert(position, patch, lc);
     }
-
+    
+    /**
+     * Deletes a range of line in local document.
+     */
+    public void delete(int position, int offset) {
+        for (int cmpt = 0; cmpt < offset; cmpt++) {
+            registerLocalOperation(new LogootDelete(doc.idTable.get(position + cmpt)));
+        }
+        doc.delete(position, offset);
+    }
+    
     @Override
     public List<V> getValue() {
         return doc.document;
@@ -101,5 +112,19 @@ public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootV
     @Override
     public Object executeQuery(CRDTQuery<LogootVersionned<V>> query) {
         return query.executeAt(this);
+    }
+
+    @Override
+    public void update(String newValue) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public String getText() {
+        StringBuilder sb = new StringBuilder();
+        for (V e : doc.document) {
+            sb.append(e.toString());
+        }
+        return sb.toString();
     }
 }
