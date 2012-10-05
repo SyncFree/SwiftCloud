@@ -308,9 +308,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         } else {
             if (request.getSubscriptionType() != SubscriptionType.NONE) {
                 if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
-                    addToObserving(request.getUid(), false, crdt.clock.clone(), session);
+                    addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), session);
                 else if (request.getSubscriptionType() == SubscriptionType.UPDATES)
-                    addToObserving(request.getUid(), true, crdt.clock.clone(), session);
+                    addToObserving(request.getUid(), true, crdt.crdt.getClock().clone(), session);
             }
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
