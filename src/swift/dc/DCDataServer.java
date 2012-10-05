@@ -1,22 +1,17 @@
 package swift.dc;
 
-import static sys.net.api.Networking.Networking;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeSet;
 
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
-import swift.client.proto.*;
+import swift.client.proto.SubscriptionType;
 import swift.clocks.CausalityClock;
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
@@ -31,13 +26,11 @@ import swift.dc.proto.DHTExecCRDTReplyHandler;
 import swift.dc.proto.DHTGetCRDT;
 import swift.dc.proto.DHTGetCRDTReply;
 import swift.dc.proto.DHTGetCRDTReplyHandler;
-import swift.dc.proto.DHTSendNotification;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.api.DHT.Handle;
 import sys.dht.api.DHT.Key;
 import sys.dht.api.StringKey;
-import sys.pubsub.*;
 
 /**
  * Class to maintain data in the server.
@@ -57,7 +50,7 @@ class DCDataServer {
     DHT dhtClient;
     static public boolean prune;
 
-//    LinkedList<NotificationRecord> notifications;
+//    LinkedList<NotificationRecord> notifications;//to comment...
 
     Set<CRDTData<?>> modified;
 
@@ -72,43 +65,36 @@ class DCDataServer {
         DCConstants.DCLogger.info("Data server ready...");
     }
 
-    /**
-     * Start backgorund thread that dumps notifications
-     */
-/*    void initNotifier() {
-        Thread t = new Thread() {
-            public void run() {
-                for (;;) {
-                    try {
-                        NotificationRecord record = null;
-                        synchronized (notifications) {
-                            while (notifications.isEmpty())
-                                try {
-                                    notifications.wait();
-                                } catch (InterruptedException e) {
-                                    // do nothing
-                                }
-                            record = notifications.removeFirst();
-                        }
-                        if (record != null) {
-                            if( record.notification) {
-                                PubSub.PubSub.publish(record.info.getId().toString(), new DHTSendNotification(record.info.cloneNotification()));
-                            } else {
-                                PubSub.PubSub.publish(record.info.getId().toString(), new DHTSendNotification(record.info));
-                            }
-                        }
-//                            record.to.sendNotification(record.info);
-                    } catch (Exception e) {
-                        // do nothing
-                    }
-                }
-            }
+//    /**
+//     * Start backgorund thread that dumps notifications
+//     */
+//    void initNotifier() {
+//    	
+//    	
+//    	Threading.newThread( new Runnable() {
+//
+//			@Override
+//			public void run() {
+//				for (;;) {
+//                        NotificationRecord record = null;
+//                        synchronized (notifications) {
+//                            while (notifications.isEmpty())
+//                            	Threading.waitOn( notifications );                            
+//                            record = notifications.removeFirst();
+//                        }
+//                        if (record != null) {
+//                            if( record.notification) {
+//                                ;//PubSub.publish(record.info.getId(), new DHTSendNotification(record.info.cloneNotification()));
+//                            } else {
+//                                ;//PubSub.publish(record.info.getId(), new DHTSendNotification(record.info));
+//                            }
+//                        }
+////                      record.to.sendNotification(record.info);				
+//				}
+//			}
+//    	}, true).start();   	
+//     }
 
-        };
-        t.setDaemon(true);
-        t.start();
-    }
-*/
     /**
      * Start backgorund thread that dumps to disk
      */

@@ -1,28 +1,24 @@
 package swift.dc;
 
-import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
-import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectDeltaRequest;
 import swift.client.proto.FetchObjectVersionReply;
+import swift.client.proto.FetchObjectVersionReply.FetchStatus;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.GenerateTimestampReply;
 import swift.client.proto.GenerateTimestampReplyHandler;
@@ -41,9 +37,7 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.proto.CommitTSReply;
 import swift.dc.proto.CommitTSReplyHandler;
@@ -53,20 +47,21 @@ import swift.dc.proto.GenerateDCTimestampReply;
 import swift.dc.proto.GenerateDCTimestampReplyHandler;
 import swift.dc.proto.GenerateDCTimestampRequest;
 import swift.dc.proto.SeqCommitUpdatesRequest;
-import sys.Sys;
+import sys.RpcServices;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.pubsub.PubSub;
-
+import sys.pubsub.impl.PubSubService;
+import sys.utils.Threading;
 /**
  * Class to handle the requests from clients.
  * 
  * @author preguica
  */
-class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, PubSub.Handler {
+class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, PubSub.Handler<CRDTIdentifier,DHTSendNotification> {
 
     String surrogateId;
     RpcEndpoint endpoint;
@@ -76,19 +71,22 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     CausalityClock estimatedDCVersion; // estimate of current DC state
     CausalityClock estimatedDCStableVersion; // estimate of current DC state
 
+    PubSub<CRDTIdentifier,DHTSendNotification> PubSub;
+    
     Map<String, ClientPubInfo> sessions; // map clientId -> ClientPubInfo
     Map<CRDTIdentifier, Map<String, ClientPubInfo>> cltsObserving; // map
                                                                    // crdtIdentifier
                                                                    // ->
                                                                    // Map<clientId,ClientPubInfo>
-
+    
     DCSurrogate(RpcEndpoint e, RpcEndpoint seqClt, Endpoint seqSrv, Properties props) {
         this.surrogateId = "s" + System.nanoTime();
         this.endpoint = e;
         this.sequencerServerEndpoint = seqSrv;
         this.sequencerClientEndpoint = seqClt;
+        this.PubSub = new PubSubService<CRDTIdentifier, DHTSendNotification>(e, RpcServices.PUBSUB.ordinal());
         initData(props);
-        initDumping();
+        initDumping();       
         this.endpoint.setHandler(this);
         DCConstants.DCLogger.info("Server ready...");
     }
@@ -99,25 +97,21 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 List<ClientPubInfo> lstSession = new ArrayList<ClientPubInfo>();
                 for (;;) {
                     try {
-                        long nextTime = Long.MAX_VALUE;
                         lstSession.clear();
                         synchronized (sessions) {
                             lstSession.addAll(sessions.values());
                         }                        
                         CausalityClock clk = getEstimatedDCVersionCopy();
                         CausalityClock stableClk = getEstimatedDCStableVersionCopy();
-                        Iterator<ClientPubInfo> it = lstSession.iterator();
-                        while (it.hasNext()) {
-                            ClientPubInfo c = it.next();
-                            nextTime = Math.min(nextTime, c.dumpNotificationsIfTimeout(clk, stableClk));
-                        }
-                        long waitTime = nextTime == Long.MAX_VALUE ? 5000 : nextTime - System.currentTimeMillis();
+                        
+                        long nextTime = Long.MAX_VALUE;
+                        for( ClientPubInfo i : lstSession ) 
+                        	nextTime = Math.min(nextTime, i.dumpNotificationsIfTimeout(clk, stableClk));
+                        
+                        long waitTime = Math.min( 5000, nextTime - System.currentTimeMillis());
+                
                         if (waitTime > 0)
-                            try {
-                                Thread.sleep(waitTime);
-                            } catch (Exception e) {
-                                // do nothing
-                            }
+                                Threading.sleep(waitTime);
 
                     } catch (Exception e) {
                         // do nothing
@@ -174,7 +168,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 cltsObserving.put(id, clts);
             }
             if (clts.size() == 0)
-                PubSub.PubSub.subscribe(id.toString(), this);
+                PubSub.subscribe(id, this);
             clts.put(session.getClientId(), session);
             if (observing)
                 session.setObserving(clk, id, true);
@@ -190,21 +184,19 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         synchronized (cltsObserving) {
             Map<String, ClientPubInfo> clts = cltsObserving.get(id);
             if (clts == null) {
-                PubSub.PubSub.unsubscribe(id.toString(), this);
+                PubSub.unsubscribe(id, this);
                 return;
             }
             clts.remove(session.getClientId());
             if (clts.size() == 0) {
-                PubSub.PubSub.unsubscribe(id.toString(), this);
+                PubSub.unsubscribe(id, this);
                 cltsObserving.remove(id);
             }
         }
     }
 
     @Override
-    public void notify(String group, Object payload) {
-        final DHTSendNotification notification = (DHTSendNotification) payload;
-        final CRDTIdentifier id = notification.getInfo().getId();
+    public void notify(CRDTIdentifier id, DHTSendNotification notification) {
         DCConstants.DCLogger.info("Surrogate: Notify new updates for:" + notification.getInfo().getId());
 
         synchronized (estimatedDCVersion) {
@@ -218,11 +210,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             Map<String, ClientPubInfo> map = cltsObserving.get(id);
             if (map == null)
                 return;
-            Iterator<Entry<String, ClientPubInfo>> it = map.entrySet().iterator();
-            while (it.hasNext()) {
-                Entry<String, ClientPubInfo> entry = it.next();
-                entry.getValue().addNotifications(notification.getInfo(), getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy());
-            }
+            
+            for( ClientPubInfo i : map.values() ) 
+            	i.addNotifications( notification.getInfo(), getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy());
+            
         }
     }
 
@@ -418,9 +409,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                             continue;
                         if( result.hasNotification()) {
                             if( results[i].isNotificationOnly()) {
-                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
+                                Thread.dumpStack();
+                                PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
                             } else {
-                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
+                                PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
                             }
                             
                         }
@@ -627,9 +619,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                             continue;
                         if( result.hasNotification()) {
                             if( results[i].isNotificationOnly()) {
-                                PubSub.PubSub.publish( result.getId().toString(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
+                                PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
                             } else {
-                                PubSub.PubSub.publish(result.getId().toString(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
+                                PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
                             }
                             
                         }

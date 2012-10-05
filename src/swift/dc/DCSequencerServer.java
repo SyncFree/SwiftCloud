@@ -1,7 +1,7 @@
 package swift.dc;
 
 import static sys.Sys.Sys;
-import static sys.net.api.Networking.*;
+import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -10,9 +10,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Map.Entry;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.Properties;
 
 import swift.client.proto.*;
 import swift.clocks.CausalityClock;
@@ -20,7 +19,6 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
-import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
 import swift.dc.proto.CommitTSReply;
@@ -32,15 +30,11 @@ import swift.dc.proto.SeqCommitUpdatesReply;
 import swift.dc.proto.SeqCommitUpdatesReplyHandler;
 import swift.dc.proto.SeqCommitUpdatesRequest;
 import swift.dc.proto.SequencerServer;
-import sys.Sys;
 import sys.net.api.Endpoint;
-import sys.net.api.Networking;
 import sys.net.api.rpc.AbstractRpcHandler;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
-import sys.utils.Log;
 import sys.utils.Threading;
 
 /**
