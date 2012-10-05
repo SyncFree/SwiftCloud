@@ -29,7 +29,7 @@ public class LogootDocument<T> {
     final protected RangeList<LogootIdentifier> idTable;
     final protected RangeList<T> document;
     public final static LogootIdentifier begin = new LogootIdentifier(new Component(0, new TripleTimestamp())),
-            end = new LogootIdentifier(new Component(0, new TripleTimestamp()));
+            end = new LogootIdentifier(new Component(Long.MAX_VALUE, new TripleTimestamp()));
     
     public LogootDocument() {
         this.idTable = new RangeList<LogootIdentifier>();

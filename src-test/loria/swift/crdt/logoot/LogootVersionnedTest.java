@@ -27,7 +27,8 @@ public class LogootVersionnedTest {
             d = new LogootIdentifier(1), e = new LogootIdentifier(1);
     static final Set<TripleTimestamp> t = new HashSet<TripleTimestamp>(),             
             u = new HashSet<TripleTimestamp>(), v = new HashSet<TripleTimestamp>();
-       
+    static final CausalityClock finalClock = ClockFactory.newClock();
+
     public LogootVersionnedTest() {
     }
     
@@ -44,6 +45,12 @@ public class LogootVersionnedTest {
         t.add(new TripleTimestamp("y", 4, 8));
         u.add(new TripleTimestamp("x", 2, 4));
         v.add(new TripleTimestamp("y", 4, 9));
+
+        finalClock.record(new TripleTimestamp("x", 1, 0));
+        finalClock.record(new TripleTimestamp("x", 2, 0));
+        finalClock.record(new TripleTimestamp("y", 1, 0));
+        finalClock.record(new TripleTimestamp("y", 2, 0));
+        finalClock.record(new TripleTimestamp("y", 4, 0));
     }
     
     @AfterClass
@@ -61,10 +68,10 @@ public class LogootVersionnedTest {
     @Test
     public void testGetValue() {
         LogootDocumentWithTombstones<String> x = new LogootDocumentWithTombstones();
-        x.add(1, e, "eee", t);
+        x.add(1, e, "eee", new HashSet(t));
         x.add(1, d, "ddd", null);
-        x.add(1, c, "ccc", u);
-        x.add(1, b, "bbb", v);
+        x.add(1, c, "ccc", new HashSet(u));
+        x.add(1, b, "bbb", new HashSet(v));
         x.add(1, a, "aaa", null);
         LogootVersionned lv = new LogootVersionned();
         lv.setDoc(x);
@@ -85,33 +92,65 @@ public class LogootVersionnedTest {
     @Test
     public void testRollback() {
         LogootDocumentWithTombstones<String> x = new LogootDocumentWithTombstones();
-        x.add(1, e, "eee", t);
+        x.add(1, e, "eee", new HashSet(t));
         x.add(1, d, "ddd", null);
-        x.add(1, c, "ccc", u);
-        x.add(1, b, "bbb", v);
+        x.add(1, c, "ccc", new HashSet(u));
+        x.add(1, b, "bbb", new HashSet(v));
         x.add(1, a, "aaa", null);
         LogootVersionned lv = new LogootVersionned();
         lv.setDoc(x);
 
-        CausalityClock clock = ClockFactory.newClock();
-        clock.record(new TripleTimestamp("x", 1, 0));
-        clock.record(new TripleTimestamp("x", 2, 0));
-        clock.record(new TripleTimestamp("y", 1, 0));
-        clock.record(new TripleTimestamp("y", 2, 0));
-        clock.record(new TripleTimestamp("y", 4, 0));
-
         assertEquals(7, lv.getDoc().size());
         assertEquals(a, lv.getDoc().idTable.get(1));
-        assertEquals("aaa\nddd\n", lv.getValue(clock).toString());
+        assertEquals("aaa\nddd\n", lv.getValue(finalClock).toString());
         
         lv.rollback(new TripleTimestamp("x", 1, 2));
         assertEquals(6, lv.getDoc().size());
         assertEquals(b, lv.getDoc().idTable.get(1));
-        assertEquals("ddd\n", lv.getValue(clock).toString());
+        assertEquals("ddd\n", lv.getValue(finalClock).toString());
         
-        lv.rollback(new TripleTimestamp("y", 4, 0));        
+        lv.rollback(new TripleTimestamp("y", 4, 9));        
         assertEquals(6, lv.getDoc().size());
         assertEquals(b, lv.getDoc().idTable.get(1));
-        assertEquals("bbb\nddd\n", lv.getValue(clock).toString());
+        assertEquals("bbb\nddd\n", lv.getValue(finalClock).toString());
+    }
+    
+    @Test
+    public void testPrune() {
+        LogootDocumentWithTombstones<String> x = new LogootDocumentWithTombstones();
+        x.add(1, e, "eee", new HashSet(t));
+        x.add(1, d, "ddd", null);
+        x.add(1, c, "ccc", new HashSet(u));
+        x.add(1, b, "bbb", new HashSet(v));
+        x.add(1, a, "aaa", null);
+        LogootVersionned lv = new LogootVersionned();
+        lv.setDoc(x);
+
+        assertEquals(7, lv.getDoc().size());
+        assertEquals(a, lv.getDoc().idTable.get(1));
+        assertEquals("aaa\nddd\n", lv.getValue(finalClock).toString());
+        
+        CausalityClock clock = ClockFactory.newClock();
+        clock.record(new TripleTimestamp("x", 1, 0));
+        clock.record(new TripleTimestamp("y", 1, 0));        
+        lv.pruneImpl(clock);
+        
+        assertEquals(7, lv.getDoc().size());
+        assertEquals("aaa\nddd\n", lv.getValue(finalClock).toString());
+        
+        clock.record(new TripleTimestamp("x", 2, 0));
+        lv.pruneImpl(clock);
+        
+        assertEquals(5, lv.getDoc().size());
+        assertFalse("c not pruned", lv.getDoc().idTable.contains(c));
+        assertFalse("e not pruned", lv.getDoc().idTable.contains(e));
+        assertEquals("aaa\nddd\n", lv.getValue(finalClock).toString());
+
+        clock.record(new TripleTimestamp("y", 2, 0));
+        clock.record(new TripleTimestamp("y", 4, 0));
+
+        lv.pruneImpl(clock);
+        assertEquals(4, lv.getDoc().size());
+        assertEquals("aaa\nddd\n", lv.getValue(finalClock).toString());
     }
 }

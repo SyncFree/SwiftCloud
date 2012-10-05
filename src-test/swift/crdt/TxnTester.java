@@ -33,6 +33,7 @@ public class TxnTester implements TxnHandle {
     private TimestampSource<TripleTimestamp> timestampGenerator;
     private Timestamp globalTimestamp;
     private TimestampMapping tm;
+    private CRDT<?> target;
 
     public TxnTester(String siteId, CausalityClock cc) {
         this(siteId, cc, new IncrementalTimestampGenerator(siteId).generateNew(), new IncrementalTimestampGenerator(
@@ -46,6 +47,13 @@ public class TxnTester implements TxnHandle {
         this.tm = new TimestampMapping(ts);
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(tm);
         this.globalTimestamp = globalTs;
+    }
+
+    // Pseudo Txn that linked to a unique CRDT
+    public <V extends CRDT<V>> TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts, Timestamp globalTs,
+            V target) {
+        this(siteId, latestVersion, ts, globalTs);
+        this.target = target;
     }
 
     public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
@@ -117,7 +125,14 @@ public class TxnTester implements TxnHandle {
 
     @Override
     public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
-        // NOP
+        if (target != null) {
+            CRDTObjectUpdatesGroup<V> opGroup = (CRDTObjectUpdatesGroup<V>) objectOperations.get(target);
+            if (opGroup == null) {
+                opGroup = new CRDTObjectUpdatesGroup<V>(target.getUID(), tm, null, cc);
+            }
+            opGroup.append(op);
+            objectOperations.put(target, opGroup);
+        }
     }
 
     // Short-cut for testing purpose

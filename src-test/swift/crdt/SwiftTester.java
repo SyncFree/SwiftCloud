@@ -28,7 +28,13 @@ public class SwiftTester implements Swift {
     }
 
     public TxnTester beginTxn() {
-        return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew(), globalTimestampGenerator.generateNew());
+        return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew(),
+                globalTimestampGenerator.generateNew());
+    }
+
+    public <V extends CRDT<V>> TxnTester beginTxn(V target) {
+        return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew(),
+                globalTimestampGenerator.generateNew(), target);
     }
 
     public <V extends CRDT<V>> void merge(V local, V other, SwiftTester otherSwift) {

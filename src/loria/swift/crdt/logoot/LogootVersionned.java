@@ -141,7 +141,7 @@ public class LogootVersionned extends BaseCRDT<LogootVersionned> {
                 if (tbs != null) {
                     Iterator<TripleTimestamp> it = tbs.iterator();
                     while (it.hasNext()) {
-                        if (!it.next().equals(ts)) {
+                        if (it.next().equals(ts)) {
                             it.remove();
                         }
                     }

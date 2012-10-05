@@ -7,30 +7,15 @@ package loria.swift.crdt.logoot;
 import org.junit.Before;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.TxnTester;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.SwiftException;
 
 /**
  *
  * @author urso
  */
-public class LogootTxnLocalTest {
-    
-    public static class LogootCRDTMock extends LogootVersionned {
-
-        public LogootCRDTMock() {
-        }
-        
-        @Override
-        protected TxnLocalCRDT getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-            return new LogootTxnLocal(id, txn, versionClock, this, new LogootDocument());    
-        }
-    }
-    
+public class LogootTxnLocalTest {    
     TxnTester txn;
     LogootTxnLocal i;
 
