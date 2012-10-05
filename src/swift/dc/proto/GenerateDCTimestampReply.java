@@ -12,7 +12,23 @@ import sys.net.api.rpc.RpcMessage;
  * @author nmp
  */
 public class GenerateDCTimestampReply implements RpcMessage {
-    protected boolean valid;
+    public enum GenerateStatus {
+        /**
+         * Timestamp generated
+         */
+        SUCCESSS,
+        /**
+         * Already committed.
+         */
+        ALREADY_COMMITTED,
+        /**
+         * The transaction cannot be committed, because a given operation is
+         * invalid for some reason.
+         */
+        INVALID_OPERATION
+    }
+
+    protected GenerateStatus status;
     protected Timestamp timestamp;
     protected long cltClock;
 
@@ -21,13 +37,13 @@ public class GenerateDCTimestampReply implements RpcMessage {
     }
 
     public GenerateDCTimestampReply(final Timestamp timestamp, final long cltClock) {
-        this.valid = true;
+        this.status = GenerateStatus.SUCCESSS;
         this.timestamp = timestamp;
         this.cltClock = cltClock;
     }
 
     public GenerateDCTimestampReply(final long cltClock) {
-        this.valid = false;
+        this.status = GenerateStatus.ALREADY_COMMITTED;
         this.cltClock = cltClock;
     }
 
@@ -44,8 +60,8 @@ public class GenerateDCTimestampReply implements RpcMessage {
         ((GenerateTimestampReplyHandler) handler).onReceive(conn, this);
     }
 
-    public boolean isValid() {
-        return valid;
+    public GenerateStatus getStatus() {
+        return status;
     }
 
     public long getCltClock() {

@@ -14,6 +14,7 @@ import sys.dht.api.DHT;
 public class DHTGetCRDT implements DHT.Message {
 
     String surrogateId;
+    String cltId;
     CRDTIdentifier id;
     SubscriptionType subscribe;
     CausalityClock version;
@@ -24,9 +25,10 @@ public class DHTGetCRDT implements DHT.Message {
     DHTGetCRDT() {
     }
 
-    public DHTGetCRDT(String surrogateId, CRDTIdentifier id, SubscriptionType subscribe, CausalityClock version) {
+    public DHTGetCRDT(String surrogateId, String cltId, CRDTIdentifier id, SubscriptionType subscribe, CausalityClock version) {
         super();
         this.surrogateId = surrogateId;
+        this.cltId = cltId;
         this.id = id;
         this.subscribe = subscribe;
         this.version = version;
@@ -51,5 +53,9 @@ public class DHTGetCRDT implements DHT.Message {
 
     public CausalityClock getVersion() {
         return version;
+    }
+
+    public String getCltId() {
+        return cltId;
     }
 }

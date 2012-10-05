@@ -29,6 +29,10 @@ public class CRDTData<V extends CRDT<V>> {
      */
     CausalityClock clock;
     /**
+     * current clock reflects all updates and their causal past, from the perspective of clients
+     */
+    CausalityClock cltClock;
+    /**
      * prune clock reflects the updates that have been discarded, making it
      * impossible to access a snapshot that is dominated by this clock
      */
@@ -49,24 +53,26 @@ public class CRDTData<V extends CRDT<V>> {
         this.empty = true;
     }
 
-    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock) {
+    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         this.crdt = crdt;
         if( DCDataServer.prune)
             this.prunedCrdt = crdt.copy();
         this.id = id;
         this.clock = clock;
         this.pruneClock = pruneClock;
+        this.cltClock = cltClock;
         observers = new TreeSet<Observer>();
         notifiers = new TreeSet<Observer>();
         this.empty = false;
     }
     
-    void initValue( CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock) {
+    void initValue( CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         this.crdt = crdt;
         if( DCDataServer.prune)
             this.prunedCrdt = crdt.copy();
         this.clock = clock;
         this.pruneClock = pruneClock;
+        this.cltClock = cltClock;
         this.empty = false;
     }
 
@@ -110,6 +116,7 @@ public class CRDTData<V extends CRDT<V>> {
             this.prunedCrdt.merge((CRDT<V>)d.crdt);
         }
         pruneClock.merge(d.pruneClock);
+        cltClock.merge(d.cltClock);
     }
 
     public boolean isEmpty() {
@@ -130,5 +137,8 @@ public class CRDTData<V extends CRDT<V>> {
 
     public CausalityClock getPruneClock() {
         return pruneClock;
+    }
+    public CausalityClock getCltClock() {
+        return cltClock;
     }
 }

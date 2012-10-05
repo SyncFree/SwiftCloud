@@ -22,7 +22,15 @@ public class CRDTObject<V extends CRDT<V>> {
     public CRDTObject() {
         // do nothing
     }
-    public CRDTObject(CRDTData<V> data, CausalityClock version) {
+    public CRDTObject(CRDTData<V> data, CausalityClock version, String cltId) {
+//      1) let int clientTxs =
+//      clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
+//      probably it could be done better, lock-free
+//      2)
+//      let crdtCopy = retrieve(oid).copy()
+//      crdtCopy.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
+//      3) clientTxClockService.unlock(clientId)
+//      4) return crdtCopy
         if( DCDataServer.prune) {
             CMP_CLOCK cmp = version.compareTo( data.pruneClock);
             if( cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES)
@@ -33,5 +41,6 @@ public class CRDTObject<V extends CRDT<V>> {
             this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
+        this.crdt.augmentWithScoutClock( data.cltClock.getLatest(cltId));
     }
 }

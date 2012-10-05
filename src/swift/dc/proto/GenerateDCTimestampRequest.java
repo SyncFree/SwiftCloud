@@ -13,14 +13,16 @@ import sys.net.api.rpc.RpcHandler;
  */
 public class GenerateDCTimestampRequest extends ClientRequest {
     Timestamp cltTimestamp;
+    CausalityClock dependencyClk;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     GenerateDCTimestampRequest() {
     }
 
-    public GenerateDCTimestampRequest(String clientId, Timestamp cltTimestamp) {
+    public GenerateDCTimestampRequest(String clientId, Timestamp cltTimestamp, CausalityClock dependencyClk) {
         super(clientId);
         this.cltTimestamp = cltTimestamp;
+        this.dependencyClk = dependencyClk;
     }
 
 
@@ -33,5 +35,9 @@ public class GenerateDCTimestampRequest extends ClientRequest {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SequencerServer) handler).onReceive(conn, this);
+    }
+
+    public CausalityClock getDependencyClk() {
+        return dependencyClk;
     }
 }

@@ -2,6 +2,7 @@ package swift.dc.proto;
 
 import swift.client.proto.SubscriptionType;
 import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -18,6 +19,8 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     CRDTObjectUpdatesGroup<V> grp;
     CausalityClock snapshotVersion;
     CausalityClock trxVersion;
+    Timestamp txTs;
+    Timestamp cltTs;
     String surrogateId;
     
     /**
@@ -26,11 +29,14 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     DHTExecCRDT() {
     }
 
-    public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion, CausalityClock trxVersion) {
+    public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion, 
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs) {
         this.surrogateId = surrogateId;
         this.grp = grp;
         this.snapshotVersion = snapshotVersion;
         this.trxVersion = trxVersion;
+        this.txTs = txTs;
+        this.cltTs = cltTs;
     }
 
     @Override
@@ -52,6 +58,14 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
 
     public CausalityClock getTrxVersion() {
         return trxVersion;
+    }
+
+    public Timestamp getTxTs() {
+        return txTs;
+    }
+
+    public Timestamp getCltTs() {
+        return cltTs;
     }
 
 }
