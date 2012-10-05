@@ -1,5 +1,7 @@
 package swift.application.filesystem;
 
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
@@ -43,8 +45,6 @@ public class FilesystemTest {
 
             // create a root directory
             logger.info("Creating file system");
-            // Filesystem fs = new FilesystemBasic(txn, "test", "DIR",
-            // RegisterFileContent.class);
             Filesystem fs = new FilesystemBasic(txn, "test", "DIR", RegisterVersioned.class);
             txn.commit();
 
@@ -63,33 +63,41 @@ public class FilesystemTest {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             IFile f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
             String s = "This is a test file";
-            f1.update(s, 0);
+            assert (s.equals(new String(s.getBytes())));
+            f1.reset(s.getBytes());
+            System.out.println("Expected: " + s);
+            System.out.println("Got: " + new String(f1.get(0, s.length())));
+
+            assert (new String(f1.get(0, s.length())).equals(s));
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1);
             txn.commit();
 
             logger.info("Reading from the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             IFile f1_up = fs.readFile(txn, "file1.txt", "/test/testfs1");
-            assert (f1_up.getContent().equals(s));
+            assert (Arrays.equals(f1_up.get(0, s.getBytes().length), s.getBytes()));
 
             logger.info("Updating the file");
             String prefix = "Yes! ";
-            f1_up.update(prefix, 0);
+            byte[] concat = (prefix + s).getBytes();
+
+            ByteBuffer buf_up = ByteBuffer.wrap(concat);
+            f1_up.update(buf_up, 0);
+            assert (Arrays.equals(f1_up.get(0, concat.length), concat));
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1_up);
-            assert (f1_up.getContent().equals(prefix + s));
             txn.commit();
 
             logger.info("Checking that updates are committed");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             IFile f1_upp = fs.readFile(txn, "file1.txt", "/test/testfs1");
-            assert (f1_upp.getContent().equals(prefix + s));
+            assert (Arrays.equals(f1_upp.get(0, concat.length), concat));
             txn.commit();
 
             logger.info("Copying the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             fs.copyFile(txn, "file1.txt", "/test/testfs1", "/test/testfs2");
             IFile f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
-            assert (f1_copy.getContent().equals(prefix + s));
+            assert (Arrays.equals(f1_copy.get(0, concat.length), concat));
             txn.commit();
 
             // mkdir testfs1 testfs1/include testfs1/include/sys

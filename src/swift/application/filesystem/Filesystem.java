@@ -1,5 +1,7 @@
 package swift.application.filesystem;
 
+import java.io.IOException;
+
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -9,7 +11,7 @@ import swift.exceptions.WrongTypeException;
 
 public interface Filesystem {
     IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException;
+            VersionNotFoundException, NetworkException, IOException;
 
     DirectoryTxnLocal createDirectory(TxnHandle txn, String name, String path) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException;
@@ -21,13 +23,13 @@ public interface Filesystem {
             VersionNotFoundException, NetworkException;
 
     void updateFile(TxnHandle txn, String fname, String path, IFile f) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException;
+            NoSuchObjectException, VersionNotFoundException, NetworkException, IOException;
 
     void removeFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException, ClassNotFoundException;
 
     IFile readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException;
+            VersionNotFoundException, NetworkException, IOException;
 
     void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException;

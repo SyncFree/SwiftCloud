@@ -1,5 +1,7 @@
 package swift.application.filesystem;
 
+import java.io.IOException;
+
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
@@ -28,7 +30,7 @@ public class FilesystemBasic implements Filesystem {
 
     @Override
     public IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
+            VersionNotFoundException, NetworkException, IOException {
 
         String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
         String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
@@ -37,28 +39,27 @@ public class FilesystemBasic implements Filesystem {
                 DirectoryVersioned.class);
         DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
         CRDTIdentifier fileId = parentDir.createNewEntry(fname, fileContentClass);
-        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal) txn.get(fileId, true, fileContentClass);
-        String initialFileContent = "";
-        fileContent.set(new StringCopyable(initialFileContent));
+        RegisterTxnLocal<Blob> fileContent = (RegisterTxnLocal<Blob>) txn.get(fileId, true, fileContentClass);
+        Blob initialFileContent = new Blob();
+        fileContent.set(initialFileContent);
         return new FileBasic(initialFileContent);
     }
 
     @Override
     public IFile readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
+            VersionNotFoundException, NetworkException, IOException {
 
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
-        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal) txn.get(fileId, false, fileContentClass);
-        return new FileBasic(fileContent.getValue().getString());
+        RegisterTxnLocal<Blob> fileContent = (RegisterTxnLocal<Blob>) txn.get(fileId, false, fileContentClass);
+        return new FileBasic(fileContent.getValue());
     }
 
     @Override
     public void updateFile(TxnHandle txn, String fname, String path, IFile f) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
+            NoSuchObjectException, VersionNotFoundException, NetworkException, IOException {
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
-        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, false,
-                fileContentClass);
-        fileBasic.set(new StringCopyable(f.getContent()));
+        RegisterTxnLocal<Blob> content = (RegisterTxnLocal<Blob>) txn.get(fileId, false, fileContentClass);
+        content.set(new Blob(f.getBytes()));
     }
 
     @Override
@@ -103,12 +104,10 @@ public class FilesystemBasic implements Filesystem {
     public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, fileContentClass);
-        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
-                RegisterVersioned.class);
+        RegisterTxnLocal<Blob> fileContent = (RegisterTxnLocal<Blob>) txn.get(fileId, true, RegisterVersioned.class);
 
         CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(newFileId, true,
-                RegisterVersioned.class);
+        RegisterTxnLocal<Blob> fileBasic = (RegisterTxnLocal<Blob>) txn.get(newFileId, true, RegisterVersioned.class);
         fileBasic.set(fileContent.getValue());
     }
 
