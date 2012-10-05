@@ -43,6 +43,9 @@ public class FileSystem {
     private final CachePolicy cachePolicy;
     private final ObjectUpdatesListener updatesSubscriber;
     private final boolean asyncCommit;
+    
+    private LocalFolder rootReference;
+    private CausalityClock clockReference;
 
     // Class of maximun Causality Clock CRDT
     private final Class maxCCClass;
@@ -79,6 +82,17 @@ public class FileSystem {
             }
         }
     }
+    
+    
+    /**
+     * Updates current working copy.
+     * Should make a diff3 considering server version, last update and working copy state.
+     */
+    private void update(TxnHandle txn) {
+        if (rootReference != null) {
+            
+        }
+    } 
 
     /*
      * Use the word tree to generate file system tree.
@@ -112,7 +126,8 @@ public class FileSystem {
     }
 
     /*
-     * Place the file system object under the correct father (creates it if it doesn't exist). 
+     * Place the file system object under the correct father.
+     * Reappear policy : creates the father if it doesn't exist. 
      * Resolve naming conflict folder/file during creation.
      */
     private void connect(TxnHandle txn, String path, Map<String, LocalFolder> folderMap, FileSystemObject node) 
@@ -128,21 +143,16 @@ public class FileSystem {
     }
     
     /*
-     * Resolve naming conflict folder/file before creation of a node.
+     * Resolve naming conflict folder/file during creation of a node.
      * Map the conflicting file in the folder with a different name (prefix : "~~~"). 
+     * Due to connection algorithm folder always appears after file.
      */
     private void resolveNameConflict(LocalFolder father, FileSystemObject node) {
-        if (father.content.containsKey(node.getName())) {
-            if ("file".equals(node.getType())) { // folder was here 
-               father.content.put("~~~" + node.getName(), node);
-            } else { // file was here 
-               FileSystemObject file = father.content.remove(node.getName());
-               father.content.put("~~~" + file.getName(), file);
-               father.content.put(node.getName(), node);
-            }
-        } else { // No conflict
-            father.content.put(node.getName(), node);
-        }
+        if (father.content.containsKey(node.getName())) { // folder appears
+            FileSystemObject file = father.content.remove(node.getName());
+            father.content.put("~~~" + file.getName(), file);
+        } 
+        father.content.put(node.getName(), node);
     }
     
     private File getFile(TxnHandle txn, String filePath) 
