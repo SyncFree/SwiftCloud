@@ -182,6 +182,7 @@ public class SwiftImpl implements Swift, TxnManager {
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
     private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
+    private final LinkedList<AbstractTxnHandle> globallyCommittedUnstableTxns;
 
     // Thread sequentially committing transactions from the queue.
     private final CommitterThread committerThread;
@@ -217,6 +218,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
         this.locallyCommittedTxnsQueue = new LinkedList<AbstractTxnHandle>();
+        this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedDisasterDurableVersion = ClockFactory.newClock();
@@ -336,8 +338,19 @@ public class SwiftImpl implements Swift, TxnManager {
             // No changes.
             return;
         }
-        // FIXME: discard the transaction log entries included in
-        // committedDisasterDurableVersion... if we had stored them :-)
+
+        // Find new stable local txns, and clean-up the list.
+        for (Iterator<AbstractTxnHandle> globalTxnIter = globallyCommittedUnstableTxns.iterator(); globalTxnIter
+                .hasNext();) {
+            final AbstractTxnHandle txn = globalTxnIter.next();
+            if (txn.getTimestampMapping().timestampsIntersect(committedDisasterDurableVersion)) {
+                globalTxnIter.remove();
+                // FIXME: There might be a race condition between
+                // FetchObjectVersionReply and commit of this
+                // transaction that could unable us to read a valid object
+                // version.
+            }
+        }
 
         // Go through updates to notify and see if any become committed.
         final Iterator<Entry<TimestampMapping, Set<CRDTIdentifier>>> iter = uncommittedUpdatesObjectsToNotify
@@ -655,12 +668,11 @@ public class SwiftImpl implements Swift, TxnManager {
             // Apply any local updates that may not be present in received
             // version.
             try {
+                for (final AbstractTxnHandle localTxn : globallyCommittedUnstableTxns) {
+                    applyLocalObjectUpdates(request.getUid(), cacheCRDT, localTxn);
+                }
                 for (final AbstractTxnHandle localTxn : locallyCommittedTxnsQueue) {
-                    final CRDTObjectUpdatesGroup<V> objectUpdates = (CRDTObjectUpdatesGroup<V>) localTxn
-                            .getObjectUpdates(request.getUid());
-                    if (objectUpdates != null) {
-                        cacheCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.CHECK);
-                    }
+                    applyLocalObjectUpdates(request.getUid(), cacheCRDT, localTxn);
                 }
             } catch (IllegalStateException x) {
                 logger.warning("Local transaction cannot be applied on the version received from the store - strange, retrying");
@@ -684,6 +696,14 @@ public class SwiftImpl implements Swift, TxnManager {
             return false;
         }
         return true;
+    }
+
+    private <V extends CRDT<V>> void applyLocalObjectUpdates(final CRDTIdentifier id, V cacheCRDT,
+            final AbstractTxnHandle localTxn) {
+        final CRDTObjectUpdatesGroup<V> objectUpdates = (CRDTObjectUpdatesGroup<V>) localTxn.getObjectUpdates(id);
+        if (objectUpdates != null) {
+            cacheCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.CHECK);
+        }
     }
 
     private void fetchSubscribedNotifications() {
@@ -1017,6 +1037,8 @@ public class SwiftImpl implements Swift, TxnManager {
             lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
             objectsCache.recordOnAll(txn.getTimestampMapping());
             locallyCommittedTxnsQueue.removeFirst();
+            globallyCommittedUnstableTxns.addLast(txn);
+
             logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
 
             // Subscribe updates for newly created objects if they were
