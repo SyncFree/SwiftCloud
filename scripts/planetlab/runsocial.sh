@@ -45,7 +45,7 @@ echo "DCS: " $DC_NUMBER "CLIENTS: " $CLIENTS_NUMBER
 
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
-scripts/planetlab/pl-kill.sh $MACHINES
+. scripts/planetlab/pl-kill.sh $MACHINES
 echo "==== DONE ===="
 
 sleep 10
@@ -110,7 +110,7 @@ if [ -n "$DEPLOY" ]; then
 fi
 
 echo "==== STARTING SEQUENCERS AND DC SERVERS ===="
-. ./scripts/planetlab/pl-start-servers-ds-seq.sh 
+scripts/planetlab/pl-start-servers-ds-seq.sh 
 servers_start DCS DCSEQ
 
 echo "==== WAITING A BIT BEFORE INITIALIZING DATABASE ===="

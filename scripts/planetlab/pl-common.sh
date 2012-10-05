@@ -20,24 +20,21 @@ export EC2_PROD_EU_C1MEDIUM=(
 
 
 export EC2_PROD_EU_MICRO=(
-ec2-54-247-59-85.eu-west-1.compute.amazonaws.com
-ec2-54-247-59-196.eu-west-1.compute.amazonaws.com
+planetlab-um10.di.uminho.pt
+planetlab1.fct.ualg.pt
 )
 
 export PLANETLAB_SCOUTS=(
-planetlab1.fct.ualg.pt
 planetlab2.fct.ualg.pt
+planetlab-um00.di.uminho.pt
 )
 
 export PLANETLAB_CLIENTS=(
 planetlab1.di.fct.unl.pt
 planetlab2.di.fct.unl.pt
-planetlab-1.iscte.pt
-planetlab-2.iscte.pt
 )
 
 export PLANETLAB_NODES=(
-planetlab2.di.fct.unl.pt
 planetlab-1.iscte.pt
 planetlab-2.iscte.pt
 )
@@ -47,6 +44,8 @@ planetlab-2.iscte.pt
 export PLANETLAB_NODES_ALL=(
 ait21.us.es
 ait05.us.es
+planetlab2.di.fct.unl.pt
+planetlab-1.iscte.pt
 
 ple2.ipv6.lip6.fr
 peeramide.irisa.fr

@@ -51,7 +51,7 @@ SCOUTS_NUMBER=${#CDN_SCOUTS[@]}
 CLIENTS_NUMBER=${#CDN_CLIENTS[@]}
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
-scripts/planetlab/pl-kill.sh $MACHINES
+. scripts/planetlab/pl-kill.sh $MACHINES
 echo "==== DONE ===="
 
 sleep 10
@@ -101,7 +101,7 @@ if [ -n "$DEPLOY" ]; then
 	deploy_swift_on_many $MACHINES
 	echo "==== COPYING DB OF USERS ===="
 	copy_to_bg $FILE_USERS $INIT_DB_CLIENT users.txt
-#    copy_to_bg $FILE_USERS $INIT_DB_CLIENT2 users.txt
+    copy_to_bg $FILE_USERS $INIT_DB_CLIENT2 users.txt
 	copy_pids="$!"
 	echo "==== SCATTERING WORKLOAD DEFINITIONS TO SCOUTS AND CLIENTS ===="
 	i=0
@@ -120,7 +120,9 @@ if [ -n "$DEPLOY" ]; then
 fi
 
 echo "==== STARTING SEQUENCERS AND DC SERVERS ===="
-. ./scripts/planetlab/pl-start-servers-ds-seq.sh 
+. scripts/planetlab/pl-start-servers-ds-seq.sh
+echo "==== STARTING SEQUENCERS" $DCSEQ "AND DC SERVERS ====" $DCS
+
 servers_start DCS DCSEQ
 
 echo "==== WAITING A BIT BEFORE INITIALIZING DATABASE ===="
@@ -167,7 +169,7 @@ done
 echo "==== RUNNING... ===="
 wait $client_pids
 
-echo "==== WAITING A BIT FOR PENDIND OPS ON SERVERS ===="
+echo "==== WAITING A BIT FOR PENDING OPS ON SERVERS ===="
 sleep 60
 echo "==== KILLING SERVERS AND CLIENTS ===="
 scripts/planetlab/pl-kill.sh $MACHINES

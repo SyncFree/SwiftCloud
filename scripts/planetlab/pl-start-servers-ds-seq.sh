@@ -33,4 +33,3 @@ servers_start() {
         i=$(($i+1))
 	done
 }
-# 
