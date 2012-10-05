@@ -439,6 +439,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 ":ts=" + request.getClientTimestamp()+
                 ":nops=" + request.getObjectUpdateGroups().size());
         final ClientPubInfo session = getSession(request.getClientId());
+        DCConstants.DCLogger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo()); 
         
         if( session.getLastSeqNo() >= request.getClientTimestamp().getCounter()) {
             conn.reply(new CommitUpdatesReply( getEstimatedDCVersionCopy()));
