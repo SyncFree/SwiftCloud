@@ -1,11 +1,12 @@
 package swift.crdt;
 
-import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -232,13 +233,20 @@ public class BaseCRDTTest {
 
         a.execute(group5, CRDTOperationDependencyPolicy.CHECK);
         a.execute(group6, CRDTOperationDependencyPolicy.CHECK);
-        CausalityClock group5Clock = ClockFactory.newClock();
-        group5Clock.record(group5.getClientTimestamp());
-        a.prune(group5Clock, false);
+        CausalityClock group6Clock = ClockFactory.newClock();
+        group6Clock.record(group6.getClientTimestamp());
+        a.prune(group6Clock, false);
 
         assertEquals(6, a.idsToValues.size());
-        assertEquals(1, a.clientTimestampsInUse.size());
-        assertEquals(CMP_CLOCK.CMP_EQUALS, group5Clock.compareTo(a.getPruneClock()));
+        assertEquals(2, a.clientTimestampsInUse.size());
+        assertEquals(CMP_CLOCK.CMP_EQUALS, group6Clock.compareTo(a.getPruneClock()));
+
+        try {
+            a.getTxnLocalCopy(ClockFactory.newClock(), null);
+            fail("Expected rejection of too early clock");
+        } catch (IllegalStateException x) {
+            // expected
+        }
     }
 
     @Test
@@ -254,7 +262,22 @@ public class BaseCRDTTest {
         assertEquals(2, a.clientTimestampsInUse.size());
         assertEquals(CMP_CLOCK.CMP_EQUALS, ClockFactory.newClock().compareTo(a.getPruneClock()));
         assertTrue(a.getClock().includes(group5.getClientTimestamp()));
-        assertTrue(a.getClock().includes(group6.getClientTimestamp()));
+    }
+
+    @Test
+    public void testMergeIdempotent() {
+        final CRDTObjectUpdatesGroup<MaxIntegerCRDT> group5 = createUpdatesGroup("X", 5, ClockFactory.newClock());
+        final CRDTObjectUpdatesGroup<MaxIntegerCRDT> group6 = createUpdatesGroup("Y", 6, ClockFactory.newClock());
+
+        a.execute(group5, CRDTOperationDependencyPolicy.CHECK);
+        final MaxIntegerCRDT aCopy = a.copy();
+        a.merge(aCopy);
+        a.merge(aCopy);
+
+        assertEquals(5, a.idsToValues.size());
+        assertEquals(1, a.clientTimestampsInUse.size());
+        assertEquals(CMP_CLOCK.CMP_EQUALS, ClockFactory.newClock().compareTo(a.getPruneClock()));
+        assertTrue(a.getClock().includes(group5.getClientTimestamp()));
     }
 
     // TODO merge idemptonce, mappings merge
