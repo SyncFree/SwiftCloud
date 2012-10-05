@@ -2,25 +2,16 @@ package sys.examples.rpc;
 
 import static sys.net.api.Networking.Networking;
 
-import java.util.logging.Level;
-
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.utils.Log;
 import sys.utils.Threading;
 
 public class RpcClient {
 
 	public static void main(String[] args) {
-
-        Log.setLevel("", Level.ALL);
-        Log.setLevel("sys.dht.catadupa", Level.ALL);
-        Log.setLevel("sys.dht", Level.ALL);
-        Log.setLevel("sys.net", Level.ALL);
-        Log.setLevel("sys", Level.ALL);
 
         
 		Sys.init();

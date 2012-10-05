@@ -1,12 +1,12 @@
 package sys.benchmarks.rpc;
 
 import static sys.net.api.Networking.Networking;
-import static sys.utils.Log.Log;
 
 import java.net.UnknownHostException;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
@@ -17,7 +17,8 @@ import sys.utils.Threading;
 import static sys.Sys.*;
 
 public class RpcClient {
-
+    public static Logger Log = Logger.getLogger( RpcClient.class.getName() );
+    
 	static double sumRTT = 0, totRTT = 0;
 
 	public void doIt(String serverAddr) {

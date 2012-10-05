@@ -3,21 +3,16 @@ package sys.benchmarks.rpc;
 
 
 import java.net.UnknownHostException;
-import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import sys.net.impl.KryoLib;
-import sys.utils.Log;
 import sys.utils.Threading;
 
 
 public class RpcClientServer {
+    public static Logger Log = Logger.getLogger( RpcClientServer.class.getName() );
 
     public static void main(final String[] args) throws UnknownHostException {
-        Log.setLevel("", Level.OFF);
-        Log.setLevel("sys.dht.catadupa", Level.OFF);
-        Log.setLevel("sys.dht", Level.OFF);
-        Log.setLevel("sys.net", Level.OFF);
-        Log.setLevel("sys", Level.OFF);
 
         KryoLib.register(Request.class, 0x100);
         KryoLib.register(Reply.class, 0x101);
