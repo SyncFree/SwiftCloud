@@ -9,7 +9,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.utils.PrettyPrint;
 
@@ -79,11 +78,6 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     @Override
     public String toString() {
         return PrettyPrint.printMap("{", "}", ";", "->", elems);
-    }
-
-    @Override
-    public void rollback(Timestamp rollbackEvent) {
-        PayloadHelper.rollback(this.elems, rollbackEvent);
     }
 
     @Override

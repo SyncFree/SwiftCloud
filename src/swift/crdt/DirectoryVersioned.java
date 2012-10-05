@@ -8,12 +8,10 @@ import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.payload.PayloadHelper;
 
 @SuppressWarnings("serial")
 public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
@@ -21,11 +19,6 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     public DirectoryVersioned() {
         this.dir = new HashMap<CRDTIdentifier, Map<TripleTimestamp, Set<TripleTimestamp>>>();
-    }
-
-    @Override
-    public void rollback(Timestamp rollbackEvent) {
-        PayloadHelper.rollback(this.dir, rollbackEvent);
     }
 
     @Override

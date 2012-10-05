@@ -40,11 +40,6 @@ public class BaseCRDTTest {
         Map<TripleTimestamp, Integer> idsToValues = new HashMap<TripleTimestamp, Integer>();
 
         @Override
-        public void rollback(Timestamp ts) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
         protected void pruneImpl(CausalityClock pruningPoint) {
             Set<TripleTimestamp> toRemove = new HashSet<TripleTimestamp>();
             Integer maxValue = null;

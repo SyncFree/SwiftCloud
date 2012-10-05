@@ -123,19 +123,6 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     void prune(CausalityClock pruningPoint, boolean checkVersionClock);
 
     /**
-     * Remove the effects of the transaction associated to the timestamp.
-     * <p>
-     * TODO: what about the clock? TODO Check that rollback is not included in
-     * prune clock!
-     * 
-     * @param ts
-     *            time stamp of transaction that is rolled back.
-     */
-    // FIXME: Drop the method? It seems with current protocol usage, we cannot
-    // rollback like that, it would break everything.
-    void rollback(Timestamp ts);
-
-    /**
      * Returns the identifier for the object.
      */
     CRDTIdentifier getUID();

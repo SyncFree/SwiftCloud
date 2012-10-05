@@ -6,8 +6,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.ClockFactory;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.Copyable;
@@ -55,7 +53,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         public UpdateEntry<V> copy() {
             return new UpdateEntry<V>(lamportClock, ts, (V) value.copy());
         }
-        
+
         @Override
         public String toString() {
             return value.toString();
@@ -68,21 +66,6 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     public RegisterVersioned() {
         this.values = new TreeSet<UpdateEntry<V>>();
-    }
-
-    @Override
-    public void rollback(Timestamp ts) {
-        // FIXME: deal with mappings
-        final CausalityClock tsAsClock = ClockFactory.newClock();
-        tsAsClock.record(ts);
-
-        final Iterator<UpdateEntry<V>> it = values.iterator();
-        while (it.hasNext()) {
-            UpdateEntry<V> entry = it.next();
-            if (entry.ts.timestampsIntersect(tsAsClock)) {
-                it.remove();
-            }
-        }
     }
 
     @Override

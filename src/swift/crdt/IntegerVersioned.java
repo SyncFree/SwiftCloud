@@ -7,7 +7,6 @@ import java.util.Map.Entry;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
@@ -124,11 +123,6 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
             }
         }
         pruneValue += sumOfNewlyPrunedUpdates;
-    }
-
-    @Override
-    public void rollback(Timestamp rollbackEvent) {
-        throw new UnsupportedOperationException();
     }
 
     @Override
