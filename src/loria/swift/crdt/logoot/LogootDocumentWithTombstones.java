@@ -45,6 +45,12 @@ public class LogootDocumentWithTombstones<T> extends LogootDocument<T> {
         tombstones.add(pos, tbs);
     }
     
+    void remove(int pos) {
+        idTable.remove(pos);
+        document.remove(pos);
+        tombstones.remove(pos);
+    }
+    
     public void insert(LogootIdentifier id, T content) {
         int pos = dicho(id);
         add(pos, id, content, null);
@@ -113,5 +119,9 @@ public class LogootDocumentWithTombstones<T> extends LogootDocument<T> {
             return false;
         }
         return super.equals(obj);
+    }
+
+    int size() {
+        return tombstones.size();
     }
 }

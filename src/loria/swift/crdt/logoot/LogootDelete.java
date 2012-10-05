@@ -24,8 +24,8 @@ import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.operations.BaseUpdate;
 
 /**
- *
- * @author mehdi urso
+ * Logoot delete update.
+ * @author  urso
  */
 public class LogootDelete extends BaseUpdate<LogootVersionned> {
     
@@ -40,18 +40,21 @@ public class LogootDelete extends BaseUpdate<LogootVersionned> {
         return identif;
     }
     
-    @Override
-    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
 
     @Override
     public void applyTo(LogootVersionned crdt) {
         crdt.getDoc().delete(identif, getTimestamp());
     }
+    
+    @Override
+    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
+        return new LogootDelete(identif, getTimestamp().withBaseTimestamp(ts));
+    }
+
+    // I'm not sure of the exact semantic of this method.
+    @Override
+    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
+        // throw new UnsupportedOperationException("Not supported yet.");
+    }
+
 }

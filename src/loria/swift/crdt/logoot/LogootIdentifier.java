@@ -24,6 +24,7 @@ import swift.clocks.TripleTimestamp;
 
 /**
  * Logoot identifier. A list of Component.
+ * @author urso
  */
 public class LogootIdentifier implements Comparable<LogootIdentifier>, Serializable {
 
@@ -134,5 +135,9 @@ public class LogootIdentifier implements Comparable<LogootIdentifier>, Serializa
 
     public Component getLastComponent() {
         return id.get(id.size()-1);
+    }
+    
+    void setComponent(int i, Component c) {
+        id.set(i, c);
     }
 }

@@ -23,8 +23,8 @@ import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.operations.BaseUpdate;
 
 /**
- *
- * @author mehdi urso
+ * Insertion operation.
+ * @author urso
  */
 public class LogootInsert extends BaseUpdate<LogootVersionned> {
     
@@ -32,7 +32,7 @@ public class LogootInsert extends BaseUpdate<LogootVersionned> {
     final private String content;
 
     public LogootInsert(LogootIdentifier identif, String content) {
-        super(identif.getComponentAt(identif.length()-1).getTs());
+        super(identif.getLastComponent().getTs());
         this.identif = identif;
         this.content = content;
     }
@@ -46,17 +46,21 @@ public class LogootInsert extends BaseUpdate<LogootVersionned> {
     }
 
     @Override
-    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
     public void applyTo(LogootVersionned crdt) {
         crdt.getDoc().insert(identif, content);
+    }
+
+    @Override
+    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
+        LogootIdentifier id = identif.clone();
+        id.setComponent(id.length() - 1, 
+                new Component(id.getLastComponent().getDigit(), getTimestamp().withBaseTimestamp(ts)));
+        return new LogootInsert(id, content);
+    }
+
+    // I'm not sure of the exact semantic of this method.
+    @Override
+    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
+        // throw new UnsupportedOperationException("Not supported yet.");
     }
 }

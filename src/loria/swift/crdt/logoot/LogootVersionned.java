@@ -19,6 +19,7 @@
 package loria.swift.crdt.logoot;
 
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
@@ -74,12 +75,12 @@ public class LogootVersionned extends BaseCRDT<LogootVersionned> {
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
         final LogootDocumentWithTombstones<String> newDoc = new LogootDocumentWithTombstones<String>();
-        newDoc.idTable.clear(); // optimization 
-        newDoc.document.clear();
-        newDoc.tombstones.clear();
-        int n = doc.idTable.size();
+        newDoc.idTable.remove(1); // optimization 
+        newDoc.document.remove(1);
+        newDoc.tombstones.remove(1);
+        int n = doc.idTable.size() - 1;
         
-        for (int i = 0; i < n; ++i) {
+        for (int i = 1; i < n; ++i) {
             Set<TripleTimestamp> tbs = doc.tombstones.get(i);
             if (tbs == null || !greater(pruningPoint, tbs)) {
                 newDoc.idTable.add(doc.idTable.get(i));
@@ -87,6 +88,9 @@ public class LogootVersionned extends BaseCRDT<LogootVersionned> {
                 newDoc.tombstones.add(doc.tombstones.get(i));
             }
         }
+        newDoc.idTable.add(LogootDocument.end); // optimization 
+        newDoc.document.add(null);
+        newDoc.tombstones.add(null);
         doc = newDoc; 
     }
 
@@ -94,9 +98,9 @@ public class LogootVersionned extends BaseCRDT<LogootVersionned> {
     @Override
     protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
         final Set<Timestamp> result = new HashSet<Timestamp>();
-        final int n = doc.idTable.size();
+        final int n = doc.size() - 1;
         
-        for (int i = 0; i < n; ++i) {
+        for (int i = 1; i < n; ++i) {
             TripleTimestamp tins = doc.idTable.get(i).getLastComponent().getTs();
             if (!clock.includes(tins)) {
                 result.add(tins.cloneBaseTimestamp());
@@ -127,22 +131,47 @@ public class LogootVersionned extends BaseCRDT<LogootVersionned> {
 
     @Override
     public void rollback(Timestamp ts) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    private LogootDocument getValue(CausalityClock versionClock) {
-        final LogootDocument<String> view = new LogootDocument<String>();
-        view.idTable.clear(); // optimization 
-        view.document.clear();
-        int n = doc.idTable.size();
+        int i = 1;
         
-        for (int i = 0; i < n; ++i) {
-            Set<TripleTimestamp> tbs = doc.tombstones.get(i);
-            if (tbs == null || !greater(versionClock, tbs)) {
-                view.idTable.add(doc.idTable.get(i));
-                view.document.add(doc.document.get(i));
+        while (i < doc.size() - 1) {
+            if (doc.idTable.get(i).getLastComponent().getTs().equals(ts)) {
+                doc.remove(i);
+            } else {
+                Set<TripleTimestamp> tbs = doc.tombstones.get(i);
+                if (tbs != null) {
+                    Iterator<TripleTimestamp> it = tbs.iterator();
+                    while (it.hasNext()) {
+                        if (!it.next().equals(ts)) {
+                            it.remove();
+                        }
+                    }
+                }
+                ++i;
             }
         }
+    }
+
+    LogootDocument getValue(CausalityClock versionClock) {
+        final LogootDocument<String> view = new LogootDocument<String>();
+        view.idTable.remove(1); // optimization 
+        view.document.remove(1);
+        int n = doc.idTable.size();
+        
+        for (int i = 1; i < n-1; ++i) {
+            if (versionClock.includes(doc.idTable.get(i).getLastComponent().getTs())) {
+                Set<TripleTimestamp> tbs = doc.tombstones.get(i);
+                if (tbs == null || !greater(versionClock, tbs)) {
+                    view.idTable.add(doc.idTable.get(i));
+                    view.document.add(doc.document.get(i));
+                }
+            }
+        }
+        view.idTable.add(LogootDocument.end);
+        view.document.add(null);
         return view; 
+    }
+
+    void setDoc(LogootDocumentWithTombstones<String> x) {
+        doc = x;
     }
 }
