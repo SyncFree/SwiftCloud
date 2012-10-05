@@ -21,7 +21,7 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     private long counter;
 
     /**
-     * Do not use: Empty constructor needed by Kryo
+     * WARNING: Do not use: Empty constructor needed by Kryo
      */
     public Timestamp() {
     }

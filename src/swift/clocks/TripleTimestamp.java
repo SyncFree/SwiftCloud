@@ -1,7 +1,5 @@
 package swift.clocks;
 
-import swift.crdt.interfaces.Copyable;
-
 /**
  * A unique id for update on CRDT object with a stable identity and ordering.
  * Ids are logically partitioned in equivalence classes: all ids of updates
@@ -23,7 +21,7 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
     protected TimestampMapping mapping;
 
     /**
-     * DO NOT USE: Kryo-hack constructor.
+     * WARNING Do not use: Empty constructor needed by Kryo
      */
     public TripleTimestamp() {
     }

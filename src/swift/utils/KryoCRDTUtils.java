@@ -59,7 +59,7 @@ public class KryoCRDTUtils {
         KryoLib.register(Timestamp.class,0x50);
         KryoLib.register(TripleTimestamp.class,0x51);
         KryoLib.register(VersionVectorWithExceptions.class,0x52);
-        KryoLib.register(VersionVectorWithExceptions.Pair.class,0x53);
+        KryoLib.register(VersionVectorWithExceptions.Interval.class,0x53);
 
         KryoLib.register(CRDTIdentifier.class,0x54);
         KryoLib.register(BaseCRDT.class,0x55);
