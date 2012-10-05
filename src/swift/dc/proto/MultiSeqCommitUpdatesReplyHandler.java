@@ -6,7 +6,7 @@ import sys.net.api.rpc.RpcHandle;
 /**
  * RPC handler for {@link SeqCommitUpdatesReply}.
  * 
- * @author preguiça
+ * @author preguia
  */
 public abstract class MultiSeqCommitUpdatesReplyHandler extends AbstractRpcHandler {
     public abstract void onReceive(RpcHandle conn, MultipleSeqCommitUpdatesRequest reply);
