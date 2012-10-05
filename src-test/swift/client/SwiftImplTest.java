@@ -144,14 +144,14 @@ public class SwiftImplTest extends EasyMockSupport {
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final CommitUpdatesRequest request = (CommitUpdatesRequest) m;
                 assertFalse(request.getClientId().isEmpty());
-                assertEquals(txn1Timestamp, request.getBaseTimestamp());
+                assertEquals(txn1Timestamp, request.getClientTimestamp());
                 assertEquals(1, request.getObjectUpdateGroups().size());
                 // Verify message integrity.
-                assertEquals(request.getBaseTimestamp(), request.getObjectUpdateGroups().get(0).getClientTimestamp());
+                assertEquals(request.getClientTimestamp(), request.getObjectUpdateGroups().get(0).getClientTimestamp());
 
                 // FIXME: adapt to 1PC
                 ((CommitUpdatesReplyHandler) replyHandler).onReceive(null,
-                        new CommitUpdatesReply(request.getBaseTimestamp()));
+                        new CommitUpdatesReply(request.getClientTimestamp()));
                 return null;
             }
         });
