@@ -28,6 +28,8 @@ public class ReturnableTimestampSourceDecorator<T extends Timestamp> implements 
     }
 
     public void returnLastTimestamp() {
-        lastTimestampReturned = true;
+        if (lastTimestamp != null) {
+            lastTimestampReturned = true;
+        }
     }
 }
