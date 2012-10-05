@@ -39,5 +39,4 @@ public interface Filesystem {
 
     boolean isFile(TxnHandle txn, String fname, String path) throws WrongTypeException, VersionNotFoundException,
             NetworkException;
-
 }

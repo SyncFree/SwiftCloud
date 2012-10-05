@@ -1,21 +1,19 @@
 package swift.application.filesystem;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class FileBasic implements IFile {
-    public final int MAX_SIZE = 512;
+    public final int MAX_SIZE = 1024 * 1024 * 1;
+    // 1MB for the moment to get the Andrew benchmark running
     public int size;
     private ByteBuffer bb;
 
     public FileBasic() {
-         bb = ByteBuffer.allocate(MAX_SIZE);
-         size=0;
+        bb = ByteBuffer.allocate(MAX_SIZE);
+        size = 0;
     }
 
-    
-    
-    public FileBasic(Blob b)  {
+    public FileBasic(Blob b) {
         byte[] init = b.get();
         bb = ByteBuffer.allocate(MAX_SIZE);
         bb.put(init);
@@ -50,7 +48,7 @@ public class FileBasic implements IFile {
     }
 
     @Override
-    public void reset(byte[] data)  {
+    public void reset(byte[] data) {
         bb.clear();
         bb.put(data);
         size = data.length;
