@@ -275,6 +275,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         DCConstants.DCLogger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
                 + request.getUid());
         final ClientPubInfo session = getSession(request.getClientId());
+        
+        
+       final Timestamp cltLastSeqNo = session.getLastSeqNo();
 
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
         CausalityClock estimatedDCVersionCopy = null;
@@ -305,6 +308,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             }
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
+                crdt.clock.recordAllUntil(cltLastSeqNo);
                 final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                         : FetchStatus.OK;
                 return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock,
@@ -385,7 +389,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         synchronized (estimatedDCVersion) {
             estimatedDCVersionCopy = estimatedDCVersion.clone();
         }
-        session.setLastSeqNo( cltTs.getCounter());
+        session.setLastSeqNo( cltTs);
         sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(txTs, request.getClientTimestamp(), estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
             @Override
@@ -433,7 +437,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final ClientPubInfo session = getSession(request.getClientId());
         DCConstants.DCLogger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo()); 
         
-        if( session.getLastSeqNo() >= request.getClientTimestamp().getCounter()) {
+        if( session.getLastSeqNo().getCounter() >= request.getClientTimestamp().getCounter()) {
             conn.reply(new CommitUpdatesReply( getEstimatedDCVersionCopy()));
             return;
         }
@@ -638,7 +642,7 @@ class ClientPubInfo {
     boolean hasUpdates;
     RpcHandle conn;
     long replyTime;
-    long lastSeqNo; // last sequence number seen from client
+    Timestamp lastSeqNo; // last sequence number seen from client
     
     private Map<CRDTIdentifier, CRDTSessionInfo> subscriptions;
 
@@ -650,7 +654,7 @@ class ClientPubInfo {
         hasUpdates = false;
         conn = null;
         replyTime = Long.MAX_VALUE;
-        lastSeqNo = -1;
+        lastSeqNo = new Timestamp();
         subscriptions = new TreeMap<CRDTIdentifier, CRDTSessionInfo>();
     }
 
@@ -760,17 +764,18 @@ class ClientPubInfo {
         return clientId;
     }
 
-    public long getLastSeqNo() {
+    public Timestamp getLastSeqNo() {
         return lastSeqNo;
     }
 
-    public synchronized void setLastSeqNo(long lastSeqNo) {
-        this.lastSeqNo = lastSeqNo;
+    public synchronized void setLastSeqNo(Timestamp lastSeqNo) {
+        if( this.lastSeqNo.getCounter() < lastSeqNo.getCounter())
+            this.lastSeqNo = lastSeqNo;
         this.notifyAll();
     }
     
     public synchronized void waitForLastSeqNo( long seqNo) {
-        while( lastSeqNo < seqNo)
+        while( lastSeqNo.getCounter() < seqNo)
             try {
                 wait();
             } catch (InterruptedException e) {
