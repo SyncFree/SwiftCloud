@@ -128,7 +128,8 @@ public class RegisterMergeTest {
 
         registerSingleUpdateTxn(-5, i2, swift2);
         merge();
-        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue().i == -5);
+        assertTrue(getTxnLocal(i1, swift1.beginTxn()).getValue().i == -1
+                || getTxnLocal(i1, swift1.beginTxn()).getValue().i == -5);
     }
 
     @Test
