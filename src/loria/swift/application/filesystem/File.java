@@ -9,7 +9,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Copyable;
 
 /**
- *
+ * File to be stored. Contains name and id of its content. 
  * @author urso
  */
 public class File implements Copyable, FileSystemObject {

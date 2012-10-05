@@ -16,6 +16,13 @@ class NamingScheme {
         return new CRDTIdentifier("files", filePath);
     }
     
+    public static CRDTIdentifier forFolder(final String filePath) {
+        return new CRDTIdentifier("folders", filePath);
+    }
+    
+    public static CRDTIdentifier forTree() {
+        return new CRDTIdentifier("tree", "root");
+    }
     
     public static CRDTIdentifier forContent(final String filePath, final CausalityClock clock) {
         return new CRDTIdentifier("content", filePath + "@" + clock.toString());

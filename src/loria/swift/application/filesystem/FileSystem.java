@@ -4,6 +4,12 @@
  */
 package loria.swift.application.filesystem;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
 import loria.swift.crdt.MaxCausalityClockTxnLocal;
 import java.util.logging.Logger;
 import loria.swift.crdt.MaxCausalityClockVersionned;
@@ -12,6 +18,8 @@ import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.RegisterTxnLocal;
 import swift.crdt.RegisterVersioned;
+import swift.crdt.SetStrings;
+import swift.crdt.SetTxnLocalString;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
@@ -54,7 +62,7 @@ public class FileSystem {
     }        
     
     void updateFile(String filePath, String newValue) {
-        logger.info("Update file " + filePath + " with content \n" + newValue);
+        logger.log(Level.INFO, "Update file {0} with content \n{1}", new Object[]{filePath, newValue});
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
@@ -72,9 +80,80 @@ public class FileSystem {
         }
     }
 
+    /*
+     * Use the word tree to generate file system tree.
+     */
+    private LocalFolder getRoot(TxnHandle txn) 
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        Map<String, FileSystemObject> root = new HashMap();
+        Map<String, LocalFolder> folderMap = new HashMap();
+        folderMap.put("/", new LocalFolder(""));
+        Set<String> words = ((SetTxnLocalString) txn.get(NamingScheme.forTree(), false, SetStrings.class)).getValue();
+        List<Set<String>> buckets = new ArraySkipList<Set<String>>();
+        
+        for (String w : words) {
+            String[] d = w.split("/");
+            int size = d.length-2;
+            Set<String> b = buckets.get(size);
+            if (b == null) {
+                b = new HashSet<String>();
+                buckets.set(size, b);
+            }
+            b.add(w);
+        }
+        
+        for (Set<String> b : buckets) {
+            for (String path : b) {
+                File file = getFile(txn, path);
+                connect(txn, path, folderMap, file);
+            }
+        }
+        return folderMap.get("/");
+    }
+
+    /*
+     * Place the file system object under the correct father (creates it if it doesn't exist). 
+     * Resolve naming conflict folder/file during creation.
+     */
+    private void connect(TxnHandle txn, String path, Map<String, LocalFolder> folderMap, FileSystemObject node) 
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        String fatherPath = path.substring(0, path.lastIndexOf('/'));
+        LocalFolder father = folderMap.get(fatherPath);
+        if (father == null) {
+            father = new LocalFolder(fatherPath.substring(fatherPath.lastIndexOf('/')+1));
+            folderMap.put(fatherPath, father);
+            connect(txn, fatherPath, folderMap, father);
+        }
+        resolveNameConflict(father, node);
+    }
+    
+    /*
+     * Resolve naming conflict folder/file before creation of a node.
+     * Map the conflicting file in the folder with a different name (prefix : "~~~"). 
+     */
+    private void resolveNameConflict(LocalFolder father, FileSystemObject node) {
+        if (father.content.containsKey(node.getName())) {
+            if ("file".equals(node.getType())) { // folder was here 
+               father.content.put("~~~" + node.getName(), node);
+            } else { // file was here 
+               FileSystemObject file = father.content.remove(node.getName());
+               father.content.put("~~~" + file.getName(), file);
+               father.content.put(node.getName(), node);
+            }
+        } else { // No conflict
+            father.content.put(node.getName(), node);
+        }
+    }
+    
     private File getFile(TxnHandle txn, String filePath) 
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException  {
         return ((RegisterTxnLocal<File>) txn.get(NamingScheme.forFile(filePath), false,
+                    RegisterVersioned.class)).getValue();
+    }    
+    
+    private Folder getFolder(TxnHandle txn, String folderPath) 
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException  {
+        return ((RegisterTxnLocal<Folder>) txn.get(NamingScheme.forFolder(folderPath), false,
                     RegisterVersioned.class)).getValue();
     }
     
@@ -96,4 +175,10 @@ public class FileSystem {
             txn.commit();
         }
     }
+
+
+
+
+
+
 }

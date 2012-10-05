@@ -8,21 +8,17 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Copyable;
 
 /**
- *
+ * Folder to be stored. Contains name and id of its content.
  * @author urso
  */
 public class Folder implements Copyable, FileSystemObject {
-    String name;
-    CRDTIdentifier setId;
+    final String name;
+    final CRDTIdentifier setId;
 
     public Folder(String name, CRDTIdentifier setId) {
         this.name = name;
         this.setId = setId;
-    }
-
-    public Folder() {
-    }
-    
+    }    
     
     @Override
     public Object copy() {

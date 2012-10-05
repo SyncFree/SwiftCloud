@@ -36,8 +36,6 @@ public class MaxCausalityClockTxnLocal extends BaseCRDTTxnLocal {
         super(id, txn, clock, creationState);
         this.vc = vc;
     }
-
-    
     
     CausalityClock vc;
     @Override
