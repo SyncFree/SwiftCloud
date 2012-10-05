@@ -62,7 +62,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     // List of register updates, the order is a deterministic linear extension
     // of causal dependency relation. Recent update comes first.
-    private SortedSet<UpdateEntry<V>> values;
+    protected SortedSet<UpdateEntry<V>> values;
 
     public RegisterVersioned() {
         this.values = new TreeSet<UpdateEntry<V>>();
@@ -119,7 +119,7 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
         }
     }
 
-    private UpdateEntry<V> value(CausalityClock versionClock) {
+    protected UpdateEntry<V> value(CausalityClock versionClock) {
         for (UpdateEntry<V> e : values) {
             if (e.ts.timestampsIntersect(versionClock)) {
                 return e;
