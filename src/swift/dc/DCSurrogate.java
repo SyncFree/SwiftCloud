@@ -364,7 +364,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp txTs = reply.getTimestamp();
         final Timestamp cltTs = request.getClientTimestamp();
-
+        
         final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(txTs);
@@ -441,6 +441,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             conn.reply(new CommitUpdatesReply( getEstimatedDCVersionCopy()));
             return;
         }
+        
+        final long seqNoDep = request.getObjectUpdateGroups().size() > 0 ? request.getObjectUpdateGroups().get(0).getDependency().getLatestCounter(request.getClientId()):0;
         
         sequencerClientEndpoint.send(sequencerServerEndpoint, new GenerateDCTimestampRequest( request.getClientId(), 
                     request.getClientTimestamp(), request.getObjectUpdateGroups().size() > 0 ? request.getObjectUpdateGroups().get(0).getDependency() : ClockFactory.newClock()), 

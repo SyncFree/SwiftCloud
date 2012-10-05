@@ -462,9 +462,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         DCConstants.DCLogger.info("sequencer: generateDCtimestamprequest");
         if (isBackup && !upgradeToPrimary())
             return;
-        
-        if( ! processGenerateDCTimestampRequest( conn, request))
+        if( ! processGenerateDCTimestampRequest( conn, request)) {
             addPendingTimestampReq( new BlockedTimestampRequest( conn, request));
+        }
         cleanPendingTS();
     }
 
