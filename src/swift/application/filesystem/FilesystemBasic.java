@@ -17,9 +17,11 @@ public class FilesystemBasic implements Filesystem {
     // root directory
     private CRDTIdentifier root;
 
-    public FilesystemBasic(String root, String table) {
+    public FilesystemBasic(TxnHandle txn, String root, String table) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
         this.table = table;
         this.root = DirectoryTxnLocal.createRootId(table, root, DirectoryVersioned.class);
+        txn.get(this.root, true, DirectoryVersioned.class);
     }
 
     @Override
@@ -33,16 +35,30 @@ public class FilesystemBasic implements Filesystem {
                 DirectoryVersioned.class);
         DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
         CRDTIdentifier fileId = parentDir.createNewEntry(fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileContent = txn.get(fileId, true, RegisterVersioned.class);
+        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
+                RegisterVersioned.class);
+        String initialFileContent = "";
+        fileContent.set(new StringCopyable(initialFileContent));
+        return new FileBasic(initialFileContent);
+    }
+
+    @Override
+    public File readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
+
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, RegisterVersioned.class);
+        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
+                RegisterVersioned.class);
         return new FileBasic(fileContent.getValue().getString());
     }
 
     @Override
     public void updateFile(TxnHandle txn, String fname, String path, File f) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, DirectoryVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileBasic = txn.get(fileId, false, RegisterVersioned.class);
-        fileBasic.set(new StringCopyable(f.toString()));
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, RegisterVersioned.class);
+        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, false,
+                RegisterVersioned.class);
+        fileBasic.set(new StringCopyable(f.getContent()));
     }
 
     @Override

@@ -22,4 +22,7 @@ public interface Filesystem {
 
     void removeFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException, ClassNotFoundException;
+
+    File readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException;
 }
