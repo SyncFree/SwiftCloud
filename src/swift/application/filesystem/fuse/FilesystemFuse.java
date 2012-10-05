@@ -472,7 +472,7 @@ public class FilesystemFuse implements Filesystem3 {
 
             // create a root directory
             // FIXME make this part of arguments
-            fs = new FilesystemBasic(txn, ROOT, "DIR", RegisterVersioned.class);
+            fs = new FilesystemBasic(txn, ROOT, "DIR");
             txn.commit();
 
             log.info("mounting filesystem");
