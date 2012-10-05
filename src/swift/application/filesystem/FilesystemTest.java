@@ -1,10 +1,9 @@
 package swift.application.filesystem;
 
 import java.util.logging.Logger;
-import loria.swift.application.filesystem.mapper.RegisterFileContent;
-import loria.swift.crdt.logoot.LogootVersionned;
 
 import swift.client.SwiftImpl;
+import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -44,8 +43,9 @@ public class FilesystemTest {
 
             // create a root directory
             logger.info("Creating file system");
-            // Filesystem fs = new FilesystemBasic(txn, "test", "DIR", RegisterFileContent.class);
-            Filesystem fs = new FilesystemBasic(txn, "test", "DIR", LogootVersionned.class);
+            // Filesystem fs = new FilesystemBasic(txn, "test", "DIR",
+            // RegisterFileContent.class);
+            Filesystem fs = new FilesystemBasic(txn, "test", "DIR", RegisterVersioned.class);
             txn.commit();
 
             logger.info("Creating directories and subdirectories");
@@ -61,7 +61,7 @@ public class FilesystemTest {
 
             logger.info("Creating a file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-            File f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
+            IFile f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
             String s = "This is a test file";
             f1.update(s, 0);
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1);
@@ -69,7 +69,7 @@ public class FilesystemTest {
 
             logger.info("Reading from the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-            File f1_up = fs.readFile(txn, "file1.txt", "/test/testfs1");
+            IFile f1_up = fs.readFile(txn, "file1.txt", "/test/testfs1");
             assert (f1_up.getContent().equals(s));
 
             logger.info("Updating the file");
@@ -81,14 +81,14 @@ public class FilesystemTest {
 
             logger.info("Checking that updates are committed");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-            File f1_upp = fs.readFile(txn, "file1.txt", "/test/testfs1");
+            IFile f1_upp = fs.readFile(txn, "file1.txt", "/test/testfs1");
             assert (f1_upp.getContent().equals(prefix + s));
             txn.commit();
 
             logger.info("Copying the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             fs.copyFile(txn, "file1.txt", "/test/testfs1", "/test/testfs2");
-            File f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
+            IFile f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
             assert (f1_copy.getContent().equals(prefix + s));
             txn.commit();
 

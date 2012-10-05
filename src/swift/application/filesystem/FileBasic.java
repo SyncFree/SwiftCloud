@@ -1,6 +1,6 @@
 package swift.application.filesystem;
 
-public class FileBasic implements File {
+public class FileBasic implements IFile {
     private final StringBuffer content;
 
     public FileBasic(String s) {

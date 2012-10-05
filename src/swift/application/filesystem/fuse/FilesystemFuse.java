@@ -10,9 +10,11 @@ import org.apache.commons.logging.LogFactory;
 
 import swift.application.filesystem.Filesystem;
 import swift.application.filesystem.FilesystemBasic;
+import swift.application.filesystem.IFile;
 import swift.client.SwiftImpl;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
+import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -90,14 +92,6 @@ public class FilesystemFuse implements Filesystem3 {
     private static final int NAME_LENGTH = 1024;
     private static final String ROOT = "test";
 
-    private static class FileHandle {
-        TxnHandle txn;
-
-        FileHandle(TxnHandle txn) {
-            this.txn = txn;
-        }
-    }
-
     @Override
     public int chmod(String path, int mode) throws FuseException {
         // No ownership model implemented
@@ -112,7 +106,7 @@ public class FilesystemFuse implements Filesystem3 {
 
     @Override
     public int flush(String path, Object fileHandle) throws FuseException {
-        // TODO Auto-generated method stub
+        String remotePath = getRemotePath(path);
         log.info("flush for " + path);
 
         return 0;
@@ -129,26 +123,35 @@ public class FilesystemFuse implements Filesystem3 {
     @Override
     public int getattr(String path, FuseGetattrSetter getattrSetter) throws FuseException {
         String remotePath = getRemotePath(path);
+        File fstub = new File(remotePath);
+
         log.info("getattr for " + remotePath);
         int time = (int) (System.currentTimeMillis() / 1000L);
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
-            DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
-            getattrSetter.set(dir.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, dir.getValue().size()
-                    * NAME_LENGTH, (dir.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time,
-                    time);
+            if ("/".equals(path)) {
+                DirectoryTxnLocal root = fs.getDirectory(txn, "/" + ROOT);
+                getattrSetter.set(root.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, root.getValue()
+                        .size() * NAME_LENGTH, (root.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE,
+                        time, time, time);
+
+            } else if (fs.isDirectory(txn, fstub.getName(), fstub.getParent())) {
+                DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
+                getattrSetter.set(dir.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, dir.getValue().size()
+                        * NAME_LENGTH, (dir.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time,
+                        time);
+            } else if (fs.isFile(txn, fstub.getName(), fstub.getParent())) {
+                IFile f = fs.readFile(txn, fstub.getName(), fstub.getParent());
+                getattrSetter.set(f.hashCode(), FuseFtypeConstants.TYPE_FILE | MODE, 1, 0, 0, 0, f.getContent()
+                        .length(), (f.getContent().length() + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time, time);
+            } else {
+                txn.rollback();
+                return Errno.ENOENT;
+            }
             txn.commit();
             return 0;
 
-            /*
-             * else if (n instanceof F) { F f = (F) n; getattrSetter.set(
-             * f.hashCode(), FuseFtypeConstants.TYPE_FILE | f.mode, 1, 0, 0, 0,
-             * f.content.length, (f.content.length + BLOCK_SIZE - 1) /
-             * BLOCK_SIZE, time, time, time );
-             * 
-             * return 0; }
-             */
         } catch (NetworkException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
@@ -237,39 +240,88 @@ public class FilesystemFuse implements Filesystem3 {
     }
 
     private String getRemotePath(String path) {
-        String crdtPath = "/" + ROOT + path;
-        System.out.println("path=" + path);
-        System.out.println("crdtPath=" + crdtPath);
-        System.out.println("ending=" + crdtPath.substring(crdtPath.length() - 1, crdtPath.length()));
-
-        if (crdtPath.substring(crdtPath.length() - 1, crdtPath.length()).equals("/")) {
-            return crdtPath.substring(0, crdtPath.length() - 1);
-        } else {
-            return crdtPath;
+        if ("/".equals(path)) {
+            return "/" + ROOT;
         }
+        return "/" + ROOT + path;
     }
 
     @Override
-    public int mknod(String path, int arg1, int arg2) throws FuseException {
-        // TODO Auto-generated method stub
-        log.info("mknod for " + path);
-        return 0;
+    public int mknod(String path, int mode, int rdev) throws FuseException {
+        String remotePath = getRemotePath(path);
+        log.info("mknod for " + remotePath);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+            File f = new File(remotePath);
+            log.info("creating file " + f.getName() + " in parentdir " + f.getParent());
+            fs.createFile(txn, f.getName(), f.getParent());
+            txn.commit();
+            return 0;
+        } catch (NetworkException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (WrongTypeException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (NoSuchObjectException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (VersionNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        txn.rollback();
+        return Errno.EROFS;
     }
 
     @Override
     public int open(String path, int flags, FuseOpenSetter openSetter) throws FuseException {
-        // TODO Auto-generated method stub
-        log.info("open for " + path);
+        String remotePath = getRemotePath(path);
+        log.info("open for " + remotePath);
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+            File fstub = new File(remotePath);
+            if (fstub.isDirectory()) {
+                txn.rollback();
+                throw new FuseException().initErrno(FuseException.EISDIR);
+            }
 
-        return 0;
+            log.info("opening file " + fstub.getName() + " in parentdir " + fstub.getParent());
+            IFile f = fs.readFile(txn, fstub.getName(), fstub.getParent());
+            txn.commit();
+            openSetter.setFh(f);
+            return 0;
+        } catch (NetworkException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (WrongTypeException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (NoSuchObjectException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (VersionNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        txn.rollback();
+        return Errno.EROFS;
     }
 
     @Override
     public int read(String path, Object fh, ByteBuffer buf, long offset) throws FuseException {
-        // TODO Auto-generated method stub
-        log.info("read for " + path);
+        String remotePath = getRemotePath(path);
+        log.info("read for " + remotePath);
+        if (fh instanceof IFile) {
+            IFile f = (IFile) fh;
+            buf.put(f.getContent().getBytes(), (int) offset,
+                    Math.min(buf.remaining(), f.getContent().length() - (int) offset));
 
-        return 0;
+            return 0;
+        }
+        return Errno.EBADF;
     }
 
     @Override
@@ -363,8 +415,16 @@ public class FilesystemFuse implements Filesystem3 {
 
     @Override
     public int write(String path, Object fh, boolean isWritepage, ByteBuffer buf, long offset) throws FuseException {
-        // TODO Auto-generated method stub
-        log.info("write for " + path);
+
+        String remotePath = getRemotePath(path);
+        log.info("write for " + remotePath);
+        /**
+         * if (fh instanceof IFile) { IFile f = (IFile) fh; String inserted =
+         * buf.asCharBuffer().toString(); f.update(inserted, (int) offset);
+         * buf.put(f.getContent().getBytes(), (int) offset,
+         * Math.min(buf.remaining(), f.getContent().length() - (int) offset));
+         * return 0; } return Errno.EBADF;
+         **/
         return 0;
     }
 
@@ -378,7 +438,7 @@ public class FilesystemFuse implements Filesystem3 {
 
             // create a root directory
             // FIXME make this part of arguments
-            fs = new FilesystemBasic(txn, ROOT, "DIR");
+            fs = new FilesystemBasic(txn, ROOT, "DIR", RegisterVersioned.class);
             txn.commit();
 
             log.info("mounting filesystem");

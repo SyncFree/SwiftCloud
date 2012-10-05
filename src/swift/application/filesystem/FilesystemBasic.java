@@ -1,7 +1,5 @@
 package swift.application.filesystem;
 
-import loria.swift.application.filesystem.mapper.FileContent;
-import loria.swift.application.filesystem.mapper.RegisterFileContent;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
@@ -19,22 +17,17 @@ public class FilesystemBasic implements Filesystem {
     // root directory
     private CRDTIdentifier root;
     private final Class fileContentClass;
-    
-    public FilesystemBasic(TxnHandle txn, String root, String table, Class fileContentClass) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
+
+    public FilesystemBasic(TxnHandle txn, String root, String table, Class fileContentClass) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
         this.table = table;
         this.root = DirectoryTxnLocal.createRootId(table, root, DirectoryVersioned.class);
         txn.get(this.root, true, DirectoryVersioned.class);
         this.fileContentClass = fileContentClass;
     }
-    
-    public FilesystemBasic(TxnHandle txn, String root, String table) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
-        this(txn, root, table, RegisterFileContent.class);
-    }
 
     @Override
-    public File createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
+    public IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
 
         String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
@@ -44,27 +37,28 @@ public class FilesystemBasic implements Filesystem {
                 DirectoryVersioned.class);
         DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
         CRDTIdentifier fileId = parentDir.createNewEntry(fname, fileContentClass);
-        FileContent fileContent = (FileContent) txn.get(fileId, true, fileContentClass);
+        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal) txn.get(fileId, true, fileContentClass);
         String initialFileContent = "";
-        fileContent.set(initialFileContent);
+        fileContent.set(new StringCopyable(initialFileContent));
         return new FileBasic(initialFileContent);
     }
 
     @Override
-    public File readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
+    public IFile readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
 
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
-        FileContent fileContent = (FileContent) txn.get(fileId, true, fileContentClass);
-        return new FileBasic(fileContent.getText());
+        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal) txn.get(fileId, false, fileContentClass);
+        return new FileBasic(fileContent.getValue().getString());
     }
 
     @Override
-    public void updateFile(TxnHandle txn, String fname, String path, File f) throws WrongTypeException,
+    public void updateFile(TxnHandle txn, String fname, String path, IFile f) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
-        FileContent fileBasic = (FileContent) txn.get(fileId, false, fileContentClass);
-        fileBasic.set(f.getContent());
+        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, false,
+                fileContentClass);
+        fileBasic.set(new StringCopyable(f.getContent()));
     }
 
     @Override
@@ -109,11 +103,13 @@ public class FilesystemBasic implements Filesystem {
     public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, fileContentClass);
-        FileContent fileContent = (FileContent) txn.get(fileId, true, fileContentClass);
+        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
+                RegisterVersioned.class);
 
-        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, fileContentClass);
-        FileContent fileBasic = (FileContent) txn.get(newFileId, true, fileContentClass);
-        fileBasic.set(fileContent.getText());
+        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, RegisterVersioned.class);
+        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(newFileId, true,
+                RegisterVersioned.class);
+        fileBasic.set(fileContent.getValue());
     }
 
     @Override
@@ -121,6 +117,33 @@ public class FilesystemBasic implements Filesystem {
             VersionNotFoundException, NetworkException {
         CRDTIdentifier dirId = new CRDTIdentifier(table, DirectoryTxnLocal.getDirEntry(path, DirectoryVersioned.class));
         return (DirectoryTxnLocal) txn.get(dirId, false, DirectoryVersioned.class);
+    }
+
+    @Override
+    public boolean isDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
+            VersionNotFoundException, NetworkException {
+        CRDTIdentifier dirId = DirectoryTxnLocal.getCRDTIdentifier(table, path, dname, DirectoryVersioned.class);
+        System.out.println("is Dir ? " + dirId + " name " + dname + " path " + path);
+        try {
+            txn.get(dirId, false, DirectoryVersioned.class);
+            return true;
+        } catch (NoSuchObjectException e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isFile(TxnHandle txn, String fname, String path) throws WrongTypeException,
+            VersionNotFoundException, NetworkException {
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
+        System.out.println("is File ? " + fileId);
+
+        try {
+            txn.get(fileId, false, fileContentClass);
+            return true;
+        } catch (NoSuchObjectException e) {
+            return false;
+        }
     }
 
 }

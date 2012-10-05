@@ -1,7 +1,8 @@
 package swift.application.filesystem;
 
-public interface File {
+public interface IFile {
     void update(String update, int pos);
 
     String getContent();
+
 }
