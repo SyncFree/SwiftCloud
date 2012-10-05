@@ -1,5 +1,6 @@
 package swift.client;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -226,7 +227,6 @@ abstract class AbstractTxnHandle implements TxnHandle {
     }
 
     synchronized CausalityClock getUpdatesDependencyClock() {
-        assertStatus(TxnStatus.COMMITTED_LOCAL);
         return updatesDependencyClock;
     }
 
@@ -256,11 +256,11 @@ abstract class AbstractTxnHandle implements TxnHandle {
 
     protected synchronized void assertStatus(final TxnStatus... expectedStatuses) {
         for (final TxnStatus expectedStatus : expectedStatuses) {
-            if (status == expectedStatus) {
+            if (status == expectedStatus) { 
                 return;
             }
         }
         throw new IllegalStateException("Unexpected transaction status: was " + status + ", expected "
-                + expectedStatuses);
+                + Arrays.asList(expectedStatuses));
     }
 }
