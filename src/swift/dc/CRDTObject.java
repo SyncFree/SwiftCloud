@@ -42,5 +42,6 @@ public class CRDTObject<V extends CRDT<V>> {
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
         this.crdt.augmentWithScoutClock( data.cltClock.getLatest(cltId));
+        this.clock = this.crdt.getClock();
     }
 }
