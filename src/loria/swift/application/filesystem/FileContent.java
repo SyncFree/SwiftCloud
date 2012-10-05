@@ -8,8 +8,9 @@ package loria.swift.application.filesystem;
  *
  * @author urso
  */
-interface FileContent {
+public interface FileContent {
 
     public void update(String newValue);
     
+    public String getText();
 }

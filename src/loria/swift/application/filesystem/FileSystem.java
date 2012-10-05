@@ -42,7 +42,8 @@ public class FileSystem {
     private final Class fileContentClass;
     
     public FileSystem(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
-            boolean subscribeUpdates, boolean asyncCommit, Class maxCCClass, Class fileContentClass) {
+            boolean subscribeUpdates, boolean asyncCommit, 
+            Class maxCCClass, Class<? extends FileContent> fileContentClass) {
         server = clientServer;
         this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
@@ -69,7 +70,6 @@ public class FileSystem {
                 txn.rollback();
             }
         }
-
     }
 
     private File getFile(TxnHandle txn, String filePath) 
@@ -85,8 +85,7 @@ public class FileSystem {
 
     private FileContent getContent(TxnHandle txn, String filePath, CausalityClock wipeClock) 
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-        return ((FileContent) txn.get(NamingScheme.forContent(filePath, wipeClock), false,
-                     RegisterVersioned.class));
+        return ((FileContent) txn.get(NamingScheme.forContent(filePath, wipeClock), false, fileContentClass));
     }
     
     
