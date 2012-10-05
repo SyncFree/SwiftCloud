@@ -311,6 +311,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 crdt.clock.recordAllUntil(cltLastSeqNo);
                 final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                         : FetchStatus.OK;
+                DCConstants.DCLogger.info("END FetchObjectVersionRequest clock = " + crdt.clock);
                 return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock,
                         estimatedDCVersionCopy, estimatedDCStableVersionCopy);
             }
@@ -441,8 +442,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             conn.reply(new CommitUpdatesReply( getEstimatedDCVersionCopy()));
             return;
         }
-        
-        final long seqNoDep = request.getObjectUpdateGroups().size() > 0 ? request.getObjectUpdateGroups().get(0).getDependency().getLatestCounter(request.getClientId()):0;
         
         sequencerClientEndpoint.send(sequencerServerEndpoint, new GenerateDCTimestampRequest( request.getClientId(), 
                     request.getClientTimestamp(), request.getObjectUpdateGroups().size() > 0 ? request.getObjectUpdateGroups().get(0).getDependency() : ClockFactory.newClock()), 
