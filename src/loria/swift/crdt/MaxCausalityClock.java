@@ -19,40 +19,13 @@
  */
 package loria.swift.crdt;
 
-import loria.swift.crdt.operation.MaxCausalityClockUpdate;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.BaseCRDTTxnLocal;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTQuery;
-import swift.crdt.interfaces.TxnHandle;
 
 /**
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class MaxCausalityClockTxnLocal extends BaseCRDTTxnLocal {
-    public MaxCausalityClockTxnLocal( CRDTIdentifier id, TxnHandle txn, CausalityClock clock, CRDT creationState,CausalityClock value) {
-        super(id, txn, clock, creationState);
-        this.vc = value;
-    }
-
-    CausalityClock vc;
-    @Override
-    public CausalityClock getValue() {
-        return vc;
-    }
-    public void setValue(CausalityClock vc){
-        this.vc=vc;
-        TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new MaxCausalityClockUpdate(ts, vc, getClock().clone()));
-       
-    }
-    
-    @Override
-    public Object executeQuery(CRDTQuery query) {
-        return query.executeAt(this);
-    }
-
+public interface MaxCausalityClock {
+    public void update(CausalityClock val, TripleTimestamp ts, CausalityClock c);
 }
