@@ -31,12 +31,6 @@ import swift.crdt.operations.CRDTObjectUpdatesGroup;
  * @param <V>
  *            CvRDT type implementing the interface
  */
-// TODO: A fundamental refactor to discuss: it seems that the complexity of
-// having a versioned CRDT is not worth it. Consider representing the pruned
-// state as a normal CRDT, and the versioned part as a log (DAG) of updates,
-// applied on demand. It would allow us to extract a huge piece of a common code
-// (primarly for merge and timestamps/clock management) that is currently
-// type-specific and error-prone.
 public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     // TODO: consider it single-shot method?
     /**

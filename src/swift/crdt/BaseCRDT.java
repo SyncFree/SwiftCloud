@@ -33,6 +33,12 @@ import sys.net.impl.KryoLib;
  * @param <V>
  *            type implementing the CRDT interface
  */
+// TODO: A fundamental refactor to discuss: it seems that the complexity of
+// having a materialized versioned CRDT is not worth it. Consider representing
+// the pruned state as a normal CRDT, and the versioned part as a log (DAG) of
+// updates, applied on demand. It would allow us to extract a huge piece of a
+// common code (primarly for merge and timestamps/clock management) that is
+// currently type-specific and error-prone.
 public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     private static final long serialVersionUID = 1L;
     // clock with the current local state of this CRDT, comprises all timestamps
@@ -105,20 +111,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @SuppressWarnings("unchecked")
     @Override
     public void merge(CRDT<V> otherObject) {
-        // FIXME: Verify if we can really leave it without this checks.
-        // if
-        // (updatesClock.compareTo(otherObject.getPruneClock()).is(CMP_CLOCK.CMP_CONCURRENT,
-        // CMP_CLOCK.CMP_ISDOMINATED)) {
-        // throw new IllegalStateException(
-        // "Cannot merge with an object version that pruned concurrently with or later to this version");
-        // }
-        // if
-        // (otherObject.getClock().compareTo(pruneClock).is(CMP_CLOCK.CMP_CONCURRENT,
-        // CMP_CLOCK.CMP_ISDOMINATED)) {
-        // throw new IllegalStateException(
-        // "Cannot merge with an object version lower or concurrent with pruning point of this version");
-        // }
-
         mergePayload((V) otherObject);
         mergeTimestampMappings((V) otherObject);
         getClock().merge(otherObject.getClock());
@@ -162,8 +154,11 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      * updated, but the implementation may already perform some pruning
      * necessary during merge.
      * <p>
-     * Unused timestamp mappings should be discarded during the merge; the
-     * remaining mappings will be merged by this base class after this call.
+     * Newly used timestamp mapping should be registered via
+     * {@link #registerTimestampUsage(TripleTimestamp)} during merge and
+     * released timestamp mappings should be released via
+     * {@link #unregisterTimestampUsage(TripleTimestamp)}; the remaining
+     * mappings will be merged by this base class after this call.
      * 
      * @param otherObject
      *            object to merge with
