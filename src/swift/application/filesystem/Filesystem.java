@@ -25,4 +25,8 @@ public interface Filesystem {
 
     File readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException;
+
+    void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException;
+
 }

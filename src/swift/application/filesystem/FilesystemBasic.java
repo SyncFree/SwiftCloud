@@ -99,4 +99,17 @@ public class FilesystemBasic implements Filesystem {
         parentDir.removeEntry(dname, DirectoryVersioned.class);
     }
 
+    @Override
+    public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, RegisterVersioned.class);
+        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
+                RegisterVersioned.class);
+
+        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, RegisterVersioned.class);
+        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(newFileId, true,
+                RegisterVersioned.class);
+        fileBasic.set(fileContent.getValue());
+    }
+
 }

@@ -48,16 +48,18 @@ public class FilesystemTest {
             Filesystem fs = new FilesystemBasic(txn, "test", "DIR");
             txn.commit();
 
-            // TODO Add creation of files
-
-            logger.info("Phase I: Creating directories");
+            logger.info("Creating directories and subdirectories");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             fs.createDirectory(txn, "testfs1", "/test");
+            fs.createDirectory(txn, "testfs2", "/test");
+
             fs.createDirectory(txn, "include", "/test/testfs1");
             fs.createDirectory(txn, "sys", "/test/testfs1/include");
             fs.createDirectory(txn, "netinet", "/test/testfs1/include");
+
             txn.commit();
 
+            logger.info("Creating a file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             File f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
             String s = "This is a test file";
@@ -65,23 +67,29 @@ public class FilesystemTest {
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1);
             txn.commit();
 
+            logger.info("Reading from the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             File f1_up = fs.readFile(txn, "file1.txt", "/test/testfs1");
-            System.out.println(f1_up.getContent());
-
             assert (f1_up.getContent().equals(s));
+
+            logger.info("Updating the file");
             String prefix = "Yes! ";
             f1_up.update(prefix, 0);
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1_up);
-            System.out.println(f1_up.getContent());
-
+            assert (f1_up.getContent().equals(prefix + s));
             txn.commit();
 
+            logger.info("Checking that updates are committed");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             File f1_upp = fs.readFile(txn, "file1.txt", "/test/testfs1");
-            System.out.println(f1_upp.getContent());
-
             assert (f1_upp.getContent().equals(prefix + s));
+            txn.commit();
+
+            logger.info("Copying the file");
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+            fs.copyFile(txn, "file1.txt", "/test/testfs1", "/test/testfs2");
+            File f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
+            assert (f1_copy.getContent().equals(prefix + s));
             txn.commit();
 
             // mkdir testfs1 testfs1/include testfs1/include/sys
