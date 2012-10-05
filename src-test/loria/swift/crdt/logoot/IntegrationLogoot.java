@@ -59,7 +59,7 @@ public class IntegrationLogoot {
     @Test
     public void testInsert() {
         TxnTester txn = swift1.beginTxn(l1);        
-        getTxnLocal(l1, txn).update("aaa\nbbb\n");        
+        getTxnLocal(l1, txn).set("aaa\nbbb\n");        
         txn.commit();
         assertEquals("aaa\nbbb\n", getTxnLocal(l1, swift1.beginTxn()).getText()); 
     }
@@ -67,14 +67,14 @@ public class IntegrationLogoot {
     @Test
     public void testDelete() {
         TxnTester txn = swift1.beginTxn(l1);        
-        getTxnLocal(l1, txn).update("aaa\nbbb\n");
+        getTxnLocal(l1, txn).set("aaa\nbbb\n");
         txn.commit();
         
         assertEquals("aaa\nbbb\n", getTxnLocal(l1, swift1.beginTxn()).getText()); 
         LogootIdentifier b = l1.getDoc().idTable.get(2);        
         
         txn = swift1.beginTxn(l1);        
-        getTxnLocal(l1, txn).update("bbb\n");
+        getTxnLocal(l1, txn).set("bbb\n");
         txn.commit();        
         assertEquals("bbb\n", getTxnLocal(l1, swift1.beginTxn()).getText()); 
         assertEquals(b, l1.getDoc().idTable.get(2));        

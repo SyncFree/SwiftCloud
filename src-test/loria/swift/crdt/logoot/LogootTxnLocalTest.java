@@ -33,7 +33,7 @@ public class LogootTxnLocalTest {
     
     @Test
     public void updateTest() {
-        i.update("Toto\ngo to the \nbeach.\n");
+        i.set("Toto\ngo to the \nbeach.\n");
         assertEquals("Toto\ngo to the \nbeach.\n", i.getText());
         LogootIdentifier id1 = i.getDoc().idTable.get(1), 
                 id2 = i.getDoc().idTable.get(2), 
@@ -44,10 +44,10 @@ public class LogootTxnLocalTest {
 
     @Test
     public void idTestInsert() {
-        i.update("Toto\ngo to the \nbeach.\n");
+        i.set("Toto\ngo to the \nbeach.\n");
         LogootIdentifier id1 = i.getDoc().idTable.get(1), 
                 id2 = i.getDoc().idTable.get(2); 
-        i.update("Toto\ndon't\ngo to the \nbeach.\n");
+        i.set("Toto\ndon't\ngo to the \nbeach.\n");
         LogootIdentifier id1b = i.getDoc().idTable.get(1), 
                 id2b = i.getDoc().idTable.get(2),
                 id3b = i.getDoc().idTable.get(3);
@@ -59,10 +59,10 @@ public class LogootTxnLocalTest {
     
     @Test
     public void idTestDelete() {
-        i.update("Toto\ngo to the \nbeach.\n");
+        i.set("Toto\ngo to the \nbeach.\n");
         LogootIdentifier id1 = i.getDoc().idTable.get(1), 
                 id3 = i.getDoc().idTable.get(3); 
-        i.update("Toto\nbeach.\n");
+        i.set("Toto\nbeach.\n");
         LogootIdentifier id1b = i.getDoc().idTable.get(1), 
                 id2b = i.getDoc().idTable.get(2);
         assertEquals(id1, id1b);
