@@ -971,6 +971,7 @@ public class SwiftImpl implements Swift, TxnManager {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
+        txn.getUpdatesDependencyClock().drop(clientId);
         CommitUpdatesReply reply;
         final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>(
                 txn.getAllUpdates());
