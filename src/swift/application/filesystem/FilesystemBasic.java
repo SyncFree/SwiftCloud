@@ -30,7 +30,7 @@ public class FilesystemBasic implements Filesystem {
     }
 
     private static Class getFileClass(String name) {
-        if (name.endsWith(".txtFixMe Loogout not created")) {
+        if (name.endsWith(".txt")) {
             return LogootVersionned.class;
         }
         return RegisterVersioned.class;
@@ -113,10 +113,10 @@ public class FilesystemBasic implements Filesystem {
     public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, getFileClass(fname));
-        TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, true, RegisterVersioned.class);
+        TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, false,getFileClass(fname));
 
-        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, RegisterVersioned.class);
-        TxnGetterSetter<Blob> fileBasic = (TxnGetterSetter<Blob>) txn.get(newFileId, true, RegisterVersioned.class);
+        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, getFileClass(fname));
+        TxnGetterSetter<Blob> fileBasic = (TxnGetterSetter<Blob>) txn.get(newFileId, true, getFileClass(fname));
         fileBasic.set(fileContent.getValue());
     }
 
