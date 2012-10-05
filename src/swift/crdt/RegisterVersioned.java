@@ -54,6 +54,18 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
             return new UpdateEntry<V>(lamportClock, ts, (V) value.copy());
         }
 
+        public long getLamportClock() {
+            return lamportClock;
+        }
+
+        public TripleTimestamp getTs() {
+            return ts;
+        }
+
+        public V getValue() {
+            return value;
+        }
+
         @Override
         public String toString() {
             return value.toString();
@@ -140,11 +152,15 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
 
     public RegisterVersioned<V> copy() {
         RegisterVersioned<V> copyObj = new RegisterVersioned<V>();
+        copyLoad(copyObj);
+        copyBase(copyObj);
+        return copyObj;
+    }
+
+    protected void copyLoad(RegisterVersioned<V> copyObj) {
         for (UpdateEntry<V> e : values) {
             copyObj.values.add(e.copy());
         }
-        copyBase(copyObj);
-        return copyObj;
     }
 
     // TODO(Marek): The following piece of code is useful if one wants to

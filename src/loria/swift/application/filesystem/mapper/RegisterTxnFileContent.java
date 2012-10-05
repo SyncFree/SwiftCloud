@@ -17,8 +17,8 @@ import swift.test.microbenchmark.objects.StringCopyable;
  */
 public class RegisterTxnFileContent extends RegisterTxnLocal<StringCopyable> implements FileContent {
 
-    public RegisterTxnFileContent(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<StringCopyable> creationState, StringCopyable val) {
-        super(id, txn, clock, creationState, val);
+    public RegisterTxnFileContent(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<StringCopyable> creationState, StringCopyable val, long lamportClock) {
+        super(id, txn, clock, creationState, val, lamportClock);
     }
 
     @Override

@@ -1,8 +1,7 @@
 package loria.swift.application.filesystem.mapper;
 
-
 import swift.clocks.CausalityClock;
-import swift.crdt.*;
+import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.test.microbenchmark.objects.StringCopyable;
@@ -12,19 +11,23 @@ public class RegisterFileContent extends RegisterVersioned<StringCopyable> {
     public RegisterFileContent() {
     }
 
-    private RegisterFileContent(RegisterFileContent other) {
-        super(other);
-    }
-
     @Override
     protected TxnLocalCRDT getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
         final RegisterFileContent creationState = isRegisteredInStore() ? null : new RegisterFileContent();
-        RegisterTxnFileContent localView = new RegisterTxnFileContent(id, txn, versionClock, creationState, value(versionClock));
-        return localView;
+        final UpdateEntry<StringCopyable> value = value(versionClock);
+        if (value != null) {
+            return new RegisterTxnFileContent(id, txn, versionClock, creationState, value.getValue(),
+                    value.getLamportClock() + 1);
+        } else {
+            return new RegisterTxnFileContent(id, txn, versionClock, creationState, null, 0);
+        }
     }
 
     @Override
     public RegisterFileContent copy() {
-        return new RegisterFileContent(this);
+        final RegisterFileContent copy = new RegisterFileContent();
+        copyLoad(copy);
+        copyBase(copy);
+        return copy;
     }
 }
