@@ -1,6 +1,7 @@
 package swift.application.filesystem.fuse;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
@@ -90,6 +91,7 @@ public class FilesystemFuse implements Filesystem3 {
     private static final int MODE = 0777;
     private static final int BLOCK_SIZE = 512;
     private static final int NAME_LENGTH = 1024;
+    private static final int FILE_SIZE = 1024;
     private static final String ROOT = "test";
 
     @Override
@@ -108,12 +110,36 @@ public class FilesystemFuse implements Filesystem3 {
     public int flush(String path, Object fileHandle) throws FuseException {
         String remotePath = getRemotePath(path);
         log.info("flush for " + path);
-
-        return 0;
+        TxnHandle txn = null;
+        try {
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+            IFile f = (IFile) fileHandle;
+            File fstub = new File(remotePath);
+            fs.updateFile(txn, fstub.getName(), fstub.getParent(), f);
+            txn.commit();
+            return 0;
+        } catch (NetworkException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (WrongTypeException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (NoSuchObjectException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (VersionNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        txn.rollback();
+        return Errno.EROFS;
     }
 
     @Override
-    public int fsync(String path, Object arg1, boolean arg2) throws FuseException {
+    public int fsync(String path, Object fh, boolean isDatasync) throws FuseException {
         // TODO Auto-generated method stub
         log.info("fsync for " + path);
 
@@ -142,9 +168,11 @@ public class FilesystemFuse implements Filesystem3 {
                         * NAME_LENGTH, (dir.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time,
                         time);
             } else if (fs.isFile(txn, fstub.getName(), fstub.getParent())) {
-                IFile f = fs.readFile(txn, fstub.getName(), fstub.getParent());
-                getattrSetter.set(f.hashCode(), FuseFtypeConstants.TYPE_FILE | MODE, 1, 0, 0, 0, f.getContent()
-                        .length(), (f.getContent().length() + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time, time);
+                // FIXME We want files with variable size...
+                // IFile f = fs.readFile(txn, fstub.getName(),
+                // fstub.getParent());
+                getattrSetter.set(fstub.hashCode(), FuseFtypeConstants.TYPE_FILE | MODE, 1, 0, 0, 0, FILE_SIZE,
+                        FILE_SIZE / BLOCK_SIZE, time, time, time);
             } else {
                 txn.rollback();
                 return Errno.ENOENT;
@@ -270,6 +298,9 @@ public class FilesystemFuse implements Filesystem3 {
         } catch (VersionNotFoundException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
         txn.rollback();
         return Errno.EROFS;
@@ -305,6 +336,9 @@ public class FilesystemFuse implements Filesystem3 {
         } catch (VersionNotFoundException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
         txn.rollback();
         return Errno.EROFS;
@@ -316,9 +350,7 @@ public class FilesystemFuse implements Filesystem3 {
         log.info("read for " + remotePath);
         if (fh instanceof IFile) {
             IFile f = (IFile) fh;
-            buf.put(f.getContent().getBytes(), (int) offset,
-                    Math.min(buf.remaining(), f.getContent().length() - (int) offset));
-
+            f.read(buf, offset);
             return 0;
         }
         return Errno.EBADF;
@@ -418,13 +450,14 @@ public class FilesystemFuse implements Filesystem3 {
 
         String remotePath = getRemotePath(path);
         log.info("write for " + remotePath);
-        /**
-         * if (fh instanceof IFile) { IFile f = (IFile) fh; String inserted =
-         * buf.asCharBuffer().toString(); f.update(inserted, (int) offset);
-         * buf.put(f.getContent().getBytes(), (int) offset,
-         * Math.min(buf.remaining(), f.getContent().length() - (int) offset));
-         * return 0; } return Errno.EBADF;
-         **/
+        // int remaining = buf.remaining();
+        // byte[] arr = new byte[remaining];
+        // buf.get(arr);
+
+        if (fh instanceof IFile) {
+            IFile f = (IFile) fh;
+            f.update(buf, offset);
+        }
         return 0;
     }
 
@@ -465,6 +498,7 @@ public class FilesystemFuse implements Filesystem3 {
         }
         Sys.init();
         server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
+
     }
 
 }

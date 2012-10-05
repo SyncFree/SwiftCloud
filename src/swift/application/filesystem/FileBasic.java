@@ -4,7 +4,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class FileBasic implements IFile {
-    private int SIZE = 1024;
+    public final int SIZE = 1024;
     private ByteBuffer bb;
 
     public FileBasic(Blob b) throws IOException {
@@ -14,18 +14,18 @@ public class FileBasic implements IFile {
     }
 
     @Override
-    public void update(ByteBuffer buf, int offset) {
+    public void update(ByteBuffer buf, long offset) {
         int size = buf.remaining();
         byte[] arr = new byte[size];
         buf.get(arr);
 
-        bb.position(offset);
+        bb.position((int) offset);
         bb.put(arr);
     }
 
     @Override
-    public void read(ByteBuffer buf, int offset) {
-        bb.position(offset);
+    public void read(ByteBuffer buf, long offset) {
+        bb.position((int) offset);
         byte[] arr = new byte[buf.remaining()];
         bb.get(arr);
         buf.put(arr);

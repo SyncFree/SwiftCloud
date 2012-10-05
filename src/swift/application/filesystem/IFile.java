@@ -10,7 +10,7 @@ public interface IFile {
      * @param buf
      * @param offset
      */
-    void update(ByteBuffer buf, int offset);
+    void update(ByteBuffer buf, long offset);
 
     /**
      * Updates the content of the file with the data from the byte array.
@@ -25,7 +25,7 @@ public interface IFile {
      * @param buf
      * @param offset
      */
-    void read(ByteBuffer buf, int offset);
+    void read(ByteBuffer buf, long offset);
 
     /**
      * Returns content as byte array.
