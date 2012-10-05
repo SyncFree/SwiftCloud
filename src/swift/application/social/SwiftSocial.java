@@ -129,6 +129,9 @@ public class SwiftSocial {
             txn = server.beginTxn(isolationLevel, CachePolicy.STRICTLY_MOST_RECENT, false);
             User newUser = registerUser(txn, loginName, passwd, fullName, birthday, date);
             logger.info("Registered user: " + newUser);
+            // Here only synchronous commit, as otherwise the following tests
+            // might fail.
+            commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
@@ -186,8 +189,7 @@ public class SwiftSocial {
     }
 
     @SuppressWarnings("unchecked")
-	public
-    User read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
+    public User read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
@@ -211,8 +213,7 @@ public class SwiftSocial {
 
     // FIXME return error code?
     @SuppressWarnings("unchecked")
-	public
-    void postMessage(String receiverName, String msg, long date) {
+    public void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
