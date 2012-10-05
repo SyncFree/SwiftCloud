@@ -17,7 +17,7 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  */
-package fr.loria.swift.crdt.filesystem;
+package loria.swift.crdt;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.BaseCRDTTxnLocal;
@@ -30,9 +30,9 @@ import swift.crdt.interfaces.TxnHandle;
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class MaxVCTxnLocal extends BaseCRDTTxnLocal {
+public class MaxCausalityClockTxnLocal extends BaseCRDTTxnLocal {
 
-    public MaxVCTxnLocal(CausalityClock vc, CRDTIdentifier id, TxnHandle txn, CausalityClock clock, CRDT creationState) {
+    public MaxCausalityClockTxnLocal(CausalityClock vc, CRDTIdentifier id, TxnHandle txn, CausalityClock clock, CRDT creationState) {
         super(id, txn, clock, creationState);
         this.vc = vc;
     }

@@ -1,10 +1,11 @@
-package swift.crdt;
+package loria.swift.crdt;
 
 import java.util.Collection;
 import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.BaseCRDT;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;

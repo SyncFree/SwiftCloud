@@ -1,12 +1,13 @@
-package swift.crdt.operations;
+package loria.swift.crdt.operation;
 
 import java.util.Collection;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.MultiVersionVersionned;
+import loria.swift.crdt.MultiVersionVersionned;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.Copyable;
+import swift.crdt.operations.BaseUpdate;
 
 public class MultiVersionUpdate<V extends Copyable> extends BaseUpdate<MultiVersionVersionned<V>> {
     private V val;
