@@ -297,6 +297,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 
         CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType(), request.getVersion(), request.getClientId());
         if (crdt == null) {
+            if( cltLastSeqNo != null)
+                estimatedDCVersionCopy.recordAllUntil(cltLastSeqNo);
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
                     estimatedDCVersionCopy, ClockFactory.newClock(), estimatedDCVersionCopy, estimatedDCStableVersionCopy);
         } else {
@@ -308,7 +310,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             }
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
-                crdt.clock.recordAllUntil(cltLastSeqNo);
+                if( cltLastSeqNo != null)
+                    crdt.clock.recordAllUntil(cltLastSeqNo);
                 final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                         : FetchStatus.OK;
                 DCConstants.DCLogger.info("END FetchObjectVersionRequest clock = " + crdt.clock);
@@ -438,7 +441,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final ClientPubInfo session = getSession(request.getClientId());
         DCConstants.DCLogger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo()); 
         
-        if( session.getLastSeqNo().getCounter() >= request.getClientTimestamp().getCounter()) {
+        if( session.getLastSeqNo() != null && session.getLastSeqNo().getCounter() >= request.getClientTimestamp().getCounter()) {
             conn.reply(new CommitUpdatesReply( getEstimatedDCVersionCopy()));
             return;
         }
@@ -655,7 +658,7 @@ class ClientPubInfo {
         hasUpdates = false;
         conn = null;
         replyTime = Long.MAX_VALUE;
-        lastSeqNo = new Timestamp();
+        lastSeqNo = null;
         subscriptions = new TreeMap<CRDTIdentifier, CRDTSessionInfo>();
     }
 
@@ -770,7 +773,7 @@ class ClientPubInfo {
     }
 
     public synchronized void setLastSeqNo(Timestamp lastSeqNo) {
-        if( this.lastSeqNo.getCounter() < lastSeqNo.getCounter())
+        if( this.lastSeqNo == null || this.lastSeqNo.getCounter() < lastSeqNo.getCounter())
             this.lastSeqNo = lastSeqNo;
         this.notifyAll();
     }
