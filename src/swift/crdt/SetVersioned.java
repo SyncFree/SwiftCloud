@@ -11,7 +11,6 @@ import java.util.Set;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.payload.PayloadHelper;
 import swift.utils.PrettyPrint;
 
 /**
@@ -33,7 +32,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     public Map<V, Set<TripleTimestamp>> getValue(CausalityClock snapshotClock) {
-        return PayloadHelper.getValue(this.elems, snapshotClock);
+        return AddWinsUtils.getValue(this.elems, snapshotClock);
     }
 
     public void insertU(V e, TripleTimestamp uid) {
@@ -67,7 +66,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     protected void mergePayload(T other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
-        PayloadHelper.mergePayload(this.elems, this.getClock(), other.elems, other.getClock(), newTimestampUsages,
+        AddWinsUtils.mergePayload(this.elems, this.getClock(), other.elems, other.getClock(), newTimestampUsages,
                 releasedTimestampUsages);
         for (final TripleTimestamp ts : newTimestampUsages) {
             registerTimestampUsage(ts);
@@ -89,7 +88,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        final List<TripleTimestamp> releasedTimestampUsages = PayloadHelper.pruneImpl(this.elems, pruningPoint);
+        final List<TripleTimestamp> releasedTimestampUsages = AddWinsUtils.pruneImpl(this.elems, pruningPoint);
         for (final TripleTimestamp ts : releasedTimestampUsages) {
             unregisterTimestampUsage(ts);
         }

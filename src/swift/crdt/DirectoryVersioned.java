@@ -30,7 +30,7 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
-        final List<TripleTimestamp> releasedTimestampUsages = PayloadHelper.pruneImpl(this.dir, pruningPoint);
+        final List<TripleTimestamp> releasedTimestampUsages = AddWinsUtils.pruneImpl(this.dir, pruningPoint);
         for (final TripleTimestamp ts : releasedTimestampUsages) {
             unregisterTimestampUsage(ts);
         }
@@ -40,7 +40,7 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
     protected void mergePayload(DirectoryVersioned other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
-        PayloadHelper.mergePayload(this.dir, this.getClock(), other.dir, other.getClock(), newTimestampUsages,
+        AddWinsUtils.mergePayload(this.dir, this.getClock(), other.dir, other.getClock(), newTimestampUsages,
                 releasedTimestampUsages);
         for (final TripleTimestamp ts : newTimestampUsages) {
             registerTimestampUsage(ts);
@@ -81,7 +81,7 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
 
     @Override
     protected TxnLocalCRDT<DirectoryVersioned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        Map<CRDTIdentifier, Set<TripleTimestamp>> payload = PayloadHelper.getValue(this.dir, versionClock);
+        Map<CRDTIdentifier, Set<TripleTimestamp>> payload = AddWinsUtils.getValue(this.dir, versionClock);
         final DirectoryVersioned creationState = isRegisteredInStore() ? null : new DirectoryVersioned();
         DirectoryTxnLocal localView = new DirectoryTxnLocal(id, txn, versionClock, creationState, payload);
         return localView;

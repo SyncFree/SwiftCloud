@@ -1,4 +1,4 @@
-package swift.crdt.payload;
+package swift.crdt;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -10,7 +10,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 
 /**
@@ -20,7 +19,7 @@ import swift.clocks.TripleTimestamp;
  * @author annettebieniusa, mzawirsk
  * 
  */
-public final class PayloadHelper {
+public final class AddWinsUtils {
 
     public static <V extends Object> void mergePayload(Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> base,
             CausalityClock baseClock, Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> other,
@@ -78,32 +77,6 @@ public final class PayloadHelper {
                     outputTimestampsToUnregister.add(ourInstance.getKey());
                     outputTimestampsToUnregister.addAll(ourInstance.getValue());
                 }
-            }
-        }
-    }
-
-    public static <V extends Object> void rollback(Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> base,
-            Timestamp rollbackEvent) {
-        // FIXME: deal with mappings
-        Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entries = base.entrySet().iterator();
-        while (entries.hasNext()) {
-            Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = entries.next();
-            Iterator<Map.Entry<TripleTimestamp, Set<TripleTimestamp>>> perClient = e.getValue().entrySet().iterator();
-            while (perClient.hasNext()) {
-                Entry<TripleTimestamp, Set<TripleTimestamp>> valueTS = perClient.next();
-                if (valueTS.getKey().equals(rollbackEvent)) {
-                    perClient.remove();
-                } else {
-                    Iterator<TripleTimestamp> remTS = valueTS.getValue().iterator();
-                    while (remTS.hasNext()) {
-                        if (remTS.next().equals(rollbackEvent)) {
-                            remTS.remove();
-                        }
-                    }
-                }
-            }
-            if (e.getValue().isEmpty()) {
-                entries.remove();
             }
         }
     }
