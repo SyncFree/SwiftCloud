@@ -143,4 +143,12 @@ public class LogootIdentifier implements Comparable<LogootIdentifier>, Serializa
     void setComponent(int i, Component c) {
         id.set(i, c);
     }
+
+    public LogootIdentifier copyWithClearedMappings() {
+        final LogootIdentifier newId = new LogootIdentifier(id.size());
+        for (final Component c : id) {
+            newId.id.add(c.copyWithClearedMappings());
+        }
+        return newId;
+    }
 }

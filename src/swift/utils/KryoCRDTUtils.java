@@ -1,5 +1,13 @@
 package swift.utils;
 
+import loria.swift.crdt.logoot.Component;
+import loria.swift.crdt.logoot.LogootDelete;
+import loria.swift.crdt.logoot.LogootDocument;
+import loria.swift.crdt.logoot.LogootDocumentWithTombstones;
+import loria.swift.crdt.logoot.LogootIdentifier;
+import loria.swift.crdt.logoot.LogootInsert;
+import loria.swift.crdt.logoot.LogootVersioned;
+import loria.swift.crdt.logoot.RangeList;
 import swift.client.proto.ClientRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
@@ -69,6 +77,14 @@ public class KryoCRDTUtils {
         KryoLib.register(SetMsg.class, 0x62);
         KryoLib.register(SetStrings.class, 0x63);
         KryoLib.register(SetVersioned.class, 0x64);
+        KryoLib.register(LogootVersioned.class, 0x65);
+        KryoLib.register(LogootDocument.class, 0x66);
+        KryoLib.register(LogootDocumentWithTombstones.class, 0x67);
+        KryoLib.register(Component.class, 0x68);
+        KryoLib.register(LogootIdentifier.class, 0x69);
+        KryoLib.register(RangeList.class, 0x6A);
+        KryoLib.register(LogootInsert.class, 0x6B);
+        KryoLib.register(LogootDelete.class, 0x6C);
 
         KryoLib.register(ClientRequest.class, 0x70);
         KryoLib.register(CommitUpdatesRequest.class, 0x71);

@@ -24,9 +24,9 @@ import static org.junit.Assert.*;
  */
 public class IntegrationLogoot {
     SwiftTester swift1, swift2;
-    LogootVersionned l1, l2;
+    LogootVersioned l1, l2;
 
-    private LogootTxnLocal getTxnLocal(LogootVersionned i, TxnTester txn) {
+    private LogootTxnLocal getTxnLocal(LogootVersioned i, TxnTester txn) {
         return (LogootTxnLocal) TesterUtils.getTxnLocal(i, txn);
     }
     
@@ -34,9 +34,9 @@ public class IntegrationLogoot {
     public void setUp() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         swift1 = new SwiftTester("client1");
         swift2 = new SwiftTester("client2");
-        l1 = new LogootVersionned();
+        l1 = new LogootVersioned();
         l1.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
-        l2 = new LogootVersionned();
+        l2 = new LogootVersioned();
         l2.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
     } 
     

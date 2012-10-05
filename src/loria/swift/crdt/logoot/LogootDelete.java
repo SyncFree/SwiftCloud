@@ -18,46 +18,32 @@
  */
 package loria.swift.crdt.logoot;
 
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.operations.BaseUpdate;
 
 /**
  * Logoot delete update.
- * @author  urso
+ * 
+ * @author urso
  */
-public class LogootDelete extends BaseUpdate<LogootVersionned> {
-    
+public class LogootDelete extends BaseUpdate<LogootVersioned> {
+
     private LogootIdentifier identif;
 
     public LogootDelete() {
     }
-    
+
     public LogootDelete(LogootIdentifier identif, TripleTimestamp ts) {
         super(ts);
-        this.identif = identif;
+        this.identif = identif.copyWithClearedMappings();
     }
 
     public LogootIdentifier getIdentifiant() {
         return identif;
     }
-    
 
     @Override
-    public void applyTo(LogootVersionned crdt) {
-        crdt.getDoc().delete(identif, getTimestamp());
+    public void applyTo(LogootVersioned crdt) {
+        crdt.applyDelete(identif, getTimestamp());
     }
-    
-    @Override
-    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
-        return new LogootDelete(identif, getTimestamp().withBaseTimestamp(ts));
-    }
-
-    // I'm not sure of the exact semantic of this method.
-    @Override
-    public void replaceDependeeOperationTimestamp(Timestamp oldTs, Timestamp newTs) {
-        // throw new UnsupportedOperationException("Not supported yet.");
-    }
-
 }

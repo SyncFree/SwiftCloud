@@ -9,7 +9,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import loria.swift.application.filesystem.mapper.FileContent;
 import loria.swift.crdt.MaxCausalityClockTxnLocal;
-import loria.swift.crdt.logoot.LogootVersionned;
+import loria.swift.crdt.logoot.LogootVersioned;
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Copyable;
@@ -52,7 +52,7 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
     // Class of maximun Causality Clock CRDT
     private static Class maxCCClass = MaxCausalityClockTxnLocal.class;
     // Class of file content CRDT
-    private Class fileContentClass = LogootVersionned.class;
+    private Class fileContentClass = LogootVersioned.class;
 
     public File(TxnHandle txn, String str) {
         super(txn, str);

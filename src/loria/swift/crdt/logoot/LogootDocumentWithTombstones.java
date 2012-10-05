@@ -66,27 +66,6 @@ public class LogootDocumentWithTombstones<T> extends LogootDocument<T> {
         tbs.add(ts);
     }
 
-    void merge(LogootDocumentWithTombstones<T> other) {
-        int i = 1, j = 1, tj = other.idTable.size() - 1;
-        while (j < tj) {
-            int comp = idTable.get(i).compareTo(other.idTable.get(j));
-            if (comp > 0) {
-                add(i, other.idTable.get(j), other.document.get(j), other.tombstones.get(j));
-                ++j;
-            } else if (comp == 0) {
-                Set<TripleTimestamp> ot = other.tombstones.get(j);
-                if (ot != null) {
-                    if (tombstones.get(i) == null) {
-                        tombstones.set(i, ot);
-                    } else {
-                        tombstones.get(i).addAll(ot);
-                    }
-                }
-                ++j;
-            } 
-            ++i;
-        }
-    }
     
     @Override
     public String toString() {

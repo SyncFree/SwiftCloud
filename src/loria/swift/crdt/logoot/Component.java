@@ -87,4 +87,8 @@ public class Component implements Comparable<Component>, Serializable {
     public Component clone() {
         return new Component(digit, ts);
     }
+
+    public Component copyWithClearedMappings() {
+        return new Component(digit, ts.copyWithCleanedMappings());
+    }
 }

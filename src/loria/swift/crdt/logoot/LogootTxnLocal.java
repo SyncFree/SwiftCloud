@@ -22,7 +22,7 @@ import swift.crdt.interfaces.TxnHandle;
  * Logoot transaction. Is also a FileContent.
  * @author urso
  */
-public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implements  TxnGetterSetter<Blob>,FileContent {
+public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersioned> implements  TxnGetterSetter<Blob>,FileContent {
     private static final long BOUND = 1000000000l;
     private static final int NBBIT = 64;
     final static long max = Long.MAX_VALUE;
@@ -35,7 +35,7 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
     
     public static final DiffAlgorithm diffAlgorithm = DiffAlgorithm.getAlgorithm(DiffAlgorithm.SupportedAlgorithm.MYERS);
     
-    public LogootTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, LogootVersionned creationState,
+    public LogootTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, LogootVersioned creationState,
             LogootDocument doc) {
         super(id, txn, clock, creationState);
         this.doc = doc;
@@ -122,7 +122,7 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
     }
 
     @Override
-    public Object executeQuery(CRDTQuery<LogootVersionned> query) {
+    public Object executeQuery(CRDTQuery<LogootVersioned> query) {
         return query.executeAt(this);
     }
 
