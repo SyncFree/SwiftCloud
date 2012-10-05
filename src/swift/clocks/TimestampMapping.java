@@ -130,4 +130,9 @@ public class TimestampMapping implements Copyable {
         copy.timestamps.addAll(timestamps);
         return copy;
     }
+
+    @Override
+    public String toString() {
+        return getTimestamps().toString();
+    }
 }

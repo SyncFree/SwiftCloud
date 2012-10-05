@@ -928,6 +928,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // Read-only transaction can be immediately discarded.
             // Return and reuse last timestamp to avoid holes in VV.
             clientTimestampGenerator.returnLastTimestamp();
+            txn.markGloballyCommitted(null);
             logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
         } else {
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
@@ -997,7 +998,7 @@ public class SwiftImpl implements Swift, TxnManager {
             switch (reply.getStatus()) {
             case COMMITTED_WITH_KNOWN_TIMESTAMPS:
                 for (final Timestamp ts : reply.getCommitTimestamps()) {
-                    txn.addSystemTimestamp(ts);
+                    txn.markGloballyCommitted(ts);
                     lastGloballyCommittedTxnClock.record(ts);
                     committedVersion.record(ts);
                 }

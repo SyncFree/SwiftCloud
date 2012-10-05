@@ -182,9 +182,14 @@ abstract class AbstractTxnHandle implements TxnHandle {
      * as globally committed.
      * 
      * @param globalTimestamp
-     *            system timestamp for this transaction
+     *            a system timestamp for this transaction; ignored for read-only
+     *            transaction
      */
-    synchronized void addSystemTimestamp(final Timestamp systemTimestamp) {
+    void markGloballyCommitted(final Timestamp systemTimestamp) {
+        if (!isReadOnly() && systemTimestamp == null) {
+            throw new IllegalStateException("no system timestamp for update transaction");
+        }
+
         boolean justGloballyCommitted = false;
         synchronized (this) {
             assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
@@ -192,7 +197,9 @@ abstract class AbstractTxnHandle implements TxnHandle {
                 justGloballyCommitted = true;
                 status = TxnStatus.COMMITTED_GLOBAL;
             }
-            timestampMapping.addSystemTimestamp(systemTimestamp);
+            if (systemTimestamp != null) {
+                timestampMapping.addSystemTimestamp(systemTimestamp);
+            }
         }
         if (justGloballyCommitted) {
             if (commitListener != null) {
@@ -256,7 +263,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
 
     protected synchronized void assertStatus(final TxnStatus... expectedStatuses) {
         for (final TxnStatus expectedStatus : expectedStatuses) {
-            if (status == expectedStatus) { 
+            if (status == expectedStatus) {
                 return;
             }
         }
