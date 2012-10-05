@@ -26,12 +26,12 @@ import swift.crdt.operations.BaseUpdate;
  *
  * @author mehdi urso
  */
-public class LogootInsert<V> extends BaseUpdate<LogootVersionned<V>> {
+public class LogootInsert extends BaseUpdate<LogootVersionned> {
     
     final private LogootIdentifier identif;
-    final private V content;
+    final private String content;
 
-    public LogootInsert(LogootIdentifier identif, V content) {
+    public LogootInsert(LogootIdentifier identif, String content) {
         super(identif.getComponentAt(identif.length()-1).getTs());
         this.identif = identif;
         this.content = content;
@@ -41,12 +41,12 @@ public class LogootInsert<V> extends BaseUpdate<LogootVersionned<V>> {
         return identif;
     }
     
-    public V getContent() {
+    public String getContent() {
         return content;
     }
 
     @Override
-    public CRDTUpdate<LogootVersionned<V>> withBaseTimestamp(Timestamp ts) {
+    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -56,7 +56,7 @@ public class LogootInsert<V> extends BaseUpdate<LogootVersionned<V>> {
     }
 
     @Override
-    public void applyTo(LogootVersionned<V> crdt) {
+    public void applyTo(LogootVersionned crdt) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 }

@@ -21,10 +21,12 @@ package loria.swift.crdt.logoot;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import loria.swift.application.filesystem.mapper.Content;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.BaseCRDT;
 import swift.crdt.interfaces.CRDTUpdate;
+import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
@@ -32,7 +34,7 @@ import swift.crdt.interfaces.TxnLocalCRDT;
  *
  * @author mehdi urso
  */
-public class LogootVersionned<T> extends BaseCRDT<LogootVersionned<T>> {
+public class LogootVersionned extends BaseCRDT<LogootVersionned> {
 
     @Override
     protected void pruneImpl(CausalityClock pruningPoint) {
@@ -40,18 +42,18 @@ public class LogootVersionned<T> extends BaseCRDT<LogootVersionned<T>> {
     }
 
     @Override
-    protected void mergePayload(LogootVersionned<T> otherObject) {
+    protected void mergePayload(LogootVersionned otherObject) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
-    protected void execute(CRDTUpdate<LogootVersionned<T>> op) {
+    protected void execute(CRDTUpdate<LogootVersionned> op) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     @Override
-    protected TxnLocalCRDT<LogootVersionned<T>> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    protected TxnLocalCRDT<LogootVersionned> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
+        return new LogootTxnLocal(id, txn, versionClock, this, new LogootDocument());    
     }
 
     @Override
@@ -63,4 +65,5 @@ public class LogootVersionned<T> extends BaseCRDT<LogootVersionned<T>> {
     public void rollback(Timestamp ts) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
+
 }

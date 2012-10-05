@@ -26,7 +26,7 @@ import swift.crdt.operations.BaseUpdate;
  *
  * @author mehdi urso
  */
-public class LogootDelete<V> extends BaseUpdate<LogootVersionned<V>> {
+public class LogootDelete extends BaseUpdate<LogootVersionned> {
     
     final private LogootIdentifier identif;
     
@@ -40,7 +40,7 @@ public class LogootDelete<V> extends BaseUpdate<LogootVersionned<V>> {
     }
     
     @Override
-    public CRDTUpdate<LogootVersionned<V>> withBaseTimestamp(Timestamp ts) {
+    public CRDTUpdate<LogootVersionned> withBaseTimestamp(Timestamp ts) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
@@ -50,7 +50,7 @@ public class LogootDelete<V> extends BaseUpdate<LogootVersionned<V>> {
     }
 
     @Override
-    public void applyTo(LogootVersionned<V> crdt) {
+    public void applyTo(LogootVersionned crdt) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 }

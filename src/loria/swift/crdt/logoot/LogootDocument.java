@@ -19,6 +19,7 @@
 package loria.swift.crdt.logoot;
 
 import java.util.List;
+import swift.clocks.TripleTimestamp;
 
 /**
  * A Logoot document. Contains a list of Charater and the corresponding list of LogootIndentitifer.
@@ -31,6 +32,15 @@ public class LogootDocument<T> {
     public LogootDocument() {
         this.idTable = new RangeList<LogootIdentifier>();
         this.document = new RangeList<T>();
+        
+        LogootIdentifier Begin = new LogootIdentifier(1), End = new LogootIdentifier(1);
+        Begin.addComponent(new Component(0, new TripleTimestamp()));
+        End.addComponent(new Component(LogootTxnLocal.max, new TripleTimestamp()));
+
+        idTable.add(Begin);
+        document.add(null);
+        idTable.add(End);
+        document.add(null);
     }
     
     public void insert(int position, List<LogootIdentifier> patch, List<T> lc) {

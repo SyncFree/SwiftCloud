@@ -5,34 +5,39 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import loria.swift.application.filesystem.FileContent;
+import org.eclipse.jgit.diff.DiffAlgorithm;
+import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.diff.EditList;
+import org.eclipse.jgit.diff.RawText;
+import org.eclipse.jgit.diff.RawTextComparator;
 import swift.clocks.CausalityClock;
-import swift.clocks.TripleTimestamp;
 import swift.crdt.BaseCRDTTxnLocal;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDTQuery;
-import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 
-public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootVersionned<V>> implements FileContent {
-    private final LogootDocument<V> doc;
-    private final Random ran = new Random();
+public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implements FileContent {
     private static final long BOUND = 1000000000l;
-    private final BigInteger boundBI;
     private static final int NBBIT = 64;
-    private final long max;
-    private final BigInteger base;
-        
-    public LogootTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, LogootVersionned<V> creationState,
+    final static long max = Long.MAX_VALUE;
+
+    private static final BigInteger boundBI = BigInteger.valueOf(BOUND);
+    private static final BigInteger base = BigInteger.valueOf(2).pow(NBBIT);
+
+    private final LogootDocument<String> doc;
+    private final Random ran = new Random();
+    
+    public static final DiffAlgorithm diffAlgorithm = DiffAlgorithm.getAlgorithm(DiffAlgorithm.SupportedAlgorithm.MYERS);
+    
+    public LogootTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, LogootVersionned creationState,
             LogootDocument doc) {
         super(id, txn, clock, creationState);
         this.doc = doc;
-        this.boundBI = BigInteger.valueOf(BOUND);
-        if (NBBIT == 64) {
-            this.max = Long.MAX_VALUE;
-        } else {
-            this.max = (long) Math.pow(2, NBBIT) - 1;
-        }
-        this.base = BigInteger.valueOf(2).pow(NBBIT);
+    }
+
+
+    LogootDocument<String> getDoc() {
+        return doc;
     }
 
     public long nextLong(long l) {
@@ -82,14 +87,15 @@ public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootV
     /**
      * Inserts a list of line in local document.
      */
-    public void insert(List<String> content, int position) {
-        int N = content.size();
+    private void insert(RawText content, int position, int length) {
         ArrayList<LogootIdentifier> patch = generateLineIdentifiers(doc.idTable.get(position),
-                doc.idTable.get(position + 1), N);
-        ArrayList<V> lc = new ArrayList<V>(N);
+                doc.idTable.get(position + 1), length);
+        ArrayList<String> lc = new ArrayList<String>(length);
         
-        for (int cmpt = 0; cmpt < patch.size(); cmpt++) {
-            registerLocalOperation(new LogootInsert(patch.get(cmpt), content.get(cmpt)));
+        for (int cmpt = 0; cmpt < length; cmpt++) {
+            String v = content.getString(position+cmpt);
+            registerLocalOperation(new LogootInsert(patch.get(cmpt), v));
+            lc.add(v);
         }
         doc.insert(position, patch, lc);
     }
@@ -97,33 +103,46 @@ public class LogootTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<LogootV
     /**
      * Deletes a range of line in local document.
      */
-    public void delete(int position, int offset) {
-        for (int cmpt = 0; cmpt < offset; cmpt++) {
+    private void delete(int position, int offset) {
+        for (int cmpt = 1; cmpt <= offset; cmpt++) {
             registerLocalOperation(new LogootDelete(doc.idTable.get(position + cmpt)));
         }
         doc.delete(position, offset);
     }
     
     @Override
-    public List<V> getValue() {
+    public List<String> getValue() {
         return doc.document;
     }
 
     @Override
-    public Object executeQuery(CRDTQuery<LogootVersionned<V>> query) {
+    public Object executeQuery(CRDTQuery<LogootVersionned> query) {
         return query.executeAt(this);
     }
 
+    /**
+     * Makes a diff to realize a content update.
+     */
     @Override
     public void update(String newValue) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        final RawText a = new RawText(getText().getBytes());
+        final RawText b = new RawText(newValue.getBytes());
+        final EditList editList = diffAlgorithm.diff(RawTextComparator.DEFAULT, a, b);
+        for (Edit e : editList) {
+            if (e.getType() != Edit.Type.INSERT) { // del or repl
+                delete(e.getBeginA(), e.getLengthA());
+            } 
+            if (e.getType() != Edit.Type.DELETE) { // ins or repl
+                insert(b, e.getBeginB(), e.getLengthB());
+            }
+        }
     }
 
     @Override
     public String getText() {
         StringBuilder sb = new StringBuilder();
-        for (V e : doc.document) {
-            sb.append(e.toString());
+        for (int i = 1 ; i < doc.document.size()-1; ++i) {
+            sb.append(doc.document.get(i)).append('\n');
         }
         return sb.toString();
     }
