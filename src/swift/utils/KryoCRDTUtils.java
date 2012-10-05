@@ -30,8 +30,6 @@ import swift.crdt.SetIntegers;
 import swift.crdt.SetMsg;
 import swift.crdt.SetStrings;
 import swift.crdt.SetVersioned;
-import swift.crdt.operations.BaseUpdate;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.crdt.operations.IntegerUpdate;
 import swift.crdt.operations.RegisterUpdate;
 import swift.crdt.operations.SetInsert;
@@ -56,23 +54,22 @@ public class KryoCRDTUtils {
      */
     public static void init() {
 
-        KryoLib.register(Timestamp.class,0x50);
-        KryoLib.register(TripleTimestamp.class,0x51);
-        KryoLib.register(VersionVectorWithExceptions.class,0x52);
-        KryoLib.register(VersionVectorWithExceptions.Interval.class,0x53);
+        KryoLib.register(Timestamp.class, 0x50);
+        KryoLib.register(TripleTimestamp.class, 0x51);
+        KryoLib.register(VersionVectorWithExceptions.class, 0x52);
+        KryoLib.register(VersionVectorWithExceptions.Interval.class, 0x53);
 
-        KryoLib.register(CRDTIdentifier.class,0x54);
-        KryoLib.register(BaseCRDT.class,0x55);
-        KryoLib.register(IntegerVersioned.class,0x56);
-        KryoLib.register(RegisterVersioned.class,0x58);
-        KryoLib.register(RegisterVersioned.UpdateEntry.class,0x59);
-        KryoLib.register(SetIds.class,0x60);
-        KryoLib.register(SetIntegers.class,0x61);
-        KryoLib.register(SetMsg.class,0x62);
-        KryoLib.register(SetStrings.class,0x63);
-        KryoLib.register(SetVersioned.class,0x64);
+        KryoLib.register(CRDTIdentifier.class, 0x54);
+        KryoLib.register(BaseCRDT.class, 0x55);
+        KryoLib.register(IntegerVersioned.class, 0x56);
+        KryoLib.register(RegisterVersioned.class, 0x58);
+        KryoLib.register(RegisterVersioned.UpdateEntry.class, 0x59);
+        KryoLib.register(SetIds.class, 0x60);
+        KryoLib.register(SetIntegers.class, 0x61);
+        KryoLib.register(SetMsg.class, 0x62);
+        KryoLib.register(SetStrings.class, 0x63);
+        KryoLib.register(SetVersioned.class, 0x64);
 
-        
         KryoLib.register(ClientRequest.class, 0x70);
         KryoLib.register(CommitUpdatesRequest.class, 0x71);
         KryoLib.register(CommitUpdatesReply.class, 0x72);
@@ -88,18 +85,17 @@ public class KryoCRDTUtils {
         KryoLib.register(GenerateTimestampReply.class, 0x7C);
         KryoLib.register(KeepaliveRequest.class, 0x7D);
         KryoLib.register(KeepaliveReply.class, 0x7E);
-        KryoLib.register(LatestKnownClockRequest.class,0x7F);
-        KryoLib.register(LatestKnownClockReply.class,0x80);
-        KryoLib.register(RecentUpdatesRequest.class,0x81);
-        KryoLib.register(RecentUpdatesReply.class,0x82);
-        KryoLib.register(SubscriptionType.class,0x83);
-        KryoLib.register(UnsubscribeUpdatesRequest.class,0x84);
+        KryoLib.register(LatestKnownClockRequest.class, 0x7F);
+        KryoLib.register(LatestKnownClockReply.class, 0x80);
+        KryoLib.register(RecentUpdatesRequest.class, 0x81);
+        KryoLib.register(RecentUpdatesReply.class, 0x82);
+        KryoLib.register(SubscriptionType.class, 0x83);
+        KryoLib.register(UnsubscribeUpdatesRequest.class, 0x84);
 
-
-//        KryoLib.register(CRDTObjectOperationsGroup.class, 0x85);
-//        KryoLib.register(BaseOperation.class, 0x86);
+        // KryoLib.register(CRDTObjectOperationsGroup.class, 0x85);
+        // KryoLib.register(BaseOperation.class, 0x86);
         KryoLib.register(IntegerUpdate.class, 0x87);
-        KryoLib.register(RegisterUpdate.class, 0x88 );
+        KryoLib.register(RegisterUpdate.class, 0x88);
         KryoLib.register(SetInsert.class, 0x89);
         KryoLib.register(SetRemove.class, 0x8A);
 

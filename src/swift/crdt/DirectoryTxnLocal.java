@@ -61,6 +61,16 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
         return splitted[splitted.length - 1];
     }
 
+    public static String getPathToParent(CRDTIdentifier path) {
+        String[] parentDirs = getFullPath(path).split("/");
+        String parent = "";
+        for (int i = 1; i < parentDirs.length - 1; i++) {
+            parent = parent.concat("/");
+            parent = parent.concat(parentDirs[i]);
+        }
+        return parent;
+    }
+
     /**
      * Table under which all entries for this directory (and all its
      * subdirectories) are stored.
@@ -98,14 +108,8 @@ public class DirectoryTxnLocal extends BaseCRDTTxnLocal<DirectoryVersioned> {
 
         // Reconstruct the path to the root for implementing the
         // add-/update-wins semantics
-        String[] parentDirs = getFullPath(this.id).split("/");
-        String name = parentDirs[parentDirs.length - 1];
-        String path = "";
-        for (int i = 1; i < parentDirs.length - 1; i++) {
-            path = path.concat("/");
-            path = path.concat(parentDirs[i]);
-        }
-
+        String name = getEntryName(this.id);
+        String path = getPathToParent(this.id);
         if (!"".equals(path)) {
             CRDTIdentifier parentId = new CRDTIdentifier(getDirTable(), getDirEntry(path, DirectoryVersioned.class));
             DirectoryTxnLocal parent = this.getTxnHandle().get(parentId, false, DirectoryVersioned.class);
