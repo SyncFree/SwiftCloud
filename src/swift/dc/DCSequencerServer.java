@@ -319,7 +319,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                         }
                         if (r != null) {
                             final CommitRecord r0 = r;
-                            SeqCommitUpdatesRequest req = new SeqCommitUpdatesRequest(siteId, r.baseTimestamp, r.cltTimestamp,
+                            final SeqCommitUpdatesRequest req = new SeqCommitUpdatesRequest(siteId, r.baseTimestamp, r.cltTimestamp,
                                     r.objectUpdateGroups, receivedMessagesCopy(), r.notUsed);
                             for (int i = 0; i < sequencersEP.size(); i++) {
                                 synchronized (r) {
@@ -334,6 +334,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                     public void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply) {
                                         synchronized (r0) {
                                             r0.acked.set(i0);
+                                        }
+                                        synchronized( this) {
+                                            stableClock.record(req.getTimestamp());
                                         }
                                         setRemoteState( reply.getDcName(), reply.getDcKnownClock());
                                     }
@@ -564,15 +567,19 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                 currentState.merge(request.getDcNotUsed());
                 stableClock.merge(request.getDcNotUsed());
                 currentState.record(request.getTimestamp());
-                if( sequencers.size() == 0)
-                    stableClock.record(request.getTimestamp());
+                stableClock.record(request.getTimestamp());
                 clientClock.record(request.getCltTimestamp());
             }
             return;
         }
 
+
         this.addToOps(new CommitRecord(request.getDcNotUsed(), request.getObjectUpdateGroups(), 
                 request.getTimestamp(), request.getCltTimestamp()));
+
+        synchronized (this) {
+            stableClock.record(request.getTimestamp());
+        }
                 
         conn.reply(new SeqCommitUpdatesReply(siteId,currentClockCopy(),stableClockCopy(),receivedMessagesCopy()));
         if (!isBackup && sequencerShadowEP != null) {
