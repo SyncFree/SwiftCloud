@@ -4,21 +4,12 @@
  */
 package loria.swift.crdt.logoot;
 
-import java.util.Set;
-import loria.swift.application.filesystem.mapper.Content;
-import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
-import swift.clocks.Timestamp;
-import swift.crdt.BaseCRDT;
-import swift.crdt.CRDTIdentifier;
 import swift.crdt.TxnTester;
-import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.SwiftException;
