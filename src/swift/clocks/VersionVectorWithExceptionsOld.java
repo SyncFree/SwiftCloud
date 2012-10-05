@@ -415,4 +415,8 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         }
     }
 
+    @Override
+    public Object copy() {
+        return new VersionVectorWithExceptionsOld(this);
+    }
 }
