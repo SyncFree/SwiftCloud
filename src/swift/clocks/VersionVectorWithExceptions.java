@@ -1,22 +1,31 @@
 package swift.clocks;
 
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
-
 import swift.exceptions.IncompatibleTypeException;
 
 /**
  * Class to represent version vectors with exceptions. This representation
  * records the intervals of contiguous values.
- * 
+ *
  * @author nmp
  */
 public class VersionVectorWithExceptions implements CausalityClock {
+
+    @Override
+    public Object copy() {
+        return new VersionVectorWithExceptions(this);
+    }
+
     public static class Interval {
+
         long from; // inclusive
         long to; // inclusive
 
@@ -54,8 +63,48 @@ public class VersionVectorWithExceptions implements CausalityClock {
         Interval duplicate() {
             return new Interval(from, to);
         }
-    }
 
+        public long getFrom() {
+            return from;
+        }
+
+        public long getTo() {
+            return to;
+        }
+
+        @Override
+        public String toString() {
+            return "[" +from + "-"+ to + ']';
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 5;
+            hash = 97 * hash + (int) (this.from ^ (this.from >>> 32));
+            hash = 97 * hash + (int) (this.to ^ (this.to >>> 32));
+            return hash;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj == null) {
+                return false;
+            }
+            if (getClass() != obj.getClass()) {
+                return false;
+            }
+            final Interval other = (Interval) obj;
+            if (this.from != other.from) {
+                return false;
+            }
+            if (this.to != other.to) {
+                return false;
+            }
+            return true;
+        }
+        
+        
+    }
     private static final long serialVersionUID = 1L;
     protected Map<String, LinkedList<Interval>> vv;
     // total number of intervals
@@ -90,12 +139,14 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     /**
      * Generate a deep copy of linked list.
-     * 
-     * @param l
-     *            list to be copied
+     *
+     * @param l list to be copied
      * @return deep copy
      */
-    protected static LinkedList<Interval> duplicateList(LinkedList<Interval> l) {
+    protected static LinkedList<Interval> duplicateList(List<Interval> l) {
+        if (l == null) {
+            return null;
+        }
         LinkedList<Interval> nl = new LinkedList<Interval>();
         for (Interval p : l) {
             nl.addLast(p.duplicate());
@@ -105,11 +156,10 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     /**
      * Checks if a given event clock is reflected in this clock
-     * 
-     * @param c
-     *            Event clock.
+     *
+     * @param c Event clock.
      * @return Returns true if the given event clock is included in this
-     *         causality clock.
+     * causality clock.
      */
     @Override
     public boolean includes(Timestamp cc) {
@@ -121,20 +171,22 @@ public class VersionVectorWithExceptions implements CausalityClock {
         ListIterator<Interval> it = l.listIterator(l.size());
         while (it.hasPrevious()) {
             Interval p = it.previous();
-            if (v > p.to)
+            if (v > p.to) {
                 return false;
-            if (v >= p.from)
+            }
+            if (v >= p.from) {
                 return true;
+            }
         }
         return false;
     }
 
     /**
      * Records an event.
-     * 
-     * @param cc
-     *            Timestamp to insert.
+     *
+     * @param cc Timestamp to insert.
      */
+    @Override
     public boolean record(Timestamp cc) {
         long v = cc.getCounter();
         LinkedList<Interval> l = vv.get(cc.getIdentifier());
@@ -149,39 +201,34 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
         // iterate backwards through the list
         ListIterator<Interval> it = l.listIterator(l.size());
-        Interval p = null;
+        Interval p;
         while (it.hasPrevious()) {
-            Interval oldP = p;
             p = it.previous();
             if (v >= p.from && v <= p.to) {
                 // timestamp is already registered
                 return false;
             }
-            if (v == p.to + 1) {
-                p.to = p.to + 1;
-                if (oldP != null && oldP.mergeBack(p)) {
-                    it.remove();
-                    numPairs--;
+            if (v == p.from - 1) { // v[-p-]
+                p.from = p.from - 1;
+                if (it.hasPrevious()) { //[-prev-]v[-p-]
+                    Interval prev=it.previous();
+                    if (p.mergeBack(prev)){ //[-prev-][v-p-]
+                        it.remove();
+                        numPairs--;
+                    }
                 }
                 return true;
-            } else if (v > p.to) {
-                // FIXME Is this correct? Missing test for merge with oldP?
-                it.next();
+            } else if (v==p.to+1){//[-p-]v
+                p.to=v;
+               return true;
+            } else if (v > p.to+1) {//stop at the correct place
+                it.next();  //Before the insertion is before and no exception because p is a previous.
                 it.add(new Interval(v, v));
                 numPairs++;
                 return true;
             }
         }
 
-        // First interval of list
-        // FIXME Shouldn't this condition be here always true? Test for empty
-        // list is in beginning!
-        if (p != null) {
-            if (p.from == v + 1) {
-                p.from = v;
-                return true;
-            }
-        }
         l.addFirst(new Interval(v, v));
         numPairs++;
         return true;
@@ -189,12 +236,14 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     // FIXME is this really needed? What is the semantics?!
     protected Interval advanceUntil(Interval p, Iterator<Interval> it, int val) {
-        if (val <= p.to)
+        if (val <= p.to) {
             return p;
+        }
         while (it.hasNext()) {
             p = it.next();
-            if (val > p.to)
+            if (val > p.to) {
                 continue;
+            }
             return p;
         }
         return null;
@@ -288,10 +337,11 @@ public class VersionVectorWithExceptions implements CausalityClock {
         Interval p = it.hasNext() ? it.next() : null;
         Interval p0 = it0.hasNext() ? it0.next() : null;
         Interval np = null;
-        for (;;) {
+        while (p != null || p0 != null) {
             boolean hasChanged = false;
-            if (p == null && p0 == null)
+            /*if (p == null && p0 == null) {
                 break;
+            }*/
             if (np == null) {
                 if (p != null && p0 != null) {
                     if (p.from <= p0.from) {
@@ -315,16 +365,18 @@ public class VersionVectorWithExceptions implements CausalityClock {
             }
             if (p != null) {
                 if (np.to >= p.from - 1) {
-                    if (p.to > np.to)
+                    if (p.to > np.to) {
                         np.to = p.to;
+                    }
                     p = null;
                     hasChanged = true;
                 }
             }
             if (p0 != null) {
                 if (np.to >= p0.from - 1) {
-                    if (p0.to > np.to)
+                    if (p0.to > np.to) {
                         np.to = p0.to;
+                    }
                     p0 = null;
                     hasChanged = true;
                 }
@@ -352,19 +404,14 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     /**
      * Merge this clock with the given c clock.
-     * 
-     * @param c
-     *            Clock to merge to
+     *
+     * @param c Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     *         clocks:<br>
-     *         CMP_EQUALS : if clocks were equal; <br>
-     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
-     *         CMP_ISDOMINATED : if this clock was dominated by the given c
-     *         clock; <br>
-     *         CMP_CONCUREENT : if this clock and the given c clock were
-     *         concurrent; <br>
-     * @throws IncompatibleTypeException
-     *             Case comparison cannot be made
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
      */
     protected CMP_CLOCK mergeVV(VersionVectorWithExceptions cc) {
         CMP_CLOCK result = CMP_CLOCK.CMP_EQUALS;
@@ -388,20 +435,16 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     /**
      * Merge this clock with the given c clock.
-     * 
-     * @param c
-     *            Clock to merge to
+     *
+     * @param c Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     *         clocks:<br>
-     *         CMP_EQUALS : if clocks were equal; <br>
-     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
-     *         CMP_ISDOMINATED : if this clock was dominated by the given c
-     *         clock; <br>
-     *         CMP_CONCUREENT : if this clock and the given c clock were
-     *         concurrent; <br>
-     * @throws IncompatibleTypeException
-     *             Case comparison cannot be made
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
      */
+    @Override
     public CMP_CLOCK merge(CausalityClock cc) {
         // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
         // throw new IncompatibleTypeException();
@@ -424,10 +467,12 @@ public class VersionVectorWithExceptions implements CausalityClock {
         // last value that has been compared between the two sets
         long v = Math.min(p == null ? Long.MAX_VALUE : p.from - 1, p0 == null ? Long.MAX_VALUE : p0.from - 1);
         for (;;) {
-            if (p == null && p0 == null)
+            if (p == null && p0 == null) {
                 break;
-            if (thisHasMoreEntries && otherHasMoreEntries)
+            }
+            if (thisHasMoreEntries && otherHasMoreEntries) {
                 break;
+            }
             if (p != null && p0 != null) {
                 if (p.from == p0.from && p.to == p0.to) {
                     v = p.to;
@@ -546,19 +591,14 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     /**
      * compare this clock with the given c clock.
-     * 
-     * @param c
-     *            Clock to compare to
+     *
+     * @param c Clock to compare to
      * @return Returns one of the following, based on the initial value of
-     *         clocks:<br>
-     *         CMP_EQUALS : if clocks were equal; <br>
-     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
-     *         CMP_ISDOMINATED : if this clock was dominated by the given c
-     *         clock; <br>
-     *         CMP_CONCUREENT : if this clock and the given c clock were
-     *         concurrent; <br>
-     * @throws IncompatibleTypeException
-     *             Case comparison cannot be made
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
      */
     protected CMP_CLOCK compareVV(VersionVectorWithExceptions cc) {
         CMP_CLOCK result = CMP_CLOCK.CMP_EQUALS;
@@ -584,22 +624,22 @@ public class VersionVectorWithExceptions implements CausalityClock {
 
     /**
      * Returns the most recent event for a given site. <br>
-     * 
-     * @param siteid
-     *            Site identifier.
+     *
+     * @param siteid Site identifier.
      * @return Returns an event clock.
      */
+    @Override
     public Timestamp getLatest(String siteid) {
         return new Timestamp(siteid, getLatestCounter(siteid));
     }
 
     /**
      * Returns the most recent event for a given site. <br>
-     * 
-     * @param siteid
-     *            Site identifier.
+     *
+     * @param siteid Site identifier.
      * @return Returns an event clock.
      */
+    @Override
     public long getLatestCounter(String siteid) {
         LinkedList<Interval> p = vv.get(siteid);
         if (p == null) {
@@ -618,25 +658,23 @@ public class VersionVectorWithExceptions implements CausalityClock {
     /**
      * Create a copy of this causality clock.
      */
+    @Override
     public CausalityClock clone() {
         return new VersionVectorWithExceptions(this);
     }
 
+    @Override
     public String toString() {
-        StringBuffer buf = new StringBuffer();
+        StringBuilder buf = new StringBuilder();
         buf.append("[");
         Iterator<Entry<String, LinkedList<Interval>>> it = vv.entrySet().iterator();
         while (it.hasNext()) {
             Entry<String, LinkedList<Interval>> e = it.next();
-            buf.append(e.getKey() + ":");
+            buf.append(e.getKey());
+            buf.append(":");
             Iterator<Interval> it2 = e.getValue().iterator();
             while (it2.hasNext()) {
-                Interval p = it2.next();
-                buf.append("[");
-                buf.append(p.from);
-                buf.append("-");
-                buf.append(p.to);
-                buf.append("]");
+                buf.append(it2.next().toString());
             }
             if (it.hasNext()) {
                 buf.append(",");
@@ -646,6 +684,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
         return buf.toString();
     }
 
+    @Override
     public boolean hasExceptions() {
         return vv.size() != numPairs;
     }
@@ -711,5 +750,21 @@ public class VersionVectorWithExceptions implements CausalityClock {
                 drop(cc.getIdentifier());
             }
         }
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (!(other instanceof VersionVectorWithExceptions)) {
+            return false;
+        }
+        return this.compareTo((VersionVectorWithExceptions) other) == CausalityClock.CMP_CLOCK.CMP_EQUALS;
+    }
+
+    @Override
+    public int hashCode() {
+        //TODO : improve this hash
+        int hash = 7;
+        hash+=this.vv.hashCode();
+        return hash;
     }
 }
