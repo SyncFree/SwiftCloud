@@ -17,25 +17,24 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class CommitTSRequest implements RpcMessage {
     protected Timestamp timestamp;
+    protected Timestamp cltTimestamp;
     protected CausalityClock version;   // observed version
     protected boolean commit;           // true if transaction was committed
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     
-    protected Timestamp baseTimestamp;
-
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
     CommitTSRequest() {
     }
 
-    public CommitTSRequest(Timestamp timestamp, CausalityClock version, boolean commit,
-            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, Timestamp baseTimestamp) {
+    public CommitTSRequest(Timestamp timestamp, Timestamp cltTimestamp, CausalityClock version, boolean commit,
+            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
         this.timestamp = timestamp;
+        this.cltTimestamp = cltTimestamp;
         this.version = version;
         this.commit = commit;
         this.objectUpdateGroups = objectUpdateGroups;
-        this.baseTimestamp = baseTimestamp;
     }
 
 
@@ -44,6 +43,13 @@ public class CommitTSRequest implements RpcMessage {
      */
     public Timestamp getTimestamp() {
         return timestamp;
+    }
+
+    /**
+     * @return the timestamp of the client
+     */
+    public Timestamp getCltTimestamp() {
+        return cltTimestamp;
     }
 
     /**
@@ -69,7 +75,4 @@ public class CommitTSRequest implements RpcMessage {
         return objectUpdateGroups;
     }
 
-    public Timestamp getBaseTimestamp() {
-        return baseTimestamp;
-    }
 }

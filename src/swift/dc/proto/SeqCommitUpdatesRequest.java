@@ -21,8 +21,10 @@ import sys.net.api.rpc.RpcMessage;
  * @author preguica
  */
 public class SeqCommitUpdatesRequest implements RpcMessage {
+    protected String dcName;
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
-    protected Timestamp baseTimestamp;
+    protected Timestamp timestamp;
+    protected Timestamp cltTimestamp;
     CausalityClock dcReceived;
     CausalityClock dcNotUsed;
     public transient long lastSent;
@@ -33,9 +35,11 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     SeqCommitUpdatesRequest() {
     }
 
-    public SeqCommitUpdatesRequest(final Timestamp baseTimestamp,
+    public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp,
             List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, CausalityClock dcReceived, CausalityClock dcNotUsed) {
-        this.baseTimestamp = baseTimestamp;
+        this.dcName = dcName;
+        this.timestamp = timestamp;
+        this.cltTimestamp = cltTimestamp;
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
         this.dcReceived = dcReceived;
         this.dcNotUsed = dcNotUsed;
@@ -46,8 +50,16 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
      *         obtained using {@link GenerateTimestampRequest}; all individual
      *         updates use TripleTimestamps with this base Timestamp
      */
-    public Timestamp getBaseTimestamp() {
-        return baseTimestamp;
+    public Timestamp getTimestamp() {
+        return timestamp;
+    }
+
+    /**
+     * @return client timestamp for this transaction; all individual
+     *         updates use TripleTimestamps with this base Timestamp
+     */
+    public Timestamp getCltTimestamp() {
+        return cltTimestamp;
     }
 
     /**
@@ -70,5 +82,9 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
 
     public CausalityClock getDcNotUsed() {
         return dcNotUsed;
+    }
+
+    public String getDcName() {
+        return dcName;
     }
 }

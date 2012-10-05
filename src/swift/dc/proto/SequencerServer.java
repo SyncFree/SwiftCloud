@@ -1,6 +1,8 @@
 package swift.dc.proto;
 
 import swift.client.proto.BaseServer;
+import swift.client.proto.GenerateTimestampReply;
+import swift.client.proto.GenerateTimestampReplyHandler;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
@@ -19,5 +21,15 @@ public interface  SequencerServer extends BaseServer {
      *            request to serve
      */
     void onReceive(RpcHandle conn, CommitTSRequest request);
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link GenerateTimestampReplyHandler} and expects
+     *            {@link GenerateTimestampReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcHandle conn, GenerateDCTimestampRequest request);
+
 
 }

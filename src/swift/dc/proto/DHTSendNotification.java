@@ -17,6 +17,7 @@ import sys.dht.api.DHT.ReplyHandler;
 public class DHTSendNotification implements DHT.Reply {
     ObjectSubscriptionInfo info;
     CausalityClock estimatedDCVersion;
+    CausalityClock estimatedDCStableVersion;
     
     /**
      * Needed for Kryo serialization
@@ -24,10 +25,11 @@ public class DHTSendNotification implements DHT.Reply {
     DHTSendNotification() {
     }
 
-    public DHTSendNotification(ObjectSubscriptionInfo info, CausalityClock estimatedDCVersion) {
+    public DHTSendNotification(ObjectSubscriptionInfo info, CausalityClock estimatedDCVersion, CausalityClock estimatedDCStableVersion) {
         super();
         this.info = info;
         this.estimatedDCVersion = estimatedDCVersion;
+        this.estimatedDCStableVersion = estimatedDCStableVersion;
     }
 
 
@@ -43,6 +45,10 @@ public class DHTSendNotification implements DHT.Reply {
 
     public CausalityClock getEstimatedDCVersion() {
         return estimatedDCVersion;
+    }
+
+    public CausalityClock getEstimatedDCStableVersion() {
+        return estimatedDCStableVersion;
     }
 
 }

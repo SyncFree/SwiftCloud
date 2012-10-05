@@ -12,7 +12,10 @@ import sys.net.api.rpc.RpcMessage;
  * @see SeqCommitUpdatesRequest
  */
 public class SeqCommitUpdatesReply implements RpcMessage {
-    protected CausalityClock dcClock;
+    protected String dcName;
+    protected CausalityClock dcClock;  // applied operations at given data center
+    protected CausalityClock dcStableClock;  // stable operations at given data center
+    protected CausalityClock dcKnownClock;  // known operations at given data center
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use. 
@@ -21,20 +24,39 @@ public class SeqCommitUpdatesReply implements RpcMessage {
     public SeqCommitUpdatesReply() {
     }
 
-    public SeqCommitUpdatesReply(CausalityClock dcClock) {
+    public SeqCommitUpdatesReply(String dcName, CausalityClock dcClock, CausalityClock stableClock, CausalityClock knownClock) {
+        this.dcName = dcName;
         this.dcClock = dcClock;
+        this.dcStableClock = stableClock;
+        this.dcKnownClock = knownClock;
     }
 
     /**
-     * @return commit status
+     * @return DC clock
      */
     public CausalityClock getDCClock() {
         return dcClock;
     }
 
 
+    /**
+     * @return stable clock
+     */
+    public CausalityClock getDCStableClock() {
+        return dcStableClock;
+    }
+
+
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SeqCommitUpdatesReplyHandler) handler).onReceive(conn, this);
+    }
+
+    public CausalityClock getDcKnownClock() {
+        return dcKnownClock;
+    }
+
+    public String getDcName() {
+        return dcName;
     }
 }
