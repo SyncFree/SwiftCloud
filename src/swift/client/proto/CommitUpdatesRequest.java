@@ -40,14 +40,14 @@ public class CommitUpdatesRequest extends ClientRequest {
      *         obtained using {@link GenerateTimestampRequest}; all individual
      *         updates use TripleTimestamps with this base Timestamp
      */
-    public Timestamp getBaseTimestamp() {
+    public Timestamp getClientTimestamp() {
         return clientTimestamp;
     }
 
     /**
      * @return list of groups of object operations; there is at most one group
      *         per object; note that all groups share the same base client
-     *         timestamp ( {@link #getBaseTimestamp()}), timestamp mappings and
+     *         timestamp ( {@link #getClientTimestamp()}), timestamp mappings and
      *         dependency clock.
      * 
      */
