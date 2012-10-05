@@ -35,15 +35,4 @@ public class MultiVersionVersionned<V extends Copyable> extends BaseCRDT<MultiVe
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    @Override
-    protected Set<Timestamp> getUpdateTimestampsSinceImpl(CausalityClock clock) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    @Override
-    public void rollback(Timestamp ts) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-
 }
