@@ -46,7 +46,7 @@ echo "waiting a bit before starting clients"
 sleep 10
 
 echo "starting clients"
-swift_app_cmd -Xmx1000m swift.application.DocLatencyBenchmark
+swift_app_cmd -Xmx1000m swift.application.swiftdoc.SwiftDocBenchmark
 
 NOTIFICATIONS=true
 ISOLATION=REPEATABLE_READS
