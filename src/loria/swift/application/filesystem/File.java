@@ -7,6 +7,7 @@ package loria.swift.application.filesystem;
 import java.io.ByteArrayOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import loria.swift.application.filesystem.mapper.FileContent;
 import loria.swift.crdt.MaxCausalityClockTxnLocal;
 import loria.swift.crdt.logoot.LogootVersionned;
 import swift.clocks.CausalityClock;
@@ -121,7 +122,7 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
             Logger.getLogger(File.class.getName()).log(Level.SEVERE, null, ex);
         }
         if (fc != null) {
-            fc.update(str);
+            fc.set(str);
         }
     }
 

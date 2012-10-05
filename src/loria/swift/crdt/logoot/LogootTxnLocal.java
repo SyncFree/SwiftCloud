@@ -4,7 +4,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import loria.swift.application.filesystem.FileContent;
+import loria.swift.application.filesystem.mapper.FileContent;
 import org.eclipse.jgit.diff.DiffAlgorithm;
 import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.diff.EditList;
@@ -16,6 +16,10 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDTQuery;
 import swift.crdt.interfaces.TxnHandle;
 
+/**
+ * Logoot transaction. Is also a FileContent.
+ * @author urso
+ */
 public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implements FileContent {
     private static final long BOUND = 1000000000l;
     private static final int NBBIT = 64;
@@ -124,7 +128,7 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersionned> implement
      * Makes a diff to realize a content update.
      */
     @Override
-    public void update(String newValue) {
+    public void set(String newValue) {
         final RawText a = new RawText(getText().getBytes());
         final RawText b = new RawText(newValue.getBytes());
         final EditList editList = diffAlgorithm.diff(RawTextComparator.DEFAULT, a, b);

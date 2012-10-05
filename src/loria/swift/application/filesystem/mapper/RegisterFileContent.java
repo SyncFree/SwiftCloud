@@ -1,33 +1,29 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
 package loria.swift.application.filesystem.mapper;
 
-import loria.swift.application.filesystem.FileContent;
+import swift.application.filesystem.StringCopyable;
 import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
+import swift.crdt.*;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 
-/**
- * Rhough file content using register (no merge!).
- * @author urso
- */
-public class RegisterFileContent extends RegisterTxnLocal<Content> implements FileContent {
+public class RegisterFileContent extends RegisterVersioned<StringCopyable> {
 
-    public RegisterFileContent(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<Content> creationState, Content val) {
-        super(id, txn, clock, creationState, val);
+    public RegisterFileContent() {
+    }
+
+    private RegisterFileContent(RegisterFileContent other) {
+        super(other);
     }
 
     @Override
-    public void update(String newValue) {
-        set(new Content(newValue));
+    protected TxnLocalCRDT getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
+        final RegisterFileContent creationState = isRegisteredInStore() ? null : new RegisterFileContent();
+        RegisterTxnFileContent localView = new RegisterTxnFileContent(id, txn, versionClock, creationState, value(versionClock));
+        return localView;
     }
 
     @Override
-    public String getText() {
-        return getValue().content;
+    public RegisterFileContent copy() {
+        return new RegisterFileContent(this);
     }
 }

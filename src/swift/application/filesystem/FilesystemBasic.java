@@ -1,5 +1,7 @@
 package swift.application.filesystem;
 
+import loria.swift.application.filesystem.mapper.FileContent;
+import loria.swift.application.filesystem.mapper.RegisterFileContent;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
@@ -16,12 +18,19 @@ public class FilesystemBasic implements Filesystem {
     private String table;
     // root directory
     private CRDTIdentifier root;
-
-    public FilesystemBasic(TxnHandle txn, String root, String table) throws WrongTypeException, NoSuchObjectException,
+    private final Class fileContentClass;
+    
+    public FilesystemBasic(TxnHandle txn, String root, String table, Class fileContentClass) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         this.table = table;
         this.root = DirectoryTxnLocal.createRootId(table, root, DirectoryVersioned.class);
         txn.get(this.root, true, DirectoryVersioned.class);
+        this.fileContentClass = fileContentClass;
+    }
+    
+    public FilesystemBasic(TxnHandle txn, String root, String table) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
+        this(txn, root, table, RegisterFileContent.class);
     }
 
     @Override
@@ -34,11 +43,10 @@ public class FilesystemBasic implements Filesystem {
         CRDTIdentifier parentId = DirectoryTxnLocal.getCRDTIdentifier(table, pathToParent, parent,
                 DirectoryVersioned.class);
         DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
-        CRDTIdentifier fileId = parentDir.createNewEntry(fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
-                RegisterVersioned.class);
+        CRDTIdentifier fileId = parentDir.createNewEntry(fname, fileContentClass);
+        FileContent fileContent = (FileContent) txn.get(fileId, true, fileContentClass);
         String initialFileContent = "";
-        fileContent.set(new StringCopyable(initialFileContent));
+        fileContent.set(initialFileContent);
         return new FileBasic(initialFileContent);
     }
 
@@ -46,19 +54,17 @@ public class FilesystemBasic implements Filesystem {
     public File readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
 
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
-                RegisterVersioned.class);
-        return new FileBasic(fileContent.getValue().getString());
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
+        FileContent fileContent = (FileContent) txn.get(fileId, true, fileContentClass);
+        return new FileBasic(fileContent.getText());
     }
 
     @Override
     public void updateFile(TxnHandle txn, String fname, String path, File f) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, false,
-                RegisterVersioned.class);
-        fileBasic.set(new StringCopyable(f.getContent()));
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, fileContentClass);
+        FileContent fileBasic = (FileContent) txn.get(fileId, false, fileContentClass);
+        fileBasic.set(f.getContent());
     }
 
     @Override
@@ -70,7 +76,7 @@ public class FilesystemBasic implements Filesystem {
         CRDTIdentifier parentId = DirectoryTxnLocal.getCRDTIdentifier(table, pathToParent, parent,
                 DirectoryVersioned.class);
         DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
-        parentDir.removeEntry(fname, RegisterVersioned.class);
+        parentDir.removeEntry(fname, fileContentClass);
     }
 
     @Override
@@ -102,14 +108,12 @@ public class FilesystemBasic implements Filesystem {
     @Override
     public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileContent = (RegisterTxnLocal<StringCopyable>) txn.get(fileId, true,
-                RegisterVersioned.class);
+        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, fileContentClass);
+        FileContent fileContent = (FileContent) txn.get(fileId, true, fileContentClass);
 
-        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, RegisterVersioned.class);
-        RegisterTxnLocal<StringCopyable> fileBasic = (RegisterTxnLocal<StringCopyable>) txn.get(newFileId, true,
-                RegisterVersioned.class);
-        fileBasic.set(fileContent.getValue());
+        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, fileContentClass);
+        FileContent fileBasic = (FileContent) txn.get(newFileId, true, fileContentClass);
+        fileBasic.set(fileContent.getText());
     }
 
     @Override
