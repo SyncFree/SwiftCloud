@@ -17,6 +17,9 @@ public interface Filesystem {
     void removeDirectory(TxnHandle txn, String name, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException, ClassNotFoundException;
 
+    DirectoryTxnLocal getDirectory(TxnHandle txn, String path) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException;
+
     void updateFile(TxnHandle txn, String fname, String path, File f) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException;
 

@@ -2,7 +2,6 @@ package swift.application.filesystem;
 
 import java.util.logging.Logger;
 
-import swift.application.social.SwiftSocial;
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
@@ -36,8 +35,6 @@ public class FilesystemTest {
 
         Sys.init();
         Swift server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
-        SwiftSocial client = new SwiftSocial(server, IsolationLevel.SNAPSHOT_ISOLATION,
-                CachePolicy.STRICTLY_MOST_RECENT, false, false);
 
         TxnHandle txn;
         try {

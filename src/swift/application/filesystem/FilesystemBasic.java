@@ -112,4 +112,11 @@ public class FilesystemBasic implements Filesystem {
         fileBasic.set(fileContent.getValue());
     }
 
+    @Override
+    public DirectoryTxnLocal getDirectory(TxnHandle txn, String path) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
+        CRDTIdentifier dirId = new CRDTIdentifier(table, DirectoryTxnLocal.getDirEntry(path, DirectoryVersioned.class));
+        return (DirectoryTxnLocal) txn.get(dirId, false, DirectoryVersioned.class);
+    }
+
 }
