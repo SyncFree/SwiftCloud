@@ -1,6 +1,7 @@
 package swift.clocks;
 
 import java.io.Serializable;
+import swift.crdt.interfaces.Copyable;
 
 /**
  * Interface for clocks that allow to trace causality, such as version vector
@@ -9,7 +10,7 @@ import java.io.Serializable;
  * @author nmp
  */
 // TODO: Create read-only (parent) interface or decorator.
-public interface CausalityClock extends Serializable {
+public interface CausalityClock extends Serializable,Copyable {
     enum CMP_CLOCK {
         CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT;
 

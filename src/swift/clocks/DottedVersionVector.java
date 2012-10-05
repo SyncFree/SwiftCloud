@@ -359,4 +359,8 @@ public class DottedVersionVector implements CausalityClock {
         }
     }
 
+    @Override
+    public Object copy() {
+       return new DottedVersionVector(this);
+    }
 }
