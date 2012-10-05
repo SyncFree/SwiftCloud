@@ -57,7 +57,7 @@ public class GenerateDCTimestampReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((GenerateTimestampReplyHandler) handler).onReceive(conn, this);
+        ((GenerateDCTimestampReplyHandler) handler).onReceive(conn, this);
     }
 
     public GenerateStatus getStatus() {
