@@ -1,6 +1,8 @@
 package swift.application.filesystem;
 
 import java.util.logging.Logger;
+import loria.swift.application.filesystem.mapper.RegisterFileContent;
+import loria.swift.crdt.logoot.LogootVersionned;
 
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
@@ -42,7 +44,8 @@ public class FilesystemTest {
 
             // create a root directory
             logger.info("Creating file system");
-            Filesystem fs = new FilesystemBasic(txn, "test", "DIR");
+            // Filesystem fs = new FilesystemBasic(txn, "test", "DIR", RegisterFileContent.class);
+            Filesystem fs = new FilesystemBasic(txn, "test", "DIR", LogootVersionned.class);
             txn.commit();
 
             logger.info("Creating directories and subdirectories");

@@ -23,8 +23,11 @@ import swift.clocks.TripleTimestamp;
 
 public class Component implements Comparable<Component>, Serializable {
 
-    final private long digit;
-    final private TripleTimestamp ts;
+    private long digit;
+    private TripleTimestamp ts;
+
+    public Component() {
+    }
 
     public Component(long d, TripleTimestamp ts) {
         this.digit = d;

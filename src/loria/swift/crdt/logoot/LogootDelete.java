@@ -29,7 +29,10 @@ import swift.crdt.operations.BaseUpdate;
  */
 public class LogootDelete extends BaseUpdate<LogootVersionned> {
     
-    final private LogootIdentifier identif;
+    private LogootIdentifier identif;
+
+    public LogootDelete() {
+    }
     
     public LogootDelete(LogootIdentifier identif, TripleTimestamp ts) {
         super(ts);

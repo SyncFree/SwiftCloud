@@ -28,8 +28,11 @@ import swift.crdt.operations.BaseUpdate;
  */
 public class LogootInsert extends BaseUpdate<LogootVersionned> {
     
-    final private LogootIdentifier identif;
-    final private String content;
+    private LogootIdentifier identif;
+    private String content;
+
+    public LogootInsert() {
+    }
 
     public LogootInsert(LogootIdentifier identif, String content) {
         super(identif.getLastComponent().getTs());
