@@ -36,4 +36,6 @@ public interface IFile {
 
     byte[] getBytes();
 
+    int getSize();
+
 }

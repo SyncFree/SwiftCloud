@@ -4,23 +4,26 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 public class FileBasic implements IFile {
-    public final int SIZE = 1024;
+    public final int MAX_SIZE = 512;
+    public int size;
     private ByteBuffer bb;
 
     public FileBasic(Blob b) throws IOException {
         byte[] init = b.get();
-        bb = ByteBuffer.allocate(SIZE);
+        bb = ByteBuffer.allocate(MAX_SIZE);
         bb.put(init);
+        size = init.length;
     }
 
     @Override
     public void update(ByteBuffer buf, long offset) {
-        int size = buf.remaining();
-        byte[] arr = new byte[size];
+        int updateSize = buf.remaining();
+        byte[] arr = new byte[updateSize];
         buf.get(arr);
 
         bb.position((int) offset);
         bb.put(arr);
+        size = Math.max(updateSize, size);
     }
 
     @Override
@@ -43,11 +46,24 @@ public class FileBasic implements IFile {
     public void reset(byte[] data) throws IOException {
         bb.clear();
         bb.put(data);
+        size = data.length;
     }
 
     @Override
     public byte[] getBytes() {
-        return bb.array();
+        System.out.println("Current size of file: " + size);
+
+        byte[] bytes = new byte[size];
+        bb.position(0);
+        bb.get(bytes, 0, size);
+        System.out.println("Current content of file: " + new String(bytes));
+
+        return bytes;
+    }
+
+    @Override
+    public int getSize() {
+        return size;
     }
 
 }

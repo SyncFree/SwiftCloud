@@ -91,7 +91,6 @@ public class FilesystemFuse implements Filesystem3 {
     private static final int MODE = 0777;
     private static final int BLOCK_SIZE = 512;
     private static final int NAME_LENGTH = 1024;
-    private static final int FILE_SIZE = 1024;
     private static final String ROOT = "test";
 
     @Override
@@ -169,10 +168,9 @@ public class FilesystemFuse implements Filesystem3 {
                         time);
             } else if (fs.isFile(txn, fstub.getName(), fstub.getParent())) {
                 // FIXME We want files with variable size...
-                // IFile f = fs.readFile(txn, fstub.getName(),
-                // fstub.getParent());
-                getattrSetter.set(fstub.hashCode(), FuseFtypeConstants.TYPE_FILE | MODE, 1, 0, 0, 0, FILE_SIZE,
-                        FILE_SIZE / BLOCK_SIZE, time, time, time);
+                IFile f = fs.readFile(txn, fstub.getName(), fstub.getParent());
+                getattrSetter.set(fstub.hashCode(), FuseFtypeConstants.TYPE_FILE | MODE, 1, 0, 0, 0, f.getSize(),
+                        (f.getSize() + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time, time);
             } else {
                 txn.rollback();
                 return Errno.ENOENT;
@@ -189,6 +187,9 @@ public class FilesystemFuse implements Filesystem3 {
         } catch (NoSuchObjectException e) {
             txn.rollback();
         } catch (VersionNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
         }

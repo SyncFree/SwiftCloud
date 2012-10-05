@@ -66,16 +66,16 @@ public class FilesystemTest {
             assert (s.equals(new String(s.getBytes())));
             f1.reset(s.getBytes());
             System.out.println("Expected: " + s);
-            System.out.println("Got: " + new String(f1.get(0, s.length())));
+            System.out.println("Got: " + new String(f1.getBytes()));
 
-            assert (new String(f1.get(0, s.length())).equals(s));
+            assert (new String(f1.getBytes()).equals(s));
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1);
             txn.commit();
 
             logger.info("Reading from the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             IFile f1_up = fs.readFile(txn, "file1.txt", "/test/testfs1");
-            assert (Arrays.equals(f1_up.get(0, s.getBytes().length), s.getBytes()));
+            assert (Arrays.equals(f1_up.getBytes(), s.getBytes()));
 
             logger.info("Updating the file");
             String prefix = "Yes! ";
@@ -83,21 +83,21 @@ public class FilesystemTest {
 
             ByteBuffer buf_up = ByteBuffer.wrap(concat);
             f1_up.update(buf_up, 0);
-            assert (Arrays.equals(f1_up.get(0, concat.length), concat));
+            assert (Arrays.equals(f1_up.getBytes(), concat));
             fs.updateFile(txn, "file1.txt", "/test/testfs1", f1_up);
             txn.commit();
 
             logger.info("Checking that updates are committed");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             IFile f1_upp = fs.readFile(txn, "file1.txt", "/test/testfs1");
-            assert (Arrays.equals(f1_upp.get(0, concat.length), concat));
+            assert (Arrays.equals(f1_upp.getBytes(), concat));
             txn.commit();
 
             logger.info("Copying the file");
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             fs.copyFile(txn, "file1.txt", "/test/testfs1", "/test/testfs2");
             IFile f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
-            assert (Arrays.equals(f1_copy.get(0, concat.length), concat));
+            assert (Arrays.equals(f1_copy.getBytes(), concat));
             txn.commit();
 
             // mkdir testfs1 testfs1/include testfs1/include/sys
