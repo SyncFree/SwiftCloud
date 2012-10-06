@@ -1,6 +1,9 @@
 package swift.clocks;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,9 +38,9 @@ public class TimestampMappingTest {
         assertEquals(Collections.singletonList(CLIENT_TIMESTAMP_A), a.getTimestamps());
 
         final CausalityClock clock = ClockFactory.newClock();
-        assertFalse(a.timestampsIntersect(clock));
+        assertFalse(a.anyTimestampIncluded(clock));
         clock.record(CLIENT_TIMESTAMP_A);
-        assertTrue(a.timestampsIntersect(clock));
+        assertTrue(a.anyTimestampIncluded(clock));
 
         try {
             a.getSelectedSystemTimestamp();
@@ -99,21 +102,27 @@ public class TimestampMappingTest {
         a.addSystemTimestamp(SYSTEM_TIMESTAMP_2);
 
         CausalityClock clock = ClockFactory.newClock();
-        assertFalse(a.timestampsIntersect(clock));
-        // subset
+        // none
+        assertFalse(a.anyTimestampIncluded(clock));
+        assertFalse(a.allSystemTimestampsIncluded(clock));
         clock.record(SYSTEM_TIMESTAMP_1);
-        assertTrue(a.timestampsIntersect(clock));
-        // equals
+        // subset
+        assertTrue(a.anyTimestampIncluded(clock));
+        assertFalse(a.allSystemTimestampsIncluded(clock));
         clock.record(CLIENT_TIMESTAMP_A);
         clock.record(SYSTEM_TIMESTAMP_2);
-        assertTrue(a.timestampsIntersect(clock));
-        // superset
+        // equals
+        assertTrue(a.anyTimestampIncluded(clock));
+        assertTrue(a.allSystemTimestampsIncluded(clock));
         clock.record(SYSTEM_TIMESTAMP_3);
-        assertTrue(a.timestampsIntersect(clock));
+        // superset
+        assertTrue(a.anyTimestampIncluded(clock));
+        assertTrue(a.allSystemTimestampsIncluded(clock));
 
-        // intersection
         clock.drop(CLIENT_TIMESTAMP_A.getIdentifier());
-        assertTrue(a.timestampsIntersect(clock));
+        // intersection
+        assertTrue(a.anyTimestampIncluded(clock));
+        assertFalse(a.allSystemTimestampsIncluded(clock));
     }
 
     @Test

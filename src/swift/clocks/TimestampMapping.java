@@ -82,13 +82,34 @@ public class TimestampMapping implements Copyable {
      * @return true if any timestamp (client or system) used to represent the
      *         transaction of this update intersects with the provided clock
      */
-    public boolean timestampsIntersect(final CausalityClock clock) {
+    public boolean anyTimestampIncluded(final CausalityClock clock) {
         for (final Timestamp ts : timestamps) {
             if (clock.includes(ts)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * Checks whether the provided clock includes all system timestamps used by
+     * this update id.
+     * 
+     * @param clock
+     *            clock to check against
+     * @return true if all system timestamps used to represent the transaction
+     *         of this update intersects with the provided clock
+     */
+    public boolean allSystemTimestampsIncluded(final CausalityClock clock) {
+        for (final Timestamp ts : timestamps) {
+            if (ts.equals(clientTimestamp)) {
+                continue;
+            }
+            if (!clock.includes(ts)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

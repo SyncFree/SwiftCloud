@@ -324,7 +324,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         final Iterator<TimestampMapping> iter = iteratorTimestampMappings();
         while (iter.hasNext()) {
             final TimestampMapping mapping = iter.next();
-            if (!mapping.timestampsIntersect(clock)) {
+            if (!mapping.anyTimestampIncluded(clock)) {
                 result.add(mapping.copy());
             }
         }

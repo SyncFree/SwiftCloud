@@ -175,13 +175,18 @@ public class SwiftImpl implements Swift, TxnManager {
     // Last globally committed txn clock + dependencies.
     private CausalityClock lastGloballyCommittedTxnClock;
     // Generator of local timestamps.
-    private ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
+    private final ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
+
+    // Set of versions for fetch requests in progress.
+    private final Set<CausalityClock> fetchVersionsInProgress;
 
     // Invariant: there is at most one pending (open) transaction.
     private AbstractTxnHandle pendingTxn;
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
     private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
+    // Globally committed local transactions (in commit order), but possibly not
+    // stable, i.e. not distaster-safe in the store.
     private final LinkedList<AbstractTxnHandle> globallyCommittedUnstableTxns;
 
     // Thread sequentially committing transactions from the queue.
@@ -228,6 +233,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
                 INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.committerThread = new CommitterThread();
+        this.fetchVersionsInProgress = new HashSet<CausalityClock>();
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
@@ -339,16 +345,21 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        // Find new stable local txns, and clean-up the list.
+        // Find and clean new stable local txns logs that we won't need anymore.
         for (Iterator<AbstractTxnHandle> globalTxnIter = globallyCommittedUnstableTxns.iterator(); globalTxnIter
                 .hasNext();) {
             final AbstractTxnHandle txn = globalTxnIter.next();
-            if (txn.getTimestampMapping().timestampsIntersect(committedDisasterDurableVersion)) {
+            boolean notNeeded = txn.getTimestampMapping().allSystemTimestampsIncluded(committedDisasterDurableVersion);
+            for (final CausalityClock fetchedVersion : fetchVersionsInProgress) {
+                if (!txn.getTimestampMapping().allSystemTimestampsIncluded(fetchedVersion)) {
+                    notNeeded = false;
+                    break;
+                }
+            }
+            if (notNeeded) {
                 globalTxnIter.remove();
-                // FIXME: There might be a race condition between
-                // FetchObjectVersionReply and commit of this
-                // transaction that could unable us to read a valid object
-                // version.
+            } else {
+                break;
             }
         }
 
@@ -357,7 +368,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 .entrySet().iterator();
         while (iter.hasNext()) {
             final Entry<TimestampMapping, Set<CRDTIdentifier>> entry = iter.next();
-            if (entry.getKey().timestampsIntersect(getCommittedVersion(false))) {
+            if (entry.getKey().anyTimestampIncluded(getCommittedVersion(false))) {
                 iter.remove();
                 for (final CRDTIdentifier id : entry.getValue()) {
                     final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
@@ -576,34 +587,45 @@ public class SwiftImpl implements Swift, TxnManager {
     private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final FetchObjectVersionRequest fetchRequest,
             Class<V> classOfV, boolean create, boolean txnTriggered) throws NetworkException, NoSuchObjectException,
             WrongTypeException {
-        FetchObjectVersionReply reply;
-        do {
-            // FIXME: deduct previous iterations' attempts from deadlineMillis?
-            reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(null,
-                    deadlineMillis) {
+        synchronized (this) {
+            fetchVersionsInProgress.add(fetchRequest.getVersion());
+        }
 
-                public String toString() {
-                    return "FetchObjectVersionRequest";
-                }
+        try {
+            FetchObjectVersionReply reply;
+            do {
+                // FIXME: deduct previous iterations' attempts from
+                // deadlineMillis?
+                reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(null,
+                        deadlineMillis) {
 
-                @Override
-                protected FetchObjectVersionReply callOrFailWithNull() {
-                    localEndpoint.send(serverEndpoint, fetchRequest, new FetchObjectVersionReplyHandler() {
-                        @Override
-                        public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
-                            setResult(reply);
-                        }
-                    }, Math.min(timeoutMillis, getDeadlineLeft())).enableDeferredReplies(30000);
-                    return getResult();
+                    public String toString() {
+                        return "FetchObjectVersionRequest";
+                    }
+
+                    @Override
+                    protected FetchObjectVersionReply callOrFailWithNull() {
+                        localEndpoint.send(serverEndpoint, fetchRequest, new FetchObjectVersionReplyHandler() {
+                            @Override
+                            public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
+                                setResult(reply);
+                            }
+                        }, Math.min(timeoutMillis, getDeadlineLeft())).enableDeferredReplies(30000);
+                        return getResult();
+                    }
+                });
+                if (reply == null) {
+                    throw new NetworkException("Fetching object version exceeded the deadline");
                 }
-            });
-            if (reply == null) {
-                throw new NetworkException("Fetching object version exceeded the deadline");
+                if (stopFlag) {
+                    throw new NetworkException("Fetching object version was interrupted by client shutdown.");
+                }
+            } while (!processFetchObjectReply(fetchRequest, reply, classOfV, create, txnTriggered));
+        } finally {
+            synchronized (this) {
+                fetchVersionsInProgress.remove(fetchRequest.getVersion());
             }
-            if (stopFlag) {
-                throw new NetworkException("Fetching object version was interrupted by client shutdown.");
-            }
-        } while (!processFetchObjectReply(fetchRequest, reply, classOfV, create, txnTriggered));
+        }
     }
 
     /**
@@ -817,8 +839,8 @@ public class SwiftImpl implements Swift, TxnManager {
 
         Map<TimestampMapping, CRDTIdentifier> uncommittedUpdates = new HashMap<TimestampMapping, CRDTIdentifier>();
         for (final TimestampMapping tm : timestampMappings) {
-            if (!tm.timestampsIntersect(subscription.readVersion)) {
-                if (tm.timestampsIntersect(getCommittedVersion(false))) {
+            if (!tm.anyTimestampIncluded(subscription.readVersion)) {
+                if (tm.anyTimestampIncluded(getCommittedVersion(false))) {
                     notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
                     return;
                 }

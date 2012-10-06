@@ -89,10 +89,10 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
     }
 
     /**
-     * @see TimestampMapping#timestampsIntersect(CausalityClock)
+     * @see TimestampMapping#anyTimestampIncluded(CausalityClock)
      */
     public boolean timestampsIntersect(CausalityClock clock) {
-        return mapping.timestampsIntersect(clock);
+        return mapping.anyTimestampIncluded(clock);
     }
 
     /**
