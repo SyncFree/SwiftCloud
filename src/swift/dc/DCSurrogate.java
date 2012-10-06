@@ -393,17 +393,19 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final boolean txResult = ok;
         // TODO: handle failure
 
-        CausalityClock estimatedDCVersionCopy = null;
+        CausalityClock estimatedDCVersionCopy0 = null;
         synchronized (estimatedDCVersion) {
-            estimatedDCVersionCopy = estimatedDCVersion.clone();
+            estimatedDCVersionCopy0 = estimatedDCVersion.clone();
         }
+        final CausalityClock estimatedDCVersionCopy = estimatedDCVersionCopy0;
         session.setLastSeqNo( cltTs);
         sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs, 
                 estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
             @Override
             public void onReceive(RpcHandle conn0, CommitTSReply reply) {
-                DCConstants.DCLogger.info("Commit: received CommitTSRequest");
+                DCConstants.DCLogger.info("Commit: received CommitTSRequest:old vrs:" + estimatedDCVersionCopy + 
+                        "; new vrs=" + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
                 CausalityClock estimatedDCVersionCopy = null;
                 synchronized (estimatedDCVersion) {
                     estimatedDCVersion.merge(reply.getCurrVersion());

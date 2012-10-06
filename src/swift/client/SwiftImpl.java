@@ -338,9 +338,13 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        if (this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)
-                && this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
-                        CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+        boolean res = this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
+        boolean res2 = this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
+                CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
+//        if (this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)
+//                && this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
+//                        CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+        if( res && res2) {
             // No changes.
             return;
         }
@@ -743,7 +747,7 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.warning("server did not reply with recent update notifications");
             return;
         }
-        logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects");
+        logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs=" + notifications.getEstimatedCommittedVersion() + ";stable="+ notifications.getEstimatedDisasterDurableCommittedVersion());
 
         updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
                 notifications.getEstimatedDisasterDurableCommittedVersion());
@@ -811,7 +815,10 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("applying received updates on object " + id);
+            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size()  + ";tx=" + 
+                    (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp())+
+                    ";clttx="+ (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + 
+                    ";vv=" + outputClock + ";dep=" + dependencyClock);
         }
 
         for (final CRDTObjectUpdatesGroup<?> op : ops) {
