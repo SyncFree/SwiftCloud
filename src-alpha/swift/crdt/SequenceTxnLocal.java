@@ -1,6 +1,7 @@
 package swift.crdt;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -20,8 +21,8 @@ import static swift.crdt.SequenceVersioned.*;
 public class SequenceTxnLocal<V> extends BaseCRDTTxnLocal<SequenceVersioned<V>> {
 
 	private SortedMap<PosID<V>, Set<TripleTimestamp>> elems;
+	private List<PosID<V>> posIDs = new ArrayList<PosID<V>>();
 	private List<V> atoms = new ArrayList<V>();
-	private List<SID> posIDs = new ArrayList<SID>();
 
 	public SequenceTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, SequenceVersioned<V> creationState, SortedMap<PosID<V>, Set<TripleTimestamp>> elems) {
 		super(id, txn, clock, creationState);
@@ -33,25 +34,20 @@ public class SequenceTxnLocal<V> extends BaseCRDTTxnLocal<SequenceVersioned<V>> 
 	 * Inserts atom d into the position pos of the sequence
 	 */
 	public void insertAt(int pos, V v) {
-		SID id = newId(pos);		
-		insert(new PosID<V>(id, v));
+		PosID<V> posId = newPosId(pos, v);		
+		insert( posId );
 		atoms.add(pos, v);
-		posIDs.add(pos, id);
-	}
+		posIDs.add(pos, posId);
+		}
 
 	/**
 	 * Deletes atom at position pos
 	 */
-	public void removeAt(int pos) {
-		SID id = posIDs.remove(pos);
+	public V removeAt(int pos) {
+		PosID<V> posId = posIDs.remove(pos);
 		V v = atoms.remove(pos);
-		for (Map.Entry<PosID<V>, Set<TripleTimestamp>> i : elems.entrySet()) {
-			PosID<V> k = i.getKey();
-			if (id.equals(k.getId())) {
-				remove(k);
-				break;
-			}
-		}
+		remove( posId );
+		return v;
 	}
 	
 	public int size() {
@@ -75,30 +71,29 @@ public class SequenceTxnLocal<V> extends BaseCRDTTxnLocal<SequenceVersioned<V>> 
 			PosID<V> k = i.getKey();
 			if (!k.isDeleted()) {
 				atoms.add(k.getAtom());
-				posIDs.add(k.getId());
+				posIDs.add(k);
 			}
 		}
 	}
 
-	final private SID newId(int pos) {		
-		if (pos == 0)
-			return size() == 0 ? SID.FIRST : SID.smallerThan(posIDs.get(0));
-
-		if (pos == size())
-			return SID.greaterThan(posIDs.get(pos - 1));
-
-		SID posId = posIDs.get(pos);
-		return posId.between( nextId(posId) );
-	}
-
-	final private SID nextId(SID other) {
-		PosID<V> fromKey = new PosID<V>(other, null);
-		for (Map.Entry<SequenceVersioned.PosID<V>, Set<TripleTimestamp>> i : elems.tailMap(fromKey).entrySet())
-			return i.getKey().getId();
-
-		assert false;
+	final private PosID<V> newPosId(int pos, V atom) {	
+		SID id = null ;
+		int size = size();
 		
-		return null;
+		if (pos == 0) {
+			id = size == 0 ? SID.FIRST : SID.smallerThan(posIDs.get(0).getId() );
+			return new PosID<V>(id, atom, nextTimestamp() );
+		}
+		if (pos == size) {
+			id = SID.greaterThan(posIDs.get(pos - 1).getId() );
+			return new PosID<V>(id, atom, nextTimestamp() );
+		}
+		
+		PosID<V> lo = posIDs.get(pos-1), hi = posIDs.get( pos);
+		id = lo.getId().between( hi.getId() );
+		PosID<V> res = new PosID<V>(id, atom, nextTimestamp());
+		
+		return res ;
 	}
 
 	/**
@@ -108,16 +103,13 @@ public class SequenceTxnLocal<V> extends BaseCRDTTxnLocal<SequenceVersioned<V>> 
 	 * @param e
 	 */
 	private void insert(PosID<V> e) {
-		TripleTimestamp ts = nextTimestamp();
-		e.setTimestamp(ts) ;
-		
-		Set<TripleTimestamp> adds = elems.get(e);
+		Set<TripleTimestamp> adds = elems.get( e );
 		if (adds == null) {
 			adds = new HashSet<TripleTimestamp>();
 			elems.put(e, adds);
 		}
-		adds.add(ts);
-		registerLocalOperation(new SequenceInsert<PosID<V>, SequenceVersioned<V>>(ts, e));
+		adds.add( e.getTimestamp() );
+		registerLocalOperation(new SequenceInsert<PosID<V>, SequenceVersioned<V>>( e.getTimestamp(), e));
 	}
 
 	/**
@@ -129,8 +121,8 @@ public class SequenceTxnLocal<V> extends BaseCRDTTxnLocal<SequenceVersioned<V>> 
 		Set<TripleTimestamp> ids = elems.remove(e);
 		if (ids != null) {
 			TripleTimestamp ts = nextTimestamp();
-			registerLocalOperation(new SequenceRemove<PosID<V>, SequenceVersioned<V>>(ts, e, ids));
+			registerLocalOperation(new SequenceRemove<PosID<V>, SequenceVersioned<V>>( ts, e, ids));
 		}
-		elems.put( e.deletedPosID(), new HashSet<TripleTimestamp>());
 	}
+	
 }

@@ -7,7 +7,7 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -44,24 +44,24 @@ public class SequenceVersioned<V> extends SortedSetVersioned<PosID<V>, SequenceV
 
 		V atom;
 		SID id;
-		Timestamp timestamp;
+		TripleTimestamp timestamp;
 
 		// for kryo
 
 		PosID() {
 		}
 
-		PosID(SID id, V atom) {
-			this.id = id;
-			this.atom = atom;
-		}
+		// PosID(SID id, V atom) {
+		// this.id = id;
+		// this.atom = atom;
+		// }
 
-		PosID(SID id, V atom, Timestamp ts) {
+		PosID(SID id, V atom, TripleTimestamp ts) {
 			this.id = id;
 			this.atom = atom;
 			this.timestamp = ts;
 		}
-		
+
 		public SID getId() {
 			return id;
 		}
@@ -70,10 +70,14 @@ public class SequenceVersioned<V> extends SortedSetVersioned<PosID<V>, SequenceV
 			return atom;
 		}
 
+		public TripleTimestamp getTimestamp() {
+			return timestamp;
+		}
+
 		public boolean isDeleted() {
 			return atom == null;
 		}
-		
+
 		@Override
 		public int compareTo(PosID<V> other) {
 			int res = id.compareTo(other.id);
@@ -81,7 +85,7 @@ public class SequenceVersioned<V> extends SortedSetVersioned<PosID<V>, SequenceV
 		}
 
 		public int hashCode() {
-			return id.hashCode() ^ timestamp.hashCode() ;
+			return id.hashCode() ^ timestamp.hashCode();
 		}
 
 		public boolean equals(Object o) {
@@ -94,25 +98,22 @@ public class SequenceVersioned<V> extends SortedSetVersioned<PosID<V>, SequenceV
 		}
 
 		public String toString() {
-			return String.format("<%s, %s>", id, atom);
-		}
-
-		public void setTimestamp(Timestamp ts) {
-			this.timestamp = ts;
+			return String.format("<%s>", id, timestamp);
 		}
 	}
 }
 
 class SID implements Comparable<SID> {
+	static final int TOP = 1 << 30;
 
-	static final int INCREMENT = 1 << 4;
+	static final int INCREMENT = 1 << 9;
 	static final Random rg = new Random(1L);
 	static SID FIRST = new SID(new int[]{increment(0), SiteId.get()});
 
 	int[] coords;
 
 	// for kryo
-	private SID() {
+	SID() {
 	}
 
 	protected SID(int[] coords) {
@@ -120,26 +121,17 @@ class SID implements Comparable<SID> {
 	}
 
 	public SID between(SID other) {
-		int dims = Math.max(dims(), other.dims());
-		int[] l = this.expandCoords(dims);
-		int[] r = other.expandCoords(dims);
-		return new SID(between(l, r));
+		return new SID(between(this, other));
 	}
 
 	// TODO deal with underoverflow of first coordinate...
 	static public SID smallerThan(SID x) {
-		int[] coords = Arrays.copyOf(x.coords, x.coords.length);
-		coords[0] = decrement(x.coord(0));
-		coords[1] = SiteId.get();
-		return new SID(coords);
+		return new SID(new int[]{decrement(x.coord(0)), SiteId.get()});
 	}
 
 	// TODO deal with overflow of first coordinate...
 	static public SID greaterThan(SID x) {
-		int[] coords = Arrays.copyOf(x.coords, x.coords.length);
-		coords[0] = increment(x.coord(0));
-		coords[1] = SiteId.get();
-		return new SID(coords);
+		return new SID(new int[]{increment(x.coord(0)), SiteId.get()});
 	}
 
 	@Override
@@ -153,52 +145,52 @@ class SID implements Comparable<SID> {
 		return 0;
 	}
 
-	/*
-	 * returns an expanded coordinate vector, filling with zeros the extra
-	 * dimensions, except the last one, which is filled with the local site's
-	 * dis-ambiguator.
-	 */
-	final private int[] expandCoords(int dims) {
-		if (dims == dims())
-			return coords;
-
-		int[] res = Arrays.copyOf(coords, dims);
-		res[dims - 1] = SiteId.get();
-		return res;
+	final int coord(int d) {
+		return d < coords.length ? coords[d] : 0;
 	}
 
-	/*
-	 * l and r have the same number of dimensions...
-	 */
-	static private int[] between(int[] l, int[] r) {
+	static private int[] between(SID lo, SID hi) {
 
-		assert l.length == r.length;
+		int dims = Math.max(lo.dims(), hi.dims());
 
-		int dims = l.length;
+		int[] inc = Arrays.copyOf(lo.coords, dims);
+		int[] res = Arrays.copyOf(lo.coords, dims);
 
-		int[] res = new int[dims];
+		for( int i = 0; i < dims - 1; i += 2 ) {
+			inc[i] = Math.min( 2*INCREMENT, ((hi.coord(i) - lo.coord(i)) + TOP) % TOP);
+			res[i] = (lo.coord(i) + (inc[i] >> 1)) ;
+			if( res[i] > TOP ) {
+				res[i] %= TOP ;
+				res[i-2] += 1;
+			}
+		} 
 
-		res[dims - 1] = SiteId.get();
-
-		for (int i = 0; i < dims - 1; i++) {
-			res[i] = (r[i] + l[i]) >> 1;
-			// int quarter = (res[i] - l[i]) >> 2;
-			// if (quarter > 2)
-			// res[i] = res[i] - quarter + rg.nextInt(2*quarter);
-		}
-
-		for (int i = 0; i < dims - 1; i++)
-			if (res[i] != l[i])
+		for (int i = 0; i < dims - 1; i += 2) {
+			if ( inc[i] > 1) {
+				res[i + 1] = SiteId.get();
+				res = Arrays.copyOf(res, i + 2);
 				return res;
+			}
+		}
 
 		// we got a collision, increase #dims by 2.
 		res = Arrays.copyOf(res, dims + 2);
-		res[dims] = 1024; // Integer.MAX_VALUE >> 1 ;
+		res[dims] = INCREMENT;
 		res[dims + 1] = SiteId.get();
 
 		return res;
 	}
 
+	static List<Integer> INT(int[] a) {
+		Integer[] res = new Integer[a.length / 2];
+		int j = 0;
+		for (int i = 0; i < a.length; i++) {
+			if ((i & 1) == 0)
+				res[j++] = a[i];
+		}
+
+		return Arrays.asList(res);
+	}
 	public int hashCode() {
 		int res = 0;
 
@@ -212,14 +204,12 @@ class SID implements Comparable<SID> {
 		return (other instanceof SID) && compareTo((SID) other) == 0;
 	}
 
-	private int coord(int d) {
-		return d < coords.length ? coords[d] : 0;
-	}
-
 	public String toString() {
 		List<Integer> tmp = new ArrayList<Integer>();
+		int j = 0;
 		for (int i : coords)
-			tmp.add(i);
+			if ((j++ & 1) == 0)
+				tmp.add(i);
 
 		return String.format("%s", tmp);
 	}

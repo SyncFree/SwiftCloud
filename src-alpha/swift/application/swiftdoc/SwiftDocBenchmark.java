@@ -8,11 +8,12 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.dc.DCConstants;
 import sys.Sys;
+import sys.utils.Threading;
 
 /**
- * Local setup/test with one server and two clients.
  * 
- * @author annettebieniusa, smduarte
+ * 
+ * @author smduarte, annettebieniusa
  * 
  */
 public class SwiftDocBenchmark {
@@ -21,7 +22,24 @@ public class SwiftDocBenchmark {
 	private static int clientId;
 	private static Logger logger = Logger.getLogger("swift.application");
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws Exception {
+		
+		Threading.newThread( true, new Runnable() {
+
+			public void run() {
+				swift.dc.DCSequencerServer.main(new String[] {} ) ;
+				Threading.sleep(2000);
+				swift.dc.DCServer.main(new String[] {} ) ;
+			}
+			
+		}).start();
+
+		Threading.sleep(10000);
+		
+		System.err.println("Running...");
+		
+		args = new String[] {"localhost", "1", "1", "REPEATABLE_READS", "CACHED", "true" };
+		
 		if (args.length != 6) {
 			System.out.println( "-->" + Arrays.asList( args )) ;
 			System.out.println("Usage: [surrogate address] [number of iterations] [client id (1|2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
@@ -41,22 +59,33 @@ public class SwiftDocBenchmark {
 			SwiftDoc.notifications = Boolean.parseBoolean(args[5]);
 		}
 
-		System.out.print("DocLatencyTest ");
 		for (String s : args) {
 			System.out.print(s + " ");
 		}
-		System.out.println("");
-
+		
 		logger.info("Initializing the system");
+		NtpTime.init();
+		
 		Sys.init();
 		SwiftImpl swift = SwiftImpl.newInstance(dcName, dcPort);
 
-		if (clientId == 1) {
-			logger.info("Starting client 1");
-			SwiftDoc.runClient1(swift);
-		} else if (clientId == 2) {
-			logger.info("Starting client 2");
-			SwiftDoc.runClient2(swift);
-		}
+//		if (clientId == 1) {
+//			logger.info("Starting client 1");
+//			SwiftDoc.runClient1(swift);
+//		} else if (clientId == 2) {
+//			logger.info("Starting client 2");
+//			SwiftDoc.runClient2(swift);
+//		}
+
+		SwiftDoc.runClient1(swift);
+		Threading.newThread(true, new Runnable() {
+
+			@Override
+			public void run() {
+				SwiftDoc.runClient2( SwiftImpl.newInstance(dcName, dcPort) );				
+			}
+			
+		}).start();
+		
 	}
 }
