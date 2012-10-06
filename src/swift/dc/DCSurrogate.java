@@ -369,6 +369,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final Timestamp txTs = reply.getTimestamp();
         final Timestamp cltTs = request.getClientTimestamp();
         final Timestamp prvCltTs = session.getLastSeqNo();
+        for( CRDTObjectUpdatesGroup<?> o: ops) {
+            o.addSystemTimestamp(txTs);
+        }
         
         final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
