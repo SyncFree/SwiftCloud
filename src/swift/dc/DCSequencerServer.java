@@ -319,7 +319,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                         }
                         if (r != null) {
                             final CommitRecord r0 = r;
-                            final SeqCommitUpdatesRequest req = new SeqCommitUpdatesRequest(siteId, r.baseTimestamp, r.cltTimestamp,
+                            final SeqCommitUpdatesRequest req = new SeqCommitUpdatesRequest(siteId, 
+                                    r.baseTimestamp, r.cltTimestamp, r.prvCltTimestamp,
                                     r.objectUpdateGroups, receivedMessagesCopy(), r.notUsed);
                             for (int i = 0; i < sequencersEP.size(); i++) {
                                 synchronized (r) {
@@ -529,7 +530,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         
         conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
         if (!isBackup && sequencerShadowEP != null) {
-            final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(siteId,request.getTimestamp(),request.getCltTimestamp(),
+            final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(siteId,request.getTimestamp(),
+                    request.getCltTimestamp(),request.getPrvCltTimestamp(),
                     request.getObjectUpdateGroups(), clk, nuClk);
             endpoint.send(sequencerShadowEP, msg, new AbstractRpcHandler() {
                 @Override
@@ -545,7 +547,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             }, 0);
         }
 
-        addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getTimestamp(), request.getCltTimestamp()));
+        addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), 
+                request.getTimestamp(), request.getCltTimestamp(), request.getPrvCltTimestamp()));
         Threading.synchronizedNotifyAllOn( pendingOps );
         cleanPendingTSReq();
    }
@@ -559,7 +562,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
         if (isBackup) {
             this.addToOps(new CommitRecord(request.getDcNotUsed(), request.getObjectUpdateGroups(), 
-                    request.getTimestamp(), request.getCltTimestamp()));
+                    request.getTimestamp(), request.getCltTimestamp(), request.getPrvCltTimestamp()));
             
             conn.reply(new SeqCommitUpdatesReply(siteId,currentClockCopy(),stableClockCopy(),receivedMessagesCopy()));
 
@@ -575,7 +578,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
 
         this.addToOps(new CommitRecord(request.getDcNotUsed(), request.getObjectUpdateGroups(), 
-                request.getTimestamp(), request.getCltTimestamp()));
+                request.getTimestamp(), request.getCltTimestamp(), request.getPrvCltTimestamp()));
 
         synchronized (this) {
             stableClock.record(request.getTimestamp());
@@ -646,14 +649,16 @@ class CommitRecord implements Comparable<CommitRecord> {
     List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     Timestamp baseTimestamp;
     Timestamp cltTimestamp;
+    Timestamp prvCltTimestamp;
     long lastSent;
 
     public CommitRecord(CausalityClock notUsed, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
-            Timestamp baseTimestamp, Timestamp cltTimestamp) {
+            Timestamp baseTimestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp) {
         this.notUsed = notUsed;
         this.objectUpdateGroups = objectUpdateGroups;
         this.baseTimestamp = baseTimestamp;
         this.cltTimestamp = cltTimestamp;
+        this.prvCltTimestamp = prvCltTimestamp;
         acked = new BitSet();
         lastSent = Long.MIN_VALUE;
     }

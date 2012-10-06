@@ -21,6 +21,7 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     CausalityClock trxVersion;
     Timestamp txTs;
     Timestamp cltTs;
+    Timestamp prvCltTs;
     String surrogateId;
     
     /**
@@ -30,13 +31,14 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     }
 
     public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion, 
-            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs) {
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs) {
         this.surrogateId = surrogateId;
         this.grp = grp;
         this.snapshotVersion = snapshotVersion;
         this.trxVersion = trxVersion;
         this.txTs = txTs;
         this.cltTs = cltTs;
+        this.prvCltTs = prvCltTs;
     }
 
     @Override
@@ -66,6 +68,10 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
 
     public Timestamp getCltTs() {
         return cltTs;
+    }
+
+    public Timestamp getPrvCltTs() {
+        return prvCltTs;
     }
 
 }

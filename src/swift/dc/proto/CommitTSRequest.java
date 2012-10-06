@@ -18,6 +18,7 @@ import sys.net.api.rpc.RpcMessage;
 public class CommitTSRequest implements RpcMessage {
     protected Timestamp timestamp;
     protected Timestamp cltTimestamp;
+    protected Timestamp prvCltTimestamp;
     protected CausalityClock version;   // observed version
     protected boolean commit;           // true if transaction was committed
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
@@ -28,10 +29,11 @@ public class CommitTSRequest implements RpcMessage {
     CommitTSRequest() {
     }
 
-    public CommitTSRequest(Timestamp timestamp, Timestamp cltTimestamp, CausalityClock version, boolean commit,
+    public CommitTSRequest(Timestamp timestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp, CausalityClock version, boolean commit,
             List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
         this.timestamp = timestamp;
         this.cltTimestamp = cltTimestamp;
+        this.prvCltTimestamp = prvCltTimestamp;
         this.version = version;
         this.commit = commit;
         this.objectUpdateGroups = objectUpdateGroups;
@@ -73,6 +75,10 @@ public class CommitTSRequest implements RpcMessage {
 
     public List<CRDTObjectUpdatesGroup<?>> getObjectUpdateGroups() {
         return objectUpdateGroups;
+    }
+
+    public Timestamp getPrvCltTimestamp() {
+        return prvCltTimestamp;
     }
 
 }

@@ -243,8 +243,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
-            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs) {
-        return dataServer.execCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs); // call
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs) {
+        return dataServer.execCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs); // call
                                                                       // DHT
                                                                       // server
     }
@@ -368,6 +368,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp txTs = reply.getTimestamp();
         final Timestamp cltTs = request.getClientTimestamp();
+        final Timestamp prvCltTs = session.getLastSeqNo();
         
         final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
@@ -379,7 +380,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
             CRDTObjectUpdatesGroup<?> grp = it.next();
-            results[pos] = execCRDT(grp, snapshotClock, trxClock, txTs, cltTs);
+            results[pos] = execCRDT(grp, snapshotClock, trxClock, txTs, cltTs, prvCltTs);
             ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(grp.getDependency());
@@ -394,7 +395,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             estimatedDCVersionCopy = estimatedDCVersion.clone();
         }
         session.setLastSeqNo( cltTs);
-        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(txTs, request.getClientTimestamp(), estimatedDCVersionCopy, ok,
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs, 
+                estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
             @Override
             public void onReceive(RpcHandle conn0, CommitTSReply reply) {
@@ -581,6 +583,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
         final Timestamp ts = request.getTimestamp();
         final Timestamp cltTs = request.getCltTimestamp();
+        final Timestamp prvCltTs = request.getPrvCltTimestamp();
         final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(request.getTimestamp());
@@ -591,7 +594,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
             CRDTObjectUpdatesGroup<?> grp = it.next();
-            results[pos] = execCRDT(grp, snapshotClock, trxClock, request.getTimestamp(), request.getCltTimestamp());
+            results[pos] = execCRDT(grp, snapshotClock, trxClock, request.getTimestamp(), 
+                    request.getCltTimestamp(), request.getPrvCltTimestamp());
             ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(grp.getDependency());
@@ -605,7 +609,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         synchronized (estimatedDCVersion) {
             estimatedDCVersionCopy = estimatedDCVersion.clone();
         }
-        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, cltTs, estimatedDCVersionCopy, ok,
+        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, cltTs, prvCltTs, estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
             @Override
             public void onReceive(RpcHandle conn0, CommitTSReply reply) {

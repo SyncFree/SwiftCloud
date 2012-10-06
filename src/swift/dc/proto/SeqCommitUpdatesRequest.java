@@ -25,6 +25,7 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     protected Timestamp timestamp;
     protected Timestamp cltTimestamp;
+    protected Timestamp prvCltTimestamp;
     CausalityClock dcReceived;
     CausalityClock dcNotUsed;
     public transient long lastSent;
@@ -35,11 +36,12 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     SeqCommitUpdatesRequest() {
     }
 
-    public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp,
+    public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp, final Timestamp prvCltTimestamp,
             List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, CausalityClock dcReceived, CausalityClock dcNotUsed) {
         this.dcName = dcName;
         this.timestamp = timestamp;
         this.cltTimestamp = cltTimestamp;
+        this.prvCltTimestamp = prvCltTimestamp;
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
         this.dcReceived = dcReceived;
         this.dcNotUsed = dcNotUsed;
@@ -86,5 +88,9 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
 
     public String getDcName() {
         return dcName;
+    }
+
+    public Timestamp getPrvCltTimestamp() {
+        return prvCltTimestamp;
     }
 }
