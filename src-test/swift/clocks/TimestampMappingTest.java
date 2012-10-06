@@ -122,7 +122,6 @@ public class TimestampMappingTest {
         clock.drop(CLIENT_TIMESTAMP_A.getIdentifier());
         // intersection
         assertTrue(a.anyTimestampIncluded(clock));
-        assertFalse(a.allSystemTimestampsIncluded(clock));
     }
 
     @Test
