@@ -18,19 +18,7 @@ public class SwiftSocialTest {
 
     public static void main(String[] args) {
         DCSequencerServer.main(new String[] { "-name", sequencerName });
-
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            // do nothing
-        }
-
         DCServer.main(new String[] { sequencerName });
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            // do nothing
-        }
 
         Sys.init();
         Swift clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
