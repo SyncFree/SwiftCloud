@@ -51,11 +51,6 @@ public class SequenceVersioned<V> extends SortedSetVersioned<PosID<V>, SequenceV
 		PosID() {
 		}
 
-		// PosID(SID id, V atom) {
-		// this.id = id;
-		// this.atom = atom;
-		// }
-
 		PosID(SID id, V atom, TripleTimestamp ts) {
 			this.id = id;
 			this.atom = atom;
