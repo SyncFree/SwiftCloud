@@ -412,12 +412,14 @@ class DCDataServer {
 //            nodes and objects with big vectors, unless we want to do it until
 //            pruning
 
-            data.crdt.augmentWithScoutClock(prvCltTs);
+            if( prvCltTs != null)
+                data.crdt.augmentWithScoutClock(prvCltTs);
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
             if( DCDataServer.prune) {
-                data.prunedCrdt.augmentWithScoutClock(prvCltTs);
+                if( prvCltTs != null)
+                    data.prunedCrdt.augmentWithScoutClock(prvCltTs);
                 data.prunedCrdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
                 data.prunedCrdt.prune( data.clock, false);
                 data.prunedCrdt.discardScoutClock(cltTs.getIdentifier());
