@@ -131,7 +131,7 @@ public class SwiftSocial {
             logger.info("Registered user: " + newUser);
             // Here only synchronous commit, as otherwise the following tests
             // might fail.
-            commitTxn(txn);
+            txn.commit();
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
