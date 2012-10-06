@@ -10,58 +10,56 @@ import com.esotericsoftware.kryo.io.Output;
 public class TextLine implements KryoSerializable {
 
 	static AtomicLong g_serial = new AtomicLong(0);
-	
-	long serial = g_serial.getAndIncrement();
-	
-	String text;
-	long arrival_ts = -1;
-	long departure_ts = -1;
 
+	long serial;
+	String text;
+	long arrival_ts;
+	long departure_ts;
+	
 	// for kryo
-	
-	TextLine(){		
+	TextLine() {
 	}
-	
+
 	TextLine(String text) {
 		this.text = text;
+		this.serial = g_serial.getAndIncrement();
+		this.departure_ts = -1;
 	}
 
-//	void markArrival() {
-//		this.arrival_ts = NtpTime.timeInMillis();
-//	}
-	
 	public int hashCode() {
 		return text.hashCode();
 	}
-	
-	public boolean equals( Object other ) {
-		if( other instanceof String)
-			return text.equals( other );
+
+	public boolean equals(Object other) {
+		if (other instanceof String)
+			return text.equals(other);
 		else
-			return  other instanceof TextLine && text.equals( ((TextLine)other).text);
+			return other instanceof TextLine && text.equals(((TextLine) other).text);
 	}
 
 	@Override
 	public void read(Kryo kryo, Input in) {
+		serial = in.readLong();
 		text = in.readString();
 		departure_ts = in.readLong();
-		arrival_ts = NtpTime.timeInMillis();
+		arrival_ts = System.currentTimeMillis();
 	}
 
 	@Override
 	public void write(Kryo kryo, Output out) {
-		out.writeString( text ) ;
-		out.writeLong( departure_ts >= 0 ? departure_ts : NtpTime.timeInMillis() ) ;
+		out.writeLong(serial);
+		out.writeString(text);
+		out.writeLong(departure_ts >= 0 ? departure_ts : (departure_ts = System.currentTimeMillis()) );
 	}
-	
+
 	public long latency() {
-		return arrival_ts - departure_ts ;
+		return (arrival_ts - departure_ts) / 2;
 	}
-	
+
 	public String toString() {
 		return text;
 	}
-	
+
 	public Long serial() {
 		return serial;
 	}

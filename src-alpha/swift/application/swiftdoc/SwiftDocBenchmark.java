@@ -6,6 +6,7 @@ import java.util.logging.Logger;
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import sys.Sys;
 import sys.utils.Threading;
@@ -23,22 +24,6 @@ public class SwiftDocBenchmark {
 	private static Logger logger = Logger.getLogger("swift.application");
 
 	public static void main(String[] args) throws Exception {
-		
-		Threading.newThread( true, new Runnable() {
-
-			public void run() {
-				swift.dc.DCSequencerServer.main(new String[] {} ) ;
-				Threading.sleep(2000);
-				swift.dc.DCServer.main(new String[] {} ) ;
-			}
-			
-		}).start();
-
-		Threading.sleep(10000);
-		
-		System.err.println("Running...");
-		
-		args = new String[] {"localhost", "1", "1", "REPEATABLE_READS", "CACHED", "true" };
 		
 		if (args.length != 6) {
 			System.out.println( "-->" + Arrays.asList( args )) ;
@@ -59,33 +44,30 @@ public class SwiftDocBenchmark {
 			SwiftDoc.notifications = Boolean.parseBoolean(args[5]);
 		}
 
-		for (String s : args) {
-			System.out.print(s + " ");
-		}
-		
 		logger.info("Initializing the system");
-		NtpTime.init();
 		
 		Sys.init();
-		SwiftImpl swift = SwiftImpl.newInstance(dcName, dcPort);
-
-//		if (clientId == 1) {
-//			logger.info("Starting client 1");
-//			SwiftDoc.runClient1(swift);
-//		} else if (clientId == 2) {
-//			logger.info("Starting client 2");
-//			SwiftDoc.runClient2(swift);
-//		}
-
-		SwiftDoc.runClient1(swift);
-		Threading.newThread(true, new Runnable() {
-
-			@Override
-			public void run() {
-				SwiftDoc.runClient2( SwiftImpl.newInstance(dcName, dcPort) );				
-			}
-			
-		}).start();
 		
+		SwiftImpl swift1 = SwiftImpl.newInstance(dcName, dcPort);
+		SwiftImpl swift2 = SwiftImpl.newInstance(dcName, dcPort);
+
+		if (clientId == 1) {
+			logger.info("Starting client 1");
+			SwiftDoc.runClient1(  swift1, swift2);
+		} else if (clientId == 2) {
+			logger.info("Starting client 2");
+			SwiftDoc.runClient2( swift1, swift2);
+		}
+
+//		Threading.newThread(true, new Runnable() {
+//
+//			@Override
+//			public void run() {
+//				// TODO Auto-generated method stub
+//				SwiftDoc.runClient2( SwiftImpl.newInstance(dcName, dcPort) );				
+//			}
+//			
+//		}).start();
+//		SwiftDoc.runClient1( SwiftImpl.newInstance(dcName, dcPort) );		
 	}
 }

@@ -65,16 +65,18 @@ public class SwiftDocPatchReplay<V> {
 			while (it.hasPrevious()) {
 				Delta delta = (Delta) it.previous();
 				delta.applyTo(result);
-				Threading.sleep(100);
 			}
 			doc = result;
 			
 			if( seq != null )
 				seq.commit();
+
+			Threading.sleep(100);
+			if( i.getName().equals("100-101") )
+				return;
 		}
 		
 		System.err.println("All Done");
-		System.exit(0);
 	}
 
 	SortedSet<ZipEntry> getPatchFiles() throws IOException {
@@ -101,7 +103,8 @@ public class SwiftDocPatchReplay<V> {
 		}
 		return sortedEntries;
 	}
-
+	
+	
 	public List<String> fileToLines(ZipEntry e) throws IOException {
 		List<String> lines = new LinkedList<String>();
 
