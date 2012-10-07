@@ -338,13 +338,17 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        boolean res = this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
+        boolean res = this.committedVersion.merge(newCommittedVersion)
+                .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
         boolean res2 = this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
                 CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
-//        if (this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)
-//                && this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
-//                        CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
-        if( res && res2) {
+        // if
+        // (this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES,
+        // CMP_CLOCK.CMP_EQUALS)
+        // &&
+        // this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
+        // CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+        if (res && res2) {
             // No changes.
             return;
         }
@@ -509,8 +513,9 @@ public class SwiftImpl implements Swift, TxnManager {
                 break;
             case CMP_CONCURRENT:
                 // TODO: can we request an intersection of the two clocks?
-                logger.warning("IMPLEMENT ME: cached object clock is incomparable with "
-                        + "committedVersion+lastCommittedTxnClock, so we were unable to serve a cached version");
+                logger.warning("IMPLEMENT ME: cached object clock=" + crdt.getClock() + " is incomparable with "
+                        + "committedVersion+lastCommittedTxnClock=" + clock
+                        + ", so we were unable to serve a cached version");
                 return null;
             default:
                 throw new UnsupportedOperationException();
@@ -747,7 +752,9 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.warning("server did not reply with recent update notifications");
             return;
         }
-        logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs=" + notifications.getEstimatedCommittedVersion() + ";stable="+ notifications.getEstimatedDisasterDurableCommittedVersion());
+        logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs="
+                + notifications.getEstimatedCommittedVersion() + ";stable="
+                + notifications.getEstimatedDisasterDurableCommittedVersion());
 
         updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
                 notifications.getEstimatedDisasterDurableCommittedVersion());
@@ -815,10 +822,10 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size()  + ";tx=" + 
-                    (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp())+
-                    ";clttx="+ (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + 
-                    ";vv=" + outputClock + ";dep=" + dependencyClock);
+            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size() + ";tx="
+                    + (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp())
+                    + ";clttx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + ";vv=" + outputClock
+                    + ";dep=" + dependencyClock);
         }
 
         for (final CRDTObjectUpdatesGroup<?> op : ops) {
