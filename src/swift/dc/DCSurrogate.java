@@ -211,9 +211,14 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             if (map == null)
                 return;
             
-            for( ClientPubInfo i : map.values() ) 
+            for( ClientPubInfo i : map.values() ) {
+                CausalityClock vrs = getEstimatedDCVersionCopy();
+                vrs.recordAllUntil(i.getLastSeqNo());
+                CausalityClock stable = getEstimatedDCStableVersionCopy();
+                stable.recordAllUntil(i.getLastSeqNo());
+                
             	i.addNotifications( notification.getInfo(), getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy());
-            
+            }
         }
     }
 
