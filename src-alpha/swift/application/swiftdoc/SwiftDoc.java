@@ -24,9 +24,8 @@ import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
 
 /**
- * Local setup/test with one server and two clients.
  * 
- * @author annettebieniusa, smduarte
+ * @author smduarte, annettebieniusa
  * 
  */
 public class SwiftDoc {
