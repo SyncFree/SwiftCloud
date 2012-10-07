@@ -17,8 +17,8 @@ import sys.net.impl.AbstractMessage;
 abstract class AbstractRpcPacket extends AbstractMessage implements Message, RpcHandle, RpcEndpoint, KryoSerializable {
 
 	long handlerId; // destination service handler
-	long replyHandlerId; // reply handler, 0 = no reply expected.
-	int deferredRepliesTimeout = 0;
+	public long replyHandlerId; // reply handler, 0 = no reply expected.
+	public int deferredRepliesTimeout = 0;
 
 	RpcMessage payload;
 

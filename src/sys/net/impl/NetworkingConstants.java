@@ -9,8 +9,8 @@ public interface NetworkingConstants {
 	
 	
 	static final int RPC_MAX_TIMEOUT = 10000;
-	static final long RPC_MAX_SERVICE_ID = 1L << 20;
-    static final long RPC_MAX_SERVICE_ID_MASK = (1L << 20) - 1L;
+	static final long RPC_MAX_SERVICE_ID = 1L << 16;
+    static final long RPC_MAX_SERVICE_ID_MASK = (1L << 16) - 1L;
 
 	static final int RPC_GC_STALE_HANDLERS_PERIOD = 15 * 60;
     static final int RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY = 10;

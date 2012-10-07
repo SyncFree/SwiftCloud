@@ -177,22 +177,21 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
     // Map<Object, AtomicInteger> g_serial = new HashMap<Object,
     // AtomicInteger>();
 
-    RpcPacket getHandler(Long hid, boolean deferredRepliesEnabled ) {
+    RpcPacket getHandler(Long hid, boolean deferredRepliesEnabled) {
 
-        if (hid < RPC_MAX_SERVICE_ID) {
-            return handlers0.get(hid);
-        } else {
-            RpcPacket res;
-            synchronized (handlers1) {
-                res = handlers1.remove(hid);
-            }
-            if (res == null) {
-                return handlers0.get(hid);
-            } else {
-                if (deferredRepliesEnabled)
-                    handlers0.put(hid, res);
-            }
+        RpcPacket res;
 
+        if (hid < RPC_MAX_SERVICE_ID || deferredRepliesEnabled) {
+            res = handlers0.get(hid);
+            if (res != null)
+                return res;
+        }
+
+        synchronized (handlers1) {
+            res = handlers1.remove(hid);
+            if (res != null && deferredRepliesEnabled) {
+                handlers0.put(hid, res);
+            }
             return res;
         }
     }
@@ -207,14 +206,17 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
                 synchronized (handlers0) {
                     for (Iterator<RpcPacket> it = handlers0.values().iterator(); it.hasNext();) {
                         RpcPacket p = it.next();
-                        if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_PERIOD)
+                        if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) > p.deferredRepliesTimeout) {
                             it.remove();
+                            Log.info("GC'ing Deferred Replies Handler: " + p);
+                        }
                     }
                 }
                 synchronized (handlers1) {
                     List<Long> expired = new ArrayList<Long>();
                     for (Iterator<RpcPacket> it = handlers1.values().iterator(); it.hasNext();) {
                         RpcPacket p = it.next();
+
                         if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_PERIOD)
                             expired.add(p.handlerId);
                     }
