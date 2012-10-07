@@ -90,11 +90,10 @@ public class SwiftDoc {
 							SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, new AbstractObjectUpdatesListener() {
 								public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
 									Threading.synchronizedNotifyAllOn(barrier);
+		                            //System.err.println("Triggered Reader get():" + previousValue.getValue());
 								}
 							});
 							Threading.synchronizedWaitOn(barrier, 5000);
-							// System.err.println("Triggered Reader get():" +
-							// doc.getValue());
 							for (TextLine i : doc.getValue()) {
 								if (!samples.containsKey(i.serial())) {
 									samples.put(i.serial(), i);
@@ -152,7 +151,7 @@ public class SwiftDoc {
 				public TextLine gen(String s) {
 					return new TextLine(s);
 				}
-			});
+			}, 100);
 			done.set(true);
 
 
@@ -175,8 +174,7 @@ public class SwiftDoc {
 				SequenceTxnLocal<TextLine> doc = handle.get(j1, true, swift.crdt.SequenceVersioned.class, new AbstractObjectUpdatesListener() {
 					public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
 						Threading.synchronizedNotifyAllOn(barrier);
-						// System.err.println("previous:" +
-						// previousValue.getValue());
+						//System.err.println("previous:" + previousValue.getValue());
 					}
 				});
 

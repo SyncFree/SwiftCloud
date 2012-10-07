@@ -20,7 +20,7 @@ public class TextLine implements KryoSerializable {
 	TextLine() {
 	}
 
-	TextLine(String text) {
+	public TextLine(String text) {
 		this.text = text;
 		this.serial = g_serial.getAndIncrement();
 		this.departure_ts = -1;

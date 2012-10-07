@@ -27,7 +27,7 @@ public class SwiftDocPatchReplay<V> {
 
 	ZipFile zipFile;
 
-	public void parseFiles(SwiftDocOps<V> seq) throws Exception {
+	public void parseFiles(SwiftDocOps<V> seq, int delay ) throws Exception {
 
 		SortedSet<ZipEntry> patches = getPatchFiles();
 
@@ -48,10 +48,12 @@ public class SwiftDocPatchReplay<V> {
 		if( seq != null )
 			seq.commit() ;
 		
+		int k = 0;
 		for (ZipEntry i : patches) {
 			if (i == initial)
 				continue;
-			System.err.println(i);
+			
+			//System.err.printf("%s -> %d %% done...\n", i, 100 * k++ / patches.size() );
 
 			if( seq != null )
 				seq.begin();
@@ -71,9 +73,11 @@ public class SwiftDocPatchReplay<V> {
 			if( seq != null )
 				seq.commit();
 
-			Threading.sleep(100);
-			if( i.getName().equals("100-101") )
-				return;
+			if( delay > 0 )
+			    Threading.sleep(delay);
+			
+//			if( i.getName().equals("100-101") )
+//				return;
 		}
 		
 		System.err.println("All Done");
