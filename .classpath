@@ -2,6 +2,7 @@
 <classpath>
 	<classpathentry excluding="sys/dht/api/DHT_Connection.java|sys/dht/api/DHT_Handler.java|sys/dht/api/DHT_Key.java|sys/dht/api/DHT_Message.java|sys/net/impl/rpc/RpcFactoryImpl2.java|sys/net/impl/KryoObjectBuffer2.java|sys/net/impl/KryoQueue.java|sys/net/impl/LocalEndpoint2.java|sys/net/impl2/rpc/tcp/|sys/net/oldimpl/|sys/net/impl2/tcp/nio2/TcpEndpoint.java" kind="src" path="src"/>
 	<classpathentry excluding="swift/client/TxnHandleImplTest.java" kind="src" path="src-test"/>
+	<classpathentry kind="src" path="src-alpha"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="lib" path="lib/activemq-protobuf-1.0.jar"/>
 	<classpathentry kind="lib" path="lib/riak-client-1.0.3-jar-with-dependencies.jar"/>
@@ -18,6 +19,7 @@
 	<classpathentry kind="lib" path="lib/xstream-1.4.3.jar"/>
 	<classpathentry kind="lib" path="lib/fuse4j-core-2.4.0.0-SNAPSHOT.jar"/>
 	<classpathentry kind="lib" path="lib/org.eclipse.jgit-2.1.0.201209190230-r.jar"/>
+	<classpathentry kind="lib" path="lib/diffutils-1.2.1.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
