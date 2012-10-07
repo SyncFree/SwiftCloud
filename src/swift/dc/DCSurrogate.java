@@ -217,7 +217,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 CausalityClock stable = getEstimatedDCStableVersionCopy();
                 stable.recordAllUntil(i.getLastSeqNo());
                 
-            	i.addNotifications( notification.getInfo(), getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy());
+            	i.addNotifications( notification.getInfo(), vrs, stable);
             }
         }
     }
