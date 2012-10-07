@@ -20,6 +20,8 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author nmp, mzawirski
  */
+// TODO: We really need to encode the clocks more efficiently, perhaps using
+// common intersection and deltas.
 public class FastRecentUpdatesReply implements RpcMessage {
     public enum SubscriptionStatus {
         /**
