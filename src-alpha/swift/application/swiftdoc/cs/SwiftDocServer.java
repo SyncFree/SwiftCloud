@@ -42,7 +42,7 @@ import sys.utils.Threading;
 public class SwiftDocServer extends Thread {
     public static int PORT1 = 11111, PORT2 = 11112;
 
-    private static String dcName = "localhost";
+    static String dcName = "localhost";
     private static String sequencerName = "localhost";
 
     static boolean notifications = true;

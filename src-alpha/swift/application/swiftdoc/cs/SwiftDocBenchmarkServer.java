@@ -1,5 +1,6 @@
 package swift.application.swiftdoc.cs;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 import swift.crdt.interfaces.CachePolicy;
@@ -15,28 +16,21 @@ import sys.Sys;
  */
 public class SwiftDocBenchmarkServer {
 
-    private static String dcName;
-    private static int dcPort;
     private static Logger logger = Logger.getLogger("swift.application.swiftdoc");
 
     public static void main(String[] args) throws Exception {
 
         if (args.length != 5) {
-            System.out.println("Usage: [surrogate address] [server id (1|2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
+            System.err.println(Arrays.asList( args )) ;
+            System.err.println("Usage: [surrogate address] [server id (1|2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
             return;
         } else {
-            dcName = args[0];
-            int pos = dcName.indexOf(":");
-            if (pos != -1) {
-                dcPort = Integer.parseInt(dcName.substring(pos + 1));
-                dcName = dcName.substring(0, pos);
-            } else
-                dcPort = DCConstants.SURROGATE_PORT;
-
-            int serverId = Integer.parseInt(args[2]);
-            SwiftDocServer.isolationLevel = IsolationLevel.valueOf(args[3]);
-            SwiftDocServer.cachePolicy = CachePolicy.valueOf(args[4]);
-            SwiftDocServer.notifications = Boolean.parseBoolean(args[5]);
+            SwiftDocServer.dcName = args[0];
+            
+            int serverId = Integer.parseInt(args[1]);
+            SwiftDocServer.isolationLevel = IsolationLevel.valueOf(args[2]);
+            SwiftDocServer.cachePolicy = CachePolicy.valueOf(args[3]);
+            SwiftDocServer.notifications = Boolean.parseBoolean(args[4]);
 
             logger.info("Initializing the system");
 

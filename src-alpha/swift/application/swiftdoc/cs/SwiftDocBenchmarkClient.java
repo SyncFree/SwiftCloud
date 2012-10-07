@@ -3,13 +3,7 @@ package swift.application.swiftdoc.cs;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-import swift.client.SwiftImpl;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
-import swift.dc.DCConstants;
 import sys.Sys;
-import sys.utils.Threading;
 
 /**
  * 
@@ -25,7 +19,7 @@ public class SwiftDocBenchmarkClient {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length != 6) {
+        if (args.length != 2) {
             System.out.println("-->" + Arrays.asList(args));
             System.out.println("Usage: [scout address] [client id (1|2)]");
             return;
