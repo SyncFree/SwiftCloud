@@ -837,6 +837,10 @@ public class SwiftImpl implements Swift, TxnManager {
                 // Already applied update.
                 continue;
             }
+            final String updatesScoutId = op.getClientTimestamp().getIdentifier();
+            if (!updatesScoutId.equals(clientId)) {
+                crdt.discardScoutClock(updatesScoutId);
+            }
             if (subscription != null && subscription.hasListener()) {
                 handleObjectUpdatesTryNotify(id, subscription, op.getTimestampMapping());
             }
