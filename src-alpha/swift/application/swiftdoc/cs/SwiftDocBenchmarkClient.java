@@ -36,7 +36,7 @@ public class SwiftDocBenchmarkClient {
                 SwiftDocClient.runClient1Code( scoutName );
             } else if (clientId == 2) {
                 logger.info("Starting client 2");
-                SwiftDocClient.runClient1Code( scoutName );
+                SwiftDocClient.runClient2Code( scoutName );
             }
         }
     }
