@@ -315,12 +315,16 @@ public class SwiftImpl implements Swift, TxnManager {
             final CausalityClock snapshotClock = getCommittedVersion(true);
             snapshotClock.merge(lastLocallyCommittedTxnClock);
             setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, timestampMapping, snapshotClock));
-            logger.info("SI transaction " + timestampMapping + " started with snapshot point: " + snapshotClock);
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("SI transaction " + timestampMapping + " started with snapshot point: " + snapshotClock);
+            }
             return pendingTxn;
 
         case REPEATABLE_READS:
             setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping));
-            logger.info("REPEATABLE READS transaction " + timestampMapping + " started");
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("REPEATABLE READS transaction " + timestampMapping + " started");
+            }
             return pendingTxn;
 
         case READ_COMMITTED:
@@ -752,9 +756,11 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.warning("server did not reply with recent update notifications");
             return;
         }
-        logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs="
-                + notifications.getEstimatedCommittedVersion() + ";stable="
-                + notifications.getEstimatedDisasterDurableCommittedVersion());
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs="
+                    + notifications.getEstimatedCommittedVersion() + ";stable="
+                    + notifications.getEstimatedDisasterDurableCommittedVersion());
+        }
 
         updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
                 notifications.getEstimatedDisasterDurableCommittedVersion());
@@ -983,13 +989,17 @@ public class SwiftImpl implements Swift, TxnManager {
 
         // TODO / WISHME: write disk log and allow local recovery.
         txn.markLocallyCommitted();
-        logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
+        }
         if (txn.isReadOnly()) {
             // Read-only transaction can be immediately discarded.
             // Return and reuse last timestamp to avoid holes in VV.
             clientTimestampGenerator.returnLastTimestamp();
             txn.markGloballyCommitted(null);
-            logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
+            }
         } else {
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
                 // Try to apply changes in a cached copy of an object.
@@ -1079,7 +1089,9 @@ public class SwiftImpl implements Swift, TxnManager {
             locallyCommittedTxnsQueue.removeFirst();
             globallyCommittedUnstableTxns.addLast(txn);
 
-            logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
+            }
 
             // Subscribe updates for newly created objects if they were
             // requested. It can be done only at this stage once the objects are
