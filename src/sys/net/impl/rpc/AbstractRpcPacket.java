@@ -18,6 +18,8 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 
 	long handlerId; // destination service handler
 	long replyHandlerId; // reply handler, 0 = no reply expected.
+	int deferredRepliesTimeout = 0;
+
 	RpcMessage payload;
 
 	RpcHandler handler;
@@ -112,6 +114,8 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 	final public void read(Kryo kryo, Input input) {
 		this.handlerId = input.readLong();
 		this.replyHandlerId = input.readLong();
+		this.deferredRepliesTimeout = input.readInt();
+		
 		this.payload = (RpcMessage) kryo.readClassAndObject(input);
 	}
 
@@ -119,6 +123,8 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 	final public void write(Kryo kryo, Output output) {
 		output.writeLong(this.handlerId);
 		output.writeLong(this.replyHandlerId);
+		output.writeInt( deferredRepliesTimeout);
+		
 		kryo.writeClassAndObject(output, payload);
 	}
 }

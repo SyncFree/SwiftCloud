@@ -22,8 +22,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 
 
 	RpcFactoryImpl fac;
-	boolean isWaiting4Reply = false;
-	boolean deferredRepliesEnabled = false;
+    boolean isWaiting4Reply = false;
 
 	long rtt;
 	
@@ -46,7 +45,8 @@ final public class RpcPacket extends AbstractRpcPacket {
 		this.payload = payload;
 		this.handler = replyhandler;
 		this.handlerId = handle.replyHandlerId;
-
+		this.deferredRepliesTimeout = handle.deferredRepliesTimeout;
+		
 		if (replyhandler != null) {
 			synchronized (fac.handlers1) {
 				this.replyHandlerId = ++g_handlers;
@@ -83,7 +83,6 @@ final public class RpcPacket extends AbstractRpcPacket {
 	public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
 //		Log.finest("Replying: " + msg + " to " + remote );
 		RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout);
-
 		if (timeout != 0)
 			synchronized (pkt) {
 				// System.out.println("sync for:" + pkt.hashCode() );
@@ -156,10 +155,10 @@ final public class RpcPacket extends AbstractRpcPacket {
 
 	@Override
 	public RpcHandle enableDeferredReplies(int timeout) {
-		deferredRepliesEnabled = timeout > 0;
+		deferredRepliesTimeout = timeout ;
 		synchronized (fac.handlers1) {
-			fac.handlers1.remove(handlerId);
-			fac.handlers0.put(handlerId, this);
+			fac.handlers0.put(replyHandlerId, this);
+            fac.handlers1.remove(replyHandlerId);
 		}
 		return this;
 	}

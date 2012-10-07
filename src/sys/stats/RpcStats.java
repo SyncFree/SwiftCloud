@@ -56,7 +56,7 @@ public class RpcStats extends XmlExternalizable {
 			public void run() {
 				synchronized (RpcStats) {
 					try {
-						RpcStats.saveXmlTo("./" + Sys.mainClass + "-stats.xml");
+						//RpcStats.saveXmlTo("./" + Sys.mainClass + "-stats.xml");
 					} catch (Exception x) {
 						x.printStackTrace();
 					}
