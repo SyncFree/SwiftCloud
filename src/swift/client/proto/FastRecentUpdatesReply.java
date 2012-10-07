@@ -120,7 +120,8 @@ public class FastRecentUpdatesReply implements RpcMessage {
 
         public ObjectSubscriptionInfo clone( Timestamp t) {
             CausalityClock newC = newClock.clone();
-            newC.recordAllUntil(t);
+            if( t!= null)
+                newC.recordAllUntil(t);
             return new ObjectSubscriptionInfo(id, oldClock, newC, updates, dirty);
         }
 
