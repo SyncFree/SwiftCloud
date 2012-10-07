@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import sys.net.api.rpc.RpcHandle;
@@ -116,6 +117,13 @@ public class FastRecentUpdatesReply implements RpcMessage {
         public ObjectSubscriptionInfo cloneNotification() {
             return new ObjectSubscriptionInfo(id, oldClock, newClock, null, dirty);
         }
+
+        public ObjectSubscriptionInfo clone( Timestamp t) {
+            CausalityClock newC = newClock.clone();
+            newC.recordAllUntil(t);
+            return new ObjectSubscriptionInfo(id, oldClock, newC, updates, dirty);
+        }
+
     }
 
     protected SubscriptionStatus status;
