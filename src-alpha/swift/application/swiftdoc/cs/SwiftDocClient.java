@@ -98,14 +98,15 @@ public class SwiftDocClient {
         
         final RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
-        final List<TextLine> samples = new ArrayList<TextLine>();
+        final List<Long> results = new ArrayList<Long>();
 
         SwiftDocPatchReplay<TextLine> player = new SwiftDocPatchReplay<TextLine>();
 
         endpoint.send( server, new InitScoutServer(), new AppRpcHandler() {
             public void onReceive(final ServerReply r) {
-                samples.addAll( r.atoms ) ;
-                System.out.println( "Got: " + r.atoms.size() + "/" + samples.size() );
+                for( TextLine i : r.atoms )
+                    results.add( i.latency() ) ; 
+                System.err.println( "Got: " + r.atoms.size() + "/" + results.size() );
             }  
             
         } );
@@ -151,13 +152,15 @@ public class SwiftDocClient {
                 public TextLine gen(String s) {
                     return new TextLine(s);
                 }
-            }, 100);
+            }, 1);
         } catch (Exception x) {
             x.printStackTrace();
         }
 
-        for (TextLine i : new ArrayList<TextLine>(samples))
-            System.out.printf("%s\n", i.latency());
+        for (Long i : results )
+            System.out.printf("%s\n", i);
+        
+        System.exit(0);
     }
 
     //Echo the atoms received to the server...

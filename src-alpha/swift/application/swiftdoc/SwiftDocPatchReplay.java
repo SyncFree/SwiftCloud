@@ -76,8 +76,8 @@ public class SwiftDocPatchReplay<V> {
 			if( delay > 0 )
 			    Threading.sleep(delay);
 			
-//			if( i.getName().equals("100-101") )
-//				return;
+			if( i.getName().startsWith("200-") )
+				return;
 		}
 		
 		System.err.println("All Done");
