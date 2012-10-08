@@ -82,6 +82,8 @@ public class SwiftDocClient {
         client2Code( srv );
     }
 
+    static final int timeout = SwiftDocServer.synchronousOps ? 5000 : 0;
+
     
     /*
      * Replay the document patching operations. 
@@ -104,32 +106,34 @@ public class SwiftDocClient {
 
         endpoint.send( server, new InitScoutServer(), new AppRpcHandler() {
             public void onReceive(final ServerReply r) {
-                for( TextLine i : r.atoms )
-                    results.add( i.latency() ) ; 
+                synchronized( results ) {
+                    for( TextLine i : r.atoms )
+                        results.add( i.latency() ) ;
+                }
                 System.err.println( "Got: " + r.atoms.size() + "/" + results.size() );
             }  
             
         } );
         
         final AckHandler ackHandler = new AckHandler();
-        
+
         try {
             player.parseFiles(new SwiftDocOps<TextLine>() {
                 List<TextLine> mirror = new ArrayList<TextLine>();
 
                 @Override
                 public void begin() {
-                    endpoint.send( server, new BeginTransaction(), ackHandler ) ;
+                    endpoint.send( server, new BeginTransaction(), ackHandler, timeout) ;
                 }
 
                 @Override
                 public void add(int pos, TextLine atom) {
-                    endpoint.send( server, new InsertAtom(atom, pos), ackHandler ) ;
+                    endpoint.send( server, new InsertAtom(atom, pos), ackHandler, timeout ) ;
                     mirror.add(pos, atom);
                 }
 
                 public TextLine remove(int pos) {
-                    endpoint.send( server, new RemoveAtom(pos), ackHandler ) ;
+                    endpoint.send( server, new RemoveAtom(pos), ackHandler, timeout ) ;
                     return mirror.remove(pos);
                 }
 
@@ -152,14 +156,15 @@ public class SwiftDocClient {
                 public TextLine gen(String s) {
                     return new TextLine(s);
                 }
-            }, 1);
+            }, 50);
         } catch (Exception x) {
             x.printStackTrace();
         }
 
-        for (Long i : results )
-            System.out.printf("%s\n", i);
-        
+        synchronized( results ) {
+            for (Long i : results )
+                System.out.printf("%s\n", i);
+        }
         System.exit(0);
     }
 
@@ -178,11 +183,11 @@ public class SwiftDocClient {
                     Threading.newThread(true, new Runnable() {
                         public void run() {
                             synchronized (barrier) {
-                                endpoint.send(server, new BeginTransaction(), ackHandler );
+                                endpoint.send(server, new BeginTransaction(), ackHandler, timeout);
                                 for (TextLine i : r.atoms)
-                                    endpoint.send(server, new InsertAtom(i, -1), ackHandler);
+                                    endpoint.send(server, new InsertAtom(i, -1), ackHandler, timeout);
 
-                                endpoint.send(server, new CommitTransaction(), ackHandler );
+                                endpoint.send(server, new CommitTransaction(), ackHandler);
                             }
                         }
                     }).start();

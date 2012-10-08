@@ -53,7 +53,7 @@ public class SwiftDocPatchReplay<V> {
 			if (i == initial)
 				continue;
 			
-			System.err.printf("\r%s -> %d %% done...\n", i, 100 * k++ / patches.size() );
+			System.err.printf("\r%s -> %d %% done...", i, 100 * k++ / patches.size() );
 
 			if( seq != null )
 				seq.begin();

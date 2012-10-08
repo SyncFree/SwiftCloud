@@ -45,6 +45,8 @@ public class SwiftDocServer extends Thread {
     static String dcName = "localhost";
     private static String sequencerName = "localhost";
 
+    static boolean synchronousOps = true;
+
     static boolean notifications = true;
     static long cacheEvictionTimeMillis = 60000;
     static CachePolicy cachePolicy = CachePolicy.CACHED;
@@ -62,7 +64,7 @@ public class SwiftDocServer extends Thread {
 
         // start DC server
         DCServer.main(new String[] { dcName });
-        
+
         Threading.sleep(5000);
         System.out.println("SwiftDoc Launching scouts...!");
 
@@ -78,7 +80,7 @@ public class SwiftDocServer extends Thread {
             }
         }).start();
     }
-    
+
     static void runScoutServer1() {
         scoutServerCommonCode(PORT1, j1id, j2id);
     }
@@ -139,7 +141,7 @@ public class SwiftDocServer extends Thread {
         this.j2 = j2;
         this.swift1 = swift1;
         this.swift2 = swift2;
-        this.clientHandle = client.enableDeferredReplies(Integer.MAX_VALUE );
+        this.clientHandle = client.enableDeferredReplies(Integer.MAX_VALUE);
     }
 
     public void begin() {
@@ -173,7 +175,7 @@ public class SwiftDocServer extends Thread {
         try {
             final Set<Long> serials = new HashSet<Long>();
             for (int k = 0; true; k++) {
-                
+
                 final Object barrier = new Object();
                 final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
                         : CachePolicy.CACHED, true);
@@ -186,8 +188,7 @@ public class SwiftDocServer extends Thread {
                             }
                         });
 
-
-                Threading.synchronizedWaitOn(barrier, 1000);
+                Threading.synchronizedWaitOn(barrier, k == 0 ? 1 : 1000);
                 List<TextLine> newAtoms = new ArrayList<TextLine>();
                 for (TextLine i : doc.getValue())
                     if (serials.add(i.serial()))
@@ -223,10 +224,10 @@ public class SwiftDocServer extends Thread {
         Session(RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
             this.client = client;
 
-            this.swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
+            this.swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
                     SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis);
 
-            this.swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
+            this.swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
                     SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis);
 
             swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
