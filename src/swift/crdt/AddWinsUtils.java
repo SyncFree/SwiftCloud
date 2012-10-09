@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
@@ -138,4 +140,32 @@ public final class AddWinsUtils {
         return retValues;
     }
 
+    public static <V extends Comparable<V>> SortedMap<V, Set<TripleTimestamp>> getOrderedValue(
+            SortedMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>> base, CausalityClock snapshotClock) {
+        
+        SortedMap<V, Set<TripleTimestamp>> retValues = new TreeMap<V, Set<TripleTimestamp>>();
+        Set<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entrySet = base.entrySet();
+        for (Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e : entrySet) {
+            Set<TripleTimestamp> present = new HashSet<TripleTimestamp>();
+            for (Entry<TripleTimestamp, Set<TripleTimestamp>> p : e.getValue().entrySet()) {
+                if (p.getKey().timestampsIntersect(snapshotClock)) {
+                    boolean add = true;
+                    for (TripleTimestamp remTs : p.getValue()) {
+                        if (remTs.timestampsIntersect(snapshotClock)) {
+                            add = false;
+                            break;
+                        }
+                    }
+                    if (add) {
+                        present.add(p.getKey());
+                    }
+                }
+            }
+
+            if (!present.isEmpty()) {
+                retValues.put(e.getKey(), present);
+            }
+        }
+        return retValues;
+    }
 }
