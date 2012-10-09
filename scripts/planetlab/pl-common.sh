@@ -1,6 +1,9 @@
 #!/bin/bash
 # Execute from root SwiftCloud directory.
 
+export EC2_IDENTITY_FILE=swiftcloud.pem
+export EC2_USER=fctple_SwiftCloud
+
 if [ -z $DUMMY ]; then
 	SSH=ssh
 	SCP=scp
@@ -10,65 +13,6 @@ else
 	SCP=echo
 	RSYNC=echo
 fi
-
-export EC2_IDENTITY_FILE=swiftcloud.pem
-export EC2_USER=fctple_SwiftCloud
-
-# PRODUCTION instances
-export EC2_PROD_EU_C1MEDIUM=(
-)
-
-
-export EC2_PROD_EU_MICRO=(
-planetlab-um10.di.uminho.pt
-planetlab1.fct.ualg.pt
-)
-
-export PLANETLAB_SCOUTS=(
-planetlab2.fct.ualg.pt
-planetlab-um00.di.uminho.pt
-)
-
-export PLANETLAB_CLIENTS=(
-planetlab1.di.fct.unl.pt
-planetlab2.di.fct.unl.pt
-)
-
-export PLANETLAB_NODES=(
-planetlab-1.iscte.pt
-planetlab-2.iscte.pt
-)
-
-
-# WARNING - PlanetLab nodes are volatile; some may be down...
-export PLANETLAB_NODES_ALL=(
-ait21.us.es
-ait05.us.es
-planetlab2.di.fct.unl.pt
-planetlab-1.iscte.pt
-
-ple2.ipv6.lip6.fr
-peeramide.irisa.fr
-planetlab-2.imag.fr
-planetlab1.fct.ualg.pt
-planetlab2.fct.ualg.pt
-planetlab-um10.di.uminho.pt
-planetlab-um00.di.uminho.pt
-planetlab1.fct.ualg.pt
-planetlab1.di.fct.unl.pt
-planetlab2.di.fct.unl.pt
-planetlab-1.tagus.ist.utl.pt
-planetlab-2.tagus.ist.utl.pt
-planetlab-1.tagus.ist.utl.pt
-planetlab-2.tagus.ist.utl.pt
-planetlab1.eurecom.fr
-planetlab2.eurecom.fr
-
-)
-
-# TEST instances
-export EC2_TEST_EU=(
-)
 
 # CAREFUL: Depending on the settings EC2_ALL needs to be adapted
 export EC2_ALL="${EC2_TEST_EU[*]}"
