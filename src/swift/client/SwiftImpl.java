@@ -1011,7 +1011,8 @@ public class SwiftImpl implements Swift, TxnManager {
                     try {
                         crdt.execute(opsGroup, CRDTOperationDependencyPolicy.CHECK);
                     } catch (IllegalStateException x) {
-                        logger.warning("transaction dependencies unavailable in the local cache during local commit");
+                        logger.warning("transaction dependencies (" + opsGroup.getDependency()
+                                + ") unavailable in the local cache (" + crdt.getClock() + ") during local commit");
                     }
                 }
             }
