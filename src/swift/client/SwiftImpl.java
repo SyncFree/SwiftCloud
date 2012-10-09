@@ -835,17 +835,18 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         for (final CRDTObjectUpdatesGroup<?> op : ops) {
-            if (!crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY)) {
+            final boolean newUpdate = crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+            final String updatesScoutId = op.getClientTimestamp().getIdentifier();
+            if (!updatesScoutId.equals(clientId)) {
+                crdt.discardScoutClock(updatesScoutId);
+            }
+            if (!newUpdate) {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("update " + op.getClientTimestamp() + " was already included in the state of object "
                             + id);
                 }
                 // Already applied update.
                 continue;
-            }
-            final String updatesScoutId = op.getClientTimestamp().getIdentifier();
-            if (!updatesScoutId.equals(clientId)) {
-                crdt.discardScoutClock(updatesScoutId);
             }
             if (subscription != null && subscription.hasListener()) {
                 handleObjectUpdatesTryNotify(id, subscription, op.getTimestampMapping());
