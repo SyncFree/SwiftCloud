@@ -30,6 +30,8 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     protected TimestampMapping timestampMapping;
     protected List<CRDTUpdate<V>> operations;
     protected V creationState;
+//    public long timeInDC;
+    
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.

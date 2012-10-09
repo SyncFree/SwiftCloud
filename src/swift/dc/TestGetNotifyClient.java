@@ -41,7 +41,7 @@ public class TestGetNotifyClient {
     static class DummyObjectUpdatesListener extends AbstractObjectUpdatesListener {
         @Override
         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-            System.out.println("Yoohoo, the object " + id + " has changed!");
+            System.out.println("Yoohoo, the object " + id + " has changed!\n"+previousValue+"\ntime notification recived = " + System.currentTimeMillis());
         }
     }
 }

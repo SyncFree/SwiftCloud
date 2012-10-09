@@ -361,6 +361,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
     }
     
     protected void doProcessCommit( final ClientPubInfo session, final RpcHandle conn, final CommitUpdatesRequest request, final GenerateDCTimestampReply reply) {
+        DCConstants.DCLogger.info("DOCommitUpdatesRequest client = " + request.getClientId() + 
+                ":cltts=" + request.getClientTimestamp()+
+                ":ts=" + reply.getTimestamp()+
+                ":nops=" + request.getObjectUpdateGroups().size());
 //    0) updates.addSystemTimestamp(timestampService.allocateTimestamp())
 //    1) let int clientTxs =
 //    clientTxClockService.getAndLockNumberOfCommitedTxs(clientId)
@@ -455,6 +459,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                 ":nops=" + request.getObjectUpdateGroups().size());
         final ClientPubInfo session = getSession(request.getClientId());
         DCConstants.DCLogger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo()); 
+        
+//        for( CRDTObjectUpdatesGroup u: request.getObjectUpdateGroups())
+//            u.timeInDC = System.nanoTime();
         
         if( session.getLastSeqNo() != null && session.getLastSeqNo().getCounter() >= request.getClientTimestamp().getCounter()) {
             conn.reply(new CommitUpdatesReply( getEstimatedDCVersionCopy()));
@@ -775,7 +782,7 @@ class ClientPubInfo {
             entry.getValue().addSubscriptionInfo(entry.getKey(), notifications);
         }
         conn.reply(new FastRecentUpdatesReply(status, notifications, clk, stableClk));
-
+    
         hasUpdates = false;
         conn = null;
         replyTime = Long.MAX_VALUE;
