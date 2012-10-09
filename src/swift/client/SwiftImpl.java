@@ -237,8 +237,8 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
-        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(1);
-        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(1);
+        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(2);
+        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(2);
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
     }
