@@ -15,15 +15,16 @@ import swift.clocks.TripleTimestamp;
 import swift.utils.PrettyPrint;
 
 /**
- * CRDT set with versioning support. WARNING: When constructing txn-local
+ * CRDT sorted set with versioning support. WARNING: When constructing txn-local
  * versions of sets, make sure that the elements in the set are either immutable
  * or that they are cloned!
  * 
- * @author vb, annettebieniusa, mzawirsk
+ * @author vb, annettebieniusa, mzawirsk, smduarte (adapted from set)
  * 
  * @param <V>
  */
-public abstract class SortedSetVersioned<V extends Comparable<V>, T extends SortedSetVersioned<V, T>> extends BaseCRDT<T> {
+public abstract class SortedSetVersioned<V extends Comparable<V>, T extends SortedSetVersioned<V, T>> extends
+        BaseCRDT<T> {
 
     private static final long serialVersionUID = 1L;
     private SortedMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>> elems;
@@ -33,10 +34,7 @@ public abstract class SortedSetVersioned<V extends Comparable<V>, T extends Sort
     }
 
     public SortedMap<V, Set<TripleTimestamp>> getValue(CausalityClock snapshotClock) {
-        SortedMap<V, Set<TripleTimestamp>> res = new TreeMap<V, Set<TripleTimestamp>>();
-        for( Map.Entry<V, Set<TripleTimestamp>> e : AddWinsUtils.getValue(this.elems, snapshotClock).entrySet() )
-            res.put( e.getKey(), e.getValue() );
-        return res;
+        return AddWinsUtils.getOrderedValue(this.elems, snapshotClock);
     }
 
     public void insertU(V e, TripleTimestamp uid) {

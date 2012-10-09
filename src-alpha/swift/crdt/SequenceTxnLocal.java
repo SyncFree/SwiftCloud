@@ -27,6 +27,7 @@ public class SequenceTxnLocal<V> extends BaseCRDTTxnLocal<SequenceVersioned<V>> 
 	public SequenceTxnLocal(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, SequenceVersioned<V> creationState, SortedMap<PosID<V>, Set<TripleTimestamp>> elems) {
 		super(id, txn, clock, creationState);
 		this.elems = elems;
+		
 		this.linearize();
 	}
 

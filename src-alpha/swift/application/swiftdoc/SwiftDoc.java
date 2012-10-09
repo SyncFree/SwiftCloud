@@ -20,7 +20,6 @@ import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import sys.Sys;
-import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
 
 /**

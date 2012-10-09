@@ -5,7 +5,6 @@ import java.util.logging.Logger;
 
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.dc.DCConstants;
 import sys.Sys;
 
 /**

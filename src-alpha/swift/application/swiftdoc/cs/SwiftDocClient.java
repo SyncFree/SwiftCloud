@@ -3,13 +3,7 @@ package swift.application.swiftdoc.cs;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import swift.application.swiftdoc.SwiftDocOps;
 import swift.application.swiftdoc.SwiftDocPatchReplay;
@@ -22,23 +16,9 @@ import swift.application.swiftdoc.cs.msgs.InsertAtom;
 import swift.application.swiftdoc.cs.msgs.RemoveAtom;
 import swift.application.swiftdoc.cs.msgs.ServerACK;
 import swift.application.swiftdoc.cs.msgs.ServerReply;
-import swift.client.AbstractObjectUpdatesListener;
-import swift.client.SwiftImpl;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.SequenceTxnLocal;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.dc.DCConstants;
-import swift.dc.DCSequencerServer;
-import swift.dc.DCServer;
-import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.api.rpc.RpcHandle;
-import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
 
 /**
@@ -107,8 +87,9 @@ public class SwiftDocClient {
         endpoint.send( server, new InitScoutServer(), new AppRpcHandler() {
             public void onReceive(final ServerReply r) {
                 synchronized( results ) {
-                    for( TextLine i : r.atoms )
-                        results.add( i.latency() ) ;
+                    for( TextLine i : r.atoms ) {
+                        System.out.println( i.latency() );
+                    }                            
                 }
                 System.err.println( "Got: " + r.atoms.size() + "/" + results.size() );
             }  

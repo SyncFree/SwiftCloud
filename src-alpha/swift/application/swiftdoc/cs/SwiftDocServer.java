@@ -32,7 +32,10 @@ import swift.dc.DCServer;
 import sys.Sys;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
+import sys.scheduler.PeriodicTask;
+import sys.utils.IP;
 import sys.utils.Threading;
+import umontreal.iro.lecuyer.stat.Tally;
 
 /**
  * 
@@ -45,7 +48,7 @@ public class SwiftDocServer extends Thread {
     static String dcName = "localhost";
     private static String sequencerName = "localhost";
 
-    static boolean synchronousOps = true;
+    static boolean synchronousOps = false;
 
     static boolean notifications = true;
     static long cacheEvictionTimeMillis = 60000;
@@ -183,19 +186,24 @@ public class SwiftDocServer extends Thread {
                 SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class,
                         new AbstractObjectUpdatesListener() {
                             public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+
                                 Threading.synchronizedNotifyAllOn(barrier);
-                                //System.err.println("Triggered Reader get():" + j2 + "  "+ previousValue.getValue());
+                                // System.err.println("Triggered Reader get():"
+                                // + j2 + "  "+ previousValue.getValue());
                             }
                         });
 
-                Threading.synchronizedWaitOn(barrier, k == 0 ? 1 : 1000);
                 List<TextLine> newAtoms = new ArrayList<TextLine>();
                 for (TextLine i : doc.getValue())
-                    if (serials.add(i.serial()))
+                    if (serials.add(i.serial())) {
                         newAtoms.add(i);
+                    }
                 handle.commit();
 
-                clientHandle.reply(new ServerReply(newAtoms));
+                if (newAtoms.size() > 0)
+                    clientHandle.reply(new ServerReply(newAtoms));
+
+                Threading.synchronizedWaitOn(barrier, k == 0 ? 1 : 1000);
             }
         } catch (Exception e) {
             e.printStackTrace();

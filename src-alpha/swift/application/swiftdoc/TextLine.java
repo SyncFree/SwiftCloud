@@ -1,7 +1,6 @@
 package swift.application.swiftdoc;
 
 import java.util.concurrent.atomic.AtomicLong;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
@@ -25,7 +24,7 @@ public class TextLine implements KryoSerializable {
 		this.serial = g_serial.getAndIncrement();
 		this.departure_ts = -1;
 	}
-
+	
 	public int hashCode() {
 		return text.hashCode();
 	}

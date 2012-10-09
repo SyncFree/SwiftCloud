@@ -6,10 +6,8 @@ import java.util.logging.Logger;
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import sys.Sys;
-import sys.utils.Threading;
 
 /**
  * 
