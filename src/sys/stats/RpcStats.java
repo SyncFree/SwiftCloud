@@ -56,7 +56,8 @@ public class RpcStats extends XmlExternalizable {
 			public void run() {
 				synchronized (RpcStats) {
 					try {
-						//RpcStats.saveXmlTo("./" + Sys.mainClass + "-stats.xml");
+					    //System.err.printf( "%s %.1fKB/s\n", Sys.mainClass, (Sys.downloadedBytes.get()/1024) / Sys.currentTime() );
+						//RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
 					} catch (Exception x) {
 						x.printStackTrace();
 					}

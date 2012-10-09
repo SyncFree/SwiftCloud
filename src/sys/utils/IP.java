@@ -22,4 +22,12 @@ public class IP {
 			throw new NetworkingException( e.getMessage() );
 		}
 	}
+	
+	public static String localHostname() {
+        try {
+            return InetAddress.getLocalHost().getCanonicalHostName();
+        } catch (UnknownHostException e) {
+            throw new NetworkingException( e.getMessage() );
+        }
+    }
 }
