@@ -7,33 +7,49 @@ import sys.net.api.TransportConnection;
 
 public class DefaultMessageHandler implements MessageHandler {
 
-	@Override
-	public void onAccept(TransportConnection conn) {
-		Thread.dumpStack();
-	}
+    final boolean silent;
 
-	@Override
-	public void onConnect(TransportConnection conn) {
-		Thread.dumpStack();
-	}
+    public DefaultMessageHandler(){
+        this(false);
+    }
+    
+    public DefaultMessageHandler(boolean silent) {
+        this.silent = silent;
+    }
 
-	@Override
-	public void onFailure(TransportConnection conn) {
-		Thread.dumpStack();
-	}
+    @Override
+    public void onAccept(TransportConnection conn) {
+        if (!silent)
+            Thread.dumpStack();
+    }
 
-	@Override
-	public void onFailure(Endpoint dst, Message m) {
-		Thread.dumpStack();
-	}
+    @Override
+    public void onConnect(TransportConnection conn) {
+        if (!silent)
+            Thread.dumpStack();
+    }
 
-	@Override
-	public void onReceive(TransportConnection conn, Message m) {
-		Thread.dumpStack();
-	}
+    @Override
+    public void onFailure(TransportConnection conn) {
+        if (!silent)
+            Thread.dumpStack();
+    }
 
-	@Override
-	public void onClose(TransportConnection conn) {
-		Thread.dumpStack();
-	}
+    @Override
+    public void onFailure(Endpoint dst, Message m) {
+        if (!silent)
+            Thread.dumpStack();
+    }
+
+    @Override
+    public void onReceive(TransportConnection conn, Message m) {
+        if (!silent)
+            Thread.dumpStack();
+    }
+
+    @Override
+    public void onClose(TransportConnection conn) {
+        if (!silent)
+            Thread.dumpStack();
+    }
 }

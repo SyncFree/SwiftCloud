@@ -19,17 +19,11 @@ abstract public class Networking {
 	 * 
 	 * @param tcpPort
 	 *            the port used for listening tcp connections
+	 * @param handler
+	 *            the handler for processing incoming messages
 	 * @return the endpoint created
 	 */
-	abstract public Endpoint bind(final int tcpPort);
-
-	/**
-	 * Creates a local endpoint for accepting and sending messages
-	 * 
-	 * @param tcpPort
-	 *            the port used for listening tcp connections
-	 * @return the endpoint created
-	 */
+	abstract public Endpoint bind(final int tcpPort, MessageHandler handler );
 
 	/**
 	 * Creates a local endpoint for accepting and sending messages, using the
@@ -39,9 +33,11 @@ abstract public class Networking {
 	 *            the port used for listening for connections
 	 * @param provider
 	 *            the provider user for accepting connections
+     * @param handler
+     *            the handler for processing incoming messages
 	 * @return
 	 */
-	abstract public Endpoint bind(final int tcpPort, TransportProvider provider);
+	abstract public Endpoint bind(final int tcpPort, TransportProvider provider, MessageHandler handler);
 
 	/**
 	 * Creates an endpoint pointing to a remote location, identified by host/ip

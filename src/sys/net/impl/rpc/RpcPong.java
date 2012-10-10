@@ -23,6 +23,6 @@ public class RpcPong extends AbstractMessage  {
 	
 	@Override
 	public void deliverTo(TransportConnection conn, MessageHandler handler) {
-		((RpcFactoryImpl) handler).onReceive(conn, this);
+		((RpcPingPongHandler) handler).onReceive(conn, this);
 	}	
 }

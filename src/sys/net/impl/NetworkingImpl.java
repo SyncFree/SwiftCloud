@@ -1,6 +1,7 @@
 package sys.net.impl;
 
 import sys.net.api.Endpoint;
+import sys.net.api.MessageHandler;
 import sys.net.api.Networking;
 import sys.net.api.NetworkingException;
 import sys.net.api.Serializer;
@@ -18,13 +19,13 @@ public class NetworkingImpl extends Networking {
 	}
 
 	@Override
-	synchronized public Endpoint bind(final int tcpPort) {
-		return bind(tcpPort, TransportProvider.DEFAULT);
+	synchronized public Endpoint bind(final int tcpPort, MessageHandler handler) {
+		return bind(tcpPort, TransportProvider.DEFAULT, handler);
 	}
 
 	@Override
-	synchronized public Endpoint bind(final int tcpPort, TransportProvider provider) {
-		return LocalEndpoint.open(tcpPort, null, provider);
+	synchronized public Endpoint bind(final int tcpPort, TransportProvider provider, MessageHandler handler) {
+		return LocalEndpoint.open(tcpPort, handler, provider);
 	}
 
 	@Override

@@ -21,7 +21,7 @@ abstract public class AbstractEndpoint implements Endpoint {
 	protected MessageHandler handler;
 
 	protected AbstractEndpoint() {
-		this.handler = new DefaultMessageHandler();
+		this.handler = new DefaultMessageHandler(false);
 	}
 
 	protected AbstractEndpoint(MessageHandler handler) {

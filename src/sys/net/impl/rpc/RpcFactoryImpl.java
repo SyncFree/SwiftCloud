@@ -29,7 +29,7 @@ import static sys.stats.RpcStats.*;
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.*;
 
-final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
+final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcPingPongHandler {
 
     private static Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName());
 
