@@ -1,22 +1,33 @@
 package sys.net.impl.rpc;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import sys.net.api.MessageHandler;
 import sys.net.api.TransportConnection;
-import sys.net.impl.AbstractMessage;
 
-public class RpcPing extends AbstractMessage  {
+public class RpcPing extends RpcEcho  implements KryoSerializable{
 	
-	public double timestamp;
+	public long departure_ts;
 
-	public RpcPing() {		
+	//for kryo
+	public RpcPing() {			    
 	}
-	
-	public RpcPing( double ts ) {
-		this.timestamp = ts;
-	}
-		
+			
 	@Override
 	public void deliverTo(TransportConnection conn, MessageHandler handler) {
-		((RpcPingPongHandler) handler).onReceive(conn, this);
-	}	
+		((RpcEchoHandler) handler).onReceive(conn, this);
+	}
+
+    @Override
+    public void read(Kryo kryo, Input in) {
+        this.departure_ts = in.readLong();
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        out.writeLong( departure_ts = System.currentTimeMillis() );
+    }	
 }

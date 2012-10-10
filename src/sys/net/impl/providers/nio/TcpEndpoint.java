@@ -91,7 +91,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		try {
 			ch.socket().setTcpNoDelay(true);
 			ch.socket().setReceiveBufferSize(1 << 20);
-			ch.socket().setSendBufferSize(2048);
+			ch.socket().setSendBufferSize(1500);
 		} catch (Exception x) {
 			x.printStackTrace();
 		}

@@ -29,7 +29,7 @@ import static sys.stats.RpcStats.*;
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.*;
 
-final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcPingPongHandler {
+final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEchoHandler {
 
     private static Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName());
 
@@ -124,6 +124,10 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcPing
         };
     }
 
+    public void onReceive(final TransportConnection conn, final RpcEcho echo) {
+        conn.send( echo );
+    }
+    
     public void onReceive(final TransportConnection conn, final RpcPing ping) {
         conn.send(new RpcPong(ping));
     }
