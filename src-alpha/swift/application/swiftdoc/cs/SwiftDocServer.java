@@ -18,6 +18,9 @@ import swift.application.swiftdoc.cs.msgs.InsertAtom;
 import swift.application.swiftdoc.cs.msgs.RemoveAtom;
 import swift.application.swiftdoc.cs.msgs.ServerACK;
 import swift.application.swiftdoc.cs.msgs.ServerReply;
+import swift.application.swiftdoc.cs.msgs.BulkTransaction;
+import swift.application.swiftdoc.cs.msgs.SwiftDocRpc;
+
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
@@ -32,10 +35,7 @@ import swift.dc.DCServer;
 import sys.Sys;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
-import sys.scheduler.PeriodicTask;
-import sys.utils.IP;
 import sys.utils.Threading;
-import umontreal.iro.lecuyer.stat.Tally;
 
 /**
  * 
@@ -126,6 +126,27 @@ public class SwiftDocServer extends Thread {
                     getSession(client.remoteEndpoint()).swiftdoc.remove(r.pos);
                     client.reply(new ServerACK(r));
                 }
+     
+                public void onReceive(final RpcHandle client, final BulkTransaction r) {
+                    long t0 = System.currentTimeMillis();
+                    Session s = getSession(client.remoteEndpoint());
+                    s.swiftdoc.begin();
+                    for( SwiftDocRpc i : r.ops )
+                        if( i instanceof InsertAtom ) {
+                            InsertAtom j = (InsertAtom)i;
+                            s.swiftdoc.add( j.pos, j.atom );
+                        } else
+                            if( i instanceof RemoveAtom) {
+                                RemoveAtom j = (RemoveAtom)i;
+                                s.swiftdoc.remove( j.pos);
+                            }
+                    long t1 = System.currentTimeMillis();
+                    s.swiftdoc.commit();
+                    long now = System.currentTimeMillis();
+                    //System.err.printf( "Bulk Ops: %s total time:%s ms commit time: %s ms\n", r.ops.size(), (now - t0), (now - t1));
+                    client.reply(new ServerACK(r));
+                }
+                
             });
         } catch (Exception x) {
             x.printStackTrace();
@@ -165,7 +186,8 @@ public class SwiftDocServer extends Thread {
     }
 
     public TextLine remove(int pos) {
-        return doc.removeAt(pos);
+        TextLine res = doc.removeAt(pos);
+        return res;
     }
 
     public void commit() {
@@ -198,12 +220,13 @@ public class SwiftDocServer extends Thread {
                     if (serials.add(i.serial())) {
                         newAtoms.add(i);
                     }
-                handle.commit();
-
                 if (newAtoms.size() > 0)
                     clientHandle.reply(new ServerReply(newAtoms));
+                
+                handle.commit();
 
-                Threading.synchronizedWaitOn(barrier, k == 0 ? 1 : 1000);
+
+                Threading.synchronizedWaitOn(barrier, 10);
             }
         } catch (Exception e) {
             e.printStackTrace();

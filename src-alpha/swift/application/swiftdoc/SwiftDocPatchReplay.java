@@ -24,145 +24,144 @@ import difflib.Patch;
 
 public class SwiftDocPatchReplay<V> {
 
-	ZipFile zipFile;
+    ZipFile zipFile;
 
-	public void parseFiles(SwiftDocOps<V> seq, int delay ) throws Exception {
+    public void parseFiles(SwiftDocOps<V> seq, int delay) throws Exception {
 
-		SortedSet<ZipEntry> patches = getPatchFiles();
+        SortedSet<ZipEntry> patches = getPatchFiles();
 
-		ZipEntry initial = patches.first();
+        ZipEntry initial = patches.first();
 
-		if( seq != null )
-			seq.begin();
-		
-		List<Object> doc = new ArrayList<Object>();
-		for (String i : fileToLines(initial)) {
-						
-			if( seq != null)
-				seq.add(seq.size(), seq.gen(i) );
+        if (seq != null)
+            seq.begin();
 
-			doc.add(i);
-		}
+        List<Object> doc = new ArrayList<Object>();
+        for (String i : fileToLines(initial)) {
 
-		if( seq != null )
-			seq.commit() ;
-		
-		int k = 0;
-		for (ZipEntry i : patches) {
-			if (i == initial)
-				continue;
-			
-			System.err.printf("\r%s -> %d %% done...", i, 100 * k++ / patches.size() );
+            if (seq != null) {
+                seq.add(seq.size(), seq.gen(i));
+            }
+            doc.add(i);
+        }
 
-			if( seq != null )
-				seq.begin();
-			
-			Patch patch = DiffUtils.parseUnifiedDiff(fileToLines(i));
+        if (seq != null)
+            seq.commit();
 
-			List<Object> result = new HelperList<Object>(doc, seq);
+        int k = 0;
+        for (ZipEntry i : patches) {
+            if (i == initial)
+                continue;
 
-			List<Delta> deltas = patch.getDeltas();
-			ListIterator<Delta> it = deltas.listIterator(deltas.size());
-			while (it.hasPrevious()) {
-				Delta delta = (Delta) it.previous();
-				delta.applyTo(result);
-			}
-			doc = result;
-			
-			if( seq != null )
-				seq.commit();
+            System.err.printf("\r%s -> %d %% done...", i, 100 * k++ / patches.size());
 
-			if( delay > 0 )
-			    Threading.sleep(delay);
-			
-			if( i.getName().startsWith("200-") )
-				return;
-		}
-		
-		System.err.println("All Done");
-	}
+            if (seq != null)
+                seq.begin();
 
-	SortedSet<ZipEntry> getPatchFiles() throws IOException {
+            Patch patch = DiffUtils.parseUnifiedDiff(fileToLines(i));
 
-		SortedSet<ZipEntry> sortedEntries = new TreeSet<ZipEntry>(new Comparator<ZipEntry>() {
-			@Override
-			public int compare(ZipEntry a, ZipEntry b) {
-				String na = a.getName(), nb = b.getName();
-				int s = na.length() - nb.length();
-				return s != 0 ? s : na.compareTo(nb);
-			}
-		});
+            List<Object> result = new HelperList<Object>(doc, seq);
 
-		File file = new File("swiftdoc-patches.zip") ;
-		if( ! file.exists() )
-		    file = new File("data/swiftdoc/swiftdoc-patches.zip");
-		
-		zipFile = new ZipFile( file );
+            List<Delta> deltas = patch.getDeltas();
+            ListIterator<Delta> it = deltas.listIterator(deltas.size());
+            while (it.hasPrevious()) {
+                Delta delta = (Delta) it.previous();
+                delta.applyTo(result);
+            }
+            doc = result;
 
-		Enumeration<? extends ZipEntry> e = zipFile.entries();
-		while (e.hasMoreElements()) {
-			ZipEntry i = e.nextElement();
-			sortedEntries.add(i);
-		}
-		return sortedEntries;
-	}
-	
-	
-	public List<String> fileToLines(ZipEntry e) throws IOException {
-		List<String> lines = new LinkedList<String>();
+            if (seq != null)
+                seq.commit();
 
-		InputStream is = zipFile.getInputStream(e) ;
-		BufferedReader in = new BufferedReader(new InputStreamReader( is ) );
+            if (delay > 0)
+                Threading.sleep(delay);
 
-		String line;
-		while ((line = in.readLine()) != null) {
-			lines.add( line );
-		}
-		in.close();
-		is.close();
-		return lines;
-	}
+            if (i.getName().startsWith("100-"))
+                return;
+        }
 
-	class HelperList<T> extends ArrayList<T> {
-		private static final long serialVersionUID = 1L;
+        System.err.println("All Done");
+    }
 
-		final SwiftDocOps<V> mirror;
+    SortedSet<ZipEntry> getPatchFiles() throws IOException {
 
-		HelperList(Collection<T> c, SwiftDocOps<V> mirror) {
-			super.addAll(c);
-			this.mirror = mirror;
-		}
+        SortedSet<ZipEntry> sortedEntries = new TreeSet<ZipEntry>(new Comparator<ZipEntry>() {
+            @Override
+            public int compare(ZipEntry a, ZipEntry b) {
+                String na = a.getName(), nb = b.getName();
+                int s = na.length() - nb.length();
+                return s != 0 ? s : na.compareTo(nb);
+            }
+        });
 
-		@Override
-		public void add(int i, T v) {
-			if (mirror != null)
-				mirror.add(i, mirror.gen( v.toString() ));
-			super.add(i, v);
-		}
+        File file = new File("swiftdoc-patches.zip");
+        if (!file.exists())
+            file = new File("data/swiftdoc/swiftdoc-patches.zip");
 
-		@Override
-		public T get(int v) {
-			T res = super.get(v);
-			if (mirror != null) {
-				V res0 = mirror.get(v);
-				if (!res0.equals(res)) {
-					System.err.printf("%s  got-> %s\n", res, res0);
-				}
-			}
+        zipFile = new ZipFile(file);
 
-			return res;
-		}
+        Enumeration<? extends ZipEntry> e = zipFile.entries();
+        while (e.hasMoreElements()) {
+            ZipEntry i = e.nextElement();
+            sortedEntries.add(i);
+        }
+        return sortedEntries;
+    }
 
-		@Override
-		public T remove(int v) {
-			T res = super.remove(v);
-			if (mirror != null) {
-				V res0 = mirror.remove(v);
-				if (!res0.equals(res)) {
-					System.err.printf("%s  got-> %s\n", res, res0);
-				}
-			}
-			return res;
-		}
-	}
+    public List<String> fileToLines(ZipEntry e) throws IOException {
+        List<String> lines = new LinkedList<String>();
+
+        InputStream is = zipFile.getInputStream(e);
+        BufferedReader in = new BufferedReader(new InputStreamReader(is));
+
+        String line;
+        while ((line = in.readLine()) != null) {
+            lines.add(line);
+        }
+        in.close();
+        is.close();
+        return lines;
+    }
+
+    class HelperList<T> extends ArrayList<T> {
+        private static final long serialVersionUID = 1L;
+
+        final SwiftDocOps<V> mirror;
+
+        HelperList(Collection<T> c, SwiftDocOps<V> mirror) {
+            super.addAll(c);
+            this.mirror = mirror;
+        }
+
+        @Override
+        public void add(int i, T v) {
+            if (mirror != null)
+                mirror.add(i, mirror.gen(v.toString()));
+            super.add(i, v);
+        }
+
+        @Override
+        public T get(int v) {
+            T res = super.get(v);
+            if (mirror != null) {
+                V res0 = mirror.get(v);
+                if (!res0.equals(res)) {
+                    System.err.printf("%s  got-> %s\n", res, res0);
+                }
+            }
+
+            return res;
+        }
+
+        @Override
+        public T remove(int v) {
+            T res = super.remove(v);
+            if (mirror != null) {
+                V res0 = mirror.remove(v);
+                if (!res0.equals(res)) {
+                    System.err.printf("%s  got-> %s\n", res, res0);
+                }
+            }
+            return res;
+        }
+    }
 }
