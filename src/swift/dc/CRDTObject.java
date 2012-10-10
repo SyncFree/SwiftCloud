@@ -41,6 +41,7 @@ public class CRDTObject<V extends CRDT<V>> {
             this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
-        this.clock.recordAllUntil(data.cltClock.getLatest(cltId));
+        if( data.cltClock.getLatestCounter(cltId) > 0)
+            this.clock.recordAllUntil(data.cltClock.getLatest(cltId));
     }
 }
