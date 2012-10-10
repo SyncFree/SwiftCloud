@@ -17,7 +17,6 @@ import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import sys.utils.Threading;
 import difflib.Delta;
 import difflib.DiffUtils;
 import difflib.Patch;
@@ -26,7 +25,7 @@ public class SwiftDocPatchReplay<V> {
 
     ZipFile zipFile;
 
-    public void parseFiles(SwiftDocOps<V> seq, int delay) throws Exception {
+    public void parseFiles(SwiftDocOps<V> seq) throws Exception {
 
         SortedSet<ZipEntry> patches = getPatchFiles();
 
@@ -35,9 +34,9 @@ public class SwiftDocPatchReplay<V> {
         if (seq != null)
             seq.begin();
 
+        //Populate initial doc with 
         List<Object> doc = new ArrayList<Object>();
         for (String i : fileToLines(initial)) {
-
             if (seq != null) {
                 seq.add(seq.size(), seq.gen(i));
             }
@@ -72,13 +71,17 @@ public class SwiftDocPatchReplay<V> {
             if (seq != null)
                 seq.commit();
 
-            if (delay > 0)
-                Threading.sleep(delay);
-
             if (i.getName().startsWith("100-"))
                 return;
         }
 
+        //Clear the document, by removing all atoms...
+        if( seq != null) {
+            seq.begin();
+            while( seq.size() > 0 )
+                seq.remove(doc.size()-1);            
+            seq.commit();
+        }
         System.err.println("All Done");
     }
 

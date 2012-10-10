@@ -3,14 +3,14 @@ package swift.crdt.operations;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.AbstractSortedSetVersioned;
 
-public class SequenceInsert<V extends Comparable<V>, T extends AbstractSortedSetVersioned<V, T>> extends BaseUpdate<T> {
+public class SortedSetInsert<V extends Comparable<V>, T extends AbstractSortedSetVersioned<V, T>> extends BaseUpdate<T> {
     private V val;
 
     // required for kryo
-    SequenceInsert() {
+    SortedSetInsert() {
     }
 
-    public SequenceInsert(TripleTimestamp ts, V val) {
+    public SortedSetInsert(TripleTimestamp ts, V val) {
         super(ts);
         this.val = val;
     }

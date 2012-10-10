@@ -144,13 +144,14 @@ public class SwiftDoc {
 				@Override
 				public void commit() {
 					handle.commit();
+					Threading.sleep(1000);
 				}
 
 				@Override
 				public TextLine gen(String s) {
 					return new TextLine(s);
 				}
-			}, 100);
+			} );
 			done.set(true);
 
 

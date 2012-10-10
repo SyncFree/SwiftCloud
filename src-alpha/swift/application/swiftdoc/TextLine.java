@@ -8,58 +8,71 @@ import com.esotericsoftware.kryo.io.Output;
 
 public class TextLine implements KryoSerializable {
 
-	static AtomicLong g_serial = new AtomicLong(0);
+    static AtomicLong g_serial = new AtomicLong(0);
 
-	long serial;
-	String text;
-	long arrival_ts;
-	long departure_ts;
-	
-	// for kryo
-	TextLine() {
-	}
+    long serial;
+    String text;
+    long arrival_ts;
+    long departure_ts;
 
-	public TextLine(String text) {
-		this.text = text;
-		this.serial = g_serial.getAndIncrement();
-		this.departure_ts = -1;
-	}
-	
-	public int hashCode() {
-		return text.hashCode();
-	}
+    boolean warmup;
 
-	public boolean equals(Object other) {
-		if (other instanceof String)
-			return text.equals(other);
-		else
-			return other instanceof TextLine && text.equals(((TextLine) other).text);
-	}
+    // for kryo
+    TextLine() {
+    }
 
-	@Override
-	public void read(Kryo kryo, Input in) {
-		serial = in.readLong();
-		text = in.readString();
-		departure_ts = in.readLong();
-		arrival_ts = System.currentTimeMillis();
-	}
+    public TextLine(String text) {
+        this(text, false);
+    }
 
-	@Override
-	public void write(Kryo kryo, Output out) {
-		out.writeLong(serial);
-		out.writeString(text);
-		out.writeLong(departure_ts >= 0 ? departure_ts : (departure_ts = System.currentTimeMillis()) );
-	}
+    public TextLine(String text, boolean warmup) {
+        this.text = text;
+        this.warmup = warmup;
+        this.serial = g_serial.getAndIncrement();
+        this.departure_ts = -1;
+    }
 
-	public long latency() {
-		return (arrival_ts - departure_ts) / 2;
-	}
+    public boolean isWarmUp() {
+        return warmup;
+    }
+    
+    public int hashCode() {
+        return text.hashCode();
+    }
 
-	public String toString() {
-		return text;
-	}
+    public boolean equals(Object other) {
+        if (other instanceof String)
+            return text.equals(other);
+        else
+            return other instanceof TextLine && text.equals(((TextLine) other).text);
+    }
 
-	public Long serial() {
-		return serial;
-	}
+    @Override
+    public void read(Kryo kryo, Input in) {
+        serial = in.readLong();
+        text = in.readString();
+        warmup = in.readBoolean();
+        departure_ts = in.readLong();
+        arrival_ts = System.currentTimeMillis();
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        out.writeLong(serial);
+        out.writeString(text);
+        out.writeBoolean(warmup);
+        out.writeLong(departure_ts >= 0 ? departure_ts : (departure_ts = System.currentTimeMillis()));
+    }
+
+    public long latency() {
+        return (arrival_ts - departure_ts) / 2;
+    }
+
+    public String toString() {
+        return text;
+    }
+
+    public Long serial() {
+        return serial;
+    }
 }

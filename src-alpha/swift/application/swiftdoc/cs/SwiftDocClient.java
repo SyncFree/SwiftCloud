@@ -122,6 +122,7 @@ public class SwiftDocClient {
                 @Override
                 public void commit() {
                     endpoint.send( server, new CommitTransaction(), ackHandler ) ;
+                    Threading.sleep(1000);
                 }
                 
                 @Override
@@ -136,9 +137,9 @@ public class SwiftDocClient {
 
                 @Override
                 public TextLine gen(String s) {
-                    return new TextLine(s);
+                    return new TextLine(s, false);
                 }
-            }, 50);
+            });
         } catch (Exception x) {
             x.printStackTrace();
         }

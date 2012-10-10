@@ -6,15 +6,15 @@ import java.util.Set;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.AbstractSortedSetVersioned;
 
-public class SequenceRemove<V extends Comparable<V>, T extends AbstractSortedSetVersioned<V, T>> extends BaseUpdate<T> {
+public class SortedSetRemove<V extends Comparable<V>, T extends AbstractSortedSetVersioned<V, T>> extends BaseUpdate<T> {
     private V val;
     private Set<TripleTimestamp> ids;
 
     // required for kryo
-    SequenceRemove() {
+    SortedSetRemove() {
     }
 
-    public SequenceRemove(TripleTimestamp ts, V val, Set<TripleTimestamp> ids) {
+    public SortedSetRemove(TripleTimestamp ts, V val, Set<TripleTimestamp> ids) {
         super(ts);
         this.val = val;
         this.ids = new HashSet<TripleTimestamp>();

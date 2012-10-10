@@ -14,7 +14,7 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 
 import swift.crdt.SequenceVersioned.PosID;
 
-public class SequenceVersioned<V> extends SortedSetVersioned<PosID<V>, SequenceVersioned<V>> {
+public class SequenceVersioned<V> extends AbstractSortedSetVersioned<PosID<V>, SequenceVersioned<V>> {
 	private static final long serialVersionUID = 1L;
 
 	public SequenceVersioned() {

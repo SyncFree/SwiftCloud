@@ -217,7 +217,7 @@ public class SwiftDocServer extends Thread {
 
                 List<TextLine> newAtoms = new ArrayList<TextLine>();
                 for (TextLine i : doc.getValue())
-                    if (serials.add(i.serial())) {
+                    if (serials.add(i.serial()) ) {
                         newAtoms.add(i);
                     }
                 if (newAtoms.size() > 0)

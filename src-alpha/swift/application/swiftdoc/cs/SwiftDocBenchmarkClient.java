@@ -21,17 +21,15 @@ public class SwiftDocBenchmarkClient {
 
     public static void main(String[] args) throws Exception {
 
-        if (false && args.length != 3) {
+        if (args.length != 3) {
             System.out.println("-->" + Arrays.asList(args));
             System.out.println("Usage: [scout address] [client id (1|2)] [DC address]");
             return;
         } else {
-            args = new String[] {"localhost", "1", "localhost"};
             
             scoutName = args[0];
             clientId = Integer.parseInt(args[1]);
             dcName = args[2];
-            System.err.println( dcName );
             logger.info("Initializing the system");
 
             Sys.init();
