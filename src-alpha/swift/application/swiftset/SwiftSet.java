@@ -82,31 +82,31 @@ public class SwiftSet {
 			final Map<Long, TextLine> samples = new HashMap<Long, TextLine>();
 
 			
-//			Threading.newThread(true, new Runnable() {
-//				public void run() {
-//					try {
-//						for (int k = 0; !done.get(); k++) {
-//							final Object barrier = new Object();
-//							final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT : CachePolicy.CACHED, true);
-//							SortedSetTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SortedSetVersioned.class, new AbstractObjectUpdatesListener() {
-//								public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-//									Threading.synchronizedNotifyAllOn(barrier);
-//		                            //System.err.println("Triggered Reader get():" + previousValue.getValue());
-//								}
-//							});
-//                            for (TextLine i : doc.getValue()) {
-//                                if (!samples.containsKey(i.serial())) {
-//                                    samples.put(i.serial(), i);
-//                                }
-//                            }
-//							Threading.synchronizedWaitOn(barrier, 1000);
-//							handle.commit();
-//						}
-//					} catch (Exception e) {
-//						e.printStackTrace();
-//					}
-//				}
-//			}).start();
+			Threading.newThread(true, new Runnable() {
+				public void run() {
+					try {
+						for (int k = 0; !done.get(); k++) {
+							final Object barrier = new Object();
+							final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT : CachePolicy.CACHED, true);
+							SortedSetTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SortedSetVersioned.class, new AbstractObjectUpdatesListener() {
+								public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+									Threading.synchronizedNotifyAllOn(barrier);
+		                            //System.err.println("Triggered Reader get():" + previousValue.getValue());
+								}
+							});
+                            for (TextLine i : doc.getValue()) {
+                                if (!samples.containsKey(i.serial())) {
+                                    samples.put(i.serial(), i);
+                                }
+                            }
+							Threading.synchronizedWaitOn(barrier, 1000);
+							handle.commit();
+						}
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			}).start();
 
 			
 			SwiftSetPatchReplay<TextLine> player = new SwiftSetPatchReplay<TextLine>();
@@ -164,31 +164,33 @@ public class SwiftSet {
 
 	static void client2code(final SwiftImpl swift1, final SwiftImpl swift2) {
 		try {
+		    
 			final Set<Long> serials = new HashSet<Long>();
 
 			for (int k = 0;; k++) {
 				final Object barrier = new Object();
-				final TxnHandle handle = swift1.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT : CachePolicy.CACHED, true);
+				final TxnHandle handle = swift1.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT : CachePolicy.CACHED, false);
 				SortedSetTxnLocal<TextLine> doc = handle.get(j1, true, swift.crdt.SortedSetVersioned.class, new AbstractObjectUpdatesListener() {
 					public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
 						Threading.synchronizedNotifyAllOn(barrier);
 						//System.err.println("previous:" + previousValue.getValue());
 					}
 				});
+//				SortedSetTxnLocal<TextLine> doc = handle.get(j1, true, swift.crdt.SortedSetVersioned.class, null);
 
+                final Collection<TextLine> newAtoms = new ArrayList<TextLine>();
+                for (TextLine i : doc.getValue()) {
+                    if (serials.add(i.serial())) {
+                        newAtoms.add(i);
+                    }
+                }
 				// Wait for the notification, before reading the new value of
 				// the sequence...
-				Threading.synchronizedWaitOn(barrier, 5000);
+				Threading.synchronizedWaitOn(barrier, 1);
 				// System.err.println("Triggered Reader get():" +
 				// doc.getValue());
 
 				// Determine the new atoms this update brought...
-				final Collection<TextLine> newAtoms = new ArrayList<TextLine>();
-				for (TextLine i : doc.getValue()) {
-					if (serials.add(i.serial())) {
-						newAtoms.add(i);
-					}
-				}
 				handle.commit();
 
 				// Write the atoms into the other sequence to measure RTT...
