@@ -7,7 +7,6 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
@@ -70,12 +69,15 @@ abstract class AbstractTxnHandle implements TxnHandle {
      * @param timestampMapping
      *            timestamp and timestamp mapping information used for all
      *            updates of this transaction
+     * @param dependencyClock
+     *            initial dependency clock; left unmodified
      */
-    AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
+    AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final TimestampMapping timestampMapping,
+            CausalityClock dependencyClock) {
         this.manager = manager;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = timestampMapping;
-        this.updatesDependencyClock = ClockFactory.newClock();
+        this.updatesDependencyClock = dependencyClock.clone();
         this.timestampSource = new IncrementalTripleTimestampGenerator(timestampMapping);
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;

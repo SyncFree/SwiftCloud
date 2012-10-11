@@ -321,7 +321,9 @@ public class SwiftImpl implements Swift, TxnManager {
             return pendingTxn;
 
         case REPEATABLE_READS:
-            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping));
+            final CausalityClock dependencyClock = getCommittedVersion(true);
+            dependencyClock.merge(lastLocallyCommittedTxnClock);
+            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping, dependencyClock));
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("REPEATABLE READS transaction " + timestampMapping + " started");
             }
