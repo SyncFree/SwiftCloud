@@ -760,6 +760,10 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs="
                     + notifications.getEstimatedCommittedVersion() + ";stable="
                     + notifications.getEstimatedDisasterDurableCommittedVersion());
+            if( notifications.getSubscriptions().size() > 0) {
+                ObjectSubscriptionInfo sub = notifications.getSubscriptions().get(0);
+                logger.info("notifications received in " + clientId + " for " + sub.getId() + "; old clk: " + sub.getOldClock() + "; new clk " + sub.getNewClock());
+            }
         }
 
         updateCommittedVersions(notifications.getEstimatedCommittedVersion(),

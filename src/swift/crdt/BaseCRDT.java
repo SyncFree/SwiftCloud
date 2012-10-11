@@ -107,6 +107,16 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     public void discardScoutClock(final String scoutId) {
         updatesClock.drop(scoutId);
     }
+    
+    /**
+     * Augments update clock of this object with the vector clock of the server,
+     * as the missing transactions guaranteedly have not touched the object
+     * 
+     * @param currentDCClock current DC clock
+     */
+    public void augmentWithDCClock(final CausalityClock currentDCClock) {
+        updatesClock.merge(currentDCClock);
+    }
 
     @SuppressWarnings("unchecked")
     @Override

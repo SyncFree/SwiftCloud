@@ -251,8 +251,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
 
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
-            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs) {
-        return dataServer.execCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs); // call
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
+        return dataServer.execCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs, curDCVersion); // call
                                                                       // DHT
                                                                       // server
     }
@@ -392,10 +392,15 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; 
         boolean ok = true;
         int pos = 0;
+        CausalityClock estimatedDCVersionCopy0 = null;
+        synchronized (estimatedDCVersion) {
+            estimatedDCVersionCopy0 = estimatedDCVersion.clone();
+        }
+        final CausalityClock estimatedDCVersionCopy = estimatedDCVersionCopy0;
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
             CRDTObjectUpdatesGroup<?> grp = it.next();
-            results[pos] = execCRDT(grp, snapshotClock, trxClock, txTs, cltTs, prvCltTs);
+            results[pos] = execCRDT(grp, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy);
             ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(grp.getDependency());
@@ -405,11 +410,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final boolean txResult = ok;
         // TODO: handle failure
 
-        CausalityClock estimatedDCVersionCopy0 = null;
-        synchronized (estimatedDCVersion) {
-            estimatedDCVersionCopy0 = estimatedDCVersion.clone();
-        }
-        final CausalityClock estimatedDCVersionCopy = estimatedDCVersionCopy0;
         session.setLastSeqNo( cltTs);
         sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs, 
                 estimatedDCVersionCopy, ok,
@@ -418,10 +418,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
             public void onReceive(RpcHandle conn0, CommitTSReply reply) {
                 DCConstants.DCLogger.info("Commit: received CommitTSRequest:old vrs:" + estimatedDCVersionCopy + 
                         "; new vrs=" + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
-                CausalityClock estimatedDCVersionCopy = null;
+                estimatedDCVersionCopy.record(txTs);
                 synchronized (estimatedDCVersion) {
                     estimatedDCVersion.merge(reply.getCurrVersion());
-                    estimatedDCVersionCopy = estimatedDCVersion.clone();
                 }
                 CausalityClock estimatedDCStableVersionCopy = null;
                 synchronized (estimatedDCStableVersion) {
@@ -429,6 +428,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                     estimatedDCStableVersionCopy = estimatedDCStableVersion.clone();
                 }
                 if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                    DCConstants.DCLogger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
                     conn.reply(new CommitUpdatesReply(txTs));
                     for( int i = 0; i < results.length; i++) {
                         ExecCRDTResult result = results[i];
@@ -436,7 +436,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
                             continue;
                         if( result.hasNotification()) {
                             if( results[i].isNotificationOnly()) {
-                                Thread.dumpStack();
                                 PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo().cloneNotification(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
                             } else {
                                 PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
@@ -609,13 +608,17 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         trxClock.record(request.getTimestamp());
         Iterator<CRDTObjectUpdatesGroup<?>> it = ops.iterator();
         final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; 
+        CausalityClock estimatedDCVersionCopy = null;
+        synchronized (estimatedDCVersion) {
+            estimatedDCVersionCopy = estimatedDCVersion.clone();
+        }
         boolean ok = true;
         int pos = 0;
         while (it.hasNext()) {
             // TODO: must make this concurrent to be fast
             CRDTObjectUpdatesGroup<?> grp = it.next();
             results[pos] = execCRDT(grp, snapshotClock, trxClock, request.getTimestamp(), 
-                    request.getCltTimestamp(), request.getPrvCltTimestamp());
+                    request.getCltTimestamp(), request.getPrvCltTimestamp(), estimatedDCVersionCopy);
             ok = ok && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(grp.getDependency());
@@ -625,10 +628,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer, Pub
         final boolean txResult = ok;
         // TODO: handle failure
 
-        CausalityClock estimatedDCVersionCopy = null;
-        synchronized (estimatedDCVersion) {
-            estimatedDCVersionCopy = estimatedDCVersion.clone();
-        }
         sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(ts, cltTs, prvCltTs, estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
             @Override

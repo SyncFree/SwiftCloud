@@ -158,7 +158,7 @@ class DCDataServer {
                 DCConstants.DCLogger.info("DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
                 con.reply( new DHTExecCRDTReply( localExecCRDT(new RemoteObserver(request.getSurrogateId(), con),
                         request.getGrp(), request.getSnapshotVersion(), request.getTrxVersion(),
-                        request.getTxTs(), request.getCltTs(), request.getPrvCltTs())));
+                        request.getTxTs(), request.getCltTs(), request.getPrvCltTs(), request.getCurDCVersion())));
             }
         });
 
@@ -294,12 +294,12 @@ class DCDataServer {
      * @return returns true if the operation could be executed.
      */
     <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
-            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs) {
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
         final StringKey key = new StringKey(grp.getTargetUID().toString());
         if (!DHT_Node.getInstance().isHandledLocally(key)) {
             final Result<DHTExecCRDTReply> result = new Result<DHTExecCRDTReply>();
             while (!result.hasResult()) {
-                dhtClient.send(key, new DHTExecCRDT(localSurrogateId, grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs),
+                dhtClient.send(key, new DHTExecCRDT(localSurrogateId, grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs, curDCVersion),
                         new DHTExecCRDTReplyHandler() {
                             @Override
                             public void onReceive(DHTExecCRDTReply reply) {
@@ -311,7 +311,7 @@ class DCDataServer {
             }
             return result.getResult().getResult();
         } else
-            return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs);
+            return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs, curDCVersion);
     }
 
     // /**
@@ -378,7 +378,8 @@ class DCDataServer {
 
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> ExecCRDTResult localExecCRDT(Observer observer, CRDTObjectUpdatesGroup<V> grp,
-            CausalityClock snapshotVersion, CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs) {
+            CausalityClock snapshotVersion, CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, 
+            Timestamp prvCltTs, CausalityClock curDCVersion) {
         CRDTIdentifier id = grp.getTargetUID();
         lock(id);
         try {
@@ -417,18 +418,24 @@ class DCDataServer {
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+            data.crdt.augmentWithDCClock(curDCVersion);
+            
             if( DCDataServer.prune) {
                 if( prvCltTs != null)
                     data.prunedCrdt.augmentWithScoutClock(prvCltTs);
                 data.prunedCrdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+                data.prunedCrdt.augmentWithDCClock(curDCVersion);
                 data.prunedCrdt.prune( data.clock, false);
                 data.prunedCrdt.discardScoutClock(cltTs.getIdentifier());
                 data.pruneClock = data.clock;
             }
             data.crdt.discardScoutClock(cltTs.getIdentifier());
             data.clock = data.crdt.getClock();
+          
             setModifiedDatabaseEntry( data);
             
+            DCConstants.DCLogger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = " + data.cltClock + ";  snapshotVersion = " + snapshotVersion);
+                        
             data.cltClock.record(cltTs);
             
             ExecCRDTResult result = null;

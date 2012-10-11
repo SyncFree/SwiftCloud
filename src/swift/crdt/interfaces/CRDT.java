@@ -194,6 +194,14 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
     public abstract void augmentWithScoutClock(final Timestamp latestAppliedScoutTimestamp);
 
     /**
+     * Augments update clock of this object with the vector clock of the server,
+     * as the missing transactions guaranteedly have not touched the object
+     * 
+     * @param currentDCClock current DC clock
+     */
+    public abstract void augmentWithDCClock(final CausalityClock currentDCClock);
+
+    /**
      * Discards from the update clock all timestamps of the provided scout.
      * 
      * @param scoutId
