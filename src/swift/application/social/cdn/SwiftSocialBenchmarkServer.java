@@ -1,20 +1,16 @@
 package swift.application.social.cdn;
 
-import java.io.PrintStream;
+import static sys.net.api.Networking.Networking;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import com.sun.org.apache.bcel.internal.generic.GETSTATIC;
 
 import swift.application.social.Commands;
+import swift.application.social.Message;
 import swift.application.social.SwiftSocial;
 import swift.application.social.SwiftSocialMain;
 import swift.client.SwiftImpl;
@@ -23,16 +19,7 @@ import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import sys.net.api.Networking.TransportProvider;
-import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
-import sys.scheduler.PeriodicTask;
-import sys.utils.Threading;
-import swift.application.social.Message;
-
-import static sys.Sys.*;
-import static sys.net.api.Networking.Networking;
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
  * prototype [Sovran et al. OSDI 2011].
@@ -179,7 +166,8 @@ public class SwiftSocialBenchmarkServer {
     	
     	Session() {
             swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis);
+                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CACHE_SIZE);
 
     		swiftSocial = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
     	                asyncCommit);

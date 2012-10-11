@@ -13,16 +13,18 @@ import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 
 /**
- * Local cache of CRDT objects with LRU eviction policy.
+ * Local cache of CRDT objects with LRU eviction policy. Elements get evicted
+ * when not used for a defined period of time or size of the cache is exceeded.
  * <p>
  * Thread unsafe (requires external synchronization).
  * 
  * @author mzawirski
  */
-class TimeBoundedObjectsCache {
-    private static Logger logger = Logger.getLogger(TimeBoundedObjectsCache.class.getName());
+class TimeSizeBoundedObjectsCache {
+    private static Logger logger = Logger.getLogger(TimeSizeBoundedObjectsCache.class.getName());
 
     private final long evictionTimeMillis;
+    private final int maxElements;
     private Map<CRDTIdentifier, Entry> entries;
     private LinkedHashSet<Entry> entriesEvictionQueue;
 
@@ -31,14 +33,16 @@ class TimeBoundedObjectsCache {
      *            maximum life-time for object entries (exclusive) in
      *            milliseconds
      */
-    public TimeBoundedObjectsCache(final long evictionTimeMillis) {
+    public TimeSizeBoundedObjectsCache(final long evictionTimeMillis, final int maxElements) {
         this.evictionTimeMillis = evictionTimeMillis;
+        this.maxElements = maxElements;
         entries = new HashMap<CRDTIdentifier, Entry>();
-        entriesEvictionQueue = new LinkedHashSet<TimeBoundedObjectsCache.Entry>();
+        entriesEvictionQueue = new LinkedHashSet<TimeSizeBoundedObjectsCache.Entry>();
     }
 
     /**
-     * Adds object to the cache, possibly overwriting old entry.
+     * Adds object to the cache, possibly overwriting old entry. May cause
+     * evictoin due to size limit in the cache.
      * 
      * @param object
      *            object to add
@@ -50,6 +54,7 @@ class TimeBoundedObjectsCache {
             entriesEvictionQueue.remove(oldEntry);
         }
         entriesEvictionQueue.add(entry);
+        evictOversized();
     }
 
     /**
@@ -105,7 +110,18 @@ class TimeBoundedObjectsCache {
                 break;
             }
         }
-        logger.info(evictedObjects + " objects evicted from the cache");
+        logger.info(evictedObjects + " objects evicted from the cache due to timeout");
+    }
+
+    private void evictOversized() {
+        final Iterator<Entry> iter = entriesEvictionQueue.iterator();
+        final int entriesToRemove = entries.size() - maxElements;
+        for (int i = 0; i < entriesToRemove; i++) {
+            final Entry entry = iter.next();
+            entries.remove(entry.object.getUID());
+            iter.remove();
+        }
+        logger.info(entriesToRemove + " objects evicted from the cache due to size limit");
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })

@@ -1,5 +1,7 @@
 package swift.application.social;
 
+import static sys.Sys.Sys;
+
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -16,8 +18,6 @@ import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
-
-import static sys.Sys.*;
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
  * prototype [Sovran et al. OSDI 2011].
@@ -123,7 +123,8 @@ public class SwiftSocialBenchmark {
 
     private static void runClientSession(final int sessionId, final List<String> commands) {
         Swift swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis);
+                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                SwiftImpl.DEFAULT_CACHE_SIZE);
         SwiftSocial socialClient = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
 

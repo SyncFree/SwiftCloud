@@ -100,6 +100,7 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
+    public static final int DEFAULT_CACHE_SIZE = 100000;
     public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -115,7 +116,7 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort) {
         return newInstance(serverHostname, serverPort, DEFAULT_DISASTER_SAFE, DEFAULT_TIMEOUT_MILLIS,
-                DEFAULT_DEADLINE_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS);
+                DEFAULT_DEADLINE_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS, DEFAULT_CACHE_SIZE);
     }
 
     /**
@@ -137,12 +138,14 @@ public class SwiftImpl implements Swift, TxnManager {
      *            etc)
      * @param cacheEvictionTimeMillis
      *            eviction time for non-accessed objects in the cache
+     * @param cacheSize
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe, int timeoutMillis,
-            int deadlineMillis, long cacheEvictionTimeMillis) {
+            int deadlineMillis, long cacheEvictionTimeMillis, int cacheSize) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
-                Networking.resolve(serverHostname, serverPort), new TimeBoundedObjectsCache(cacheEvictionTimeMillis),
+                Networking.resolve(serverHostname, serverPort), new TimeSizeBoundedObjectsCache(
+                        cacheEvictionTimeMillis, cacheSize),
                 disasterSafe, timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
@@ -161,7 +164,7 @@ public class SwiftImpl implements Swift, TxnManager {
     // Best-effort invariant: if object is in the cache, it includes all
     // updates of locally and globally committed locally-originating
     // transactions.
-    private final TimeBoundedObjectsCache objectsCache;
+    private final TimeSizeBoundedObjectsCache objectsCache;
 
     // CLOCKS: all clocks grow over time. Careful with references, use copies.
 
@@ -212,7 +215,7 @@ public class SwiftImpl implements Swift, TxnManager {
     // failures.
     private boolean disasterSafe;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeBoundedObjectsCache objectsCache,
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeSizeBoundedObjectsCache objectsCache,
             boolean disasterSafe, int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
         this.clientId = generateScoutId();
         this.disasterSafe = disasterSafe;
