@@ -19,10 +19,14 @@
  */
 package loria.swift.crdt;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import loria.swift.crdt.operation.MaxCausalityClockUpdate;
-import static org.junit.Assert.*;
+
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
@@ -39,6 +43,7 @@ import swift.exceptions.WrongTypeException;
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
+@Ignore
 public class MaxCausalityClockRegisterMergeTest {
 
     public MaxCausalityClockRegisterMergeTest() {

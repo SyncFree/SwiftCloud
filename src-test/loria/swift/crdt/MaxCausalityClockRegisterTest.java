@@ -19,17 +19,17 @@
  */
 package loria.swift.crdt;
 
-import org.junit.Test;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+
 import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerWrap;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
 import swift.crdt.TxnTester;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.SwiftException;
@@ -38,6 +38,7 @@ import swift.exceptions.SwiftException;
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
+@Ignore
 public class MaxCausalityClockRegisterTest {
     
     public MaxCausalityClockRegisterTest() {
