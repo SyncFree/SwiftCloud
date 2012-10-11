@@ -186,7 +186,7 @@ public class SwiftSet {
                 }
 				// Wait for the notification, before reading the new value of
 				// the sequence...
-				Threading.synchronizedWaitOn(barrier, 1);
+				Threading.synchronizedWaitOn(barrier, 1000);
 				// System.err.println("Triggered Reader get():" +
 				// doc.getValue());
 
