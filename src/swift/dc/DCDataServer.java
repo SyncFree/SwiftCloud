@@ -436,7 +436,7 @@ class DCDataServer {
             
             DCConstants.DCLogger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = " + data.cltClock + ";  snapshotVersion = " + snapshotVersion);
                         
-            data.cltClock.record(cltTs);
+            data.cltClock.recordAllUntil(cltTs);
             
             ExecCRDTResult result = null;
             if (data.observers.size() > 0 || data.notifiers.size() > 0) {
