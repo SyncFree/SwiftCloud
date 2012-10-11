@@ -145,8 +145,8 @@ public class SwiftImpl implements Swift, TxnManager {
             int deadlineMillis, long cacheEvictionTimeMillis, int cacheSize) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
                 Networking.resolve(serverHostname, serverPort), new TimeSizeBoundedObjectsCache(
-                        cacheEvictionTimeMillis, cacheSize),
-                disasterSafe, timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
+                        cacheEvictionTimeMillis, cacheSize), disasterSafe, timeoutMillis,
+                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
     private static String generateScoutId() {
@@ -324,9 +324,7 @@ public class SwiftImpl implements Swift, TxnManager {
             return pendingTxn;
 
         case REPEATABLE_READS:
-            final CausalityClock dependencyClock = getCommittedVersion(true);
-            dependencyClock.merge(lastLocallyCommittedTxnClock);
-            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping, dependencyClock));
+            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping));
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("REPEATABLE READS transaction " + timestampMapping + " started");
             }
@@ -765,9 +763,10 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs="
                     + notifications.getEstimatedCommittedVersion() + ";stable="
                     + notifications.getEstimatedDisasterDurableCommittedVersion());
-            if( notifications.getSubscriptions().size() > 0) {
+            if (notifications.getSubscriptions().size() > 0) {
                 ObjectSubscriptionInfo sub = notifications.getSubscriptions().get(0);
-                logger.info("notifications received in " + clientId + " for " + sub.getId() + "; old clk: " + sub.getOldClock() + "; new clk " + sub.getNewClock());
+                logger.info("notifications received in " + clientId + " for " + sub.getId() + "; old clk: "
+                        + sub.getOldClock() + "; new clk " + sub.getNewClock());
             }
         }
 
@@ -1053,12 +1052,18 @@ public class SwiftImpl implements Swift, TxnManager {
 
         txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
         txn.getUpdatesDependencyClock().drop(clientId);
-        CommitUpdatesReply reply;
-        final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>(
-                txn.getAllUpdates());
-        // Commit at server.
-        reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>(null) {
+        // Use optimizedDependencyClock when sending out the updates - it may
+        // impose more restrictions, but contains less holes.
+        final CausalityClock optimizedDependencyClock = getCommittedVersion(true);
+        optimizedDependencyClock.merge(txn.getUpdatesDependencyClock());
+        final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+        for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
+            operationsGroups.add(group.withWithDependencyClock(optimizedDependencyClock));
+        }
 
+        // Commit at server.
+        final CommitUpdatesReply reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>(
+                null) {
             public String toString() {
                 return "CommitUpdatesRequest";
             }

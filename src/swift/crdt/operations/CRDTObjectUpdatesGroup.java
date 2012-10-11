@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
@@ -30,8 +31,8 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     protected TimestampMapping timestampMapping;
     protected List<CRDTUpdate<V>> operations;
     protected V creationState;
-//    public long timeInDC;
-    
+
+    // public long timeInDC;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -139,5 +140,21 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      */
     public V getCreationState() {
         return creationState;
+    }
+
+    /**
+     * @param newDependencyClock
+     *            shallow copy of this object with dependencyClock set to
+     *            another one.
+     * @return
+     */
+    public CRDTObjectUpdatesGroup<V> withWithDependencyClock(final CausalityClock newDependencyClock) {
+        if (!newDependencyClock.compareTo(dependencyClock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+            throw new IllegalArgumentException("new dependency clock is concurrent or lower than the old one");
+        }
+        final CRDTObjectUpdatesGroup<V> copy = new CRDTObjectUpdatesGroup<V>(id, timestampMapping, creationState,
+                newDependencyClock);
+        copy.operations = operations;
+        return copy;
     }
 }
