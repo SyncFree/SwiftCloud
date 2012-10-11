@@ -98,7 +98,7 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final boolean DEFAULT_DISASTER_SAFE = true;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
-    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 60 * 1000;
+    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 2 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
