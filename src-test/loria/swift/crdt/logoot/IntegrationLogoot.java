@@ -62,6 +62,14 @@ public class IntegrationLogoot {
         getTxnLocal(l1, txn).set("aaa\nbbb\n");        
         txn.commit();
         assertEquals("aaa\nbbb\n", getTxnLocal(l1, swift1.beginTxn()).getText()); 
+         
+    }
+    @Test
+    public void testInesertEmptyLine(){
+        TxnTester txn = swift1.beginTxn(l1);        
+        getTxnLocal(l1, txn).set("aaa\n\nbbb\n\n");        
+        txn.commit();
+        assertEquals("aaa\n\nbbb\n\n", getTxnLocal(l1, swift1.beginTxn()).getText()); 
     }
 
     @Test
@@ -74,9 +82,42 @@ public class IntegrationLogoot {
         LogootIdentifier b = l1.getDoc().idTable.get(2);        
         
         txn = swift1.beginTxn(l1);        
+        getTxnLocal(l1, txn).set("bbb");
+        txn.commit();        
+        assertEquals("bbb", getTxnLocal(l1, swift1.beginTxn()).getText()); 
+        assertEquals(b, l1.getDoc().idTable.get(2));        
+    }
+    @Test
+    public void testDelete2() {
+        TxnTester txn = swift1.beginTxn(l1);        
+        getTxnLocal(l1, txn).set("aaa\nbbb");
+        txn.commit();
+        
+        assertEquals("aaa\nbbb", getTxnLocal(l1, swift1.beginTxn()).getText()); 
+        LogootIdentifier b = l1.getDoc().idTable.get(2);        
+        
+        txn = swift1.beginTxn(l1);        
         getTxnLocal(l1, txn).set("bbb\n");
         txn.commit();        
         assertEquals("bbb\n", getTxnLocal(l1, swift1.beginTxn()).getText()); 
         assertEquals(b, l1.getDoc().idTable.get(2));        
+    }
+     @Test
+    public void testDelete3() {
+        TxnTester txn = swift1.beginTxn(l1);        
+        getTxnLocal(l1, txn).set("aaa\nbbb\nccc");
+        txn.commit();
+        
+        assertEquals("aaa\nbbb\nccc", getTxnLocal(l1, swift1.beginTxn()).getText()); 
+        LogootIdentifier a = l1.getDoc().idTable.get(1);        
+        LogootIdentifier c = l1.getDoc().idTable.get(3);        
+        
+        txn = swift1.beginTxn(l1);        
+        getTxnLocal(l1, txn).set("aaa\nxxx\nccc");
+        txn.commit();        
+        
+        assertEquals("aaa\nxxx\nccc", getTxnLocal(l1, swift1.beginTxn()).getText()); 
+         assertEquals(a, l1.getDoc().idTable.get(1));        
+         assertEquals(c, l1.getDoc().idTable.get(4));        
     }
 }
