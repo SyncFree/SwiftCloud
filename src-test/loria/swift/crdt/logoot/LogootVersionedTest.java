@@ -77,31 +77,35 @@ public class LogootVersionedTest {
         x.add(1, b, "bbb", new HashSet(v));
         x.add(1, a, "aaa", null);
         LogootVersioned lv = new LogootVersioned();
+        lv.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
         lv.setDoc(x);
         
         CausalityClock clock = ClockFactory.newClock();
         clock.record(TesterUtils.generateTripleTimestamp("x", 1, 1).getClientTimestamp());
-        assertEquals("aaa\n", lv.getValue(clock).toString());
+        assertEquals("aaa", lv.getValue(clock).toString());
         clock.record(TesterUtils.generateTripleTimestamp("y", 1, 1).getClientTimestamp());
-        assertEquals("aaa\nccc\nddd\n", lv.getValue(clock).toString());
+        assertEquals("aaa\nccc\nddd", lv.getValue(clock).toString());
         clock.record(TesterUtils.generateTripleTimestamp("y", 2, 1).getClientTimestamp());
-        assertEquals("aaa\nccc\nddd\neee\n", lv.getValue(clock).toString());
+        assertEquals("aaa\nccc\nddd\neee", lv.getValue(clock).toString());
         clock.record(TesterUtils.generateTripleTimestamp("x", 2, 1).getClientTimestamp());
-        assertEquals("aaa\nbbb\nddd\n", lv.getValue(clock).toString());
+        assertEquals("aaa\nbbb\nddd", lv.getValue(clock).toString());
         clock.record(TesterUtils.generateTripleTimestamp("y", 4, 1).getClientTimestamp());
-        assertEquals("aaa\nddd\n", lv.getValue(clock).toString());
+        assertEquals("aaa\nddd", lv.getValue(clock).toString());
     }
 
     @Test
     public void testPrune() {
-        LogootDocumentWithTombstones<String> x = new LogootDocumentWithTombstones();
-        x.add(1, e, "eee", new HashSet(t));
-        x.add(1, d, "ddd", null);
-        x.add(1, c, "ccc", new HashSet(u));
-        x.add(1, b, "bbb", new HashSet(v));
-        x.add(1, a, "aaa", null);
         LogootVersioned lv = new LogootVersioned();
-        lv.setDoc(x);
+        lv.init(null, ClockFactory.newClock(), ClockFactory.newClock(), true);
+        lv.applyInsert(a, "aaa");
+        lv.applyInsert(b, "bbb");
+        lv.applyInsert(c, "ccc");
+        lv.applyInsert(d, "ddd");
+        lv.applyInsert(e, "eee");
+        lv.applyDelete(e, TesterUtils.generateTripleTimestamp("x", 2, 4));
+        lv.applyDelete(e, TesterUtils.generateTripleTimestamp("y", 4, 8));
+        lv.applyDelete(c, TesterUtils.generateTripleTimestamp("x", 2, 5));
+        lv.applyDelete(b, TesterUtils.generateTripleTimestamp("y", 4, 9));
 
         assertEquals(7, lv.getDoc().size());
         assertEquals(a, lv.getDoc().idTable.get(1));
