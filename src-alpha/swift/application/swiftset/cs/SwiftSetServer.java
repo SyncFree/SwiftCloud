@@ -255,11 +255,12 @@ public class SwiftSetServer extends Thread {
             this.client = client;
 
             this.swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
-                    SwiftImpl.DEFAULT_CACHE_SIZE);
+                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
+                    Integer.MAX_VALUE, cacheEvictionTimeMillis, SwiftImpl.DEFAULT_CACHE_SIZE);
 
             this.swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
+                    Integer.MAX_VALUE, cacheEvictionTimeMillis,
                     SwiftImpl.DEFAULT_CACHE_SIZE);
 
             swiftdoc = new SwiftSetServer(swift1, swift2, client, j1, j2);

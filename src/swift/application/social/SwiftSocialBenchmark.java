@@ -123,7 +123,8 @@ public class SwiftSocialBenchmark {
 
     private static void runClientSession(final int sessionId, final List<String> commands) {
         Swift swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE,
+                cacheEvictionTimeMillis,
                 SwiftImpl.DEFAULT_CACHE_SIZE);
         SwiftSocial socialClient = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);

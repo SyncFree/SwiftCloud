@@ -50,7 +50,7 @@ import swift.exceptions.WrongTypeException;
  * 
  * @author mzawirski
  */
-abstract class AbstractTxnHandle implements TxnHandle {
+abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHandle> {
 
     protected final TxnManager manager;
     protected final boolean readOnly;
@@ -310,5 +310,14 @@ abstract class AbstractTxnHandle implements TxnHandle {
     @Override
     public String toString() {
         return (readOnly ? "read-only" : "update") + " transaction ts=" + timestampMapping;
+    }
+
+    @Override
+    public int compareTo(AbstractTxnHandle o) {
+        return Long.signum(orderingScore() - o.orderingScore());
+    }
+
+    private long orderingScore() {
+        return getTimestampMapping() == null ? 0 : getTimestampMapping().getClientTimestamp().getCounter();
     }
 }

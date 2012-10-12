@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -95,6 +97,7 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final int RPC_RETRY_WAIT_TIME_MULTIPLIER = 2;
     public static final int INIT_RPC_RETRY_WAIT_TIME_MILLIS = 10;
 
+    public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
     public static final boolean DEFAULT_DISASTER_SAFE = true;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
@@ -116,8 +119,8 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort) {
-        return newInstance(serverHostname, serverPort, DEFAULT_DISASTER_SAFE, DEFAULT_TIMEOUT_MILLIS,
-                DEFAULT_DEADLINE_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS, DEFAULT_CACHE_SIZE);
+        return newInstance(serverHostname, serverPort, DEFAULT_DISASTER_SAFE, DEFAULT_CONCURRENT_OPEN_TRANSACTIONS,
+                DEFAULT_TIMEOUT_MILLIS, DEFAULT_DEADLINE_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS, DEFAULT_CACHE_SIZE);
     }
 
     /**
@@ -142,11 +145,12 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param cacheSize
      * @return instance of Swift client
      */
-    public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe, int timeoutMillis,
-            int deadlineMillis, long cacheEvictionTimeMillis, int cacheSize) {
+    public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe,
+            boolean concurrentOpenTransactions, int timeoutMillis, int deadlineMillis, long cacheEvictionTimeMillis,
+            int cacheSize) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
                 Networking.resolve(serverHostname, serverPort), new TimeSizeBoundedObjectsCache(
-                        cacheEvictionTimeMillis, cacheSize), disasterSafe, timeoutMillis,
+                        cacheEvictionTimeMillis, cacheSize), disasterSafe, concurrentOpenTransactions, timeoutMillis,
                 DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
@@ -185,10 +189,10 @@ public class SwiftImpl implements Swift, TxnManager {
     private final Set<CausalityClock> fetchVersionsInProgress;
 
     // Invariant: there is at most one pending (open) transaction.
-    private AbstractTxnHandle pendingTxn;
+    private Set<AbstractTxnHandle> pendingTxns;
     // Locally committed transactions (in commit order), the first one is
     // possibly committing to the store.
-    private final LinkedList<AbstractTxnHandle> locallyCommittedTxnsQueue;
+    private final SortedSet<AbstractTxnHandle> locallyCommittedTxnsQueue;
     // Globally committed local transactions (in commit order), but possibly not
     // stable, i.e. not distaster-safe in the store.
     private final LinkedList<AbstractTxnHandle> globallyCommittedUnstableTxns;
@@ -215,10 +219,17 @@ public class SwiftImpl implements Swift, TxnManager {
     // by transactions, so the client virtually never blocks due to systen
     // failures.
     private boolean disasterSafe;
+    // If true, multiple transactions can be open. Note that (1) transactions
+    // are always committed in the order of beginTxn() calls, not commit(), and
+    // (2) with the enabled option, all update transactions need to be committed
+    // even if they made no updates or rolled back.
+    private boolean concurrentOpenTransactions;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeSizeBoundedObjectsCache objectsCache,
-            boolean disasterSafe, int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
+            boolean disasterSafe, boolean concurrentOpenTransactions, int timeoutMillis,
+            final int notificationTimeoutMillis, int deadlineMillis) {
         this.clientId = generateScoutId();
+        this.concurrentOpenTransactions = concurrentOpenTransactions;
         this.disasterSafe = disasterSafe;
         this.timeoutMillis = timeoutMillis;
         this.deadlineMillis = deadlineMillis;
@@ -226,7 +237,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
-        this.locallyCommittedTxnsQueue = new LinkedList<AbstractTxnHandle>();
+        this.locallyCommittedTxnsQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
@@ -236,6 +247,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 new IncrementalTimestampGenerator(clientId));
         this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
                 INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
+        this.pendingTxns = new HashSet<AbstractTxnHandle>();
         this.committerThread = new CommitterThread();
         this.fetchVersionsInProgress = new HashSet<CausalityClock>();
         this.committerThread.start();
@@ -278,7 +290,9 @@ public class SwiftImpl implements Swift, TxnManager {
     @Override
     public synchronized AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy,
             boolean readOnly) throws NetworkException {
-        assertNoPendingTransaction();
+        if (!concurrentOpenTransactions && !pendingTxns.isEmpty()) {
+            throw new IllegalStateException("Only one transaction can be executing at the time");
+        }
         assertRunning();
 
         switch (isolationLevel) {
@@ -352,6 +366,11 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private TimestampMapping generateNextTimestampMapping() {
         return new TimestampMapping(clientTimestampGenerator.generateNew());
+    }
+
+    private void returnLastTimestamp() {
+        // Return and reuse last timestamp to avoid holes in VV.
+        clientTimestampGenerator.returnLastTimestamp();
     }
 
     private synchronized void updateCommittedVersions(final CausalityClock newCommittedVersion,
@@ -434,7 +453,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
         TxnLocalCRDT<V> localView;
         if (cachePolicy == CachePolicy.CACHED) {
-            localView = getCachedObjectForTxn(id, null, classOfV, updatesListener);
+            localView = getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
             if (localView != null) {
                 return localView;
             }
@@ -446,7 +465,7 @@ public class SwiftImpl implements Swift, TxnManager {
             final CausalityClock fetchClock = getCommittedVersion(true);
             fetchClock.merge(lastGloballyCommittedTxnClock);
             fetchClock.drop(clientId);
-            fetchObjectVersion(id, create, classOfV, fetchClock, false, updatesListener != null, true);
+            fetchObjectVersion(txn, id, create, classOfV, fetchClock, false, updatesListener != null);
         } catch (VersionNotFoundException x) {
             if (fetchRequired) {
                 throw x;
@@ -458,7 +477,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
         // Pass other exceptions through.
 
-        localView = getCachedObjectForTxn(id, null, classOfV, updatesListener);
+        localView = getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
         if (localView == null) {
             // It should not happen normally.
             throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
@@ -473,16 +492,16 @@ public class SwiftImpl implements Swift, TxnManager {
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
 
-        TxnLocalCRDT<V> localView = getCachedObjectForTxn(id, version, classOfV, updatesListener);
+        TxnLocalCRDT<V> localView = getCachedObjectForTxn(txn, id, version, classOfV, updatesListener);
         if (localView != null) {
             return localView;
         }
 
         final CausalityClock globalVersion = version.clone();
         globalVersion.drop(clientId);
-        fetchObjectVersion(id, create, classOfV, globalVersion, true, updatesListener != null, true);
+        fetchObjectVersion(txn, id, create, classOfV, globalVersion, true, updatesListener != null);
 
-        localView = getCachedObjectForTxn(id, version.clone(), classOfV, updatesListener);
+        localView = getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener);
         if (localView == null) {
             // It should not happen normally.
             throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
@@ -505,8 +524,9 @@ public class SwiftImpl implements Swift, TxnManager {
      * @throws WrongTypeException
      */
     @SuppressWarnings("unchecked")
-    private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(CRDTIdentifier id,
-            CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException {
+    private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(final AbstractTxnHandle txn,
+            CRDTIdentifier id, CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener)
+            throws WrongTypeException {
         V crdt;
         try {
             crdt = (V) objectsCache.getAndTouch(id);
@@ -523,6 +543,13 @@ public class SwiftImpl implements Swift, TxnManager {
             // to read).
             clock = getCommittedVersion(true);
             clock.merge(lastLocallyCommittedTxnClock);
+            if (concurrentOpenTransactions && !txn.isReadOnly()) {
+                // Make sure we do not introduce cycles in dependencies. Include
+                // only transactions with lower timestamp in the snapshot,
+                // because timestamp order induces the commit order.
+                clock.drop(clientId);
+                clock.recordAllUntil(txn.getTimestampMapping().getClientTimestamp());
+            }
 
             // Check if such a recent version is available in the cache. If not,
             // take the intersection of the clocks.
@@ -548,14 +575,14 @@ public class SwiftImpl implements Swift, TxnManager {
 
         final TxnLocalCRDT<V> crdtView;
         try {
-            crdtView = crdt.getTxnLocalCopy(clock, pendingTxn);
+            crdtView = crdt.getTxnLocalCopy(clock, txn);
         } catch (IllegalStateException x) {
             // No appropriate version found in the object from the cache.
             return null;
         }
 
         if (updatesListener != null) {
-            final UpdateSubscription subscription = addUpdateSubscription(crdt, crdtView, updatesListener);
+            final UpdateSubscription subscription = addUpdateSubscription(txn, crdt, crdtView, updatesListener);
             if (subscription.hasListener()) {
                 // Trigger update listener if we already know updates more
                 // recent than the returned version.
@@ -565,9 +592,9 @@ public class SwiftImpl implements Swift, TxnManager {
         return crdtView;
     }
 
-    private <V extends CRDT<V>> void fetchObjectVersion(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            final CausalityClock globalVersion, final boolean strictUnprunedVersion, final boolean subscribeUpdates,
-            final boolean txnTriggered) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+    private <V extends CRDT<V>> void fetchObjectVersion(final AbstractTxnHandle txn, CRDTIdentifier id, boolean create,
+            Class<V> classOfV, final CausalityClock globalVersion, final boolean strictUnprunedVersion,
+            final boolean subscribeUpdates) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
         final V crdt;
         synchronized (this) {
@@ -579,28 +606,28 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         if (crdt == null) {
-            fetchObjectFromScratch(id, create, classOfV, globalVersion, strictUnprunedVersion, subscribeUpdates,
-                    txnTriggered);
+            fetchObjectFromScratch(txn, id, create, classOfV, globalVersion, strictUnprunedVersion, subscribeUpdates);
         } else {
-            fetchObjectByRefresh(id, create, classOfV, crdt, globalVersion, strictUnprunedVersion, subscribeUpdates,
-                    txnTriggered);
+            fetchObjectByRefresh(txn, id, create, classOfV, crdt, globalVersion, strictUnprunedVersion,
+                    subscribeUpdates);
         }
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void fetchObjectFromScratch(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            CausalityClock version, boolean strictUnprunedVersion, boolean subscribeUpdates, boolean txnTriggered)
-            throws NoSuchObjectException, WrongTypeException, VersionNotFoundException, NetworkException {
+    private <V extends CRDT<V>> void fetchObjectFromScratch(final AbstractTxnHandle txn, CRDTIdentifier id,
+            boolean create, Class<V> classOfV, CausalityClock version, boolean strictUnprunedVersion,
+            boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
+            NetworkException {
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(clientId, id, version,
                 strictUnprunedVersion, subscriptionType);
-        doFetchObjectVersionOrTimeout(fetchRequest, classOfV, create, txnTriggered);
+        doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
     }
 
     @SuppressWarnings("unchecked")
-    private <V extends CRDT<V>> void fetchObjectByRefresh(CRDTIdentifier id, boolean create, Class<V> classOfV,
-            V cachedCrdt, CausalityClock version, boolean strictUnrpunedVersion, boolean subscribeUpdates,
-            boolean txnTriggered) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
+    private <V extends CRDT<V>> void fetchObjectByRefresh(AbstractTxnHandle txn, CRDTIdentifier id, boolean create,
+            Class<V> classOfV, V cachedCrdt, CausalityClock version, boolean strictUnrpunedVersion,
+            boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
             NetworkException {
         final CausalityClock oldCrdtClock;
         synchronized (this) {
@@ -613,12 +640,12 @@ public class SwiftImpl implements Swift, TxnManager {
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
         final FetchObjectDeltaRequest fetchRequest = new FetchObjectDeltaRequest(clientId, id, oldCrdtClock, version,
                 strictUnrpunedVersion, subscriptionType);
-        doFetchObjectVersionOrTimeout(fetchRequest, classOfV, create, txnTriggered);
+        doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
     }
 
-    private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final FetchObjectVersionRequest fetchRequest,
-            Class<V> classOfV, boolean create, boolean txnTriggered) throws NetworkException, NoSuchObjectException,
-            WrongTypeException {
+    private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final AbstractTxnHandle txn,
+            final FetchObjectVersionRequest fetchRequest, Class<V> classOfV, boolean create) throws NetworkException,
+            NoSuchObjectException, WrongTypeException {
         synchronized (this) {
             fetchVersionsInProgress.add(fetchRequest.getVersion());
         }
@@ -652,7 +679,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 if (stopFlag) {
                     throw new NetworkException("Fetching object version was interrupted by client shutdown.");
                 }
-            } while (!processFetchObjectReply(fetchRequest, reply, classOfV, create, txnTriggered));
+            } while (!processFetchObjectReply(txn, fetchRequest, reply, classOfV, create));
         } finally {
             synchronized (this) {
                 fetchVersionsInProgress.remove(fetchRequest.getVersion());
@@ -663,9 +690,9 @@ public class SwiftImpl implements Swift, TxnManager {
     /**
      * @return when the request was successful
      */
-    private <V extends CRDT<V>> boolean processFetchObjectReply(final FetchObjectVersionRequest request,
-            final FetchObjectVersionReply fetchReply, Class<V> classOfV, boolean create, boolean clientTriggered)
-            throws NoSuchObjectException, WrongTypeException {
+    private <V extends CRDT<V>> boolean processFetchObjectReply(final AbstractTxnHandle txn,
+            final FetchObjectVersionRequest request, final FetchObjectVersionReply fetchReply, Class<V> classOfV,
+            boolean create) throws NoSuchObjectException, WrongTypeException {
         final V crdt;
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
@@ -699,7 +726,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
             V cacheCRDT;
             try {
-                if (clientTriggered) {
+                if (txn != null) {
                     cacheCRDT = (V) objectsCache.getAndTouch(request.getUid());
                 } else {
                     cacheCRDT = (V) objectsCache.getWithoutTouch(request.getUid());
@@ -737,7 +764,7 @@ public class SwiftImpl implements Swift, TxnManager {
             if (request.getSubscriptionType() != SubscriptionType.NONE && subscription == null) {
                 // Add temporary subscription entry without specifying full
                 // information on what value has been read.
-                subscription = addUpdateSubscription(crdt, null, null);
+                subscription = addUpdateSubscription(txn, crdt, null, null);
             }
 
             if (subscription != null && subscription.hasListener()) {
@@ -939,9 +966,9 @@ public class SwiftImpl implements Swift, TxnManager {
         handleObjectUpdatesTryNotify(id, subscription, recentUpdates.toArray(new TimestampMapping[0]));
     }
 
-    private synchronized UpdateSubscription addUpdateSubscription(final CRDT<?> crdt, final TxnLocalCRDT<?> localView,
-            ObjectUpdatesListener listener) {
-        final UpdateSubscription updateSubscription = new UpdateSubscription(pendingTxn, localView, listener);
+    private synchronized UpdateSubscription addUpdateSubscription(final AbstractTxnHandle txn, final CRDT<?> crdt,
+            final TxnLocalCRDT<?> localView, ObjectUpdatesListener listener) {
+        final UpdateSubscription updateSubscription = new UpdateSubscription(txn, localView, listener);
         // Overwriting old entry and even subscribing again is fine, the
         // interface specifies clearly that the latest get() matters.
         final UpdateSubscription oldSubscription = objectUpdateSubscriptions.put(crdt.getUID(), updateSubscription);
@@ -974,7 +1001,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     version.drop(clientId);
                 }
                 try {
-                    fetchObjectVersion(id, false, BaseCRDT.class, version, false, true, false);
+                    fetchObjectVersion(null, id, false, BaseCRDT.class, version, false, true);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
                             + x.getMessage());
@@ -1001,10 +1028,30 @@ public class SwiftImpl implements Swift, TxnManager {
     @Override
     public synchronized void discardTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
-        setPendingTxn(null);
+        removePendingTxn(txn);
         logger.info("local transaction " + txn.getTimestampMapping() + " rolled back");
-        // Return and reuse last timestamp to avoid holes in VV.
-        clientTimestampGenerator.returnLastTimestamp();
+        if (canReuseTxnTimestamp(txn)) {
+            tryReuseTxnTimestamp(txn);
+        } else {
+            // Need to create and commit a dummy transaction, we cannot
+            // returnLastTimestamp :-(
+            final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, CachePolicy.CACHED,
+                    txn.getTimestampMapping());
+            dummyTxn.markLocallyCommitted();
+            commitTxn(dummyTxn);
+        }
+    }
+
+    private boolean canReuseTxnTimestamp(AbstractTxnHandle txn) {
+        if (txn.isReadOnly()) {
+            return true;
+        }
+        if (!concurrentOpenTransactions) {
+            if (txn.getStatus() == TxnStatus.CANCELLED || txn.getAllUpdates().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -1017,10 +1064,9 @@ public class SwiftImpl implements Swift, TxnManager {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
-        if (txn.isReadOnly() || txn.getAllUpdates().isEmpty()) {
-            // Read-only transaction can be immediately discarded.
-            // Return and reuse last timestamp to avoid holes in VV.
-            clientTimestampGenerator.returnLastTimestamp();
+        if (canReuseTxnTimestamp(txn)) {
+            // The transaction does not need to be globally committed.
+            tryReuseTxnTimestamp(txn);
             txn.markGloballyCommitted(null);
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
@@ -1047,12 +1093,18 @@ public class SwiftImpl implements Swift, TxnManager {
             // Transaction is queued up for global commit.
             addLocallyCommittedTransaction(txn);
         }
-        setPendingTxn(null);
+        removePendingTxn(txn);
         objectsCache.evictOutdated();
     }
 
+    private void tryReuseTxnTimestamp(AbstractTxnHandle txn) {
+        if (!txn.isReadOnly()) {
+            returnLastTimestamp();
+        }
+    }
+
     private void addLocallyCommittedTransaction(AbstractTxnHandle txn) {
-        locallyCommittedTxnsQueue.addLast(txn);
+        locallyCommittedTxnsQueue.add(txn);
         // Notify committer thread.
         this.notifyAll();
     }
@@ -1118,7 +1170,7 @@ public class SwiftImpl implements Swift, TxnManager {
             lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
             lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
             objectsCache.recordOnAll(txn.getTimestampMapping());
-            locallyCommittedTxnsQueue.removeFirst();
+            locallyCommittedTxnsQueue.remove(txn);
             globallyCommittedUnstableTxns.addLast(txn);
 
             if (logger.isLoggable(Level.INFO)) {
@@ -1138,27 +1190,43 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
-        while (locallyCommittedTxnsQueue.isEmpty() && !stopFlag) {
+        while (!stopFlag && !canConsumeLocallyCommitedTxnsQueue()) {
             try {
                 this.wait();
             } catch (InterruptedException e) {
             }
         }
-        return locallyCommittedTxnsQueue.peekFirst();
+        return locallyCommittedTxnsQueue.isEmpty() ? null : locallyCommittedTxnsQueue.first();
     }
 
-    private synchronized void setPendingTxn(final AbstractTxnHandle txn) {
-        pendingTxn = txn;
-    }
-
-    private void assertNoPendingTransaction() {
-        if (pendingTxn != null) {
-            throw new IllegalStateException("Only one transaction can be executing at the time");
+    private boolean canConsumeLocallyCommitedTxnsQueue() {
+        if (locallyCommittedTxnsQueue.isEmpty()) {
+            return false;
         }
+        if (concurrentOpenTransactions) {
+            // Check whether transactions with lower timestamps already
+            // committed. TODO: this is a quick HACK, do it better.
+            final long peekCounter = locallyCommittedTxnsQueue.first().getTimestampMapping().getClientTimestamp()
+                    .getCounter();
+            for (final AbstractTxnHandle txn : pendingTxns) {
+                if (!txn.isReadOnly() && txn.getTimestampMapping().getClientTimestamp().getCounter() < peekCounter) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private synchronized void addPendingTxn(final AbstractTxnHandle txn) {
+        pendingTxns.add(txn);
+    }
+
+    private synchronized void removePendingTxn(final AbstractTxnHandle txn) {
+        pendingTxns.remove(txn);
     }
 
     private void assertPendingTransaction(final AbstractTxnHandle expectedTxn) {
-        if (!pendingTxn.equals(expectedTxn)) {
+        if (!pendingTxns.contains(expectedTxn)) {
             throw new IllegalStateException(
                     "Corrupted state: unexpected transaction is bothering me, not the pending one");
         }

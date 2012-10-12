@@ -166,7 +166,8 @@ public class SwiftSocialBenchmarkServer {
     	
     	Session() {
             swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
+                    Integer.MAX_VALUE, cacheEvictionTimeMillis,
                     SwiftImpl.DEFAULT_CACHE_SIZE);
 
     		swiftSocial = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
