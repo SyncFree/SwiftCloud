@@ -136,6 +136,7 @@ public class FilesystemFuseTest {
         assertTrue(new String(buff.array()).startsWith(s));
         
         assertEquals(0, fsf.getattr(filename, getattrSetterMock));
+        
         fsf.unlink(filename);
         
         
@@ -161,7 +162,7 @@ public class FilesystemFuseTest {
         ByteBuffer buff2 = ByteBuffer.allocate(30);
         fsf.read(filename, fos.getFile(), buff2, 0);
 
-        assertTrue(new String(buff.array()).startsWith(s));
+        assertTrue(new String(buff2.array()).startsWith(s));
         
         assertEquals(0, fsf.getattr(filename, getattrSetterMock));
         
