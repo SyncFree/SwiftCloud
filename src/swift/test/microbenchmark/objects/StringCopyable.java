@@ -14,8 +14,17 @@ public class StringCopyable implements Copyable {
         this.value = value;
     }
 
+    @Override
     public Object copy() {
         return new String(value);
     }
+    public String getValue(){
+        return value;
+    }
+   /* @Override
+    public String toString() {
+        return value;
+    }*/
+    
 
 }

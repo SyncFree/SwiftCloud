@@ -28,6 +28,6 @@ public class RegisterTxnFileContent extends RegisterTxnLocal<StringCopyable> imp
 
     @Override
     public String getText() {
-        return getValue().toString();
+        return getValue().getValue();
     }
 }

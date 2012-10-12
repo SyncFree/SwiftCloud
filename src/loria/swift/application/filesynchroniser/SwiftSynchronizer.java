@@ -10,6 +10,7 @@ import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.SwiftException;
+import swift.test.microbenchmark.objects.StringCopyable;
 
 // implements the social network functionality
 // see wsocial_srv.h
@@ -42,6 +43,7 @@ public class SwiftSynchronizer {
     
     public String update(String textName) {
         TxnHandle txn = null;
+        String ret=null;
         try {
             final CachePolicy loginCachePolicy;
             if (isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && cachePolicy == CachePolicy.CACHED) {
@@ -49,20 +51,20 @@ public class SwiftSynchronizer {
             } else {
                 loginCachePolicy = cachePolicy;
             }
-            txn = server.beginTxn(isolationLevel, loginCachePolicy, true);
+            txn = server.beginTxn(isolationLevel, loginCachePolicy, false);
             TextualContent text = (TextualContent) (txn.get(naming(textName), 
-                                   true, textClass, updatesSubscriber)).getValue();
+                                   true, textClass, updatesSubscriber));
             logger.log(Level.INFO, "{0} update", textName);
             commitTxn(txn);
-            return text.getText();
-        } catch (SwiftException e) {
+            ret= text.getText();
+        } catch (Exception e) {
             logger.warning(e.getMessage());
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
-        return null;
+        return ret;
     }
     
     public void commit(String textName, String newValue) {
@@ -70,11 +72,11 @@ public class SwiftSynchronizer {
         try {
             txn = server.beginTxn(isolationLevel, CachePolicy.STRICTLY_MOST_RECENT, false);
             TextualContent text = (TextualContent) (txn.get(naming(textName), 
-                    true, textClass, updatesSubscriber)).getValue();
+                    true, textClass, updatesSubscriber));
             text.set(newValue);
             logger.log(Level.INFO, "{0} commit", textName);
             txn.commit();        
-        } catch (SwiftException e) {
+        } catch (Exception e) {
             logger.warning(e.getMessage());
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
