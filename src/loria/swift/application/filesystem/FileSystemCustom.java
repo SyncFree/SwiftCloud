@@ -7,17 +7,24 @@ package loria.swift.application.filesystem;
 import java.util.ConcurrentModificationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import swift.application.filesystem.Filesystem;
+import swift.application.filesystem.IFile;
+import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
+import swift.exceptions.NetworkException;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
+import swift.exceptions.WrongTypeException;
 
 /**
  *
  * @author urso
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class FileSystem {
+public class FileSystemCustom implements Filesystem {
 
     private Logger logger = Logger.getLogger(this.getClass().getName());
     /* private Swift server;
@@ -28,13 +35,63 @@ public class FileSystem {
      private CausalityClock clockReference;*/
     private Folder root;
 
+    @Override
+    public IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public DirectoryTxnLocal createDirectory(TxnHandle txn, String name, String path) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void removeDirectory(TxnHandle txn, String name, String path) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public DirectoryTxnLocal getDirectory(TxnHandle txn, String path) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void updateFile(TxnHandle txn, String fname, String path, IFile f) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        
+    }
+
+    @Override
+    public void removeFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
+       this.getRoot(txn).deleteFile(path+"/"+fname);
+    }
+
+    @Override
+    public IFile readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        return this.getRoot(txn).getFile( path+"/"+fname,false);
+    }
+
+    @Override
+    public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public boolean isDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException, VersionNotFoundException, NetworkException {
+       return this.getRoot(txn).getFolder(path+"/"+dname)!=null;
+    }
+
+    @Override
+    public boolean isFile(TxnHandle txn, String fname, String path) throws WrongTypeException, VersionNotFoundException, NetworkException {
+        return this.getRoot(txn).getFile(path+"/"+fname, false)!=null;
+    }
+
     enum FolderStrategy {
 
         WordTree, SetByFolder
     };
     private FolderStrategy folderStrategy = FolderStrategy.WordTree;
 
-    public FileSystem(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
+    public FileSystemCustom(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
             boolean subscribeUpdates, boolean asyncCommit) {
         /* server = clientServer;
          this.isolationLevel = isolationLevel;
@@ -43,7 +100,7 @@ public class FileSystem {
          this.asyncCommit = asyncCommit;*/
     }
 
-    public FileSystem() {
+    public FileSystemCustom() {
     }
 
     public String getFileValue(String filePath, TxnHandle txn) {

@@ -5,13 +5,15 @@
 package loria.swift.application.filesystem;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import loria.swift.application.filesystem.mapper.FileContent;
 import loria.swift.crdt.MaxCausalityClockTxnLocal;
 import loria.swift.crdt.logoot.LogootVersioned;
+import swift.application.filesystem.IFile;
 import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.Copyable;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -25,7 +27,7 @@ import swift.exceptions.WrongTypeException;
  * @author urso
  * @author Stephane martin <stephane.martin@loria.fr>
  */
-public class File extends FileSystemObject implements Copyable, Comparable<File> {
+public class File extends FileSystemObject implements Copyable, Comparable<File>,IFile {
 
     @Override
     public Object copy() {
@@ -40,6 +42,38 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
     @Override
     public void uptodate(TxnHandle txn) {
         this.txn=txn;
+    }
+
+    
+
+    @Override
+    public void update(ByteBuffer buf, long offset) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void reset(byte[] data) throws IOException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void read(ByteBuffer buf, long offset) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public byte[] get(int offset, int length) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public byte[] getBytes() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public int getSize() {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public static enum FileType {

@@ -24,7 +24,7 @@ package loria.swift.application.filesynchroniser;
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
 public class Syncrhonizer {
-    //comming soon
+    //coming soon
     String Path;
     public static void main(String ...arg){
         
