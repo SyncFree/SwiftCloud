@@ -1,5 +1,13 @@
 package sys.net.impl.rpc;
 
+import static sys.Sys.Sys;
+import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRIES;
+import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
+import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
+import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY;
+import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
+import static sys.stats.RpcStats.RpcStats;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -23,11 +31,6 @@ import sys.scheduler.PeriodicTask;
 import sys.scheduler.Task;
 import sys.utils.LongMap;
 import sys.utils.Threading;
-
-import static sys.stats.RpcStats.*;
-
-import static sys.Sys.Sys;
-import static sys.net.impl.NetworkingConstants.*;
 
 final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEchoHandler {
 

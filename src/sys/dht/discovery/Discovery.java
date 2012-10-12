@@ -82,7 +82,7 @@ public class Discovery implements Runnable {
 				DatagramPacket reply = new DatagramPacket(new byte[65536], 65536);
 				cs.receive(reply);
 				Endpoint remote = readObject(reply);
-				Log.finest(String.format("Discovered: %s at %s in %d ms", key, remote, now() - (deadline - timeout)));
+				Log.info(String.format("Discovered: %s at %s in %d ms", key, remote, now() - (deadline - timeout)));
 				return remote;
 			} catch (SocketTimeoutException x) {
 			} catch (IOException x) {
