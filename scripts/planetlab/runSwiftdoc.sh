@@ -38,6 +38,17 @@ if [ -n "$DEPLOY" ]; then
 	deploy_swift_on_many $MACHINES
 fi
 
+C1=${PLANETLAB_NODES[0]}
+C2=${PLANETLAB_NODES[1]}
+
+DC1=${DCS[0]}
+DC2=${DCS[0]}
+
+DOC_PATCHES=swiftdoc-patches.zip
+echo "==== COPYING DOC-PATCHES TO CLIENT1 ===="
+copy_to_bg data/swiftdoc/$DOC_PATCHES $C1 $DOC_PATCHES
+
+
 echo "==== STARTING SEQUENCERS AND DC SERVERS ===="
 . ./scripts/planetlab/pl-start-servers-ds-seq.sh 
 servers_start DCS DCSEQ
@@ -53,27 +64,19 @@ ISOLATION=REPEATABLE_READS
 CACHING=CACHED
 ITERATIONS=1
 
-C1=${PLANETLAB_NODES[0]}
-C2=${PLANETLAB_NODES[1]}
-
-DC1=${DCS[0]}
-DC2=${DCS[0]}
-
-
-echo "starting client 1"
-run_cmd_bg $C1 $CMD $DC1 $ITERATIONS 1 $ISOLATION $CACHING $NOTIFICATIONS
 
 echo "starting client 2"
 run_cmd_bg $C2 $CMD $DC1 $ITERATIONS 2 $ISOLATION $CACHING $NOTIFICATIONS
 
+echo "starting client 1"
+run_cmd_bg $C1 $CMD $DC1 $ITERATIONS 1 $ISOLATION $CACHING $NOTIFICATIONS
+wait $!
 
-echo "running ... hit enter when you think its finished"
-read dummy
 
 echo "killing servers"
 echo "==== KILLING SERVERS AND CLIENTS ===="
 . ./scripts/planetlab/pl-kill.sh $MACHINES
 
-#echo "collecting client log to result log"
-#run_cmd $C1 "cat stdout.txt" > results/result-ping-$ISOLATION-$CACHING-$NOTIFICATIONS.log
-#less results/result-ping-$ISOLATION-$CACHING-$NOTIFICATIONS.log
+echo "collecting client log to result log"
+run_cmd $C1 "cat stdout.txt" > results/result-swiftdoc-$ISOLATION-$CACHING-$NOTIFICATIONS.log
+#less results/result-swiftdoc-$ISOLATION-$CACHING-$NOTIFICATIONS.log
