@@ -33,7 +33,7 @@ public class SwiftTester implements Swift {
     }
 
     public <V extends CRDT<V>> TxnTester beginTxn(V target) {
-        return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew(),
+        return new TxnTesterWithRegister(id, latestVersion, clientTimestampGenerator.generateNew(),
                 globalTimestampGenerator.generateNew(), target);
     }
 

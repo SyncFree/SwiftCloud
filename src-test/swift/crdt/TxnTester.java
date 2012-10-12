@@ -37,13 +37,12 @@ public class TxnTester implements TxnHandle {
     // it cannot commit anything to a data center. Hence, the register operation
     // is not needed *on purpose*.
 
-    private Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
-    private Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
-    private CausalityClock cc;
-    private TimestampSource<TripleTimestamp> timestampGenerator;
-    private Timestamp globalTimestamp;
-    private TimestampMapping tm;
-    private CRDT<?> target;
+    protected Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
+    protected Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
+    protected CausalityClock cc;
+    protected TimestampSource<TripleTimestamp> timestampGenerator;
+    protected Timestamp globalTimestamp;
+    protected TimestampMapping tm;
 
     public TxnTester(String siteId, CausalityClock cc) {
         this(siteId, cc, new IncrementalTimestampGenerator(siteId).generateNew(), new IncrementalTimestampGenerator(
@@ -57,13 +56,6 @@ public class TxnTester implements TxnHandle {
         this.tm = new TimestampMapping(ts);
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(tm);
         this.globalTimestamp = globalTs;
-    }
-
-    // Pseudo Txn that linked to a unique CRDT
-    public <V extends CRDT<V>> TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts, Timestamp globalTs,
-            V target) {
-        this(siteId, latestVersion, ts, globalTs);
-        this.target = target;
     }
 
     public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
@@ -133,26 +125,6 @@ public class TxnTester implements TxnHandle {
         return timestampGenerator.generateNew();
     }
 
-    @Override
-    public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
-        if (target != null) {
-            CRDTObjectUpdatesGroup<V> opGroup = (CRDTObjectUpdatesGroup<V>) objectOperations.get(target);
-            if (opGroup == null) {
-                opGroup = new CRDTObjectUpdatesGroup<V>(target.getUID(), tm, null, cc);
-            }
-            opGroup.append(op);
-            objectOperations.put(target, opGroup);
-        }
-    }
-
-    // Short-cut for testing purpose
-    public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTUpdate<V> op) {
-        final CRDTObjectUpdatesGroup<V> opGroup = new CRDTObjectUpdatesGroup<V>(obj.getUID(), tm, null, cc.clone());
-        opGroup.append(op);
-        objectOperations.put(obj, opGroup);
-    }
-
-    @Override
     public <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
     }
 
@@ -167,6 +139,19 @@ public class TxnTester implements TxnHandle {
 
     public CausalityClock getClock() {
         return this.cc.clone();
+    }
+
+    // Short-cut for testing purpose
+    public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTUpdate<V> op) {
+        final CRDTObjectUpdatesGroup<V> opGroup = new CRDTObjectUpdatesGroup<V>(obj.getUID(), tm, null, cc.clone());
+        opGroup.append(op);
+        objectOperations.put(obj, opGroup);
+    }
+
+    @Override
+    public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
+        // NOP: This txn implementation does not apply updates to the underlying
+        // CRDT objects
     }
 
 }
