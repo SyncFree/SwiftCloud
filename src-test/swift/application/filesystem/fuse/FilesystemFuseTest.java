@@ -111,12 +111,13 @@ public class FilesystemFuseTest {
         logger.info("Creating a file");
        
         String filename="/test/file1.txt";
-        assertEquals(0, fsf.getattr("/test", getattrSetterMock));
         fsf.mknod(filename, 511, 0);
 
         FuseOpeenSetterMock fos = new FuseOpeenSetterMock();
         fsf.open(filename, 0,fos);
 
+        
+        
         String s = "This is a test file";
         
         fsf.write(filename, fos.getFile(), false,ByteBuffer.wrap(s.getBytes()), 0);
