@@ -38,7 +38,7 @@ public class SwiftSet {
 	static CRDTIdentifier j2 = new CRDTIdentifier("doc", "2");
 
 	public static void main(String[] args) {
-		System.out.println("SwiftDoc start!");
+		System.out.println("SwiftSet start!");
 		// start sequencer server
 		DCSequencerServer.main(new String[]{"-name", sequencerName});
 
@@ -116,7 +116,11 @@ public class SwiftSet {
 				public void begin() {
 					try {
 						handle = swift1.beginTxn(isolationLevel, cachePolicy, false);
-						doc = handle.get(j1, true, swift.crdt.SortedSetVersioned.class, null);
+						doc = handle.get(j1, true, swift.crdt.SortedSetVersioned.class, new AbstractObjectUpdatesListener() {
+                            public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+                                // do nothing
+                            }
+                        });
 					} catch (Throwable e) {
 						e.printStackTrace();
 						System.exit(0);
@@ -197,7 +201,11 @@ public class SwiftSet {
 						synchronized (serials) {//wait for the previous transaction to complete...
 							try {
                                 final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-								SortedSetTxnLocal<TextLine> doc2 = handle.get(j2, true, swift.crdt.SortedSetVersioned.class, null);
+								SortedSetTxnLocal<TextLine> doc2 = handle.get(j2, true, swift.crdt.SortedSetVersioned.class,new AbstractObjectUpdatesListener() {
+				                    public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+				                        // do nothing
+				                    }
+				                });
 								for (TextLine i : newAtoms)
 									doc2.insert( i);
 								handle.commit();
