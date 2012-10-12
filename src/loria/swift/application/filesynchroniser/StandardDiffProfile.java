@@ -30,12 +30,12 @@ public class StandardDiffProfile {
     private enum OpType { update, ins, del };
     
     private final double perUp, perIns, perBlock, sdvBlockSize, sdvLineSize;
-    private final int avgBlockSize, avgLinesize;
+    private final int avgBlockSize, avgLinesize, avgDelSize;
     private final RandomGauss random;
 
-    public static final StandardDiffProfile BASIC = new StandardDiffProfile(0.7, 0.7, 0.9, 5, 10.0, 30, 10.0);
-    public static final StandardDiffProfile SMALL = new StandardDiffProfile(0.7, 0.7, 0.9, 5, 1.0, 10, 3.0);
-    public static final StandardDiffProfile WITHOUT_BLOCK = new StandardDiffProfile(0.7, 0.7, 0, 1, 0, 30, 10.0);
+    public static final StandardDiffProfile BASIC = new StandardDiffProfile(0.7, 0.7, 0.9, 6, 5.0, 1, 30, 10.0);
+    public static final StandardDiffProfile SMALL = new StandardDiffProfile(0.7, 0.7, 0.9, 5, 1.0, 2, 10, 3.0);
+    public static final StandardDiffProfile WITHOUT_BLOCK = new StandardDiffProfile(0.7, 0.7, 0, 1, 0, 2, 30, 10.0);
             
     /**
      * Constructor of profile
@@ -47,12 +47,13 @@ public class StandardDiffProfile {
      * @param avgLinesize average line size
      * @param sdvLineSize standard deviation of line's size
      */
-    private StandardDiffProfile(double perUp, double perIns, double perBlock, int avgBlockSize, double sdvBlockSize, int avgLinesize, double sdvLineSize) {
+    private StandardDiffProfile(double perUp, double perIns, double perBlock, int avgBlockSize, double sdvBlockSize, int avgDelSize, int avgLinesize, double sdvLineSize) {
         this.perUp = perUp;
         this.perIns = perIns;
         this.perBlock = perBlock;
         this.avgBlockSize = avgBlockSize;
         this.sdvBlockSize = sdvBlockSize;
+        this.avgDelSize = avgDelSize;
         this.avgLinesize = avgLinesize;
         this.sdvLineSize = sdvLineSize;
         this.random = new RandomGauss();
@@ -80,37 +81,58 @@ public class StandardDiffProfile {
 
     private int nextOffset(int position, int l) {
         int length = (random.nextDouble() < perBlock) ? 
-               (int) random.nextLongGaussian(avgBlockSize-1, sdvBlockSize) : 1;
+               (int) random.nextLongGaussian(avgDelSize, sdvBlockSize) : 1;
         return Math.min(l-position, length);
     }
-        public int nextPosition(int length) {
-       return (int) (length*random.nextDouble());
+    
+    public int nextPosition(int length) {
+       return random.nextInt(length);
     }
     
     private String nextOperation(String text) {
         int l = text.length();
-        int position = nextPosition(l);
+        String t2;
+        int position = l == 0 ? 0 : nextPosition(l);
         OpType type = (l == 0) ? OpType.ins : nextType();
         int offset = (type == OpType.ins) ? 0 : nextOffset(position, l);
         String content = (type == OpType.del) ? null : nextContent(); 
 
         if (type == OpType.ins) {
-            return text.substring(0, position) + content + text.substring(position + 1, l);
+           t2 = text.substring(0, position) + content;
+           if (position + 1 < l) {
+               t2 = text.substring(position + 1, l);
+           }
         } else if (type == OpType.del) {
-            return text.substring(0, position) + text.substring(position + offset, l);
+            t2 = text.substring(0, position) + text.substring(position + offset, l);
         } else {
-            return text.substring(0, position) + content + text.substring(position + offset, l);
+            t2 = text.substring(0, position) + content + text.substring(position + offset, l);
         }
+        return t2;
     }
     
     /**
      * Change randomly a text.
      */
     public String change(String text) {
-        int nbOp = random.nextInt(5);
+        int nbOp = random.nextInt(3)+1;
         for (int o = 0; o < nbOp; ++o) {
             text = nextOperation(text);
         }
         return text;
+    }
+    
+    /**
+     * For testing since random cannot be junit tested.
+     * @param args 
+     */
+    public static void main(String ... args) {
+        StandardDiffProfile d = StandardDiffProfile.BASIC;
+        String text = "";
+        text = d.change(text);
+        System.out.println("---\n" + text);
+        text = d.change(text);
+        System.out.println("---\n" + text);
+        text = d.change(text);
+        System.out.println("---\n" + text);
     }
 }
