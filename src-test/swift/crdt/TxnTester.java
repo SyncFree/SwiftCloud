@@ -27,6 +27,16 @@ import swift.exceptions.WrongTypeException;
 public class TxnTester implements TxnHandle {
     // @Annette: this class is simply intended to work with a single object,
     // isn't it? If so, maybe those are really unnecessary.
+
+    // @Marek: to test the recursive data structures, such as dictionary, I need
+    // more than one object.
+    // Therefore, I had to add the cache.
+    // Do you think it is better to provide another TxnTester for this?
+
+    // @Pascal: The TxnTester is not a full txn implementation. In particular,
+    // it cannot commit anything to a data center. Hence, the register operation
+    // is not needed *on purpose*.
+
     private Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
     private Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
     private CausalityClock cc;

@@ -44,7 +44,7 @@ public class DirectoryTest {
 
     @Test
     public void insertTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, ClassNotFoundException {
         // create one element
         dir.createNewEntry("x", IntegerVersioned.class);
         dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
