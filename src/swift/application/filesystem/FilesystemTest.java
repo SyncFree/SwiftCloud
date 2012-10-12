@@ -1,4 +1,3 @@
-
 package swift.application.filesystem;
 
 import java.nio.ByteBuffer;
@@ -6,7 +5,6 @@ import java.util.Arrays;
 import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
-import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -64,7 +62,7 @@ public class FilesystemTest {
             txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
             IFile f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
             String s = "This is a test file";
-            assert (s.equals(new String(s.getBytes())));
+            // assert (s.equals(new String(s.getBytes())));
             f1.reset(s.getBytes());
             System.out.println("Expected: " + s);
             System.out.println("Got: " + new String(f1.getBytes()));
@@ -99,6 +97,15 @@ public class FilesystemTest {
             fs.copyFile(txn, "file1.txt", "/test/testfs1", "/test/testfs2");
             IFile f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
             assert (Arrays.equals(f1_copy.getBytes(), concat));
+            txn.commit();
+
+            logger.info("Removing the file");
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+            fs.removeFile(txn, "file1.txt", "/test/testfs1");
+            txn.commit();
+
+            txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+            fs.createFile(txn, "file1.txt", "/test/testfs1");
             txn.commit();
 
             // mkdir testfs1 testfs1/include testfs1/include/sys

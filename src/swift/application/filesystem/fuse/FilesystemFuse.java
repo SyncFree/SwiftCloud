@@ -16,7 +16,6 @@ import swift.application.filesystem.IFile;
 import swift.client.SwiftImpl;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
-import swift.crdt.RegisterVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -197,7 +196,6 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
                     getattrSetter.set(root.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, root.getValue()
                             .size() * NAME_LENGTH,
                             (root.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time, time);
-
                 } else if (fs.isDirectory(txn, fstub.getName(), fstub.getParent())) {
                     DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
                     getattrSetter.set(dir.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, dir.getValue()
@@ -212,7 +210,6 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
                     return Errno.ENOENT;
                 }
                 txn.commit();
-
                 return 0;
 
             } catch (NetworkException e) {
@@ -485,8 +482,34 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
 
     @Override
     public int unlink(String path) throws FuseException {
-        // FIXME Future work...
-        log.info("Unlink for " + path);
+        String remotePath = getRemotePath(path);
+        log.info("Unlink for " + remotePath);
+        synchronized (this) {
+            TxnHandle txn = null;
+            try {
+                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                File f = new File(remotePath);
+                fs.removeFile(txn, f.getName(), f.getParent());
+                txn.commit();
+                return 0;
+            } catch (NetworkException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (WrongTypeException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (NoSuchObjectException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (VersionNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+            txn.rollback();
+        }
         return Errno.EROFS;
     }
 
@@ -535,7 +558,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     public int getxattr(String path, String name, ByteBuffer dst, int position) throws FuseException,
             BufferOverflowException {
         log.info("getxattr " + name + " for " + path);
-        return 0;
+        return Errno.ENOATTR;
     }
 
     /**
@@ -556,7 +579,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     public int getxattrsize(String path, String name, FuseSizeSetter sizeSetter) throws FuseException {
         log.info("getxattrsize " + name + " for " + path);
 
-        return 0;
+        return Errno.ENOATTR;
     }
 
     /**
@@ -575,7 +598,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     public int listxattr(String path, XattrLister lister) throws FuseException {
         log.info("listxattr for " + path);
 
-        return 0;
+        return Errno.ENOATTR;
     }
 
     /**
@@ -592,7 +615,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
      */
     public int removexattr(String path, String name) throws FuseException {
         log.info("removexattr " + name + " for " + path);
-        return 0;
+        return Errno.ENOATTR;
     }
 
     /**
@@ -627,7 +650,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     public int setxattr(String path, String name, ByteBuffer value, int flags, int position) throws FuseException {
         log.info("setxattr " + name + " for " + path);
 
-        return 0;
+        return Errno.ENOATTR;
     }
 
     public static void main(String[] args) {

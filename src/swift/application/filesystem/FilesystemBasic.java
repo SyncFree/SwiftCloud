@@ -54,7 +54,7 @@ public class FilesystemBasic implements Filesystem {
         TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, true, getFileClass(fname));
         Blob initialFileContent = new Blob();
         fileContent.set(initialFileContent);
-        return new FileBasic(initialFileContent);
+        return new FilePaged(initialFileContent);
     }
 
     @Override
@@ -63,7 +63,7 @@ public class FilesystemBasic implements Filesystem {
 
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, false, getFileClass(fname));
-        return new FileBasic(fileContent.getValue());
+        return new FilePaged(fileContent.getValue());
     }
 
     @Override
