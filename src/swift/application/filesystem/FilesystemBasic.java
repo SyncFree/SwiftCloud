@@ -114,10 +114,11 @@ public class FilesystemBasic implements Filesystem {
 
     @Override
     public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
+            NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
         CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, false, getFileClass(fname));
 
+        createFile(txn, fname, newpath);
         CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileBasic = (TxnGetterSetter<Blob>) txn.get(newFileId, true, getFileClass(fname));
         fileBasic.set(fileContent.getValue());

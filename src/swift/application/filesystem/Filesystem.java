@@ -32,7 +32,7 @@ public interface Filesystem {
             VersionNotFoundException, NetworkException, IOException;
 
     void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException;
+            NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException;
 
     boolean isDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException, VersionNotFoundException,
             NetworkException;
