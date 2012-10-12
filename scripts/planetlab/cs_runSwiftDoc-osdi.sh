@@ -3,7 +3,7 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-79-125-56-10.eu-west-1.compute.amazonaws.com
+ec2-46-137-21-255.eu-west-1.compute.amazonaws.com
 )
 
 
@@ -145,7 +145,7 @@ i=0;
 for scout in ${SCOUTS[*]}; do
 	j=$(($i % $DC_NUMBER))
 	SCOUT_DC=${DCS[$j]}
-	echo "==== STARTING CDN SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
+	echo "==== STARTING CS SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
 		run_swift_cdn_server_bg "$scout" "$i" "$SCOUT_DC" 
 		scout_pids="$scout_pids $!"
 		i=$(($i+1))
@@ -161,7 +161,7 @@ for client in ${ENDCLIENTS[*]}; do
     CLIENT_SCOUT=${SCOUTS[$j]}
     k=$(($j % $DC_NUMBER))
     SCOUT_DC=${DCS[$k]}
-    echo "==== STARTING CDN ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="
+    echo "==== STARTING CS ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="
     run_swift_cdn_client_bg "$client" "$i" "$CLIENT_SCOUT" "$SCOUT_DC"
     client_pids[$i]="$!"
     i=$(($i+1))

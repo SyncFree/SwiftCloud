@@ -1,16 +1,16 @@
-#! /bin/bash
+e#! /bin/bash
 
 
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_SERVERS=(
-ec2-54-247-46-201.eu-west-1.compute.amazonaws.com
+ec2-46-137-29-110.eu-west-1.compute.amazonaws.com
 )
 
 
 export SCOUT_NODES=(
-ec2-54-247-6-145.eu-west-1.compute.amazonaws.com
-ec2-176-34-168-23.eu-west-1.compute.amazonaws.com
+ec2-54-247-55-155.eu-west-1.compute.amazonaws.com
+ec2-176-34-78-57.eu-west-1.compute.amazonaws.com
 )
 
 
@@ -104,7 +104,7 @@ run_swift_cdn_server_bg() {
     id=$2
     id=$(($id+1))
     server=$3
-    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkServer $server $id $ISOLATION $CACHING $NOTIFICATIONS
+    swift_app_cmd_nostdout -Xmx256m swift.application.swiftdoc.cs.SwiftDocBenchmarkServer $server $id $ISOLATION $CACHING $NOTIFICATIONS
     run_cmd_bg $target $CMD
 }
 
@@ -113,7 +113,8 @@ run_swift_cdn_client_bg() {
     id=$2
     id=$(($id+1))
     server=$3
-    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkClient $server $id
+    dcname=$4
+    swift_app_cmd_nostdout -Xmx256m swift.application.swiftdoc.cs.SwiftDocBenchmarkClient $server $id $dcname
 
     run_cmd_bg $target $CMD
 }
@@ -148,22 +149,24 @@ i=0;
 for scout in ${SCOUTS[*]}; do
 	j=$(($i % $DC_NUMBER))
 	SCOUT_DC=${DCS[$j]}
-	echo "==== STARTING CDN SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
+	echo "==== STARTING CS SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
 		run_swift_cdn_server_bg "$scout" "$i" "$SCOUT_DC" 
 		scout_pids="$scout_pids $!"
 		i=$(($i+1))
 done
 echo "==== WAITING A BIT BEFORE STARTING ENDCLIENTS ===="
 
-sleep 20
+sleep 10
 
 client_pids=()
 i=0;
 for client in ${ENDCLIENTS[*]}; do
     j=$(($i % $SCOUTS_NUMBER))
     CLIENT_SCOUT=${SCOUTS[$j]}
-    echo "==== STARTING CDN ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="
-    run_swift_cdn_client_bg "$client" "$i" "$CLIENT_SCOUT"
+    k=$(($j % $DC_NUMBER))
+    SCOUT_DC=${DCS[$k]}
+    echo "==== STARTING CS ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="
+    run_swift_cdn_client_bg "$client" "$i" "$CLIENT_SCOUT" "$SCOUT_DC"
     client_pids[$i]="$!"
     i=$(($i+1))
 done

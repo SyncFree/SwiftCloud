@@ -4,7 +4,7 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_SERVERS=(
-ec2-54-247-46-201.eu-west-1.compute.amazonaws.com
+ec2-54-247-54-255.eu-west-1.compute.amazonaws.com
 )
 
 
@@ -12,7 +12,6 @@ export SCOUT_NODES=(
 ait21.us.es
 ait05.us.es
 )
-
 
 export ENDCLIENT_NODES=(
 planetlab-3.iscte.pt
@@ -71,7 +70,7 @@ ENDCLIENTS=("${ENDCLIENT_NODES[@]}")
 MACHINES="${DCS[*]} ${DCSEQ[*]} ${SCOUTS[*]} ${ENDCLIENTS[*]}"
 
 INIT_DB_DC=${DCS[0]}
-INIT_DB_CLIENT=ec2-176-34-168-23.eu-west-1.compute.amazonaws.com
+INIT_DB_CLIENT=ait21.us.es
 
 #INIT_DB_DC2=${DCS[1]}
 #INIT_DB_CLIENT2=${DCS[0]}

@@ -4,9 +4,8 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-54-247-135-102.eu-west-1.compute.amazonaws.com
+ec2-46-137-29-110.eu-west-1.compute.amazonaws.com
 )
-
 
 export SCOUT_NODES=(
 ait21.us.es
@@ -25,9 +24,9 @@ planetlab-4.iscte.pt
 # WARNING - PlanetLab nodes are volatile; some may be down...
 export PLANETLAB_NODES_ALL=(
 
-planetlab-um00.di.uminho.pt
-planetlab-um10.di.uminho.pt
 
+ait21.us.es
+ait05.us.es
 planetlab2.di.fct.unl.pt
 planetlab-1.iscte.pt
 
@@ -47,11 +46,6 @@ planetlab-1.tagus.ist.utl.pt
 planetlab-2.tagus.ist.utl.pt
 planetlab1.eurecom.fr
 planetlab2.eurecom.fr
-
-)
-
-# TEST instances
-export EC2_TEST_EU=(
 )
 
 # TOPOLOGY
@@ -109,7 +103,8 @@ run_swift_cdn_client_bg() {
     id=$2
     id=$(($id+1))
     server=$3
-    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkClient $server $id
+    dcname=$4
+    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkClient $server $id $dcname
 
     run_cmd_bg $target $CMD
 }
@@ -144,7 +139,7 @@ i=0;
 for scout in ${SCOUTS[*]}; do
 	j=$(($i % $DC_NUMBER))
 	SCOUT_DC=${DCS[$j]}
-	echo "==== STARTING CDN SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
+	echo "==== STARTING CS SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
 		run_swift_cdn_server_bg "$scout" "$i" "$SCOUT_DC" 
 		scout_pids="$scout_pids $!"
 		i=$(($i+1))
@@ -158,8 +153,9 @@ i=0;
 for client in ${ENDCLIENTS[*]}; do
     j=$(($i % $SCOUTS_NUMBER))
     CLIENT_SCOUT=${SCOUTS[$j]}
-    SCOUT_DC=${DCS[$j]}
-    echo "==== STARTING CDN ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="
+    k=$(($j % $DC_NUMBER))
+    SCOUT_DC=${DCS[$k]}
+    echo "==== STARTING CS ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="
     run_swift_cdn_client_bg "$client" "$i" "$CLIENT_SCOUT" "$SCOUT_DC"
     client_pids[$i]="$!"
     i=$(($i+1))

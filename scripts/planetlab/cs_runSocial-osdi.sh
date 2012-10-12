@@ -4,7 +4,7 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_SERVERS=(
-ec2-54-247-135-102.eu-west-1.compute.amazonaws.com
+peeramide.irisa.fr
 )
 
 
