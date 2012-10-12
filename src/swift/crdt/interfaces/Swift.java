@@ -19,8 +19,9 @@ public interface Swift {
      * @param cachePolicy
      *            cache policy for the new transaction
      * @param readOnly
-     *            when true, perform updates on objects from the transaction
-     *            will render an error
+     *            when true, the transaction cannot generate any updates or
+     *            create objects; recommended for read-only transactions for
+     *            better performance
      * @return TxnHandle for the new transaction
      * @throws IllegalStateException
      *             when another transaction is pending in the system, or the

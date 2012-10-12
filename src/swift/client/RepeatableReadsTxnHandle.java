@@ -30,6 +30,8 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle implements TxnHandle {
     final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectViewsCache;
 
     /**
+     * Creates update transaction.
+     * 
      * @param manager
      *            manager maintaining this transaction
      * @param cachePolicy
@@ -41,6 +43,19 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle implements TxnHandle {
     RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy,
             final TimestampMapping timestampMapping) {
         super(manager, cachePolicy, timestampMapping);
+        this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+    }
+
+    /**
+     * Creates read-only transaction.
+     * 
+     * @param manager
+     *            manager maintaining this transaction
+     * @param cachePolicy
+     *            cache policy used by this transaction
+     */
+    RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy) {
+        super(manager, cachePolicy);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 

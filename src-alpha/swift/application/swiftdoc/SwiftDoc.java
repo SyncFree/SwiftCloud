@@ -198,7 +198,7 @@ public class SwiftDoc {
 					public void run() {
 						synchronized (serials) {//wait for the previous transaction to complete...
 							try {
-								final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
+                                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
 								SequenceTxnLocal<TextLine> doc2 = handle.get(j2, true, swift.crdt.SequenceVersioned.class, null);
 								for (TextLine i : newAtoms)
 									doc2.insertAt(doc2.size(), i);

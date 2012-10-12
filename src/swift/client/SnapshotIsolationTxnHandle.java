@@ -27,6 +27,8 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
     final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectViewsCache;
 
     /**
+     * Creates update transaction.
+     * 
      * @param manager
      *            manager maintaining this transaction
      * @param cachePolicy
@@ -38,9 +40,27 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      *            clock representing committed update transactions visible to
      *            this transaction; left unmodified
      */
-    SnapshotIsolationTxnHandle(final TxnManager manager, final CachePolicy cachePolicy,
+    SnapshotIsolationTxnHandle(final TxnManager manager, boolean readOnly, final CachePolicy cachePolicy,
             final TimestampMapping timestampMapping, final CausalityClock snapshotClock) {
         super(manager, cachePolicy, timestampMapping);
+        this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        updateUpdatesDependencyClock(snapshotClock);
+    }
+
+    /**
+     * Creates read-only transaction.
+     * 
+     * @param manager
+     *            manager maintaining this transaction
+     * @param cachePolicy
+     *            cache policy used by this transaction
+     * @param snapshotClock
+     *            clock representing committed update transactions visible to
+     *            this transaction; left unmodified
+     */
+    SnapshotIsolationTxnHandle(final TxnManager manager, final CachePolicy cachePolicy,
+            final CausalityClock snapshotClock) {
+        super(manager, cachePolicy);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }

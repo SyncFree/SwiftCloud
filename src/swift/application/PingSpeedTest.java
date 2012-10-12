@@ -205,7 +205,7 @@ public class PingSpeedTest {
         @Override
         public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             try {
-                TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, false);
+                TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, true);
                 IntegerTxnLocal i = txn.get(id, true, swift.crdt.IntegerVersioned.class, this);
                 DCConstants.DCLogger.info("PING 1 NOTIFICATION : " + i.getValue());
                 if (expected == i.getValue()) {

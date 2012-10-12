@@ -12,8 +12,6 @@ import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.SortedSetTxnLocal;
-import swift.crdt.SortedSetTxnLocal;
-import swift.crdt.SortedSetVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.TxnHandle;
@@ -198,7 +196,7 @@ public class SwiftSet {
 					public void run() {
 						synchronized (serials) {//wait for the previous transaction to complete...
 							try {
-								final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
+                                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
 								SortedSetTxnLocal<TextLine> doc2 = handle.get(j2, true, swift.crdt.SortedSetVersioned.class, null);
 								for (TextLine i : newAtoms)
 									doc2.insert( i);

@@ -278,12 +278,9 @@ public class SwiftImpl implements Swift, TxnManager {
     @Override
     public synchronized AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy,
             boolean readOnly) throws NetworkException {
-        // FIXME: Ooops, readOnly is present here at API level, respect it here
-        // and in TxnHandleImpl or remove it from API.
         assertNoPendingTransaction();
         assertRunning();
 
-        final TimestampMapping timestampMapping = new TimestampMapping(clientTimestampGenerator.generateNew());
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -318,18 +315,32 @@ public class SwiftImpl implements Swift, TxnManager {
             // commitedVersion only grows.
             final CausalityClock snapshotClock = getCommittedVersion(true);
             snapshotClock.merge(lastLocallyCommittedTxnClock);
-            setPendingTxn(new SnapshotIsolationTxnHandle(this, cachePolicy, timestampMapping, snapshotClock));
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("SI transaction " + timestampMapping + " started with snapshot point: " + snapshotClock);
+            final SnapshotIsolationTxnHandle siTxn;
+            if (readOnly) {
+                siTxn = new SnapshotIsolationTxnHandle(this, cachePolicy, snapshotClock);
+            } else {
+                final TimestampMapping timestampMapping = generateNextTimestampMapping();
+                siTxn = new SnapshotIsolationTxnHandle(this, readOnly, cachePolicy, timestampMapping, snapshotClock);
             }
-            return pendingTxn;
+            addPendingTxn(siTxn);
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("SI " + siTxn + " started with snapshot point: " + snapshotClock);
+            }
+            return siTxn;
 
         case REPEATABLE_READS:
-            setPendingTxn(new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping));
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("REPEATABLE READS transaction " + timestampMapping + " started");
+            final RepeatableReadsTxnHandle rrTxn;
+            if (readOnly) {
+                rrTxn = new RepeatableReadsTxnHandle(this, cachePolicy);
+            } else {
+                final TimestampMapping timestampMapping = generateNextTimestampMapping();
+                rrTxn = new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping);
             }
-            return pendingTxn;
+            addPendingTxn(rrTxn);
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("REPEATABLE READS  " + rrTxn + " started");
+            }
+            return rrTxn;
 
         case READ_COMMITTED:
         case READ_UNCOMMITTED:
@@ -337,6 +348,10 @@ public class SwiftImpl implements Swift, TxnManager {
         default:
             throw new UnsupportedOperationException("isolation level " + isolationLevel + " unsupported");
         }
+    }
+
+    private TimestampMapping generateNextTimestampMapping() {
+        return new TimestampMapping(clientTimestampGenerator.generateNew());
     }
 
     private synchronized void updateCommittedVersions(final CausalityClock newCommittedVersion,
@@ -1002,7 +1017,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
-        if (txn.isReadOnly()) {
+        if (txn.isReadOnly() || txn.getAllUpdates().isEmpty()) {
             // Read-only transaction can be immediately discarded.
             // Return and reuse last timestamp to avoid holes in VV.
             clientTimestampGenerator.returnLastTimestamp();

@@ -53,6 +53,7 @@ import swift.exceptions.WrongTypeException;
 abstract class AbstractTxnHandle implements TxnHandle {
 
     protected final TxnManager manager;
+    protected final boolean readOnly;
     protected CachePolicy cachePolicy;
     protected final TimestampMapping timestampMapping;
     protected final CausalityClock updatesDependencyClock;
@@ -63,6 +64,8 @@ abstract class AbstractTxnHandle implements TxnHandle {
     protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
 
     /**
+     * Creates an update transaction.
+     * 
      * @param manager
      *            manager maintaining this transaction
      * @param cachePolicy
@@ -73,10 +76,34 @@ abstract class AbstractTxnHandle implements TxnHandle {
      */
     AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
         this.manager = manager;
+        this.readOnly = false;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = timestampMapping;
         this.updatesDependencyClock = ClockFactory.newClock();
         this.timestampSource = new IncrementalTripleTimestampGenerator(timestampMapping);
+        this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
+        this.status = TxnStatus.PENDING;
+        this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+    }
+
+    /**
+     * Creates a read-only transaction.
+     * 
+     * @param manager
+     *            manager maintaining this transaction
+     * @param cachePolicy
+     *            cache policy used by this transaction
+     * @param timestampMapping
+     *            timestamp and timestamp mapping information used for all
+     *            updates of this transaction
+     */
+    AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy) {
+        this.manager = manager;
+        this.readOnly = true;
+        this.cachePolicy = cachePolicy;
+        this.timestampMapping = null;
+        this.updatesDependencyClock = ClockFactory.newClock();
+        this.timestampSource = null;
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
@@ -96,7 +123,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
             VersionNotFoundException, NetworkException {
         assertStatus(TxnStatus.PENDING);
         try {
-            return getImpl(id, create, classOfV, listener);
+            return getImpl(id, create && !readOnly, classOfV, listener);
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }
@@ -135,12 +162,14 @@ abstract class AbstractTxnHandle implements TxnHandle {
     @Override
     public synchronized TripleTimestamp nextTimestamp() {
         assertStatus(TxnStatus.PENDING);
+        assertNotReadOnly();
         return timestampSource.generateNew();
     }
 
     @Override
     public synchronized <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
         assertStatus(TxnStatus.PENDING);
+        assertNotReadOnly();
 
         @SuppressWarnings("unchecked")
         CRDTObjectUpdatesGroup<V> operationsGroup = (CRDTObjectUpdatesGroup<V>) localObjectOperations.get(id);
@@ -154,6 +183,7 @@ abstract class AbstractTxnHandle implements TxnHandle {
 
     @Override
     public synchronized <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
+        assertNotReadOnly();
         final CRDTObjectUpdatesGroup<V> operationsGroup = new CRDTObjectUpdatesGroup<V>(id, timestampMapping,
                 creationState, getUpdatesDependencyClock());
         if (localObjectOperations.put(id, operationsGroup) != null) {
@@ -209,10 +239,10 @@ abstract class AbstractTxnHandle implements TxnHandle {
     }
 
     /**
-     * @return true when transaction did not perform any update operation
+     * @return true when the transaction is read-only
      */
-    synchronized boolean isReadOnly() {
-        return localObjectOperations.isEmpty();
+    boolean isReadOnly() {
+        return readOnly;
     }
 
     /**
@@ -269,5 +299,16 @@ abstract class AbstractTxnHandle implements TxnHandle {
         }
         throw new IllegalStateException("Unexpected transaction status: was " + status + ", expected "
                 + Arrays.asList(expectedStatuses));
+    }
+
+    protected void assertNotReadOnly() {
+        if (readOnly) {
+            throw new IllegalStateException("update request for read-only transaction");
+        }
+    }
+
+    @Override
+    public String toString() {
+        return (readOnly ? "read-only" : "update") + " transaction ts=" + timestampMapping;
     }
 }
