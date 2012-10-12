@@ -10,7 +10,6 @@ import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import loria.swift.application.filesystem.mapper.FileContent;
-import loria.swift.crdt.MaxCausalityClockTxnLocal;
 import loria.swift.crdt.logoot.LogootVersioned;
 import swift.application.filesystem.IFile;
 import swift.clocks.CausalityClock;
@@ -84,7 +83,7 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
     transient ByteArrayOutputStream content;
     transient FileContent fc;
     // Class of maximun Causality Clock CRDT
-    private static Class maxCCClass = MaxCausalityClockTxnLocal.class;
+    //private static Class maxCCClass = MaxCausalityClockTxnLocal.class;
     // Class of file content CRDT
     private Class fileContentClass = LogootVersioned.class;
 
@@ -128,7 +127,8 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
 
     private CausalityClock getWipeClock(TxnHandle txn)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-        return ((MaxCausalityClockTxnLocal) txn.get(NamingScheme.forWipeClock(this.pwd), false, maxCCClass)).getValue();
+        throw new UnsupportedOperationException(); 
+        //return ((MaxCausalityClockTxnLocal) txn.get(NamingScheme.forWipeClock(this.pwd), false, maxCCClass)).getValue();
     }
 
     private FileContent getContent(TxnHandle txn, String filePath, CausalityClock wipeClock)

@@ -96,6 +96,22 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final int NAME_LENGTH = 1024;
     private static final String ROOT = "test";
 
+    public static Swift getServer() {
+        return server;
+    }
+
+    public static void setServer(Swift server) {
+        FilesystemFuse.server = server;
+    }
+
+    public static Filesystem getFs() {
+        return fs;
+    }
+
+    public static void setFs(Filesystem fs) {
+        FilesystemFuse.fs = fs;
+    }
+
     @Override
     public int chmod(String path, int mode) throws FuseException {
         // No model implemented
