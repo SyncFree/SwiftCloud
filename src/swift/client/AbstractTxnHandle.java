@@ -216,7 +216,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            transaction
      */
     void markGloballyCommitted(final Timestamp systemTimestamp) {
-        if (!isReadOnly() && systemTimestamp == null) {
+        if (!isReadOnly() && !getAllUpdates().isEmpty() && systemTimestamp == null) {
             throw new IllegalStateException("no system timestamp for update transaction");
         }
 
