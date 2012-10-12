@@ -1,30 +1,20 @@
-/*
- *  Replication Benchmarker
- *  https://github.com/score-team/replication-benchmarker/
- *  Copyright (C) 2012 LORIA / Inria / SCORE Team
- * 
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- * 
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- * 
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
- */
 package swift.application.filesystem;
 
-import fuse.FuseGetattrSetter;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.logging.Logger;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+
 import swift.client.SwiftImpl;
+import swift.crdt.DirectoryTxnLocal;
+import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -32,25 +22,30 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
+import swift.exceptions.NetworkException;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
+import swift.exceptions.WrongTypeException;
+import swift.utils.Pair;
 import sys.Sys;
-import static org.junit.Assert.*;
-import swift.application.filesystem.fuse.FilesystemFuse;
 
 /**
- *
- * @author Stephane Martin <stephane.martin@loria.fr>
+ * 
+ * @author annettebieniusa
  */
 public class FilesystemBasicTest {
 
-    public FilesystemBasicTest() {
-    }
     private static String sequencerName = "localhost";
     private static String scoutName = "localhost";
     private static Logger logger = Logger.getLogger("swift.filesystem");
+    private static Swift server;
+    private static TxnHandle txn;
+    private static Filesystem fs;
 
-    @Test
-    public void testSomeMethod() throws Exception {
-        DCSequencerServer.main(new String[]{"-name", sequencerName});
+    @BeforeClass
+    public static void onlyOnce() throws NetworkException, WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException {
+        DCSequencerServer.main(new String[] { "-name", sequencerName });
 
         try {
             Thread.sleep(500);
@@ -58,7 +53,7 @@ public class FilesystemBasicTest {
             // do nothing
         }
 
-        DCServer.main(new String[]{sequencerName});
+        DCServer.main(new String[] { sequencerName });
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
@@ -66,117 +61,186 @@ public class FilesystemBasicTest {
         }
 
         Sys.init();
-        Swift server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
+        server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
 
-        TxnHandle txn;
-        // try {
         txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-
-        // create a root directory
-        logger.info("Creating file system");
-        Filesystem fs = new FilesystemBasic(txn, "test", "DIR");
+        fs = new FilesystemBasic(txn, "test", "DIR");
         txn.commit();
+    }
 
-        logger.info("Creating directories and subdirectories");
+    @Before
+    public void initializeTxn() throws NetworkException {
         txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        fs.createDirectory(txn, "testfs1", "/test");
+    }
+
+    @After
+    public void commitTxn() throws NetworkException {
+        txn.commit();
+    }
+
+    @Test
+    public void testCreatingDirectories() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+            NetworkException, ClassNotFoundException {
         fs.createDirectory(txn, "testfs2", "/test");
+        assertTrue(fs.isDirectory(txn, "testfs2", "/test"));
+
+        DirectoryTxnLocal dir = fs.getDirectory(txn, "/test");
+        assertTrue(dir.getValue().contains(new Pair<String, Class<?>>("testfs2", DirectoryVersioned.class)));
+    }
+
+    @Test
+    public void testSubDirectories() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+            NetworkException, ClassNotFoundException {
+        fs.createDirectory(txn, "testfs1", "/test");
+        assertTrue(fs.isDirectory(txn, "testfs1", "/test"));
 
         fs.createDirectory(txn, "include", "/test/testfs1");
         fs.createDirectory(txn, "sys", "/test/testfs1/include");
         fs.createDirectory(txn, "netinet", "/test/testfs1/include");
-        assertTrue(fs.isDirectory(txn,"include", "/test/testfs1"));
-        assertTrue(fs.isDirectory(txn,"sys", "/test/testfs1/include"));
-        assertTrue(fs.isDirectory(txn,"netinet", "/test/testfs1/include"));
-        
-        txn.commit();
+        assertTrue(fs.isDirectory(txn, "include", "/test/testfs1"));
+        assertTrue(fs.isDirectory(txn, "sys", "/test/testfs1/include"));
+        assertTrue(fs.isDirectory(txn, "netinet", "/test/testfs1/include"));
 
-        
-        
-        
-        
-        logger.info("Creating a file");
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        IFile f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
-        String s = "This is a test file";
-        // assert (s.equals(new String(s.getBytes())));
+        DirectoryTxnLocal dir = fs.getDirectory(txn, "/test/testfs1/include");
+        assertTrue(dir.getValue().contains(new Pair<String, Class<?>>("sys", DirectoryVersioned.class)));
+        assertTrue(dir.getValue().contains(new Pair<String, Class<?>>("netinet", DirectoryVersioned.class)));
+    }
+
+    @Test
+    public void testCreatingSourceFile() throws Exception {
+        IFile f1 = fs.createFile(txn, "file1.txt", "/test");
+        assertTrue(fs.isFile(txn, "file1.txt", "/test"));
+        assertTrue(Arrays.equals(f1.getBytes(), new byte[0]));
+    }
+
+    @Test
+    public void testCreatingBlobFile() throws Exception {
+        IFile f1 = fs.createFile(txn, "file2.blob", "/test");
+        assertTrue(Arrays.equals(f1.getBytes(), new byte[0]));
+
+    }
+
+    @Test
+    public void testResetBlobFile() throws Exception {
+        IFile f1 = fs.createFile(txn, "file3.blob", "/test");
+        String s = "This is a blob test file";
         f1.reset(s.getBytes());
-        System.out.println("Expected: " + s);
-        System.out.println("Got: " + new String(f1.getBytes()));
+        assertTrue(Arrays.equals(f1.getBytes(), s.getBytes()));
+    }
 
-        assert (new String(f1.getBytes()).equals(s));
-        fs.updateFile(txn, "file1.txt", "/test/testfs1", f1);
-        txn.commit();
+    @Test
+    public void testResetSourceFile() throws Exception {
+        IFile f1 = fs.createFile(txn, "file4.txt", "/test");
+        String s = "This is a source test file";
+        f1.reset(s.getBytes());
+        assertTrue(Arrays.equals(f1.getBytes(), s.getBytes()));
+    }
 
-        logger.info("Reading from the file");
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        IFile f1_up = fs.readFile(txn, "file1.txt", "/test/testfs1");
+    @Test
+    public void testReadFile() throws Exception {
+        String fname = "file5.txt";
+        String path = "/test";
+        IFile f1 = fs.createFile(txn, fname, path);
+        String s = "This is a source test file";
+        f1.reset(s.getBytes());
+        fs.updateFile(txn, fname, path, f1);
+        commitTxn();
+
+        // Reading from the file
+        initializeTxn();
+        IFile f1_up = fs.readFile(txn, fname, path);
         assert (Arrays.equals(f1_up.getBytes(), s.getBytes()));
-        txn.commit();
- 
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        assertTrue(fs.isFile(txn, "file1.txt", "/test/testfs1"));
-        assertTrue(fs.isDirectory(txn,"testfs2", "/test"));
-        txn.commit();
-        
-        
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        logger.info("Updating the file");
+    }
+
+    @Test
+    public void testUpdateBlobFile() throws Exception {
+        IFile f1 = fs.createFile(txn, "fileUp.blob", "/test");
+        String s = "This is a blob test file";
+        f1.reset(s.getBytes());
+
         String prefix = "Yes! ";
         byte[] concat = (prefix + s).getBytes();
 
         ByteBuffer buf_up = ByteBuffer.wrap(concat);
-        f1_up.update(buf_up, 0);
-        assert (Arrays.equals(f1_up.getBytes(), concat));
-        fs.updateFile(txn, "file1.txt", "/test/testfs1", f1_up);
-        txn.commit();
+        f1.update(buf_up, 0);
+        assert (Arrays.equals(f1.getBytes(), concat));
+    }
 
-        logger.info("Checking that updates are committed");
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        IFile f1_upp = fs.readFile(txn, "file1.txt", "/test/testfs1");
-        assert (Arrays.equals(f1_upp.getBytes(), concat));
-        txn.commit();
-
-        logger.info("Copying the file");
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        fs.copyFile(txn, "file1.txt", "/test/testfs1", "/test/testfs2");
-        IFile f1_copy = fs.readFile(txn, "file1.txt", "/test/testfs2");
-        assert (Arrays.equals(f1_copy.getBytes(), concat));
-        txn.commit();
-
-        logger.info("Removing the file");
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        fs.removeFile(txn, "file1.txt", "/test/testfs1");
-        txn.commit();
-
-        logger.info("Recreating the file");
-        txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-        f1 = fs.createFile(txn, "file1.txt", "/test/testfs1");
-        s = "This is a test file2";
-        // assert (s.equals(new String(s.getBytes())));
+    @Test
+    public void testUpdateSourceFile() throws Exception {
+        IFile f1 = fs.createFile(txn, "fileUp.txt", "/test");
+        String s = "This is a source test file";
         f1.reset(s.getBytes());
-        System.out.println("------------------------------------------");
-        System.out.println("Expected: " + s);
-        System.out.println("Got: " + new String(f1.getBytes()));
-        assertTrue(fs.isFile(txn, "file1.txt", "/test/testfs1"));
-        assertEquals(new String(f1.getBytes()), s);
-        txn.commit();
-        /* System.out.println("------------------------------------------");
-         FuseGetattrSetter getattrSetter=new FuseGetattrSetter(){
 
-         @Override
-         public void set(long l, int i, int i1, int i2, int i3, int i4, long l1, long l2, int i5, int i6, int i7) {
-         // throw new UnsupportedOperationException("Not supported yet.");
-         System.out.println("l:"+l+" i:"+i+" i1:"+i1+" i2:"+i2+" i3:"+i3+" i4:"+i4+" l1:"+l1+" i5:"+i5+" i6:"+i6+" i7:"+i7);
-         }
-                
-         };
-         FilesystemFuse fs2=new FilesystemFuse();
-         FilesystemFuse.server=server;
-         assertEquals(0,fs2.getattr("/test/testfs1/file1.txt",  getattrSetter));
-         System.out.println("------------------------------------------");*/
-        /*} catch (Exception ex) {
-            
-         }*/
+        String prefix = "Yes! ";
+        byte[] concat = (prefix + s).getBytes();
+
+        ByteBuffer buf_up = ByteBuffer.wrap(concat);
+        f1.update(buf_up, 0);
+        assert (Arrays.equals(f1.getBytes(), concat));
+    }
+
+    @Test
+    public void testCopyFile() throws Exception {
+        String orig = "cp1";
+        String dest = "cp2";
+        String path = "/test";
+        String origpath = path + "/" + orig;
+        String destpath = path + "/" + dest;
+
+        String fname = "fileCopyTest.txt";
+        fs.createDirectory(txn, orig, path);
+        fs.createDirectory(txn, dest, path);
+
+        IFile f1 = fs.createFile(txn, fname, origpath);
+        String s = "This is a source test file";
+        f1.reset(s.getBytes());
+        fs.updateFile(txn, fname, origpath, f1);
+
+        fs.copyFile(txn, fname, origpath, destpath);
+        assertTrue(fs.isFile(txn, fname, origpath));
+        assertTrue(fs.isFile(txn, fname, destpath));
+        IFile f1_copy = fs.readFile(txn, fname, destpath);
+        assertTrue(Arrays.equals(f1_copy.getBytes(), s.getBytes()));
+    }
+
+    @Test
+    public void testRemove() throws Exception {
+        String fname = "fileRemoveTest.txt";
+        String orig = "orig";
+        String path = "/test";
+        String origpath = path + "/" + orig;
+
+        fs.createDirectory(txn, orig, path);
+        fs.createFile(txn, fname, origpath);
+        assertTrue(fs.isFile(txn, fname, origpath));
+        fs.removeFile(txn, fname, origpath);
+        assertFalse(fs.isFile(txn, fname, origpath));
+    }
+
+    @Test
+    public void testRecreate() throws Exception {
+        String fname = "fileRemoveTest.txt";
+        String orig = "orig";
+        String path = "/test";
+        String origpath = path + "/" + orig;
+
+        fs.createDirectory(txn, orig, path);
+        IFile f = fs.createFile(txn, fname, origpath);
+        String s = "This is a test file for recreating";
+        f.reset(s.getBytes());
+        fs.updateFile(txn, fname, origpath, f);
+        commitTxn();
+
+        initializeTxn();
+        fs.removeFile(txn, fname, origpath);
+        commitTxn();
+
+        initializeTxn();
+        fs.createFile(txn, fname, origpath);
+        assertTrue(fs.isFile(txn, fname, origpath));
+
+        IFile f1 = fs.readFile(txn, fname, origpath);
+        assertTrue(Arrays.equals(f1.getBytes(), new byte[0]));
     }
 }
