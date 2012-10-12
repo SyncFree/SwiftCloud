@@ -102,6 +102,7 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final int DEFAULT_CACHE_SIZE = 100000;
     public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
+    public static final int NOTIFICATIONS_THREAD_POOLS_SIZE = 2;
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     /**
@@ -240,8 +241,8 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
-        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(2);
-        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(2);
+        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(NOTIFICATIONS_THREAD_POOLS_SIZE);
+        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(NOTIFICATIONS_THREAD_POOLS_SIZE);
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
     }
