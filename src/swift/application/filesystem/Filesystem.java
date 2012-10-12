@@ -11,10 +11,10 @@ import swift.exceptions.WrongTypeException;
 
 public interface Filesystem {
     IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException, IOException;
+            VersionNotFoundException, NetworkException, IOException, ClassNotFoundException;
 
     DirectoryTxnLocal createDirectory(TxnHandle txn, String name, String path) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException;
+            NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException;
 
     void removeDirectory(TxnHandle txn, String name, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException, ClassNotFoundException;

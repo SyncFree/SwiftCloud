@@ -42,7 +42,7 @@ public class FilesystemBasic implements Filesystem {
 
     @Override
     public IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
+            VersionNotFoundException, NetworkException, ClassNotFoundException {
 
         String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
         String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
@@ -88,7 +88,7 @@ public class FilesystemBasic implements Filesystem {
 
     @Override
     public DirectoryTxnLocal createDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
+            NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
         String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
         String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
 
