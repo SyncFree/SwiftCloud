@@ -12,15 +12,14 @@ import java.util.Set;
 import swift.application.swiftdoc.TextLine;
 import swift.application.swiftdoc.cs.msgs.AppRpcHandler;
 import swift.application.swiftdoc.cs.msgs.BeginTransaction;
+import swift.application.swiftdoc.cs.msgs.BulkTransaction;
 import swift.application.swiftdoc.cs.msgs.CommitTransaction;
 import swift.application.swiftdoc.cs.msgs.InitScoutServer;
 import swift.application.swiftdoc.cs.msgs.InsertAtom;
 import swift.application.swiftdoc.cs.msgs.RemoveAtom;
 import swift.application.swiftdoc.cs.msgs.ServerACK;
 import swift.application.swiftdoc.cs.msgs.ServerReply;
-import swift.application.swiftdoc.cs.msgs.BulkTransaction;
 import swift.application.swiftdoc.cs.msgs.SwiftDocRpc;
-
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
@@ -256,10 +255,12 @@ public class SwiftDocServer extends Thread {
             this.client = client;
 
             this.swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis);
+                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CACHE_SIZE);
 
             this.swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis);
+                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CACHE_SIZE);
 
             swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
             swiftdoc.start();
