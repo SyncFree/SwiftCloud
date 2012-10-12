@@ -125,7 +125,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         try {
             if( SwiftImpl.DEFAULT_LISTENER_FOR_GET && listener == null)
                 listener = SwiftImpl.DEFAULT_LISTENER;
-            return getImpl(id, create && !readOnly, classOfV, listener);
+            return getImpl(id, create, classOfV, listener);
         } catch (ClassCastException x) {
             throw new WrongTypeException(x.getMessage());
         }
@@ -185,7 +185,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     @Override
     public synchronized <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
-        assertNotReadOnly();
+        if (isReadOnly()) {
+            return;
+        }
+
         final CRDTObjectUpdatesGroup<V> operationsGroup = new CRDTObjectUpdatesGroup<V>(id, timestampMapping,
                 creationState, getUpdatesDependencyClock());
         if (localObjectOperations.put(id, operationsGroup) != null) {

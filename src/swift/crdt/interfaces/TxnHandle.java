@@ -67,8 +67,9 @@ public interface TxnHandle {
      *            identifier of an object
      * @param create
      *            when true if object does not exist in the store, it is
-     *            created; otherwise call fails; meaningless for read-only
-     *            transactions
+     *            created; otherwise call fails; for read-only transactions, an
+     *            initial state of an object is presented i the object is not in
+     *            the store
      * @param classOfT
      *            class of an object stored (or created) under this identifier;
      *            it is the responsibility of application to ensure uniform
