@@ -54,6 +54,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -75,6 +76,12 @@ import sys.net.api.rpc.RpcHandle;
  * @author mzawirski
  */
 public class SwiftImpl implements Swift, TxnManager {
+    public static final boolean DEFAULT_LISTENER_FOR_GET = true;
+    static ObjectUpdatesListener DEFAULT_LISTENER = new AbstractObjectUpdatesListener() {
+        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+            // do nothing
+        };
+    };
     // TODO: server failover
 
     // WISHME: notifications are quite CPU/memory scans-intensive at the
