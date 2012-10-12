@@ -106,33 +106,65 @@ public class FilesystemFuseTest {
         assertEquals(0, fsf.getattr("/test", getattrSetterMock));
 
 
-    
+
 
         logger.info("Creating a file");
-       
-        String filename="/test/file1.txt";
+
+        String filename = "/test/file1.txt";
         fsf.mknod(filename, 511, 0);
-
+        assertEquals(0, fsf.getattr("/test", getattrSetterMock));
+        assertEquals(0, fsf.getattr(filename, getattrSetterMock));
         FuseOpeenSetterMock fos = new FuseOpeenSetterMock();
-        fsf.open(filename, 0,fos);
+        fsf.open(filename, 0, fos);
 
-        
-        
+
+
         String s = "This is a test file";
-        
-        fsf.write(filename, fos.getFile(), false,ByteBuffer.wrap(s.getBytes()), 0);
+
+        fsf.write(filename, fos.getFile(), false, ByteBuffer.wrap(s.getBytes()), 0);
 
         fsf.flush(filename, fos.getFile());
         //txn.commit();
-        
-        
-  
-        assertEquals(0,fsf.getattr(filename, getattrSetterMock));
-        fsf.open(filename, 0,fos);
-        ByteBuffer buff=ByteBuffer.allocate(30);
+
+
+
+
+        fsf.open(filename, 0, fos);
+        ByteBuffer buff = ByteBuffer.allocate(30);
         fsf.read(filename, fos.getFile(), buff, 0);
-      
+
         assertTrue(new String(buff.array()).startsWith(s));
-      
+        
+        assertEquals(0, fsf.getattr(filename, getattrSetterMock));
+        fsf.unlink(filename);
+        
+        
+        fsf.mknod(filename, 511, 0);
+        assertEquals(0, fsf.getattr("/test", getattrSetterMock));
+        assertEquals(0, fsf.getattr(filename, getattrSetterMock));
+        
+        fsf.open(filename, 0, fos);
+
+
+
+        s = "This is a test file 33";
+
+        fsf.write(filename, fos.getFile(), false, ByteBuffer.wrap(s.getBytes()), 0);
+
+        fsf.flush(filename, fos.getFile());
+        //txn.commit();
+
+
+
+
+        fsf.open(filename, 0, fos);
+        ByteBuffer buff2 = ByteBuffer.allocate(30);
+        fsf.read(filename, fos.getFile(), buff2, 0);
+
+        assertTrue(new String(buff.array()).startsWith(s));
+        
+        assertEquals(0, fsf.getattr(filename, getattrSetterMock));
+        
+
     }
 }
