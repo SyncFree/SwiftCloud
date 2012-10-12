@@ -89,12 +89,13 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final Log log = LogFactory.getLog(FilesystemFuse.class);
     private static final String sequencerName = "localhost";
     private static final String scoutName = "localhost";
-    private static Swift server;
-    private static Filesystem fs;
+    
+    protected static Swift server;
+    protected static Filesystem fs;
     private static final int MODE = 0777;
     private static final int BLOCK_SIZE = 512;
     private static final int NAME_LENGTH = 1024;
-    private static final String ROOT = "test";
+    protected static final String ROOT = "test";
 
     public static Swift getServer() {
         return server;
@@ -549,7 +550,11 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
 
         if (fh instanceof IFile) {
             IFile f = (IFile) fh;
-            f.update(buf, offset);
+            while( buf.remaining() > 0 ) {
+                int pos = buf.position();
+                f.update(buf, offset);
+                offset += buf.position() - pos;
+            }
         }
         return 0;
     }
