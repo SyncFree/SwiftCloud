@@ -306,6 +306,9 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
             } catch (VersionNotFoundException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
             txn.rollback();
         }
@@ -345,6 +348,9 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
