@@ -15,7 +15,7 @@ import swift.test.microbenchmark.objects.StringCopyable;
  * Rhough file content using register (no merge!).
  * @author urso
  */
-public class RegisterTxnFileContent extends RegisterTxnLocal<StringCopyable> implements FileContent {
+public class RegisterTxnFileContent extends RegisterTxnLocal<StringCopyable> implements TextualContent {
 
     public RegisterTxnFileContent(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, RegisterVersioned<StringCopyable> creationState, StringCopyable val, long lamportClock) {
         super(id, txn, clock, creationState, val, lamportClock);

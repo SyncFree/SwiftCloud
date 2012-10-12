@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import loria.swift.application.filesystem.mapper.FileContent;
+import loria.swift.application.filesystem.mapper.TextualContent;
 import loria.swift.crdt.logoot.LogootVersioned;
 import swift.application.filesystem.IFile;
 import swift.clocks.CausalityClock;
@@ -81,7 +81,7 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
     };
     transient CausalityClock wipeClock;
     transient ByteArrayOutputStream content;
-    transient FileContent fc;
+    transient TextualContent fc;
     // Class of maximun Causality Clock CRDT
     //private static Class maxCCClass = MaxCausalityClockTxnLocal.class;
     // Class of file content CRDT
@@ -131,14 +131,14 @@ public class File extends FileSystemObject implements Copyable, Comparable<File>
         //return ((MaxCausalityClockTxnLocal) txn.get(NamingScheme.forWipeClock(this.pwd), false, maxCCClass)).getValue();
     }
 
-    private FileContent getContent(TxnHandle txn, String filePath, CausalityClock wipeClock)
+    private TextualContent getContent(TxnHandle txn, String filePath, CausalityClock wipeClock)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-        return ((FileContent) txn.get(NamingScheme.forContent(filePath, wipeClock), false, fileContentClass));
+        return ((TextualContent) txn.get(NamingScheme.forContent(filePath, wipeClock), false, fileContentClass));
     }
 
-    private FileContent getContent(TxnHandle txn, String filePath, boolean create)
+    private TextualContent getContent(TxnHandle txn, String filePath, boolean create)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-        return ((FileContent) txn.get(NamingScheme.forContent(filePath, null), create, fileContentClass));
+        return ((TextualContent) txn.get(NamingScheme.forContent(filePath, null), create, fileContentClass));
     }
 
     public void update(String str) {

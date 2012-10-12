@@ -65,7 +65,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     protected void mergePayload(T other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
-        AddWinsUtils.mergePayload(this.elems, this.getClock(), other.elems, other.getClock(), newTimestampUsages,
+        AddWinsUtils.mergePayload(this.elems, this.getClock(), ((SetVersioned) other).elems, other.getClock(), newTimestampUsages,
                 releasedTimestampUsages);
         for (final TripleTimestamp ts : newTimestampUsages) {
             registerTimestampUsage(ts);

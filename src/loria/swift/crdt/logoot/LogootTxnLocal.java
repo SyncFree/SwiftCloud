@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import loria.swift.application.filesystem.mapper.FileContent;
+import loria.swift.application.filesystem.mapper.TextualContent;
 
 import org.eclipse.jgit.diff.DiffAlgorithm;
 import org.eclipse.jgit.diff.Edit;
@@ -26,7 +26,7 @@ import swift.crdt.interfaces.TxnHandle;
  *
  * @author urso
  */
-public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersioned> implements  TxnGetterSetter<Blob>,FileContent {
+public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersioned> implements  TxnGetterSetter<Blob>,TextualContent {
 
     private static final long BOUND = 1000000000l;
     private static final int NBBIT = 64;
@@ -132,7 +132,7 @@ public class LogootTxnLocal extends BaseCRDTTxnLocal<LogootVersioned> implements
     @Override
     public void set(String newValue) {
         newValue += "\n";
-        final RawText a = new RawText((this.doc.toStringN()).getBytes());
+        final RawText a = new RawText(this.doc.toStringN().getBytes());
         final RawText b = new RawText(newValue.getBytes());
         final EditList editList = diffAlgorithm.diff(RawTextComparator.DEFAULT, a, b);      
         for (Edit e : editList) {

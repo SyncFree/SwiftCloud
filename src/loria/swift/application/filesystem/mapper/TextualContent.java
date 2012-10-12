@@ -8,7 +8,7 @@ package loria.swift.application.filesystem.mapper;
  * Base interface for content of a text file.
  * @author urso
  */
-public interface FileContent {
+public interface TextualContent {
 
     public void set(String newValue);
     
