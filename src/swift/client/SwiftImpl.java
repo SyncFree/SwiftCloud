@@ -1067,7 +1067,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (canReuseTxnTimestamp(txn)) {
             // The transaction does not need to be globally committed.
             tryReuseTxnTimestamp(txn);
-            txn.markGloballyCommitted(null);
+            txn.markGloballyCommitted(this.clientTimestampGenerator.generateNew());
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
             }
