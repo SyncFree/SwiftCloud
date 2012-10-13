@@ -107,12 +107,13 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     public void discardScoutClock(final String scoutId) {
         updatesClock.drop(scoutId);
     }
-    
+
     /**
      * Augments update clock of this object with the vector clock of the server,
      * as the missing transactions guaranteedly have not touched the object
      * 
-     * @param currentDCClock current DC clock
+     * @param currentDCClock
+     *            current DC clock
      */
     public void augmentWithDCClock(final CausalityClock currentDCClock) {
         updatesClock.merge(currentDCClock);
@@ -364,7 +365,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
      *            object
      */
     protected void copyBase(V object) {
-        object.init(id, updatesClock.clone(), pruneClock.clone(), registeredInStore);
+        object.init(id, updatesClock == null ? null : updatesClock.clone(),
+                pruneClock == null ? null : pruneClock.clone(), registeredInStore);
         // FIXME: unify copy() implementations and serialization - should this
         // clientTimestampsInUse be here or not (it is not transient)?
         object.clientTimestampsInUse = KryoLib.copy(clientTimestampsInUse);
