@@ -19,7 +19,9 @@ servers_start() {
         seq=${sequencer_array[$i]}
         other_seq=${sequencer_list//$seq/}
 
-#        swift_app_cmd -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=9418 -Djava.rmi.server.hostname=$seq swift.dc.DCSequencerServer -name "X$i" -servers $srv -sequencers $other_seq
+#        swift_app_cmd -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=6666 -Djava.rmi.server.hostname=$seq swift.dc.DCSequencerServer -name "X$i" -servers $srv -sequencers $other_seq
+
+#        swift_app_cmd -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=6666 -Djava.rmi.server.hostname=$seq -Xmx512m swift.dc.DCSequencerServer -name "X$i"
 
         swift_app_cmd -Xmx256m swift.dc.DCSequencerServer -name "X$i"
         #swift_app_cmd -Xmx512m swift.dc.DCSequencerServer -name "X$i" -servers $srv -sequencers $other_seq
@@ -27,7 +29,7 @@ servers_start() {
         run_cmd_bg $seq $CMD
 
 		sleep 2
-		swift_app_cmd -Xmx256m swift.dc.DCServer -sequencer $seq
+		swift_app_cmd -Xmx512m swift.dc.DCServer -sequencer $seq
         run_cmd_bg $srv $CMD
 
         i=$(($i+1))

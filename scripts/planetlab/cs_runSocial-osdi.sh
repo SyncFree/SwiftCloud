@@ -4,19 +4,20 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_SERVERS=(
-peeramide.irisa.fr
+planetlab1.di.fct.unl.pt
+planetlab2.fct.ualg.pt
 )
 
 
 export SCOUT_NODES=(
-planetlab-1.iscte.pt
-planetlab-2.iscte.pt
+planetlab1.fct.ualg.pt
+planetlab2.di.fct.unl.pt
 )
 
 
 export ENDCLIENT_NODES=(
-planetlab-3.iscte.pt
-planetlab-4.iscte.pt
+planetlab-um00.di.uminho.pt
+planetlab-um10.di.uminho.pt
 )
 
 
@@ -29,8 +30,6 @@ export PLANETLAB_NODES_ALL=(
 ait21.us.es
 ait05.us.es
 
-planetlab-um00.di.uminho.pt
-planetlab-um10.di.uminho.pt
 
 planetlab2.di.fct.unl.pt
 planetlab-1.iscte.pt
@@ -60,9 +59,8 @@ planetlab2.eurecom.fr
 DCS[0]=${DATACENTER_SERVERS[0]}
 DCSEQ[0]=${DATACENTER_SERVERS[0]}
 
-#DCS[1]=${DATACENTER_SERVERS[1]}
-#DCSEQ[1]=${DATACENTER_SERVERS[1]}
-
+DCS[1]=${DATACENTER_SERVERS[1]}
+DCSEQ[1]=${DATACENTER_SERVERS[1]}
 
 SCOUTS=("${SCOUT_NODES[@]}")
 
@@ -71,8 +69,7 @@ ENDCLIENTS=("${ENDCLIENT_NODES[@]}")
 MACHINES="${DCS[*]} ${DCSEQ[*]} ${SCOUTS[*]} ${ENDCLIENTS[*]}"
 
 INIT_DB_DC=${DCS[0]}
-INIT_DB_CLIENT=planetlab-4.iscte.pt
-
+INIT_DB_CLIENT=${DCS[1]}
 
 #INIT_DB_DC2=${DCS[1]}
 #INIT_DB_CLIENT2=${DCS[0]}
@@ -81,7 +78,7 @@ echo $INIT_DB_CLIENT
 echo $INIT_DB_CLIENT2
 
 # INPUT DATA PARAMS
-INPUT_USERS=100
+INPUT_USERS=1000
 INPUT_ACTIVE_USERS=10
 INPUT_USER_FRIENDS=25
 INPUT_USER_BIASED_OPS=9
