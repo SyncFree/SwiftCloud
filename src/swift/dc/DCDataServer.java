@@ -8,7 +8,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.logging.Logger;
 
+import swift.client.SwiftImpl;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.client.proto.SubscriptionType;
 import swift.clocks.CausalityClock;
@@ -38,6 +40,7 @@ import sys.dht.api.StringKey;
  * @author preguica
  */
 class DCDataServer {
+    private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     Map<String, Map<String, CRDTData<?>>> db;
     Map<CRDTIdentifier, LockInfo> locks;
