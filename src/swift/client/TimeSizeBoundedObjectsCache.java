@@ -116,6 +116,9 @@ class TimeSizeBoundedObjectsCache {
     private void evictOversized() {
         final Iterator<Entry> iter = entriesEvictionQueue.iterator();
         final int entriesToRemove = entries.size() - maxElements;
+        if (entriesToRemove <= 0) {
+            return;
+        }
         for (int i = 0; i < entriesToRemove; i++) {
             final Entry entry = iter.next();
             entries.remove(entry.object.getUID());
