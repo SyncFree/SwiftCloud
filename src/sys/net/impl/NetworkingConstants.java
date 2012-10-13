@@ -8,7 +8,7 @@ public interface NetworkingConstants {
 	static final int KRYOBUFFERPOOL_TIMEOUT = 100;
 	
 	
-	static final int RPC_MAX_TIMEOUT = 10000;
+	static final int RPC_MAX_TIMEOUT = 60000;
 	static final long RPC_MAX_SERVICE_ID = 1L << 16;
     static final long RPC_MAX_SERVICE_ID_MASK = (1L << 16) - 1L;
 
