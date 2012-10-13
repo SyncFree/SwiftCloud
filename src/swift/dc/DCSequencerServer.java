@@ -57,7 +57,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     CausalityClock stableClock;
     List<String> servers;
     List<Endpoint> serversEP;
-    List<String> sequencers;
+    List<String> sequencers;        // list of other sequencers
     List<Endpoint> sequencersEP;
     String sequencerShadow;
     Endpoint sequencerShadowEP;
@@ -306,6 +306,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                     lastEffectiveSendTime = l;
                                 }
                             }
+                            DCConstants.DCLogger.info("sequencer: synchronizer: num operations to propagate : " + s.size());
                             if (r == null) {
                                 try {
                                     long waitime = lastEffectiveSendTime - System.currentTimeMillis()
