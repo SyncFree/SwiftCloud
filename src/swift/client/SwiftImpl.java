@@ -195,9 +195,8 @@ public class SwiftImpl implements Swift, TxnManager {
     // Set of versions for fetch requests in progress.
     private final Set<CausalityClock> fetchVersionsInProgress;
 
-    // Invariant: there is at most one pending (open) transaction.
     private Set<AbstractTxnHandle> pendingTxns;
-    // Locally committed transactions (in commit order), the first one is
+    // Locally committed transactions (in begin-txn order), the first one is
     // possibly committing to the store.
     private final SortedSet<AbstractTxnHandle> locallyCommittedTxnsQueue;
     // Globally committed local transactions (in commit order), but possibly not
@@ -786,11 +785,20 @@ public class SwiftImpl implements Swift, TxnManager {
         return true;
     }
 
-    private <V extends CRDT<V>> void applyLocalObjectUpdates(final CRDTIdentifier id, V cacheCRDT,
-            final AbstractTxnHandle localTxn) {
-        final CRDTObjectUpdatesGroup<V> objectUpdates = (CRDTObjectUpdatesGroup<V>) localTxn.getObjectUpdates(id);
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    private void applyLocalObjectUpdates(final CRDTIdentifier id, CRDT cachedCRDT, final AbstractTxnHandle localTxn) {
+        // Try to apply changes in a cached copy of an object.
+        if (cachedCRDT == null) {
+            logger.warning("object evicted from the local cache, cannot apply local transaction changes");
+            return;
+        }
+
+        final CRDTObjectUpdatesGroup objectUpdates = localTxn.getObjectUpdates(id);
         if (objectUpdates != null) {
-            cacheCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.CHECK);
+            // IGNORE dependencies checking, for RR transaction
+            // dependencies are overestimated.
+            // TODO: during failover, it may be unsafe to IGNORE.
+            cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
         }
     }
 
@@ -1080,18 +1088,8 @@ public class SwiftImpl implements Swift, TxnManager {
             }
         } else {
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
-                // Try to apply changes in a cached copy of an object.
-                final CRDT<?> crdt = objectsCache.getWithoutTouch(opsGroup.getTargetUID());
-                if (crdt == null) {
-                    logger.warning("object evicted from the local cache prior to local commit");
-                } else {
-                    try {
-                        crdt.execute(opsGroup, CRDTOperationDependencyPolicy.CHECK);
-                    } catch (IllegalStateException x) {
-                        logger.warning("transaction dependencies (" + opsGroup.getDependency()
-                                + ") unavailable in the local cache (" + crdt.getClock() + ") during local commit");
-                    }
-                }
+                applyLocalObjectUpdates(opsGroup.getTargetUID(), objectsCache.getWithoutTouch(opsGroup.getTargetUID()),
+                        txn);
             }
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
