@@ -388,7 +388,7 @@ class DCDataServer {
                 if (!grp.hasCreationState()) {
                     return new ExecCRDTResult( false);
                 }
-                CRDT crdt = grp.getCreationState();
+                CRDT crdt = grp.getCreationState().copy();
                 // TODO: check clocks
                 CausalityClock clk = grp.getDependency();
                 if (clk == null) {
