@@ -18,8 +18,10 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
+import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
+import sys.utils.Args;
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
  * prototype [Sovran et al. OSDI 2011].
@@ -30,7 +32,8 @@ import sys.net.api.rpc.RpcHandle;
 public class SwiftSocialBenchmarkServer {
 	public static int PORT = 11111;
 	
-    private static String dcName;
+//    private static String dcName;
+	private static Endpoint dcEndpoint;
     private static String fileName = "scripts/commands.txt";
     private static IsolationLevel isolationLevel;
     private static CachePolicy cachePolicy;
@@ -44,29 +47,36 @@ public class SwiftSocialBenchmarkServer {
             exitWithUsage();
         }
         final String command = args[0];
-        dcName = args[1];
+        String dcName = args[1];
         fileName = args[2];
+   
+        int scoutPort = -1;
+        
         sys.Sys.init();
-
+        
+        dcEndpoint = Networking.resolve( dcName, DCConstants.SURROGATE_PORT);
+        
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
-            final SwiftImpl swiftClient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+            final SwiftImpl swiftClient = SwiftImpl.newInstance( dcEndpoint.getHost(), dcEndpoint.getPort());
             final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
                     CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
             swiftClient.stop(true);
             System.out.println("Finished populating db with users.");
             System.exit(0);            
-        } else if (command.equals("run") && args.length == 10) {
+        } else if (command.equals("run") && args.length >= 10) {
             isolationLevel = IsolationLevel.valueOf(args[3]);
             cachePolicy = CachePolicy.valueOf(args[4]);
             cacheEvictionTimeMillis = Long.valueOf(args[5]);
             subscribeUpdates = Boolean.parseBoolean(args[6]);
             asyncCommit = Boolean.parseBoolean(args[7]);
-            thinkTime = Long.valueOf(args[8]);            
+            thinkTime = Long.valueOf(args[8]);  
+            scoutPort = Args.valueOf(args, "-port", PORT);
+
         }
         
-        Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new CdnRpcHandler() {
+        Networking.rpcBind(scoutPort, TransportProvider.DEFAULT).toService(0, new CdnRpcHandler() {
 				
 				@Override
 				public void onReceive(final RpcHandle handle, final CdnRpc m) {
@@ -165,7 +175,7 @@ public class SwiftSocialBenchmarkServer {
     	final SwiftSocial swiftSocial;
     	
     	Session() {
-            swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
+            swiftCLient = SwiftImpl.newInstance( dcEndpoint.getHost(), dcEndpoint.getPort(), SwiftImpl.DEFAULT_DISASTER_SAFE,
                     SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
                     Integer.MAX_VALUE, cacheEvictionTimeMillis,
                     SwiftImpl.DEFAULT_CACHE_SIZE);
