@@ -83,7 +83,8 @@ public class FilesystemFuseTest {
         txn.commit();
 
         FilesystemFuse.initServerInfrastructure("localhost", "localhost");
-        FilesystemFuse fsf = new FilesystemFuse(fs);
+        FilesystemFuse fsf = new FilesystemFuse();
+        fsf.fs = fs;
 
         FuseGetattrSetter getattrSetterMock = new FuseGetattrSetter() {
             @Override

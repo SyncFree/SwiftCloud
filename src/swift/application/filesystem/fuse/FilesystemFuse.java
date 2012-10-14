@@ -95,10 +95,6 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final int NAME_LENGTH = 1024;
     protected static final String ROOT = "test";
 
-    public FilesystemFuse(Filesystem fs) {
-        this.fs = fs;
-    }
-
     @Override
     public int chmod(String path, int mode) throws FuseException {
         // No model implemented
@@ -698,7 +694,9 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
             txn.commit();
 
             log.info("mounting filesystem");
-            FuseMount.mount(args, new FilesystemFuse(fs), log);
+            FilesystemFuse fuse = new FilesystemFuse();
+            fuse.fs = fs;
+            FuseMount.mount(args, fuse, log);
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
