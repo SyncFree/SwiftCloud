@@ -150,6 +150,7 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param cacheEvictionTimeMillis
      *            eviction time for non-accessed objects in the cache
      * @param cacheSize
+     *            maximum number of objects in the cache
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe,
