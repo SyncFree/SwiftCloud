@@ -37,7 +37,7 @@ public class FilesystemBasicTest {
 
     private static String sequencerName = "localhost";
     private static String scoutName = "localhost";
-    private static Logger logger = Logger.getLogger("swift.filesystem");
+    private static Logger log = Logger.getLogger("swift.filesystem");
     private static Swift server;
     private static TxnHandle txn;
     private static Filesystem fs;
@@ -149,7 +149,7 @@ public class FilesystemBasicTest {
         // Reading from the file
         initializeTxn();
         IFile f1_up = fs.readFile(txn, fname, path);
-        assert (Arrays.equals(f1_up.getBytes(), s.getBytes()));
+        assertTrue(Arrays.equals(f1_up.getBytes(), s.getBytes()));
     }
 
     @Test
@@ -163,7 +163,7 @@ public class FilesystemBasicTest {
 
         ByteBuffer buf_up = ByteBuffer.wrap(concat);
         f1.update(buf_up, 0);
-        assert (Arrays.equals(f1.getBytes(), concat));
+        assertTrue(Arrays.equals(f1.getBytes(), concat));
     }
 
     @Test
@@ -177,7 +177,7 @@ public class FilesystemBasicTest {
 
         ByteBuffer buf_up = ByteBuffer.wrap(concat);
         f1.update(buf_up, 0);
-        assert (Arrays.equals(f1.getBytes(), concat));
+        assertTrue(Arrays.equals(f1.getBytes(), concat));
     }
 
     @Test
