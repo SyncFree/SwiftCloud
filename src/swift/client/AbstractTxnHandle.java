@@ -123,7 +123,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
             VersionNotFoundException, NetworkException {
         assertStatus(TxnStatus.PENDING);
         try {
-            if( SwiftImpl.DEFAULT_LISTENER_FOR_GET && listener == null)
+            if (SwiftImpl.DEFAULT_LISTENER_FOR_GET && listener == null)
                 listener = SwiftImpl.DEFAULT_LISTENER;
             return getImpl(id, create, classOfV, listener);
         } catch (ClassCastException x) {
