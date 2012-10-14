@@ -89,7 +89,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final Log log = LogFactory.getLog(FilesystemFuse.class);
     protected static Swift server;
 
-    protected final Filesystem fs;
+    protected Filesystem fs;
     private static final int MODE = 0777;
     private static final int BLOCK_SIZE = 512;
     private static final int NAME_LENGTH = 1024;
