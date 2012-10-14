@@ -8,6 +8,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 import swift.application.swiftdoc.TextLine;
 import swift.application.swiftdoc.cs.msgs.AppRpcHandler;
@@ -91,10 +93,6 @@ public class SwiftDocServer extends Thread {
         scoutServerCommonCode(PORT2, j2id, j1id);
     }
 
-    public void run() {
-        notifyClient();
-    }
-
     static void scoutServerCommonCode(final int port, final CRDTIdentifier d1, final CRDTIdentifier d2) {
         try {
 
@@ -125,27 +123,22 @@ public class SwiftDocServer extends Thread {
                     getSession(client.remoteEndpoint()).swiftdoc.remove(r.pos);
                     client.reply(new ServerACK(r));
                 }
-     
-                public void onReceive(final RpcHandle client, final BulkTransaction r) {
-                    long t0 = System.currentTimeMillis();
+
+                synchronized public void onReceive(final RpcHandle client, final BulkTransaction r) {
+                    client.reply(new ServerACK(r));
                     Session s = getSession(client.remoteEndpoint());
                     s.swiftdoc.begin();
-                    for( SwiftDocRpc i : r.ops )
-                        if( i instanceof InsertAtom ) {
-                            InsertAtom j = (InsertAtom)i;
-                            s.swiftdoc.add( j.pos, j.atom );
-                        } else
-                            if( i instanceof RemoveAtom) {
-                                RemoveAtom j = (RemoveAtom)i;
-                                s.swiftdoc.remove( j.pos);
-                            }
-                    long t1 = System.currentTimeMillis();
+                    for (SwiftDocRpc i : r.ops)
+                        if (i instanceof InsertAtom) {
+                            InsertAtom j = (InsertAtom) i;
+                            s.swiftdoc.add(j.pos, j.atom);
+                        } else if (i instanceof RemoveAtom) {
+                            RemoveAtom j = (RemoveAtom) i;
+                            s.swiftdoc.remove(j.pos);
+                        }
                     s.swiftdoc.commit();
-                    long now = System.currentTimeMillis();
-                    //System.err.printf( "Bulk Ops: %s total time:%s ms commit time: %s ms\n", r.ops.size(), (now - t0), (now - t1));
-                    client.reply(new ServerACK(r));
                 }
-                
+
             });
         } catch (Exception x) {
             x.printStackTrace();
@@ -164,6 +157,7 @@ public class SwiftDocServer extends Thread {
         this.j2 = j2;
         this.swift1 = swift1;
         this.swift2 = swift2;
+        installClientNotifier();
         this.clientHandle = client.enableDeferredReplies(Integer.MAX_VALUE);
     }
 
@@ -195,43 +189,44 @@ public class SwiftDocServer extends Thread {
         doc = null;
     }
 
-    void notifyClient() {
+    void installClientNotifier() {
         try {
-            final Set<Long> serials = new HashSet<Long>();
-            for (int k = 0; true; k++) {
-
-                final Object barrier = new Object();
-                final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
-                        : CachePolicy.CACHED, true);
-
-                SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class,
-                        new AbstractObjectUpdatesListener() {
-                            public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-
-                                Threading.synchronizedNotifyAllOn(barrier);
-                                // System.err.println("Triggered Reader get():"
-                                // + j2 + "  "+ previousValue.getValue());
-                            }
-                        });
-
-                List<TextLine> newAtoms = new ArrayList<TextLine>();
-                for (TextLine i : doc.getValue())
-                    if (serials.add(i.serial()) ) {
-                        newAtoms.add(i);
-                    }
-                if (newAtoms.size() > 0)
-                    clientHandle.reply(new ServerReply(newAtoms));
-                
-                handle.commit();
-
-
-                Threading.synchronizedWaitOn(barrier, 10);
-            }
+            NotificationHandler notifier = new NotificationHandler();            
+            final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
+            handle.get(j2, true, swift.crdt.SequenceVersioned.class, notifier );
+            handle.commit();
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    final Set<Long> serials = new HashSet<Long>();
+
+    class NotificationHandler extends AbstractObjectUpdatesListener {
+
+        @Override
+        synchronized public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+            try {
+                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
+                SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, null);
+                
+                List<TextLine> newAtoms = new ArrayList<TextLine>();
+                for (TextLine i : doc.getValue())
+                    if (serials.add(i.serial())) {
+                        newAtoms.add(i);
+                    }
+
+                if (newAtoms.size() > 0)
+                    clientHandle.reply(new ServerReply(newAtoms));
+                handle.commit();
+                
+            } catch (Exception x) {
+                x.printStackTrace();
+            }
+        }        
+    } 
+    
     static Session getSession(Object sessionId) {
         return sessions.get(sessionId);
     }
@@ -264,7 +259,6 @@ public class SwiftDocServer extends Thread {
                     SwiftImpl.DEFAULT_CACHE_SIZE);
 
             swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
-            swiftdoc.start();
         }
     }
 

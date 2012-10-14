@@ -73,8 +73,6 @@ public class SwiftDocClient2 {
         client2Code(srv);
     }
 
-    static final int timeout = SwiftDocServer.synchronousOps ? 5000 : 0;
-
     /*
      * Replay the document patching operations. Each patch will be cause an rpc
      * call for each update operation performed on the CRDT. -beginTransaction
@@ -130,7 +128,7 @@ public class SwiftDocClient2 {
         final int BATCHSIZE = 10;
         try {
             // Warmup Phase...
-//            player.parseFiles( new SwiftDocOpsImpl(true, BATCHSIZE, endpoint, server, 10));
+//           player.parseFiles( new SwiftDocOpsImpl(true, BATCHSIZE, endpoint, server, 10));
 //
 //            // For real now...
             player.parseFiles(new SwiftDocOpsImpl(false, BATCHSIZE, endpoint, server, 250));
@@ -233,11 +231,15 @@ public class SwiftDocClient2 {
                     Threading.newThread(true, new Runnable() {
                         public void run() {
                             synchronized (barrier) {
-                                endpoint.send(server, new BeginTransaction(), ackHandler, timeout);
-                                for (TextLine i : r.atoms)
-                                    endpoint.send(server, new InsertAtom(i, -1), ackHandler, timeout);
-
-                                endpoint.send(server, new CommitTransaction(), ackHandler);
+                                endpoint.send( server, new BeginTransaction(), ackHandler, 0 ) ;
+                                for( TextLine i : r.atoms )
+                                    endpoint.send( server, new InsertAtom(i , -1), ackHandler, 0 );
+                                
+                                endpoint.send( server, new CommitTransaction(), ackHandler);
+//                                BulkTransaction t = new BulkTransaction(new ArrayList<SwiftDocRpc>());
+//                                for (TextLine i : r.atoms)
+//                                    t.ops.add(  new InsertAtom(i, -1) ) ;                                
+//                                endpoint.send(server, t , ackHandler);
                             }
                         }
                     }).start();
