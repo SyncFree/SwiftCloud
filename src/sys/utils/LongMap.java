@@ -32,7 +32,7 @@ public class LongMap<V> {
 	private static final int PRIME3 = 0xced1c241;
 	private static final int EMPTY = 0;
 
-	public int size;
+	private int size;
 
 	long[] keyTable;
 	V[] valueTable;
@@ -50,6 +50,9 @@ public class LongMap<V> {
 	private Values values;
 	private Keys keys;
 
+	public int size() {
+	    return size;
+	}
 	/**
 	 * Creates a new map with an initial capacity of 32 and a load factor of 0.8. This map will hold 25 items before growing the
 	 * backing table.
