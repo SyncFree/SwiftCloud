@@ -2,6 +2,7 @@ package swift.clocks;
 
 import java.io.Serializable;
 import swift.crdt.interfaces.Copyable;
+import swift.exceptions.IncompatibleTypeException;
 
 /**
  * Interface for clocks that allow to trace causality, such as version vector
@@ -144,6 +145,19 @@ public interface CausalityClock extends Serializable,Copyable {
      */
     CMP_CLOCK merge(CausalityClock c);
 
+    /**
+     * Intersect this clock with the given c clock.
+     *
+     * @param c Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
+     */
+    CMP_CLOCK intersect(CausalityClock cc);
+    
     /**
      * Create a copy of this causality clock.
      */

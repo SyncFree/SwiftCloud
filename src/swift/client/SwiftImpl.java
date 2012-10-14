@@ -76,7 +76,7 @@ import sys.net.api.rpc.RpcHandle;
  * @author mzawirski
  */
 public class SwiftImpl implements Swift, TxnManager {
-    public static final boolean DEFAULT_LISTENER_FOR_GET = true;
+    public static final boolean DEFAULT_LISTENER_FOR_GET = false;
     static ObjectUpdatesListener DEFAULT_LISTENER = new AbstractObjectUpdatesListener() {
         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             // do nothing

@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -211,6 +212,22 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         // throw new IncompatibleTypeException();
         // }
         return mergeVV((VersionVectorWithExceptionsOld) cc);
+    }
+
+    /**
+     * Intersect this clock with the given c clock.
+     *
+     * @param c Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
+     */
+    @Override
+    public CMP_CLOCK intersect(CausalityClock cc) {
+        throw new RuntimeException( "not implemented");
     }
 
     protected CMP_CLOCK compareOneEntryVV(String siteid, long last, Set<Long> excluded) {

@@ -249,78 +249,6 @@ public class VersionVectorWithExceptions implements CausalityClock {
         return null;
     }
 
-    // FIXME Can this code be removed?
-    /*
-     * protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Pair> l0) {
-     * LinkedList<Pair> l = vv.get(siteid); if (l == null) { l =
-     * duplicateList(l0); numPairs = numPairs + l0.size(); vv.put(siteid, l);
-     * return CMP_CLOCK.CMP_ISDOMINATED; } boolean thisHasMoreEntries = false;
-     * boolean otherHasMoreEntries = false; LinkedList<Pair> nl = new
-     * LinkedList<Pair>(); Iterator<Pair> it = l.iterator(); Iterator<Pair> it0
-     * = l0.iterator(); Pair np = null; Pair p = it.hasNext() ? it.next() :
-     * null; Pair p0 = it0.hasNext() ? it0.next() : null; numPairs = 0; // last
-     * value that has been compared between the two sets long v = Math.min(p ==
-     * null ? Long.MAX_VALUE : p.from - 1, p0 == null ? Long.MAX_VALUE : p0.from
-     * - 1); for (;;) { if (p == null && p0 == null) break; if (p != null && p0
-     * != null) {
-     * 
-     * 
-     * if (p.from == p0.from && p.to == p0.to) { nl.add(p); numPairs++; v =
-     * p.to; p = null; p0 = null; } else { if (p.from <= v) { // we are in the
-     * middle of p if (p0.from > v + 1) { thisHasMoreEntries = true; } if (p.to
-     * < p0.from) { // p ends before p0 start v = p.to; p = null; } else { if
-     * (p.to == p0.to) { v = p.to; p = null; p0 = null; } else if (p.to < p0.to)
-     * { v = p.to; p = null; } else { v = p0.to; p0 = null; } } } else if
-     * (p0.from <= v) { // we are in the middle of p0 if (p.from > v + 1) {
-     * otherHasMoreEntries = true; } if (p0.to < p.from) { // p ends before p0
-     * start v = p0.to; p0 = null; } else { if (p.to == p0.to) { v = p.to; p =
-     * null; p0 = null; } else if (p0.to < p.to) { v = p0.to; p0 = null; } else
-     * { v = p.to; p = null; } } } else { // need to advance to next intervals
-     * if (p.from == p0.from) { v = p.from; } else if (p.from < p0.from) {
-     * thisHasMoreEntries = true; if (p.to < p0.from) { v = p.to; p = null; }
-     * else { if (p.to == p0.to) { v = p.to; p = null; p0 = null; } else if
-     * (p.to < p0.to) { v = p.to; p = null; } else { v = p0.to; p0 = null; } } }
-     * else { otherHasMoreEntries = true; if (p0.to < p.from) { v = p0.to; p0 =
-     * null; } else { if (p.to == p0.to) { v = p.to; p = null; p0 = null; } else
-     * if (p0.to < p.to) { v = p0.to; p0 = null; } else { v = p.to; p = null; }
-     * } }
-     * 
-     * } } } else if (p == null) { otherHasMoreEntries = true; break; } else if
-     * (p0 == null) { thisHasMoreEntries = true; break; } if (p == null &&
-     * it.hasNext()) { p = it.next(); } if (p0 == null && it0.hasNext()) { p0 =
-     * it0.next(); } } vv.put(siteid, nl);
-     * 
-     * if (thisHasMoreEntries && otherHasMoreEntries) { return
-     * CMP_CLOCK.CMP_CONCURRENT; } if (thisHasMoreEntries) { return
-     * CMP_CLOCK.CMP_DOMINATES; } if (otherHasMoreEntries) { return
-     * CMP_CLOCK.CMP_ISDOMINATED; } return CMP_CLOCK.CMP_EQUALS; }
-     * 
-     * 
-     * 
-     * protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Pair> l0) {
-     * LinkedList<Pair> l = vv.get(siteid); if (l == null) { l =
-     * duplicateList(l0); numPairs = numPairs + l0.size(); vv.put(siteid, l);
-     * return CMP_CLOCK.CMP_ISDOMINATED; } CMP_CLOCK cmp =
-     * compareOneEntryVV(siteid, l0); numPairs = numPairs - l.size();
-     * LinkedList<Pair> nl = new LinkedList<Pair>(); Iterator<Pair> it =
-     * l.iterator(); Iterator<Pair> it0 = l0.iterator(); Pair p = it.hasNext() ?
-     * it.next() : null; Pair p0 = it0.hasNext() ? it0.next() : null; Pair np =
-     * null; for (;;) { boolean hasChanged = false; if (p == null && p0 == null)
-     * break; if (np == null) { if (p != null && p0 != null) { if (p.from <=
-     * p0.from) { np = p; p = null; hasChanged = true; } else { np =
-     * p0.duplicate(); p0 = null; hasChanged = true; } } else if (p != null) {
-     * np = p; p = null; hasChanged = true; } else if (p0 != null) { np =
-     * p0.duplicate(); p0 = null; hasChanged = true; } } if (p != null) { if
-     * (np.to >= p.from - 1) { if (p.to > np.to) np.to = p.to; p = null;
-     * hasChanged = true; } } if (p0 != null) { if (np.to >= p0.from - 1) { if
-     * (p0.to > np.to) np.to = p0.to; p0 = null; hasChanged = true; } } if
-     * (!hasChanged) { nl.add(np); numPairs++; np = null; } if (p == null &&
-     * it.hasNext()) { p = it.next(); } if (p0 == null && it0.hasNext()) { p0 =
-     * it0.next(); } } if (np != null) { nl.add(np); numPairs++; }
-     * vv.put(siteid, nl);
-     * 
-     * return cmp; }
-     */
     protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Interval> l0) {
         LinkedList<Interval> l = vv.get(siteid);
         if (l == null) {
@@ -450,6 +378,102 @@ public class VersionVectorWithExceptions implements CausalityClock {
         // throw new IncompatibleTypeException();
         // }
         return mergeVV((VersionVectorWithExceptions) cc);
+    }
+
+    protected CMP_CLOCK intersectOneEntryVV(String siteid, LinkedList<Interval> l0) {
+        LinkedList<Interval> l = vv.get(siteid);
+        if (l == null) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        CMP_CLOCK cmp = compareOneEntryVV(siteid, l0);
+        numPairs = numPairs - l.size();
+        LinkedList<Interval> nl = new LinkedList<Interval>();
+        Iterator<Interval> it = l.iterator();
+        Iterator<Interval> it0 = l0.iterator();
+        Interval p = it.hasNext() ? it.next() : null;
+        Interval p0 = it0.hasNext() ? it0.next() : null;
+        
+        while (p != null && p0 != null) {
+            long maxFrom = Math.max(p.from, p0.from);
+            long minTo = Math.min(p.to,p0.to);
+            if( maxFrom <= minTo) {
+                nl.addLast( new Interval( maxFrom, minTo));
+            }
+            if( p.to > p0.to) {
+                p0 = null;
+            } else if( p.to < p0.to) {
+                p = null;
+            } else {
+                p = null;
+                p0 = null;
+            }
+            if (p == null && it.hasNext()) {
+                p = it.next();
+            }
+            if (p0 == null && it0.hasNext()) {
+                p0 = it0.next();
+            }
+        }
+        if (nl.size() == 0) {
+            vv.remove(siteid);
+        } else {
+            vv.put(siteid, nl);
+        }
+        numPairs = numPairs + nl.size();
+
+        return cmp;
+    }
+
+    /**
+     * Merge this clock with the given c clock.
+     *
+     * @param c Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
+     */
+    protected CMP_CLOCK intersectVV(VersionVectorWithExceptions cc) {
+        CMP_CLOCK result = CMP_CLOCK.CMP_EQUALS;
+        Iterator<Entry<String, LinkedList<Interval>>> it = cc.vv.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String, LinkedList<Interval>> e = it.next();
+            CMP_CLOCK partialResult = intersectOneEntryVV(e.getKey(), e.getValue());
+            result = ClockUtils.combineCmpClock(result, partialResult);
+        }
+        it = vv.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String, LinkedList<Interval>> e = it.next();
+            LinkedList<Interval> l = cc.vv.get(e.getKey());
+            if (l == null) {
+                numPairs = numPairs - e.getValue().size();
+                it.remove();
+                result = ClockUtils.combineCmpClock(result, CMP_CLOCK.CMP_DOMINATES);
+                break;
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Intersect this clock with the given c clock.
+     *
+     * @param c Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
+     */
+    @Override
+    public CMP_CLOCK intersect(CausalityClock cc) {
+        // if ( ! VersionVectorWithExceptions.class.equals(cc.getClass())) {
+        // throw new IncompatibleTypeException();
+        // }
+        return intersectVV((VersionVectorWithExceptions) cc);
     }
 
     protected CMP_CLOCK compareOneEntryVV(String siteid, LinkedList<Interval> l0) {

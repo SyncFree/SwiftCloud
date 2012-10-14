@@ -4,6 +4,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -237,6 +239,50 @@ public class VersionVector implements CausalityClock {
         // throw new IncompatibleTypeException();
         // }
         return mergeVV((VersionVector) cc);
+    }
+
+    /**
+     * Intersect this clock with the given c clock.
+     *
+     * @param c Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     */
+    public CMP_CLOCK intersectVV(VersionVector cc) {
+        CMP_CLOCK cmp = this.compareTo(cc);
+        Iterator<Entry<String, Long>> it = vv.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<String, Long> e = it.next();
+            Long i = cc.vv.get(e.getKey());
+            if (i == null) {
+                it.remove();
+            } else {
+                e.setValue(Math.min(e.getValue(), i));
+            }
+        }
+        return cmp;
+    }
+
+    /**
+     * Intersect this clock with the given c clock.
+     *
+     * @param c Clock to merge to
+     * @return Returns one of the following, based on the initial value of
+     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
+     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
+     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
+     * clock and the given c clock were concurrent; <br>
+     * @throws IncompatibleTypeException Case comparison cannot be made
+     */
+    @Override
+    public CMP_CLOCK intersect(CausalityClock cc) {
+        // if ( ! VersionVector.class.equals(cc.getClass())) {
+        // throw new IncompatibleTypeException();
+        // }
+        return intersectVV((VersionVector) cc);
     }
 
     /**
