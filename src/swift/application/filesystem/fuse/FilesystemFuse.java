@@ -2,7 +2,6 @@ package swift.application.filesystem.fuse;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Collection;
@@ -532,11 +531,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
 
         if (fh instanceof IFile) {
             IFile f = (IFile) fh;
-            while (buf.remaining() > 0) {
-                int pos = buf.position();
-                f.update(buf, offset);
-                offset += buf.position() - pos;
-            }
+            f.update(buf, offset);
         }
         return 0;
     }
@@ -564,10 +559,10 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
      *             After that <code>getxattr()</code> method will be called
      *             again with a larger buffer.
      */
-    public int getxattr(String path, String name, ByteBuffer dst, int position) throws FuseException,
-            BufferOverflowException {
+    public int getxattr(String path, String name, ByteBuffer dst, int position) throws FuseException {
         log.info("getxattr " + name + " for " + path);
-        return Errno.ENOATTR;
+        return 0;
+        // return Errno.ENOATTR;
     }
 
     /**
@@ -587,8 +582,9 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
      */
     public int getxattrsize(String path, String name, FuseSizeSetter sizeSetter) throws FuseException {
         log.info("getxattrsize " + name + " for " + path);
+        return 0;
 
-        return Errno.ENOATTR;
+        // return Errno.ENOATTR;
     }
 
     /**
@@ -606,8 +602,9 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
      */
     public int listxattr(String path, XattrLister lister) throws FuseException {
         log.info("listxattr for " + path);
+        return 0;
 
-        return Errno.ENOATTR;
+        // return Errno.ENOATTR;
     }
 
     /**
@@ -624,7 +621,8 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
      */
     public int removexattr(String path, String name) throws FuseException {
         log.info("removexattr " + name + " for " + path);
-        return Errno.ENOATTR;
+        return 0;
+        // return Errno.ENOATTR;
     }
 
     /**
@@ -659,7 +657,8 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     public int setxattr(String path, String name, ByteBuffer value, int flags, int position) throws FuseException {
         log.info("setxattr " + name + " for " + path);
 
-        return Errno.ENOATTR;
+        return 0;
+        // return Errno.ENOATTR;
     }
 
     public static void initServerInfrastructure(String sequencerName, String scoutName) {

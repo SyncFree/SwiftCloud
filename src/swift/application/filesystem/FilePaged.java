@@ -9,6 +9,7 @@ public class FilePaged implements IFile {
     private static final int DEFAULT_PAGE_SIZE = 4096;
 
     private List<byte[]> pages;
+    // size of file (in bytes)
     private long actualSize;
 
     public FilePaged(final Blob initial) {
@@ -32,17 +33,23 @@ public class FilePaged implements IFile {
 
     @Override
     public void update(final ByteBuffer buf, final long offset) {
+        long newSize = offset + buf.remaining();
+        int endIndex = pageIndex(newSize);
+        allocatePagesForIndex(endIndex);
+
         int index = pageIndex(offset);
-        allocatePagesForIndex(index);
-        byte[] target = pages.get(index);
-
         int delta = inPageOffset(offset);
-        int pageRemaining = target.length - delta;
-        assert (pageRemaining > 0);
-        int size = Math.min(buf.remaining(), pageRemaining);
 
-        buf.get(target, delta, size);
-        actualSize = Math.max(actualSize, offset + size);
+        while (buf.remaining() > 0) {
+            byte[] target = pages.get(index);
+            int pageRemaining = target.length - delta;
+            assert pageRemaining > 0;
+            int size = Math.min(buf.remaining(), pageRemaining);
+            buf.get(target, delta, size);
+            index++;
+            delta = 0;
+        }
+        actualSize = Math.max(actualSize, newSize);
     }
 
     @Override
@@ -60,15 +67,20 @@ public class FilePaged implements IFile {
 
     @Override
     public void read(final ByteBuffer buf, final long offset) {
-        assert (offset + buf.remaining() >= actualSize);
+        assert offset + buf.remaining() >= actualSize;
 
         int index = pageIndex(offset);
         int delta = inPageOffset(offset);
-        byte[] target = pages.get(index);
 
-        int pageRemaining = target.length - delta;
-        int size = Math.min(buf.remaining(), pageRemaining);
-        buf.put(target, delta, size);
+        while (buf.remaining() > 0) {
+            byte[] target = pages.get(index);
+            int pageRemaining = target.length - delta;
+            assert pageRemaining > 0;
+            int size = Math.min(buf.remaining(), pageRemaining);
+            buf.put(target, delta, size);
+            index++;
+            delta = 0;
+        }
     }
 
     @Override
