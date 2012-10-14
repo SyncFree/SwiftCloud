@@ -160,7 +160,6 @@ class DCDataServer {
                 con.reply(new DHTGetCRDTReply(localGetCRDTObject(new RemoteObserver(request.getSurrogateId(), con),
                         request.getId(), request.getSubscribe(), request.getVersion(), request.getCltId())));
             }
-
             @Override
             public void onReceive(Handle con, Key key, DHTExecCRDT<?> request) {
                 if (logger.isLoggable(Level.INFO)) {
@@ -372,7 +371,7 @@ class DCDataServer {
             } else {
                 data.crdt.merge(crdt);
                 if (DCDataServer.prune) {
-                    data.crdt.merge(crdt);
+                    data.prunedCrdt.merge(crdt);
                 }
                 data.clock.merge(clk);
                 data.pruneClock.merge(prune);
