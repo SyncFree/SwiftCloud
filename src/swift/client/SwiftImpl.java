@@ -559,24 +559,8 @@ public class SwiftImpl implements Swift, TxnManager {
 
             // Check if such a recent version is available in the cache. If not,
             // take the intersection of the clocks.
-            switch (crdt.getClock().compareTo(clock)) {
-            case CMP_ISDOMINATED:
-                clock = crdt.getClock().clone();
-                break;
-            case CMP_EQUALS:
-            case CMP_DOMINATES:
-                // Leave clock as it is.
-                break;
-            case CMP_CONCURRENT:
-                // TODO: can we request an intersection of the two clocks?
-                logger.warning("IMPLEMENT ME: cached object clock=" + crdt.getClock() + " is incomparable with "
-                        + "committedVersion+lastCommittedTxnClock=" + clock
-                        + ", so we were unable to serve a cached version");
-                return null;
-            default:
-                throw new UnsupportedOperationException();
-            }
-
+            clock.intersect(crdt.getClock());
+            // TODO: Discuss. This is a very aggressive caching mode.
         }
 
         final TxnLocalCRDT<V> crdtView;
