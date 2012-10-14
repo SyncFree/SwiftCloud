@@ -1,6 +1,5 @@
 package swift.client.proto;
 
-import swift.dc.proto.SeqCommitUpdatesRequest;
 import sys.net.api.rpc.RpcHandle;
 
 /**
@@ -74,4 +73,13 @@ public interface SwiftServer extends BaseServer {
      */
     void onReceive(RpcHandle conn, CommitUpdatesRequest request);
 
+    /**
+     * @param conn
+     *            connection such that the remote end implements
+     *            {@link BatchCommitUpdatesReplyHandler} and expects
+     *            {@link BatchCommitUpdatesReply}
+     * @param request
+     *            request to serve
+     */
+    void onReceive(RpcHandle conn, BatchCommitUpdatesRequest request);
 }
