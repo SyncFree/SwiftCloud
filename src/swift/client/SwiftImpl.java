@@ -457,38 +457,43 @@ public class SwiftImpl implements Swift, TxnManager {
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
 
-        TxnLocalCRDT<V> localView;
         if (cachePolicy == CachePolicy.CACHED) {
-            localView = getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
-            if (localView != null) {
-                return localView;
+            try {
+                return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
+            } catch (NoSuchObjectException x) {
+                // Ok, let's try to fetch then.
+            } catch (VersionNotFoundException x) {
+                logger.warning("No self-consistent version found in cache: " + x);
             }
         }
 
-        // Try to get the latest one.
-        final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.getAndTouch(id) == null);
-        try {
-            final CausalityClock fetchClock = getCommittedVersion(true);
-            fetchClock.merge(lastGloballyCommittedTxnClock);
-            fetchClock.drop(clientId);
-            fetchObjectVersion(txn, id, create, classOfV, fetchClock, false, updatesListener != null);
-        } catch (VersionNotFoundException x) {
-            if (fetchRequired) {
-                throw x;
+        while (true) {
+            // Try to get the latest one.
+            final boolean fetchRequired = (cachePolicy != CachePolicy.MOST_RECENT || objectsCache.getAndTouch(id) == null);
+            try {
+                final CausalityClock fetchClock = getCommittedVersion(true);
+                fetchClock.merge(lastGloballyCommittedTxnClock);
+                fetchClock.drop(clientId);
+                fetchObjectVersion(txn, id, create, classOfV, fetchClock, false, updatesListener != null);
+            } catch (VersionNotFoundException x) {
+                if (fetchRequired) {
+                    throw x;
+                }
+            } catch (NetworkException x) {
+                if (fetchRequired) {
+                    throw x;
+                }
             }
-        } catch (NetworkException x) {
-            if (fetchRequired) {
-                throw x;
-            }
-        }
-        // Pass other exceptions through.
+            // Pass other exceptions through.
 
-        localView = getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
-        if (localView == null) {
-            // It should not happen normally.
-            throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
+            try {
+                return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
+            } catch (NoSuchObjectException x) {
+                logger.warning("Object not found in the cache just after fetch (retrying): " + x);
+            } catch (VersionNotFoundException x) {
+                logger.warning("No self-consistent version found in cache (retrying): " + x);
+            }
         }
-        return localView;
     }
 
     @Override
@@ -498,21 +503,28 @@ public class SwiftImpl implements Swift, TxnManager {
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
 
-        TxnLocalCRDT<V> localView = getCachedObjectForTxn(txn, id, version, classOfV, updatesListener);
-        if (localView != null) {
-            return localView;
+        try {
+            return getCachedObjectForTxn(txn, id, version, classOfV, updatesListener);
+        } catch (NoSuchObjectException x) {
+            // Ok, let's try to fetch then.
+        } catch (VersionNotFoundException x) {
+            // Ok, let's try to fetch the right version.
         }
 
-        final CausalityClock globalVersion = version.clone();
-        globalVersion.drop(clientId);
-        fetchObjectVersion(txn, id, create, classOfV, globalVersion, true, updatesListener != null);
+        while (true) {
+            final CausalityClock globalVersion = version.clone();
+            globalVersion.drop(clientId);
+            fetchObjectVersion(txn, id, create, classOfV, globalVersion, true, updatesListener != null);
 
-        localView = getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener);
-        if (localView == null) {
-            // It should not happen normally.
-            throw new VersionNotFoundException("Retrieved object unavailable in appropriate version in the cache");
+            try {
+                return getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener);
+            } catch (NoSuchObjectException x) {
+                logger.warning("Object not found in the cache just after fetch (retrying): " + x);
+            } catch (VersionNotFoundException x) {
+                logger.warning("Object not found in appropriate version, probably pruned: " + x);
+                throw x;
+            }
         }
-        return localView;
     }
 
     /**
@@ -528,11 +540,13 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return object view or null if the object is unavailable in the
      *         appropriate version
      * @throws WrongTypeException
+     * @throws NoSuchObjectException
+     * @throws VersionNotFoundException
      */
     @SuppressWarnings("unchecked")
     private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(final AbstractTxnHandle txn,
             CRDTIdentifier id, CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener)
-            throws WrongTypeException {
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         V crdt;
         try {
             crdt = (V) objectsCache.getAndTouch(id);
@@ -540,7 +554,7 @@ public class SwiftImpl implements Swift, TxnManager {
             throw new WrongTypeException(x.getMessage());
         }
         if (crdt == null) {
-            return null;
+            throw new NoSuchObjectException("Object not available in the cache");
         }
 
         if (clock == null) {
@@ -568,7 +582,8 @@ public class SwiftImpl implements Swift, TxnManager {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
         } catch (IllegalStateException x) {
             // No appropriate version found in the object from the cache.
-            return null;
+            throw new VersionNotFoundException("Object not available in the cache in appropriate version: "
+                    + x.getMessage());
         }
 
         if (updatesListener != null) {
@@ -1029,7 +1044,7 @@ public class SwiftImpl implements Swift, TxnManager {
         assertPendingTransaction(txn);
         removePendingTxn(txn);
         logger.info("local transaction " + txn.getTimestampMapping() + " rolled back");
-        if (canReuseTxnTimestamp(txn)) {
+        if (requiresGlobalCommit(txn)) {
             tryReuseTxnTimestamp(txn);
         } else {
             // Need to create and commit a dummy transaction, we cannot
@@ -1041,7 +1056,7 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
-    private boolean canReuseTxnTimestamp(AbstractTxnHandle txn) {
+    private boolean requiresGlobalCommit(AbstractTxnHandle txn) {
         if (txn.isReadOnly()) {
             return true;
         }
@@ -1063,7 +1078,7 @@ public class SwiftImpl implements Swift, TxnManager {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
-        if (canReuseTxnTimestamp(txn)) {
+        if (requiresGlobalCommit(txn)) {
             // The transaction does not need to be globally committed.
             tryReuseTxnTimestamp(txn);
             txn.markGloballyCommitted(null);

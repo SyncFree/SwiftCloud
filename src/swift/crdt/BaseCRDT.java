@@ -305,7 +305,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
         final CMP_CLOCK clockCmp = getClock().compareTo(clock);
         if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_ISDOMINATED) {
-            throw new IllegalStateException("provided clock is not less or equal to the clock");
+            throw new IllegalStateException("provided clock (" + clock
+                    + ") is not less or equal to the object updates clock (" + getClock() + ")");
         }
     }
 
@@ -315,11 +316,12 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         }
         final CMP_CLOCK clockCmp = getPruneClock().compareTo(clock);
         if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
-            throw new IllegalStateException("provided clock is not greater or equal to the prune clock");
+            throw new IllegalStateException("provided clock (" + clock
+                    + ") is not greater or equal to the prune clock (" + getPruneClock() + ")");
         }
     }
 
-    protected void assertPruneClockWithoutExpceptions(CausalityClock clock) {
+    protected void assertPruneClockWithoutExceptions(CausalityClock clock) {
         if (clock.hasExceptions()) {
             throw new IllegalArgumentException("provided clock has exceptions and cannot be used as prune clock");
         }
