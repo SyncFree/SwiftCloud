@@ -30,12 +30,13 @@ public class StandardDiffProfile {
     private enum OpType { update, ins, del };
     
     private final double perUp, perIns, perBlock, sdvBlockSize, sdvLineSize;
-    private final int avgBlockSize, avgLinesize, avgDelSize;
+    private final double avgBlockSize, avgLinesize, avgDelSize;
     private final RandomGauss random;
 
-    public static final StandardDiffProfile BASIC = new StandardDiffProfile(0.7, 0.7, 0.9, 6, 5.0, 1, 30, 10.0);
-    public static final StandardDiffProfile SMALL = new StandardDiffProfile(0.7, 0.7, 0.9, 5, 1.0, 2, 10, 3.0);
-    public static final StandardDiffProfile WITHOUT_BLOCK = new StandardDiffProfile(0.7, 0.7, 0, 1, 0, 2, 30, 10.0);
+    public static final StandardDiffProfile GIT = new StandardDiffProfile(0.69, 0.74, 1, 32.6, 137.9, 1.5, 5.8, 40, 20.0);
+    public static final StandardDiffProfile BASIC = new StandardDiffProfile(0.7, 0.7, 0.9, 6, 5.0, 1, 5.8, 30, 10.0);
+    public static final StandardDiffProfile SMALL = new StandardDiffProfile(0.7, 0.7, 0.9, 5, 1.0, 2, 5.8, 10, 3.0);
+    public static final StandardDiffProfile WITHOUT_BLOCK = new StandardDiffProfile(0.7, 0.7, 0, 1, 0, 2, 5.8, 30, 10.0);
             
     /**
      * Constructor of profile
@@ -47,7 +48,7 @@ public class StandardDiffProfile {
      * @param avgLinesize average line size
      * @param sdvLineSize standard deviation of line's size
      */
-    private StandardDiffProfile(double perUp, double perIns, double perBlock, int avgBlockSize, double sdvBlockSize, int avgDelSize, int avgLinesize, double sdvLineSize) {
+    private StandardDiffProfile(double perUp, double perIns, double perBlock, double avgBlockSize, double sdvBlockSize, double avgDelSize, double sdvDelSize, int avgLinesize, double sdvLineSize) {
         this.perUp = perUp;
         this.perIns = perIns;
         this.perBlock = perBlock;
