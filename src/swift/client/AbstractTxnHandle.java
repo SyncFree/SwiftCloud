@@ -255,7 +255,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *         this transactions; empty for read-only transaction
      */
     synchronized Collection<CRDTObjectUpdatesGroup<?>> getAllUpdates() {
-        assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
+        assertStatus(TxnStatus.CANCELLED, TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
         return localObjectOperations.values();
     }
 
