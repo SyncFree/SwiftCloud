@@ -87,30 +87,16 @@ import fuse.XattrSupport;
 
 public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final Log log = LogFactory.getLog(FilesystemFuse.class);
-    private static final String sequencerName = "localhost";
-    private static final String scoutName = "localhost";
-    
     protected static Swift server;
-    protected static Filesystem fs;
+
+    protected final Filesystem fs;
     private static final int MODE = 0777;
     private static final int BLOCK_SIZE = 512;
     private static final int NAME_LENGTH = 1024;
     protected static final String ROOT = "test";
 
-    public static Swift getServer() {
-        return server;
-    }
-
-    public static void setServer(Swift server) {
-        FilesystemFuse.server = server;
-    }
-
-    public static Filesystem getFs() {
-        return fs;
-    }
-
-    public static void setFs(Filesystem fs) {
-        FilesystemFuse.fs = fs;
+    public FilesystemFuse(Filesystem fs) {
+        this.fs = fs;
     }
 
     @Override
@@ -550,7 +536,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
 
         if (fh instanceof IFile) {
             IFile f = (IFile) fh;
-            while( buf.remaining() > 0 ) {
+            while (buf.remaining() > 0) {
                 int pos = buf.position();
                 f.update(buf, offset);
                 offset += buf.position() - pos;
@@ -680,29 +666,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         return Errno.ENOATTR;
     }
 
-    public static void main(String[] args) {
-        log.info("setting up servers");
-        initServerInfrastructure();
-
-        try {
-            log.info("getting root directory");
-            TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
-
-            // create a root directory
-            // FIXME make this part of arguments
-            fs = new FilesystemBasic(txn, ROOT, "DIR");
-            txn.commit();
-
-            log.info("mounting filesystem");
-            FuseMount.mount(args, new FilesystemFuse(), log);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            log.info("exiting");
-        }
-    }
-
-    private static void initServerInfrastructure() {
+    public static void initServerInfrastructure(String sequencerName, String scoutName) {
         DCSequencerServer.main(new String[] { "-name", sequencerName });
         try {
             Thread.sleep(500);
@@ -718,6 +682,28 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         Sys.init();
         server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
 
+    }
+
+    public static void main(String[] args) {
+        log.info("setting up servers");
+        initServerInfrastructure("localhost", "localhost");
+
+        try {
+            log.info("getting root directory");
+            TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+
+            // create a root directory
+            // FIXME make this part of arguments
+            Filesystem fs = new FilesystemBasic(txn, ROOT, "DIR");
+            txn.commit();
+
+            log.info("mounting filesystem");
+            FuseMount.mount(args, new FilesystemFuse(fs), log);
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            log.info("exiting");
+        }
     }
 
 }
