@@ -1,6 +1,8 @@
 #! /bin/bash
 
 
+export EXPID=`date "+%s"`
+
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_SERVERS=(
@@ -229,8 +231,15 @@ echo "==== KILLING SERVERS AND CLIENTS ===="
 scripts/planetlab/pl-kill.sh $MACHINES
 
 echo "==== COLLECTING CLIENT LOGS AS RESULTS ===="
-output_prefix=results/swiftsocial/1pc-osdi-result-cs-social-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT-$THINK_TIME_MS.log
+output_prefix=results/swiftsocial/1pc-osdi-result-cs-social-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT-$THINK_TIME_MS
 for client in ${ENDCLIENTS[*]}; do
-	copy_from $client stdout.txt $output_prefix.$client
+	copy_from $client stdout.txt $output_prefix.$EXPID.$client.log
+	copy_from $client stderr.txt $output_prefix.$EXPID.$client.error.log
 done
+
+for server in $DATACENTER_SERVERS; do
+	copy_from $server stdout.txt $output_prefix.$EXPID.$server.log
+	copy_from $server stderr.txt $output_prefix.$EXPID.$server.error.log
+done
+
 
