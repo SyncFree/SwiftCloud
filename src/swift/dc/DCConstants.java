@@ -25,8 +25,11 @@ public class DCConstants {
                                                       // accessing Riak
     public static final String RIAK_PORT = "RIAK_PORT"; // property of port for
                                                         // accessing Riak
+    public static final String BERKELEYDB_DIR = "BERKELEY_DIR"; // directory for storing databses locally
 
     public static final String PRUNE_POLICY = "prune";
 
     public static final int DEFAULT_TRXIDTIME = 5000;
+    
+    public static final boolean DEFAULT_DB_NULL = true;
 }

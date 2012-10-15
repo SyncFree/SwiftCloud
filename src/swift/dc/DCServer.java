@@ -58,8 +58,18 @@ public class DCServer {
 
     public static void main(String[] args) {
         Properties props = new Properties();
-        props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
-        props.setProperty(DCConstants.PRUNE_POLICY, "false");
+        props.putAll(System.getProperties());
+        if( ! props.containsKey(DCConstants.DATABASE_CLASS)) {
+            if( DCConstants.DEFAULT_DB_NULL) {
+                props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+            } else {
+                props.setProperty( DCConstants.DATABASE_CLASS, "swift.dc.db.DCBerkeleyDBDatabase");
+                props.setProperty( DCConstants.BERKELEYDB_DIR, "db/default");
+            }
+        }
+        if( ! props.containsKey(DCConstants.DATABASE_CLASS)) {
+            props.setProperty(DCConstants.PRUNE_POLICY, "false");
+        }
         int portSurrogate = DCConstants.SURROGATE_PORT;
 
         String sequencerNode = "localhost";
