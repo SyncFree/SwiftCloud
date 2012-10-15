@@ -3,7 +3,6 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -356,17 +355,11 @@ public class SwiftImpl implements Swift, TxnManager {
             return;
         }
 
-        boolean res = this.committedVersion.merge(newCommittedVersion)
-                .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
-        boolean res2 = this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
-                CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
-        // if
-        // (this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES,
-        // CMP_CLOCK.CMP_EQUALS)
-        // &&
-        // this.committedDisasterDurableVersion.merge(newCommittedDisasterDurableVersion).is(
-        // CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
-        if (res && res2) {
+        boolean committedVersionUpdated = this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES,
+                CMP_CLOCK.CMP_EQUALS);
+        boolean committedDisasterDurableUpdated = this.committedDisasterDurableVersion.merge(
+                newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
+        if (committedVersionUpdated && committedDisasterDurableUpdated) {
             // No changes.
             return;
         }
