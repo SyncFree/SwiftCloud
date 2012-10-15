@@ -144,6 +144,13 @@ public class TimestampMapping implements Copyable {
         }
     }
 
+    /**
+     * @return true when there is at least 1 system timestamp defined
+     */
+    public boolean hasSystemTimestamp() {
+        return timestamps.size() > 1;
+    }
+
     @Override
     public TimestampMapping copy() {
         final TimestampMapping copy = new TimestampMapping(clientTimestamp);

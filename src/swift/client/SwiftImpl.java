@@ -395,21 +395,31 @@ public class SwiftImpl implements Swift, TxnManager {
         }
 
         // Find and clean new stable local txns logs that we won't need anymore.
-        for (Iterator<AbstractTxnHandle> globalTxnIter = globallyCommittedUnstableTxns.iterator(); globalTxnIter
-                .hasNext();) {
-            final AbstractTxnHandle txn = globalTxnIter.next();
-            boolean notNeeded = txn.getTimestampMapping().allSystemTimestampsIncluded(committedDisasterDurableVersion);
-            for (final CausalityClock fetchedVersion : fetchVersionsInProgress) {
-                if (!txn.getTimestampMapping().allSystemTimestampsIncluded(fetchedVersion)) {
-                    notNeeded = false;
+        int stableTxnsToDiscard = 0;
+        int evaluatedTxns = 0;
+        for (final AbstractTxnHandle txn : globallyCommittedUnstableTxns) {
+            final TimestampMapping txnMapping = txn.getTimestampMapping();
+            if (txnMapping.hasSystemTimestamp()) {
+                boolean notNeeded = txnMapping.allSystemTimestampsIncluded(committedDisasterDurableVersion);
+                for (final CausalityClock fetchedVersion : fetchVersionsInProgress) {
+                    if (!txnMapping.allSystemTimestampsIncluded(fetchedVersion)) {
+                        notNeeded = false;
+                        break;
+                    }
+                }
+                if (notNeeded) {
+                    stableTxnsToDiscard = evaluatedTxns + 1;
+                } else {
                     break;
                 }
-            }
-            if (notNeeded) {
-                globalTxnIter.remove();
             } else {
-                break;
+                // The txn has unknown system timestamp, so we need to rely on
+                // subsequent transactions to determine if it can be removed.
             }
+            evaluatedTxns++;
+        }
+        for (int i = 0; i < stableTxnsToDiscard; i++) {
+            globallyCommittedUnstableTxns.removeFirst();
         }
 
         // Go through updates to notify and see if any become committed.
@@ -1176,9 +1186,11 @@ public class SwiftImpl implements Swift, TxnManager {
                         committedVersion.record(ts);
                         // TODO: call updateCommittedVersion?
                     }
+                    objectsCache.recordOnAll(txn.getTimestampMapping());
                     break;
                 case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
                     lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
+                    txn.markGloballyCommitted(null);
                     // TODO: call updateCommittedVersion?
                     break;
                 case INVALID_OPERATION:
@@ -1190,7 +1202,6 @@ public class SwiftImpl implements Swift, TxnManager {
 
                 lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
                 lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
-                objectsCache.recordOnAll(txn.getTimestampMapping());
                 removeLocallyNowGloballyCommitedTxn(txn);
                 globallyCommittedUnstableTxns.addLast(txn);
 

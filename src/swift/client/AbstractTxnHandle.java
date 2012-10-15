@@ -242,10 +242,6 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            transaction
      */
     void markGloballyCommitted(final Timestamp systemTimestamp) {
-        if (!isReadOnly() && !getAllUpdates().isEmpty() && systemTimestamp == null) {
-            throw new IllegalStateException("no system timestamp for update transaction");
-        }
-
         boolean justGloballyCommitted = false;
         synchronized (this) {
             assertStatus(TxnStatus.COMMITTED_LOCAL, TxnStatus.COMMITTED_GLOBAL);
@@ -257,10 +253,14 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
                 timestampMapping.addSystemTimestamp(systemTimestamp);
             }
         }
-        durableLog.writeEntry(getId(), systemTimestamp);
+        if (systemTimestamp != null) {
+            durableLog.writeEntry(getId(), systemTimestamp);
+        }
         logStatusChange();
         if (justGloballyCommitted) {
             if (commitListener != null) {
+                // TODO: wouldn't it be safer to call it from a different
+                // thread?
                 commitListener.onGlobalCommit(this);
             }
         }
