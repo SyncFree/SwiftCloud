@@ -175,6 +175,8 @@ public class SwiftSet {
 						//System.err.println("previous:" + previousValue.getValue());
 					}
 				});
+                handle.commit();
+
 //				SortedSetTxnLocal<TextLine> doc = handle.get(j1, true, swift.crdt.SortedSetVersioned.class, null);
 
                 final Collection<TextLine> newAtoms = new ArrayList<TextLine>();
@@ -190,7 +192,6 @@ public class SwiftSet {
 				// doc.getValue());
 
 				// Determine the new atoms this update brought...
-				handle.commit();
 
 				// Write the atoms into the other sequence to measure RTT...
 				Threading.newThread(true, new Runnable() {
