@@ -12,6 +12,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -52,7 +53,7 @@ public class SwiftSocialBenchmark {
         sys.Sys.init();
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
-            final SwiftImpl swiftClient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+            final SwiftImpl swiftClient = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
             final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
                     CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
@@ -123,10 +124,10 @@ public class SwiftSocialBenchmark {
     }
 
     private static void runClientSession(final int sessionId, final List<String> commands) {
-        Swift swiftCLient = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, SwiftImpl.DEFAULT_DISASTER_SAFE,
-                SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
-                SwiftImpl.DEFAULT_CACHE_SIZE);
+        final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
+        options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
+        options.setCacheSize(Integer.MAX_VALUE);
+        Swift swiftCLient = SwiftImpl.newInstance(options);
         SwiftSocial socialClient = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
 

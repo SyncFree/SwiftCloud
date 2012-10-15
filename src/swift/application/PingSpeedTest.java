@@ -2,6 +2,7 @@ package swift.application;
 
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -44,7 +45,7 @@ public class PingSpeedTest {
         Thread client1 = new Thread("client1") {
             public void run() {
                 Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+                SwiftImpl clientServer = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
                 runClient1(clientServer);
             }
         };
@@ -59,7 +60,7 @@ public class PingSpeedTest {
         Thread client2 = new Thread("client2") {
             public void run() {
                 Sys.init();
-                SwiftImpl clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+                SwiftImpl clientServer = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
                 runClient2(clientServer);
             }
         };

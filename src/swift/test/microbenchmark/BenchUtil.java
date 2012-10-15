@@ -1,21 +1,15 @@
 package swift.test.microbenchmark;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Random;
+
+import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
+import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.Swift;
 
 import com.basho.riak.client.IRiakClient;
 import com.basho.riak.client.RiakException;
 import com.basho.riak.client.RiakFactory;
-import com.basho.riak.client.raw.pbc.PBClientConfig;
-import com.basho.riak.client.raw.pbc.PBClusterConfig;
-
-import swift.client.SwiftImpl;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Swift;
-import swift.dc.DCConstants;
 
 public class BenchUtil {
 
@@ -81,7 +75,7 @@ public class BenchUtil {
     }
 
     public static Swift getNewSwiftInterface(String serverLocation, int serverPort) {
-        Swift client = SwiftImpl.newInstance(serverLocation, serverPort);
+        Swift client = SwiftImpl.newInstance(new SwiftOptions(serverLocation, serverPort));
         return client;
     }
 

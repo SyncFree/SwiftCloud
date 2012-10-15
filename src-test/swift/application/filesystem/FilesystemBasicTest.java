@@ -13,6 +13,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CachePolicy;
@@ -61,7 +62,7 @@ public class FilesystemBasicTest {
         }
 
         Sys.init();
-        server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
+        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
         fs = new FilesystemBasic(txn, "test", "DIR");

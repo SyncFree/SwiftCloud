@@ -22,6 +22,7 @@ import swift.application.swiftdoc.cs.msgs.ServerReply;
 import swift.application.swiftdoc.cs.msgs.SwiftDocRpc;
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.SequenceTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -247,15 +248,12 @@ public class SwiftDocServer extends Thread {
         Session(RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
             this.client = client;
 
-            this.swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
-                    SwiftImpl.DEFAULT_CACHE_SIZE);
-
-            this.swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
-                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
-                    SwiftImpl.DEFAULT_CACHE_SIZE);
+            final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
+            options.setDisasterSafe(false);
+            options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
+            options.setCacheSize(Integer.MAX_VALUE);
+            this.swift1 = SwiftImpl.newInstance(options);
+            this.swift2 = SwiftImpl.newInstance(options);
 
             swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
         }

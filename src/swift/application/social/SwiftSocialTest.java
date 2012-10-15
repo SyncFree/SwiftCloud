@@ -5,6 +5,7 @@ import java.util.Set;
 import java.util.TreeSet;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -21,7 +22,7 @@ public class SwiftSocialTest {
         DCServer.main(new String[] { sequencerName });
 
         Sys.init();
-        Swift clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+        Swift clientServer = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         SwiftSocial client = new SwiftSocial(clientServer, IsolationLevel.SNAPSHOT_ISOLATION,
                 CachePolicy.STRICTLY_MOST_RECENT, false, false);
 

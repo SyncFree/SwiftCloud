@@ -1,6 +1,7 @@
 package swift.application;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -37,7 +38,7 @@ public class ClientIsolationLevelsStressTest {
             final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftImpl client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+                    SwiftImpl client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
                     runTransactions(client, id);
                     client.stop(true);
                 }

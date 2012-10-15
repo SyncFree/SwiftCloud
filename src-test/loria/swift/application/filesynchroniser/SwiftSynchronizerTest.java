@@ -19,14 +19,18 @@
  */
 package loria.swift.application.filesynchroniser;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.logging.Logger;
+
 import loria.swift.application.filesystem.mapper.RegisterFileContent;
-import loria.swift.crdt.logoot.LogootDocument;
 import loria.swift.crdt.logoot.LogootVersioned;
-import org.junit.Test;
-import static org.junit.Assert.*;
+
 import org.junit.BeforeClass;
+import org.junit.Test;
+
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -71,7 +75,7 @@ public class SwiftSynchronizerTest {
         }
 
         Sys.init();
-        server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
+        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         
         // try {

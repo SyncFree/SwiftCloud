@@ -82,6 +82,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // do nothing
         };
     };
+
     // TODO: server failover
 
     // WISHME: notifications are quite CPU/memory scans-intensive at the
@@ -104,68 +105,20 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final int RPC_RETRY_WAIT_TIME_MULTIPLIER = 2;
     public static final int INIT_RPC_RETRY_WAIT_TIME_MILLIS = 10;
 
-    // TODO: Factor out a SwiftOptions class.
-    public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
-    public static final boolean DEFAULT_DISASTER_SAFE = true;
-    public static final int DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS = 50;
-    public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
-    public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
-    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 8 * 1000;
-    public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
-    public static final int DEFAULT_CACHE_SIZE = 100000;
-    public static final long BACKOFF_WAIT_TIME_MULTIPLIER = 2;
-    public static final int NOTIFICATIONS_THREAD_POOLS_SIZE = 2;
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     /**
-     * Creates new instance of Swift using provided network settings and
-     * otherwise default settings.
+     * Creates new instance of Swift using provided options.
      * 
-     * @param serverHostname
-     *            hostname of storage server
-     * @param serverPort
-     *            TCP port of storage server
+     * @param options
+     *            Swift options
      * @return instance of Swift client
+     * @see SwiftOptions
      */
-    public static SwiftImpl newInstance(String serverHostname, int serverPort) {
-        return newInstance(serverHostname, serverPort, DEFAULT_DISASTER_SAFE, DEFAULT_CONCURRENT_OPEN_TRANSACTIONS,
-                DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS, DEFAULT_TIMEOUT_MILLIS, DEFAULT_DEADLINE_MILLIS,
-                DEFAULT_CACHE_EVICTION_MILLIS, DEFAULT_CACHE_SIZE);
-    }
-
-    /**
-     * Creates new instance of Swift using provided network and timeout settings
-     * and default cache parameters.
-     * 
-     * @param serverHostname
-     *            hostname of storage server
-     * @param serverPort
-     *            TCP port of storage server
-     * @param disasterSafe
-     *            when true, only disaster safe committed (and local)
-     *            transactions are read by transactions, so the client virtually
-     *            never blocks due to system failures
-     * @param maxAsyncQueuedTransactions
-     *            maximum number of asynchronous transactions queued before the
-     *            client start to block application
-     * @param timeoutMillis
-     *            socket-level timeout for server replies in milliseconds
-     * @param deadlineMillis
-     *            deadline for fulfilling user-triggered requests (get, refresh
-     *            etc)
-     * @param cacheEvictionTimeMillis
-     *            eviction time for non-accessed objects in the cache
-     * @param cacheSize
-     *            maximum number of objects in the cache
-     * @return instance of Swift client
-     */
-    public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe,
-            boolean concurrentOpenTransactions, int maxAsyncQueuedTransactions, int timeoutMillis, int deadlineMillis,
-            long cacheEvictionTimeMillis, int cacheSize) {
-        return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
-                Networking.resolve(serverHostname, serverPort), new TimeSizeBoundedObjectsCache(
-                        cacheEvictionTimeMillis, cacheSize), disasterSafe, concurrentOpenTransactions,
-                maxAsyncQueuedTransactions, timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
+    public static SwiftImpl newInstance(final SwiftOptions options) {
+        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
+                options.getServerHostname(), options.getServerPort()), new TimeSizeBoundedObjectsCache(
+                options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
     }
 
     private static String generateScoutId() {
@@ -241,16 +194,15 @@ public class SwiftImpl implements Swift, TxnManager {
     // block the application.
     private final int maxAsyncTransactionsQueued;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeSizeBoundedObjectsCache objectsCache,
-            boolean disasterSafe, boolean concurrentOpenTransactions, int maxAsyncTransactionsQueued,
-            int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint,
+            final TimeSizeBoundedObjectsCache objectsCache, final SwiftOptions options) {
         this.clientId = generateScoutId();
-        this.concurrentOpenTransactions = concurrentOpenTransactions;
-        this.maxAsyncTransactionsQueued = maxAsyncTransactionsQueued;
-        this.disasterSafe = disasterSafe;
-        this.timeoutMillis = timeoutMillis;
-        this.deadlineMillis = deadlineMillis;
-        this.notificationTimeoutMillis = notificationTimeoutMillis;
+        this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
+        this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
+        this.disasterSafe = options.isDisasterSafe();
+        this.timeoutMillis = options.getTimeoutMillis();
+        this.deadlineMillis = options.getDeadlineMillis();
+        this.notificationTimeoutMillis = options.getNotificationTimeoutMillis();
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
@@ -270,8 +222,8 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committerThread.start();
         this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
-        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(NOTIFICATIONS_THREAD_POOLS_SIZE);
-        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(NOTIFICATIONS_THREAD_POOLS_SIZE);
+        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
+        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
     }

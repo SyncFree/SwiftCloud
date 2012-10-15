@@ -13,6 +13,7 @@ import swift.application.filesystem.Filesystem;
 import swift.application.filesystem.FilesystemBasic;
 import swift.application.filesystem.IFile;
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CachePolicy;
@@ -675,7 +676,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
             // do nothing
         }
         Sys.init();
-        server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
+        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
     }
 

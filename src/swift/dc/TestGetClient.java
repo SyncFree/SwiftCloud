@@ -1,6 +1,7 @@
 package swift.dc;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -21,7 +22,7 @@ public class TestGetClient {
             
             Sys.init();
 
-            SwiftImpl server = SwiftImpl.newInstance(serverNode, DCConstants.SURROGATE_PORT);
+            SwiftImpl server = SwiftImpl.newInstance(new SwiftOptions(serverNode, DCConstants.SURROGATE_PORT));
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier(table, key), false, swift.crdt.IntegerVersioned.class);

@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -90,7 +91,7 @@ public class SwiftSocialMain {
 
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
-        Swift clientServer = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+        Swift clientServer = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
         SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
 
         if (usersFileName != null) {

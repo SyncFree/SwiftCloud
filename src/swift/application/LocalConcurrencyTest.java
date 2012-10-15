@@ -3,6 +3,7 @@ package swift.application;
 import java.util.Random;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -36,7 +37,8 @@ public class LocalConcurrencyTest {
             Thread client = new Thread("client" + i) {
                 public void run() {
                     Sys.init();
-                    SwiftImpl clientServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+                    SwiftImpl clientServer = SwiftImpl.newInstance(new SwiftOptions("localhost",
+                            DCConstants.SURROGATE_PORT));
                     clientCode(clientServer);
                     clientServer.stop(true);
                 }
@@ -44,7 +46,7 @@ public class LocalConcurrencyTest {
             threads[i] = client;
             client.start();
         }
-        SwiftImpl checkServer = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+        SwiftImpl checkServer = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         boolean done = false;
         while (!done) {
             done = check(checkServer);

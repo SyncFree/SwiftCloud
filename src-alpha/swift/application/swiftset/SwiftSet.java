@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.SortedSetTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -48,8 +49,8 @@ public class SwiftSet {
 		Threading.newThread("client2", true, new Runnable() {
 			public void run() {
 				Sys.init();
-				SwiftImpl swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
-				SwiftImpl swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+                SwiftImpl swift1 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftImpl swift2 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
 				runClient1(swift1, swift2);
 			}
 		}).start();
@@ -59,8 +60,8 @@ public class SwiftSet {
 		Threading.newThread("client2", true, new Runnable() {
 			public void run() {
 				Sys.init();
-				SwiftImpl swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
-				SwiftImpl swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT);
+                SwiftImpl swift1 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftImpl swift2 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
 				runClient2(swift1, swift2);
 			}
 		}).start();

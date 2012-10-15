@@ -1,6 +1,7 @@
 package swift.application;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
@@ -42,7 +43,7 @@ public class CountingStressTest {
             final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftImpl client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+                    SwiftImpl client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
                     runTransactions(client, id);
                     client.stop(true);
                 }
@@ -59,7 +60,7 @@ public class CountingStressTest {
         }
 
         // Check result
-        SwiftImpl client = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+        SwiftImpl client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         TxnHandle txn = client.beginTxn(level, CachePolicy.STRICTLY_MOST_RECENT, false);
         IntegerTxnLocal i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerVersioned.class,
                 TxnHandle.UPDATES_SUBSCRIBER);

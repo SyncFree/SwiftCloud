@@ -73,6 +73,7 @@ public class SwiftImplTest extends EasyMockSupport {
 
     private CRDTIdentifier idCrdtA;
     private CRDTIdentifier idCrdtB;
+    private SwiftOptions options;
 
     @Before
     public void setUp() {
@@ -80,13 +81,12 @@ public class SwiftImplTest extends EasyMockSupport {
         mockServerEndpoint = createMock(Endpoint.class);
         serverClock = ClockFactory.newClock();
         serverTimestampGen = new IncrementalTimestampGenerator("server");
+        options = new SwiftOptions("dummy", 0);
     }
 
     private SwiftImpl createSwift() {
         return new SwiftImpl(mockLocalEndpoint, mockServerEndpoint, new TimeSizeBoundedObjectsCache(120 * 1000, 1000),
-                SwiftImpl.DEFAULT_DISASTER_SAFE, false, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
-                SwiftImpl.DEFAULT_TIMEOUT_MILLIS, SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS,
-                SwiftImpl.DEFAULT_DEADLINE_MILLIS);
+                options);
     }
 
     @After
@@ -103,7 +103,7 @@ public class SwiftImplTest extends EasyMockSupport {
             VersionNotFoundException, NetworkException {
         // Specify communication with the server mock.
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(LatestKnownClockRequest.class),
-                isA(LatestKnownClockReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
+                isA(LatestKnownClockReplyHandler.class), eq(options.getTimeoutMillis()));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
@@ -113,7 +113,7 @@ public class SwiftImplTest extends EasyMockSupport {
             }
         });
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(FetchObjectVersionRequest.class),
-                isA(FetchObjectVersionReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
+                isA(FetchObjectVersionReplyHandler.class), eq(options.getTimeoutMillis()));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
@@ -125,7 +125,7 @@ public class SwiftImplTest extends EasyMockSupport {
         });
         final Timestamp txn1Timestamp = serverTimestampGen.generateNew();
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(GenerateTimestampRequest.class),
-                isA(GenerateTimestampReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
+                isA(GenerateTimestampReplyHandler.class), eq(options.getTimeoutMillis()));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
@@ -140,7 +140,7 @@ public class SwiftImplTest extends EasyMockSupport {
         });
 
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(CommitUpdatesRequest.class),
-                isA(CommitUpdatesReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
+                isA(CommitUpdatesReplyHandler.class), eq(options.getTimeoutMillis()));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
@@ -159,14 +159,14 @@ public class SwiftImplTest extends EasyMockSupport {
         });
 
         mockLocalEndpoint.send(same(mockServerEndpoint), isA(FastRecentUpdatesRequest.class),
-                isA(FastRecentUpdatesReplyHandler.class), eq(SwiftImpl.DEFAULT_TIMEOUT_MILLIS));
+                isA(FastRecentUpdatesReplyHandler.class), eq(options.getTimeoutMillis()));
         expectLastCall().andDelegateTo(new DummyRpcEndpoint() {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FastRecentUpdatesRequest request = (FastRecentUpdatesRequest) m;
                 assertFalse(request.getClientId().isEmpty());
                 assertTrue(request.getMaxBlockingTimeMillis() > 0
-                        && request.getMaxBlockingTimeMillis() <= SwiftImpl.DEFAULT_NOTIFICATION_TIMEOUT_MILLIS);
+                        && request.getMaxBlockingTimeMillis() <= options.getNotificationTimeoutMillis());
 
                 ((FastRecentUpdatesReplyHandler) replyHandler).onReceive(
                         null,
@@ -250,6 +250,17 @@ public class SwiftImplTest extends EasyMockSupport {
         @Override
         public RpcFactory getFactory() {
             return null;
+        }
+
+        @Override
+        public void setDefaultTimeout(int ms) {
+            // TODO Auto-generated method stub
+        }
+
+        @Override
+        public int getDefaultTimeout() {
+            // TODO Auto-generated method stub
+            return 0;
         }
     }
 }

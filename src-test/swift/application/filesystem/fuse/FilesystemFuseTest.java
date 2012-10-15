@@ -30,6 +30,7 @@ import org.junit.Test;
 import swift.application.filesystem.Filesystem;
 import swift.application.filesystem.FilesystemBasic;
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.Swift;
@@ -71,7 +72,7 @@ public class FilesystemFuseTest {
         }
 
         Sys.init();
-        Swift server = SwiftImpl.newInstance(scoutName, DCConstants.SURROGATE_PORT);
+        Swift server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         TxnHandle txn;
         // try {

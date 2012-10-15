@@ -5,18 +5,14 @@ import static sys.net.api.Networking.Networking;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.logging.Logger;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import fuse.FuseMount;
 import swift.application.filesystem.FilesystemBasic;
 import swift.application.filesystem.cs.proto.RemoteFuseOperationHandler;
-import swift.application.filesystem.fuse.FilesystemFuse;
-import swift.application.swiftdoc.cs.msgs.AppRpcHandler;
 import swift.client.SwiftImpl;
+import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.TxnHandle;
@@ -26,8 +22,6 @@ import swift.dc.DCServer;
 import sys.Sys;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcMessage;
 
 public class SwiftFuseServer extends RemoteFuseOperationHandler {
     public static final int PORT = 10001;
@@ -59,7 +53,7 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
         endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
         
         try {
-            server = SwiftImpl.newInstance("localhost", DCConstants.SURROGATE_PORT);
+            server = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
 
             log.info("getting root directory");
             TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
