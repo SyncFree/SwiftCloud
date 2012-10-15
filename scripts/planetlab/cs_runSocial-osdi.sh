@@ -1,23 +1,27 @@
 #! /bin/bash
 
-
-export EXPID=`date "+%s"`
-
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_SERVERS=(
-planetlab1.di.fct.unl.pt
-planetlab2.fct.ualg.pt
+ec2-176-34-78-57.eu-west-1.compute.amazonaws.com
 )
 
 
 export SCOUT_NODES=(
-planetlab1.fct.ualg.pt
-planetlab2.di.fct.unl.pt
+ait21.us.es
+ait05.us.es
 )
 
 
 export ENDCLIENT_NODES=(
+planetlab-3.iscte.pt
+planetlab-4.iscte.pt
+planetlab-1.tagus.ist.utl.pt
+planetlab-2.tagus.ist.utl.pt
+planetlab1.fct.ualg.pt
+planetlab2.fct.ualg.pt
+planetlab1.di.fct.unl.pt
+planetlab2.di.fct.unl.pt
 planetlab-um00.di.uminho.pt
 planetlab-um10.di.uminho.pt
 )
@@ -26,21 +30,20 @@ planetlab-um10.di.uminho.pt
 # BELOW NOT USED, JUST A POOL OF AVAILABLE PLANETLAB NODES
 
 
-
 # WARNING - PlanetLab nodes are volatile; some may be down...
 export PLANETLAB_NODES_ALL=(
 ait21.us.es
 ait05.us.es
 
 
-planetlab2.di.fct.unl.pt
 planetlab-1.iscte.pt
+planetlab-2.iscte.pt
+planetlab-3.iscte.pt
+planetlab-4.iscte.pt
 
 ple2.ipv6.lip6.fr
 peeramide.irisa.fr
 planetlab-2.imag.fr
-planetlab1.fct.ualg.pt
-planetlab2.fct.ualg.pt
 planetlab-um10.di.uminho.pt
 planetlab-um00.di.uminho.pt
 planetlab1.fct.ualg.pt
@@ -52,17 +55,16 @@ planetlab-1.tagus.ist.utl.pt
 planetlab-2.tagus.ist.utl.pt
 planetlab1.eurecom.fr
 planetlab2.eurecom.fr
-
 )
 
-
+PARALLEL_TXN="PARALLEL"
 
 # TOPOLOGY
 DCS[0]=${DATACENTER_SERVERS[0]}
 DCSEQ[0]=${DATACENTER_SERVERS[0]}
 
-DCS[1]=${DATACENTER_SERVERS[1]}
-DCSEQ[1]=${DATACENTER_SERVERS[1]}
+#DCS[1]=${DATACENTER_SERVERS[1]}
+#DCSEQ[1]=${DATACENTER_SERVERS[1]}
 
 SCOUTS=("${SCOUT_NODES[@]}")
 
@@ -71,17 +73,25 @@ ENDCLIENTS=("${ENDCLIENT_NODES[@]}")
 MACHINES="${DCS[*]} ${DCSEQ[*]} ${SCOUTS[*]} ${ENDCLIENTS[*]}"
 
 INIT_DB_DC=${DCS[0]}
-INIT_DB_CLIENT=${DCS[1]}
+INIT_DB_CLIENT=${DCS[0]}
+
+SHEPARD=${DCS[0]}
+DURATION=120
 
 #INIT_DB_DC2=${DCS[1]}
 #INIT_DB_CLIENT2=${DCS[0]}
 
 echo $INIT_DB_CLIENT
-echo $INIT_DB_CLIENT2
+
+DC_NUMBER=${#DCS[@]}
+SCOUTS_NUMBER=${#SCOUTS[@]}
+CLIENTS_NUMBER=${#ENDCLIENTS[@]}
 
 # INPUT DATA PARAMS
-INPUT_USERS=1000
-INPUT_ACTIVE_USERS=10
+INPUT_USERS=1500
+INPUT_ACTIVE_USERS=$(($CLIENTS_NUMBER*1))
+echo $INPUT_ACTIVE_USERS
+
 INPUT_USER_FRIENDS=25
 INPUT_USER_BIASED_OPS=9
 INPUT_USER_RANDOM_OPS=1
@@ -95,9 +105,9 @@ ISOLATION=REPEATABLE_READS
 CACHING=STRICTLY_MOST_RECENT
 CACHING=CACHED
 CACHE_EVICTION_TIME_MS=120000 #120000
-ASYNC_COMMIT=true
+ASYNC_COMMIT=false
 THINK_TIME_MS=0
-MAX_CONCURRENT_SESSIONS_PER_JVM=10
+MAX_CONCURRENT_SESSIONS_PER_JVM=$INPUT_ACTIVE_USERS
 
 
 DC_NUMBER=${#DCS[@]}
@@ -132,7 +142,7 @@ run_swift_cdn_server_bg() {
 client=$1
 server=$2
 input_file=$3
-swift_app_cmd_nostdout -Xmx512m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7778 -Djava.rmi.server.hostname=$client swift.application.social.cdn.SwiftSocialBenchmarkServer run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $MAX_CONCURRENT_SESSIONS_PER_JVM
+swift_app_cmd_nostdout -Xmx512m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7778 -Djava.rmi.server.hostname=$client swift.application.social.cdn.SwiftSocialBenchmarkServer run $server commands.txt $ISOLATION $CACHING $CACHE_EVICTION_TIME_MS $NOTIFICATIONS $ASYNC_COMMIT $THINK_TIME_MS $MAX_CONCURRENT_SESSIONS_PER_JVM -port 8787
 run_cmd_bg $client $CMD
 }
 
@@ -140,7 +150,7 @@ run_swift_cdn_client_bg() {
 client=$1
 server=$2
 input_file=$3
-swift_app_cmd_nostdout -Xmx256m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7779 -Djava.rmi.server.hostname=$client swift.application.social.cdn.SwiftSocialBenchmarkClient $server commands.txt $MAX_CONCURRENT_SESSIONS_PER_JVM
+swift_app_cmd_nostdout -Xmx256m -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=7779 -Djava.rmi.server.hostname=$client swift.application.social.cdn.SwiftSocialBenchmarkClient $server:8787 commands.txt $MAX_CONCURRENT_SESSIONS_PER_JVM -shepard $SHEPARD
 run_cmd_bg $client $CMD
 }
 
@@ -172,6 +182,10 @@ if [ -n "$DEPLOY" ]; then
 	echo "==== AWAITING TRANSFERS COMPLETION ===="
 	echo "PIDS:" + $copy_pids
 fi
+
+echo "==== STARTING SWIFT SHEPARD : SHEEP:" $CLIENTS_NUMBER " DURATION: " $DURATION
+swift_app_cmd_nostdout sys.shepard.Shepard -sheep $CLIENTS_NUMBER -duration $DURATION
+run_cmd_bg $SHEPARD $CMD
 
 echo "==== STARTING SEQUENCERS AND DC SERVERS ===="
 . scripts/planetlab/pl-start-servers-ds-seq.sh
@@ -226,20 +240,18 @@ echo "==== RUNNING... ===="
 wait $client_pids
 
 echo "==== WAITING A BIT FOR PENDING OPS ON SERVERS ===="
-sleep 60
+sleep 30
 echo "==== KILLING SERVERS AND CLIENTS ===="
 scripts/planetlab/pl-kill.sh $MACHINES
 
+
 echo "==== COLLECTING CLIENT LOGS AS RESULTS ===="
-output_prefix=results/swiftsocial/1pc-osdi-result-cs-social-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT-$THINK_TIME_MS
+
+runDir="results/swiftsocial/"`date "+%b%s"`
+echo $runDir
+mkdir -p $runDir
+output_prefix=$runDir/1pc-cdn-result-cs-social-$DC_NUMBER-$SCOUTS_NUMBER-$CLIENTS_NUMBER-$INPUT_USERS-$INPUT_ACTIVE_USERS-$PARALLEL_TXN-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT-$THINK_TIME_MS.log
 for client in ${ENDCLIENTS[*]}; do
-	copy_from $client stdout.txt $output_prefix.$EXPID.$client.log
-	copy_from $client stderr.txt $output_prefix.$EXPID.$client.error.log
+	copy_from $client stdout.txt $output_prefix.$client
 done
-
-for server in $DATACENTER_SERVERS; do
-	copy_from $server stdout.txt $output_prefix.$EXPID.$server.log
-	copy_from $server stderr.txt $output_prefix.$EXPID.$server.error.log
-done
-
 
