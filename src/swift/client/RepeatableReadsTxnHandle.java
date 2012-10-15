@@ -15,6 +15,7 @@ import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.TransactionsLog;
 
 /**
  * Implementation of {@link IsolationLevel#REPEATABLE_READS} transaction, which
@@ -26,7 +27,7 @@ import swift.exceptions.WrongTypeException;
  * 
  * @author mzawirski
  */
-class RepeatableReadsTxnHandle extends AbstractTxnHandle implements TxnHandle {
+class RepeatableReadsTxnHandle extends AbstractTxnHandle {
     final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectViewsCache;
 
     /**
@@ -34,15 +35,17 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle implements TxnHandle {
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param durableLog
+     *            durable log for recovery
      * @param cachePolicy
      *            cache policy used by this transaction
      * @param timestampMapping
      *            timestamp and timestamp mapping information used for all
      *            update of this transaction
      */
-    RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy,
+    RepeatableReadsTxnHandle(final TxnManager manager, final TransactionsLog durableLog, final CachePolicy cachePolicy,
             final TimestampMapping timestampMapping) {
-        super(manager, cachePolicy, timestampMapping);
+        super(manager, durableLog, cachePolicy, timestampMapping);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 

@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.Semaphore;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
@@ -25,6 +26,8 @@ import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.DummyLog;
+import swift.utils.TransactionsLog;
 
 /**
  * Implementation of abstract SwiftCloud transaction with unspecified isolation
@@ -62,21 +65,28 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected TxnStatus status;
     protected CommitListener commitListener;
     protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
+    protected final TransactionsLog durableLog;
+    protected final long id;
 
     /**
      * Creates an update transaction.
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param durableLog
+     *            durable log for recovery
      * @param cachePolicy
      *            cache policy used by this transaction
      * @param timestampMapping
      *            timestamp and timestamp mapping information used for all
      *            updates of this transaction
      */
-    AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
+    AbstractTxnHandle(final TxnManager manager, final TransactionsLog durableLog, final CachePolicy cachePolicy,
+            final TimestampMapping timestampMapping) {
         this.manager = manager;
         this.readOnly = false;
+        this.durableLog = durableLog;
+        this.id = timestampMapping.getClientTimestamp().getCounter();
         this.cachePolicy = cachePolicy;
         this.timestampMapping = timestampMapping;
         this.updatesDependencyClock = ClockFactory.newClock();
@@ -91,15 +101,16 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param durableLog
+     *            durable log for recovery
      * @param cachePolicy
      *            cache policy used by this transaction
-     * @param timestampMapping
-     *            timestamp and timestamp mapping information used for all
-     *            updates of this transaction
      */
     AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy) {
         this.manager = manager;
         this.readOnly = true;
+        this.durableLog = new DummyLog();
+        this.id = -1;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = null;
         this.updatesDependencyClock = ClockFactory.newClock();
@@ -148,6 +159,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         assertStatus(TxnStatus.PENDING);
         this.commitListener = listener;
         manager.commitTxn(this);
+        // Flush the log before returning to the client call.
+        durableLog.flush();
     }
 
     @Override
@@ -155,6 +168,11 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         assertStatus(TxnStatus.PENDING);
         manager.discardTxn(this);
         status = TxnStatus.CANCELLED;
+        logStatusChange();
+    }
+
+    protected void logStatusChange() {
+        durableLog.writeEntry(getId(), status);
     }
 
     public synchronized TxnStatus getStatus() {
@@ -181,6 +199,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
             localObjectOperations.put(id, operationsGroup);
         }
         operationsGroup.append(op);
+        durableLog.writeEntry(getId(), op);
     }
 
     @Override
@@ -194,6 +213,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         if (localObjectOperations.put(id, operationsGroup) != null) {
             throw new IllegalStateException("Object creation operation was preceded by some another operation");
         }
+        durableLog.writeEntry(getId(), id);
     }
 
     /**
@@ -210,6 +230,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     synchronized void markLocallyCommitted() {
         assertStatus(TxnStatus.PENDING);
         status = TxnStatus.COMMITTED_LOCAL;
+        logStatusChange();
     }
 
     /**
@@ -236,6 +257,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
                 timestampMapping.addSystemTimestamp(systemTimestamp);
             }
         }
+        durableLog.writeEntry(getId(), systemTimestamp);
+        logStatusChange();
         if (justGloballyCommitted) {
             if (commitListener != null) {
                 commitListener.onGlobalCommit(this);
@@ -290,10 +313,15 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            clock to include in the dependency clock of this transaction
      * @throws IllegalStateException
      *             when transaction is not pending or locally committed
+     * @return true if the provided clock included some new events
      */
-    protected void updateUpdatesDependencyClock(final CausalityClock clock) {
+    protected boolean updateUpdatesDependencyClock(final CausalityClock clock) {
         assertStatus(TxnStatus.PENDING, TxnStatus.COMMITTED_LOCAL);
-        updatesDependencyClock.merge(clock);
+        if (updatesDependencyClock.merge(clock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
+            durableLog.writeEntry(getId(), clock);
+            return true;
+        }
+        return false;
     }
 
     protected synchronized void assertStatus(final TxnStatus... expectedStatuses) {
@@ -315,6 +343,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     @Override
     public String toString() {
         return (readOnly ? "read-only" : "update") + " transaction ts=" + timestampMapping;
+    }
+
+    protected long getId() {
+        return id;
     }
 
     @Override

@@ -16,6 +16,8 @@ public class SwiftOptions {
     public static final int DEFAULT_CACHE_SIZE = 100000;
     public static final int DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE = 2;
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
+    public static final String DEFAULT_LOG_FILENAME = null;
+    public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
 
     private String serverHostname;
     private int serverPort;
@@ -29,6 +31,8 @@ public class SwiftOptions {
     private int notificationTimeoutMillis;
     private int notificationThreadPoolsSize;
     private int maxCommitBatchSize;
+    private String logFilename;
+    private boolean logFlushOnCommit;
 
     /**
      * Creates a new instance with default options and provided server endpoint
@@ -51,6 +55,8 @@ public class SwiftOptions {
         this.notificationTimeoutMillis = DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
         this.notificationThreadPoolsSize = DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE;
         this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
+        this.logFilename = DEFAULT_LOG_FILENAME;
+        this.setLogFlushOnCommit(DEFAULT_LOG_FLUSH_ON_COMMIT);
     }
 
     /**
@@ -235,5 +241,35 @@ public class SwiftOptions {
      */
     public void setMaxCommitBatchSize(int maxCommitBatchSize) {
         this.maxCommitBatchSize = maxCommitBatchSize;
+    }
+
+    /**
+     * @return filename used for durable log; null if log is not stored
+     */
+    public String getLogFilename() {
+        return logFilename;
+    }
+
+    /**
+     * @param logFilename
+     *            filename used for durable log; null if log is not stored
+     */
+    public void setLogFilename(String logFilename) {
+        this.logFilename = logFilename;
+    }
+
+    /**
+     * @return true if log should be flushed on each local commit
+     */
+    public boolean isLogFlushOnCommit() {
+        return logFlushOnCommit;
+    }
+
+    /**
+     * @param logFlushOnCommit
+     *            true if log should be flushed on each local commit
+     */
+    public void setLogFlushOnCommit(boolean logFlushOnCommit) {
+        this.logFlushOnCommit = logFlushOnCommit;
     }
 }

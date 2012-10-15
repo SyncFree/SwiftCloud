@@ -16,6 +16,7 @@ import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.TransactionsLog;
 
 /**
  * Implementation of {@link IsolationLevel#SNAPSHOT_ISOLATION} transaction,
@@ -31,6 +32,8 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param durableLog
+     *            durable log for recovery
      * @param cachePolicy
      *            cache policy used by this transaction
      * @param timestampMapping
@@ -40,9 +43,9 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      *            clock representing committed update transactions visible to
      *            this transaction; left unmodified
      */
-    SnapshotIsolationTxnHandle(final TxnManager manager, boolean readOnly, final CachePolicy cachePolicy,
-            final TimestampMapping timestampMapping, final CausalityClock snapshotClock) {
-        super(manager, cachePolicy, timestampMapping);
+    SnapshotIsolationTxnHandle(final TxnManager manager, final TransactionsLog durableLog,
+            final CachePolicy cachePolicy, final TimestampMapping timestampMapping, final CausalityClock snapshotClock) {
+        super(manager, durableLog, cachePolicy, timestampMapping);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }

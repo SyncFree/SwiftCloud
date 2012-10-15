@@ -2,6 +2,7 @@ package swift.client;
 
 import static sys.net.api.Networking.Networking;
 
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -65,7 +66,11 @@ import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.CallableWithDeadline;
+import swift.utils.DummyLog;
+import swift.utils.NoFlushLogDecorator;
+import swift.utils.TransactionsLog;
 import swift.utils.ExponentialBackoffTaskExecutor;
+import swift.utils.KryoDiskLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -179,6 +184,8 @@ public class SwiftImpl implements Swift, TxnManager {
     private final ExecutorService notificationsSubscriberExecutor;
     private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
+    private final TransactionsLog durableLog;
+
     // OPTIONS
     private final int timeoutMillis;
     private final int notificationTimeoutMillis;
@@ -232,6 +239,21 @@ public class SwiftImpl implements Swift, TxnManager {
         this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
+
+        TransactionsLog log = new DummyLog();
+        if (options.getLogFilename() != null) {
+            try {
+                log = new KryoDiskLog(options.getLogFilename());
+            } catch (FileNotFoundException x) {
+                // TODO: Propagate the exception
+                logger.warning("Could not create a log file " + options.getLogFilename() + " (using no log instead): "
+                        + x);
+            }
+        }
+        if (!options.isLogFlushOnCommit()) {
+            log = new NoFlushLogDecorator(log);
+        }
+        this.durableLog = log;
     }
 
     @Override
@@ -251,6 +273,7 @@ public class SwiftImpl implements Swift, TxnManager {
             notificationsCallbacksExecutor.shutdown();
             notificationsSubscriberExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             notificationsCallbacksExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+            durableLog.close();
             // Do not wait for notifications thread, as it is hard to interrupt
             // pending notification reply.
             // if (stopGracefully) {
@@ -309,7 +332,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 siTxn = new SnapshotIsolationTxnHandle(this, cachePolicy, snapshotClock);
             } else {
                 final TimestampMapping timestampMapping = generateNextTimestampMapping();
-                siTxn = new SnapshotIsolationTxnHandle(this, readOnly, cachePolicy, timestampMapping, snapshotClock);
+                siTxn = new SnapshotIsolationTxnHandle(this, durableLog, cachePolicy, timestampMapping, snapshotClock);
             }
             addPendingTxn(siTxn);
             if (logger.isLoggable(Level.INFO)) {
@@ -323,7 +346,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 rrTxn = new RepeatableReadsTxnHandle(this, cachePolicy);
             } else {
                 final TimestampMapping timestampMapping = generateNextTimestampMapping();
-                rrTxn = new RepeatableReadsTxnHandle(this, cachePolicy, timestampMapping);
+                rrTxn = new RepeatableReadsTxnHandle(this, durableLog, cachePolicy, timestampMapping);
             }
             addPendingTxn(rrTxn);
             if (logger.isLoggable(Level.INFO)) {
@@ -1023,8 +1046,8 @@ public class SwiftImpl implements Swift, TxnManager {
         if (requiresGlobalCommit(txn)) {
             // Need to create and commit a dummy transaction, we cannot
             // returnLastTimestamp :-(
-            final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, CachePolicy.CACHED,
-                    txn.getTimestampMapping());
+            final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, durableLog,
+                    CachePolicy.CACHED, txn.getTimestampMapping());
             dummyTxn.markLocallyCommitted();
             commitTxn(dummyTxn);
         } else {
