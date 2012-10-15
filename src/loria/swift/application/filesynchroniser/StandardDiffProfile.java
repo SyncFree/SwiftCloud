@@ -30,7 +30,7 @@ public class StandardDiffProfile {
     private enum OpType { update, ins, del };
     
     private final double perUp, perIns, perBlock, sdvBlockSize, sdvLineSize;
-    private final double avgBlockSize, avgLinesize, avgDelSize;
+    private final double avgBlockSize, avgLinesize, avgDelSize, sdvDelSize;
     private final RandomGauss random;
 
     public static final StandardDiffProfile GIT = new StandardDiffProfile(0.69, 0.74, 1, 32.6, 137.9, 1.5, 5.8, 40, 20.0);
@@ -55,6 +55,7 @@ public class StandardDiffProfile {
         this.avgBlockSize = avgBlockSize;
         this.sdvBlockSize = sdvBlockSize;
         this.avgDelSize = avgDelSize;
+        this.sdvDelSize = sdvDelSize;
         this.avgLinesize = avgLinesize;
         this.sdvLineSize = sdvLineSize;
         this.random = new RandomGauss();
@@ -82,7 +83,7 @@ public class StandardDiffProfile {
 
     private int nextOffset(int position, int l) {
         int length = (random.nextDouble() < perBlock) ? 
-               (int) random.nextLongGaussian(avgDelSize, sdvBlockSize) : 1;
+               (int) random.nextLongGaussian(avgDelSize, sdvDelSize) : 1;
         return Math.min(l-position, length);
     }
     
