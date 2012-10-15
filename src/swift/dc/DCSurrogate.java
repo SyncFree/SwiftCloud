@@ -6,12 +6,13 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.Properties;
 import java.util.TreeMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
+import swift.client.proto.BatchCommitUpdatesRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
@@ -725,6 +726,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
                 }
             }
         }, 0);
+    }
+
+    @Override
+    public void onReceive(RpcHandle conn, BatchCommitUpdatesRequest request) {
+        // TODO Auto-generated method stub
+
     }
 
 }

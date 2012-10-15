@@ -10,6 +10,7 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import swift.client.proto.BatchCommitUpdatesRequest;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectDeltaRequest;
@@ -191,6 +192,12 @@ public class RPCBenchmark {
 
         @Override
         public void onReceive(RpcHandle conn, RpcMessage m) {
+        }
+
+        @Override
+        public void onReceive(RpcHandle conn, BatchCommitUpdatesRequest request) {
+            // TODO Auto-generated method stub
+
         }
     }
 
