@@ -3,6 +3,8 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.io.FileNotFoundException;
+import java.nio.Buffer;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.xml.bind.DatatypeConverter;
 
 import swift.client.proto.BatchCommitUpdatesReply;
 import swift.client.proto.BatchCommitUpdatesReplyHandler;
@@ -129,7 +133,10 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     private static String generateScoutId() {
-        return UUID.randomUUID().toString();
+        final UUID uuid = UUID.randomUUID();
+        final byte[] uuidBytes = ByteBuffer.allocate(Long.SIZE / Byte.SIZE * 2).putLong(uuid.getMostSignificantBits())
+                .putLong(uuid.getLeastSignificantBits()).array();
+        return DatatypeConverter.printBase64Binary(uuidBytes);
     }
 
     private boolean stopFlag;
