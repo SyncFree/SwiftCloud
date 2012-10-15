@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import sun.awt.event.IgnorePaintEvent;
 import swift.application.social.Commands;
 import swift.application.social.SwiftSocialMain;
 import swift.client.SwiftImpl;
@@ -24,6 +25,9 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.scheduler.PeriodicTask;
+import sys.shepard.Shepard;
+import sys.utils.Args;
+import sys.utils.IP;
 import sys.utils.Threading;
 
 import static sys.Sys.*;
@@ -53,6 +57,8 @@ public class SwiftSocialBenchmarkClient {
 		fileName = args[1];
 		concurrentSessions = Integer.valueOf(args[2]);
 
+		final String shepardAddress = Args.valueOf(args, "-shepard", "");
+		
 		sys.Sys.init();
 		
 		socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.PORT);
@@ -66,15 +72,22 @@ public class SwiftSocialBenchmarkClient {
 		// Kick off all sessions, throughput is limited by
 		// concurrentSessions.
 		final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions);
+
+        if( ! shepardAddress.isEmpty() ) 
+            new Shepard().joinHerd(shepardAddress);
+
 		System.err.println("Spawning session threads.");
 		for (int i = 0; i < sessions.size(); i++) {
 			final int sessionId = i;
 			final List<String> commands = sessions.get(i);
 			sessionsExecutor.execute(new Runnable() {
 				public void run() {
-					// Avoid clients running all at the same time...
-					Threading.sleep(Sys.rg.nextInt(5000));
-					runClientSession(sessionId, commands);
+
+				        if( shepardAddress.isEmpty() ) 
+	                        runClientSession(sessionId, commands);
+				        else 
+				            for(;;)
+	                            runClientSession(sessionId, commands);
 				}
 			});
 		}
@@ -132,6 +145,7 @@ public class SwiftSocialBenchmarkClient {
 		final long sessionExecTime = now - sessionStartTime;
 		bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
 		bufferedOutput.flush();
+		System.err.println("> " + IP.localHostname() + " all sessions completed...");
 	}
 
 	/**

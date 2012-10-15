@@ -31,7 +31,7 @@ public class LocalConcurrencyTest {
         // start DC server
         DCServer.main(new String[] { sequencerName });
 
-        Thread[] threads = new Thread[5];
+        Thread[] threads = new Thread[15];
         for (int i = 0; i < 5; i++) {
             Thread client = new Thread("client" + i) {
                 public void run() {

@@ -43,6 +43,8 @@ public class SwiftSocialBenchmarkServer {
     private static long cacheEvictionTimeMillis;
     private static long thinkTime;
     
+    static Swift g_swiftClient;
+    
     public static void main(String[] args) {
         if (args.length < 3) {
             exitWithUsage();
@@ -171,17 +173,19 @@ public class SwiftSocialBenchmarkServer {
     
     static Map<String, Session> sessions = new HashMap<String, Session>();
     
+    
     static class Session {
-    	final Swift swiftCLient;
+    	final Swift swiftClient;
     	final SwiftSocial swiftSocial;
     	
     	Session() {
-            swiftCLient = SwiftImpl.newInstance( dcEndpoint.getHost(), dcEndpoint.getPort(), SwiftImpl.DEFAULT_DISASTER_SAFE,
- SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS,
-                    SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
-                    Integer.MAX_VALUE, cacheEvictionTimeMillis, SwiftImpl.DEFAULT_CACHE_SIZE);
-
-    		swiftSocial = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
+                	
+    	    swiftClient =SwiftImpl.newInstance(dcEndpoint.getHost(), dcEndpoint.getPort(), false,
+                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
+                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CACHE_SIZE);
+    	    
+    		swiftSocial = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
     	                asyncCommit);
     	}
     }
