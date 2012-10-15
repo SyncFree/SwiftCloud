@@ -104,8 +104,10 @@ public class SwiftImpl implements Swift, TxnManager {
     public static final int RPC_RETRY_WAIT_TIME_MULTIPLIER = 2;
     public static final int INIT_RPC_RETRY_WAIT_TIME_MILLIS = 10;
 
+    // TODO: Factor out a SwiftOptions class.
     public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
     public static final boolean DEFAULT_DISASTER_SAFE = true;
+    public static final int DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS = 50;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 8 * 1000;
@@ -127,7 +129,8 @@ public class SwiftImpl implements Swift, TxnManager {
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort) {
         return newInstance(serverHostname, serverPort, DEFAULT_DISASTER_SAFE, DEFAULT_CONCURRENT_OPEN_TRANSACTIONS,
-                DEFAULT_TIMEOUT_MILLIS, DEFAULT_DEADLINE_MILLIS, DEFAULT_CACHE_EVICTION_MILLIS, DEFAULT_CACHE_SIZE);
+                DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS, DEFAULT_TIMEOUT_MILLIS, DEFAULT_DEADLINE_MILLIS,
+                DEFAULT_CACHE_EVICTION_MILLIS, DEFAULT_CACHE_SIZE);
     }
 
     /**
@@ -142,6 +145,9 @@ public class SwiftImpl implements Swift, TxnManager {
      *            when true, only disaster safe committed (and local)
      *            transactions are read by transactions, so the client virtually
      *            never blocks due to system failures
+     * @param maxAsyncQueuedTransactions
+     *            maximum number of asynchronous transactions queued before the
+     *            client start to block application
      * @param timeoutMillis
      *            socket-level timeout for server replies in milliseconds
      * @param deadlineMillis
@@ -154,12 +160,12 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return instance of Swift client
      */
     public static SwiftImpl newInstance(String serverHostname, int serverPort, boolean disasterSafe,
-            boolean concurrentOpenTransactions, int timeoutMillis, int deadlineMillis, long cacheEvictionTimeMillis,
-            int cacheSize) {
+            boolean concurrentOpenTransactions, int maxAsyncQueuedTransactions, int timeoutMillis, int deadlineMillis,
+            long cacheEvictionTimeMillis, int cacheSize) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(),
                 Networking.resolve(serverHostname, serverPort), new TimeSizeBoundedObjectsCache(
-                        cacheEvictionTimeMillis, cacheSize), disasterSafe, concurrentOpenTransactions, timeoutMillis,
-                DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
+                        cacheEvictionTimeMillis, cacheSize), disasterSafe, concurrentOpenTransactions,
+                maxAsyncQueuedTransactions, timeoutMillis, DEFAULT_NOTIFICATION_TIMEOUT_MILLIS, deadlineMillis);
     }
 
     private static String generateScoutId() {
@@ -199,7 +205,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private Set<AbstractTxnHandle> pendingTxns;
     // Locally committed transactions (in begin-txn order), the first one is
     // possibly committing to the store.
-    private final SortedSet<AbstractTxnHandle> locallyCommittedTxnsQueue;
+    private final SortedSet<AbstractTxnHandle> locallyCommittedTxnsOrderedQueue;
     // Globally committed local transactions (in commit order), but possibly not
     // stable, i.e. not distaster-safe in the store.
     private final LinkedList<AbstractTxnHandle> globallyCommittedUnstableTxns;
@@ -225,18 +231,22 @@ public class SwiftImpl implements Swift, TxnManager {
     // If true, only disaster safe committed (and local) transactions are read
     // by transactions, so the client virtually never blocks due to systen
     // failures.
-    private boolean disasterSafe;
+    private final boolean disasterSafe;
     // If true, multiple transactions can be open. Note that (1) transactions
     // are always committed in the order of beginTxn() calls, not commit(), and
     // (2) with the enabled option, all update transactions need to be committed
     // even if they made no updates or rolled back.
-    private boolean concurrentOpenTransactions;
+    private final boolean concurrentOpenTransactions;
+    // Maximum number of asynchronous transactions queued locally before they
+    // block the application.
+    private final int maxAsyncTransactionsQueued;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, TimeSizeBoundedObjectsCache objectsCache,
-            boolean disasterSafe, boolean concurrentOpenTransactions, int timeoutMillis,
-            final int notificationTimeoutMillis, int deadlineMillis) {
+            boolean disasterSafe, boolean concurrentOpenTransactions, int maxAsyncTransactionsQueued,
+            int timeoutMillis, final int notificationTimeoutMillis, int deadlineMillis) {
         this.clientId = generateScoutId();
         this.concurrentOpenTransactions = concurrentOpenTransactions;
+        this.maxAsyncTransactionsQueued = maxAsyncTransactionsQueued;
         this.disasterSafe = disasterSafe;
         this.timeoutMillis = timeoutMillis;
         this.deadlineMillis = deadlineMillis;
@@ -244,7 +254,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
-        this.locallyCommittedTxnsQueue = new TreeSet<AbstractTxnHandle>();
+        this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
@@ -758,7 +768,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 for (final AbstractTxnHandle localTxn : globallyCommittedUnstableTxns) {
                     applyLocalObjectUpdates(request.getUid(), cacheCRDT, localTxn);
                 }
-                for (final AbstractTxnHandle localTxn : locallyCommittedTxnsQueue) {
+                for (final AbstractTxnHandle localTxn : locallyCommittedTxnsOrderedQueue) {
                     applyLocalObjectUpdates(request.getUid(), cacheCRDT, localTxn);
                 }
             } catch (IllegalStateException x) {
@@ -1046,27 +1056,27 @@ public class SwiftImpl implements Swift, TxnManager {
         removePendingTxn(txn);
         logger.info("local transaction " + txn.getTimestampMapping() + " rolled back");
         if (requiresGlobalCommit(txn)) {
-            tryReuseTxnTimestamp(txn);
-        } else {
             // Need to create and commit a dummy transaction, we cannot
             // returnLastTimestamp :-(
             final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, CachePolicy.CACHED,
                     txn.getTimestampMapping());
             dummyTxn.markLocallyCommitted();
             commitTxn(dummyTxn);
+        } else {
+            tryReuseTxnTimestamp(txn);
         }
     }
 
     private boolean requiresGlobalCommit(AbstractTxnHandle txn) {
         if (txn.isReadOnly()) {
-            return true;
+            return false;
         }
         if (!concurrentOpenTransactions) {
             if (txn.getStatus() == TxnStatus.CANCELLED || txn.getAllUpdates().isEmpty()) {
-                return true;
+                return false;
             }
         }
-        return false;
+        return true;
     }
 
     @Override
@@ -1080,13 +1090,6 @@ public class SwiftImpl implements Swift, TxnManager {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
         if (requiresGlobalCommit(txn)) {
-            // The transaction does not need to be globally committed.
-            tryReuseTxnTimestamp(txn);
-            txn.markGloballyCommitted(null);
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
-            }
-        } else {
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
                 applyLocalObjectUpdates(opsGroup.getTargetUID(), objectsCache.getWithoutTouch(opsGroup.getTargetUID()),
                         txn);
@@ -1096,7 +1099,14 @@ public class SwiftImpl implements Swift, TxnManager {
             objectsCache.recordOnAll(txn.getTimestampMapping());
 
             // Transaction is queued up for global commit.
-            addLocallyCommittedTransaction(txn);
+            // THIS MAY BLOCK in wait() if the queue is full!
+            addLocallyCommittedTransactionBlocking(txn);
+        } else {
+            tryReuseTxnTimestamp(txn);
+            txn.markGloballyCommitted(null);
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
+            }
         }
         removePendingTxn(txn);
         objectsCache.evictOutdated();
@@ -1106,12 +1116,6 @@ public class SwiftImpl implements Swift, TxnManager {
         if (!txn.isReadOnly()) {
             returnLastTimestamp();
         }
-    }
-
-    private void addLocallyCommittedTransaction(AbstractTxnHandle txn) {
-        locallyCommittedTxnsQueue.add(txn);
-        // Notify committer thread.
-        this.notifyAll();
     }
 
     /**
@@ -1175,7 +1179,7 @@ public class SwiftImpl implements Swift, TxnManager {
             lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
             lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
             objectsCache.recordOnAll(txn.getTimestampMapping());
-            locallyCommittedTxnsQueue.remove(txn);
+            removeLocallyNowGloballyCommitedTxn(txn);
             globallyCommittedUnstableTxns.addLast(txn);
 
             if (logger.isLoggable(Level.INFO)) {
@@ -1194,6 +1198,29 @@ public class SwiftImpl implements Swift, TxnManager {
         }
     }
 
+    private synchronized void addLocallyCommittedTransactionBlocking(AbstractTxnHandle txn) {
+        // Insert only if the queue size allows, or if tnx blocks other
+        // transactions.
+        while (locallyCommittedTxnsOrderedQueue.size() >= maxAsyncTransactionsQueued
+                && locallyCommittedTxnsOrderedQueue.first().compareTo(txn) < 0) {
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+                if (stopFlag && !stopGracefully) {
+                    throw new IllegalStateException("Scout stopped in non-graceful manner, transaction not commited");
+                }
+            }
+        }
+        locallyCommittedTxnsOrderedQueue.add(txn);
+        // Notify committer thread.
+        this.notifyAll();
+    }
+
+    private synchronized void removeLocallyNowGloballyCommitedTxn(final AbstractTxnHandle txn) {
+        locallyCommittedTxnsOrderedQueue.remove(txn);
+        this.notifyAll();
+    }
+
     private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
         while (!stopFlag && !canConsumeLocallyCommitedTxnsQueue()) {
             try {
@@ -1201,18 +1228,18 @@ public class SwiftImpl implements Swift, TxnManager {
             } catch (InterruptedException e) {
             }
         }
-        return locallyCommittedTxnsQueue.isEmpty() ? null : locallyCommittedTxnsQueue.first();
+        return locallyCommittedTxnsOrderedQueue.isEmpty() ? null : locallyCommittedTxnsOrderedQueue.first();
     }
 
     private boolean canConsumeLocallyCommitedTxnsQueue() {
-        if (locallyCommittedTxnsQueue.isEmpty()) {
+        if (locallyCommittedTxnsOrderedQueue.isEmpty()) {
             return false;
         }
         if (concurrentOpenTransactions) {
             // Check whether transactions with lower timestamps already
             // committed. TODO: this is a quick HACK, do it better.
-            final long peekCounter = locallyCommittedTxnsQueue.first().getTimestampMapping().getClientTimestamp()
-                    .getCounter();
+            final long peekCounter = locallyCommittedTxnsOrderedQueue.first().getTimestampMapping()
+                    .getClientTimestamp().getCounter();
             for (final AbstractTxnHandle txn : pendingTxns) {
                 if (!txn.isReadOnly() && txn.getTimestampMapping().getClientTimestamp().getCounter() < peekCounter) {
                     return false;

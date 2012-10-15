@@ -8,8 +8,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 import swift.application.swiftdoc.TextLine;
 import swift.application.swiftdoc.cs.msgs.AppRpcHandler;
@@ -250,12 +248,13 @@ public class SwiftDocServer extends Thread {
             this.client = client;
 
             this.swift1 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
-                    Integer.MAX_VALUE, cacheEvictionTimeMillis, SwiftImpl.DEFAULT_CACHE_SIZE);
+                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
+                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CACHE_SIZE);
 
             this.swift2 = SwiftImpl.newInstance(dcName, DCConstants.SURROGATE_PORT, false,
-                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_TIMEOUT_MILLIS,
-                    Integer.MAX_VALUE, cacheEvictionTimeMillis,
+                    SwiftImpl.DEFAULT_CONCURRENT_OPEN_TRANSACTIONS, SwiftImpl.DEFAULT_MAX_ASYNC_QUEUED_TRANSACTIONS,
+                    SwiftImpl.DEFAULT_TIMEOUT_MILLIS, Integer.MAX_VALUE, cacheEvictionTimeMillis,
                     SwiftImpl.DEFAULT_CACHE_SIZE);
 
             swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);

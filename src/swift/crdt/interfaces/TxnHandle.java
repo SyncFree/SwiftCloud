@@ -113,7 +113,8 @@ public interface TxnHandle {
 
     /**
      * Commits the transaction, blocks only until local commit and commits to
-     * the store asynchronously.
+     * the store asynchronously. Note that this call may block if {@link Swift}
+     * transaction commit queue exceeds maxAsyncQueuedTransactions.
      * 
      * @param listener
      *            listener notified about transaction global commit;
