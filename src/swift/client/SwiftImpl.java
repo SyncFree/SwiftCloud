@@ -128,7 +128,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private boolean stopFlag;
     private boolean stopGracefully;
 
-    private final String clientId;
+    private final String scoutId;
     private final RpcEndpoint localEndpoint;
     private final Endpoint serverEndpoint;
 
@@ -182,7 +182,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private final int notificationTimeoutMillis;
     private final int deadlineMillis;
     // If true, only disaster safe committed (and local) transactions are read
-    // by transactions, so the client virtually never blocks due to systen
+    // by transactions, so the scout virtually never blocks due to systen
     // failures.
     private final boolean disasterSafe;
     // If true, multiple transactions can be open. Note that (1) transactions
@@ -196,7 +196,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint,
             final TimeSizeBoundedObjectsCache objectsCache, final SwiftOptions options) {
-        this.clientId = generateScoutId();
+        this.scoutId = generateScoutId();
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
         this.disasterSafe = options.isDisasterSafe();
@@ -213,7 +213,7 @@ public class SwiftImpl implements Swift, TxnManager {
         this.committedDisasterDurableVersion = ClockFactory.newClock();
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
-                new IncrementalTimestampGenerator(clientId));
+                new IncrementalTimestampGenerator(scoutId));
         this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
                 INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.pendingTxns = new HashSet<AbstractTxnHandle>();
@@ -230,7 +230,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     @Override
     public void stop(boolean waitForCommit) {
-        logger.info("stopping client");
+        logger.info("stopping scout");
         synchronized (this) {
             stopFlag = true;
             stopGracefully = waitForCommit;
@@ -253,7 +253,7 @@ public class SwiftImpl implements Swift, TxnManager {
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
         }
-        logger.info("client stopped");
+        logger.info("scout stopped");
     }
 
     @Override
@@ -276,7 +276,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
                     @Override
                     protected Boolean callOrFailWithNull() {
-                        localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(clientId),
+                        localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(scoutId),
                                 new LatestKnownClockReplyHandler() {
                                     @Override
                                     public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
@@ -439,7 +439,7 @@ public class SwiftImpl implements Swift, TxnManager {
                         .getAndTouch(id) == null);
                 fetchClock = getCommittedVersion(true);
                 fetchClock.merge(lastGloballyCommittedTxnClock);
-                fetchClock.drop(clientId);
+                fetchClock.drop(scoutId);
                 // Try to get the latest one.
             }
 
@@ -483,7 +483,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
         while (true) {
             final CausalityClock globalVersion = version.clone();
-            globalVersion.drop(clientId);
+            globalVersion.drop(scoutId);
             fetchObjectVersion(txn, id, create, classOfV, globalVersion, true, updatesListener != null);
 
             try {
@@ -536,7 +536,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 // Make sure we do not introduce cycles in dependencies. Include
                 // only transactions with lower timestamp in the snapshot,
                 // because timestamp order induces the commit order.
-                clock.drop(clientId);
+                clock.drop(scoutId);
                 clock.recordAllUntil(txn.getTimestampMapping().getClientTimestamp());
             }
 
@@ -596,7 +596,7 @@ public class SwiftImpl implements Swift, TxnManager {
             boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
             NetworkException {
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
-        final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(clientId, id, version,
+        final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, id, version,
                 strictUnprunedVersion, subscriptionType);
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
     }
@@ -663,7 +663,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     throw new NetworkException("Fetching object version exceeded the deadline");
                 }
                 if (stopFlag) {
-                    throw new NetworkException("Fetching object version was interrupted by client shutdown.");
+                    throw new NetworkException("Fetching object version was interrupted by scout shutdown.");
                 }
             } while (!processFetchObjectReply(txn, fetchRequest, reply, classOfV, create));
         } finally {
@@ -780,7 +780,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private void fetchSubscribedNotifications() {
         final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
         localEndpoint.send(serverEndpoint,
-                new FastRecentUpdatesRequest(clientId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
+                new FastRecentUpdatesRequest(scoutId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
                 new FastRecentUpdatesReplyHandler() {
                     @Override
                     public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
@@ -798,7 +798,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     + notifications.getEstimatedDisasterDurableCommittedVersion());
             if (notifications.getSubscriptions().size() > 0) {
                 ObjectSubscriptionInfo sub = notifications.getSubscriptions().get(0);
-                logger.info("notifications received in " + clientId + " for " + sub.getId() + "; old clk: "
+                logger.info("notifications received in " + scoutId + " for " + sub.getId() + "; old clk: "
                         + sub.getOldClock() + "; new clk " + sub.getNewClock());
             }
         }
@@ -831,7 +831,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private synchronized void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
             final List<CRDTObjectUpdatesGroup<?>> ops, final CausalityClock outputClock) {
         if (stopFlag) {
-            logger.info("Update received after client has been stopped -> ignoring");
+            logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -878,7 +878,7 @@ public class SwiftImpl implements Swift, TxnManager {
         for (final CRDTObjectUpdatesGroup<?> op : ops) {
             final boolean newUpdate = crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
             final String updatesScoutId = op.getClientTimestamp().getIdentifier();
-            if (!updatesScoutId.equals(clientId)) {
+            if (!updatesScoutId.equals(scoutId)) {
                 crdt.discardScoutClock(updatesScoutId);
             }
             if (!newUpdate) {
@@ -899,7 +899,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id, UpdateSubscription subscription,
             TimestampMapping... timestampMappings) {
         if (stopFlag) {
-            logger.info("Update received after client has been stopped -> ignoring");
+            logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -935,7 +935,7 @@ public class SwiftImpl implements Swift, TxnManager {
     private synchronized <V extends CRDT<V>> void handleObjectNewVersionTryNotify(CRDTIdentifier id,
             final UpdateSubscription subscription, final V newCrdtVersion) {
         if (stopFlag) {
-            logger.info("Update received after client has been stopped -> ignoring");
+            logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -974,7 +974,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private void asyncSubscribeObjectUpdates(final CRDTIdentifier id) {
         if (stopFlag) {
-            logger.info("Update received after client has been stopped -> ignoring");
+            logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -988,7 +988,7 @@ public class SwiftImpl implements Swift, TxnManager {
                     }
                     version = getCommittedVersion(true);
                     version.merge(lastLocallyCommittedTxnClock);
-                    version.drop(clientId);
+                    version.drop(scoutId);
                 }
                 try {
                     fetchObjectVersion(null, id, false, BaseCRDT.class, version, false, true);
@@ -1008,7 +1008,7 @@ public class SwiftImpl implements Swift, TxnManager {
                 if (objectUpdateSubscriptions.containsKey(id)) {
                     return;
                 }
-                if (localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(clientId, id)).failed()) {
+                if (localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(scoutId, id)).failed()) {
                     logger.info("failed to unsuscribe object updates");
                 }
             }
@@ -1093,7 +1093,7 @@ public class SwiftImpl implements Swift, TxnManager {
         txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
         txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
-        txn.getUpdatesDependencyClock().drop(clientId);
+        txn.getUpdatesDependencyClock().drop(scoutId);
         // Use optimizedDependencyClock when sending out the updates - it may
         // impose more restrictions, but contains less holes.
         final CausalityClock optimizedDependencyClock = getCommittedVersion(true);
@@ -1113,7 +1113,7 @@ public class SwiftImpl implements Swift, TxnManager {
 
             @Override
             protected CommitUpdatesReply callOrFailWithNull() {
-                localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(clientId, operationsGroups),
+                localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(scoutId, operationsGroups),
                         new CommitUpdatesReplyHandler() {
                             @Override
                             public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
@@ -1232,12 +1232,12 @@ public class SwiftImpl implements Swift, TxnManager {
 
     private void assertRunning() {
         if (stopFlag) {
-            throw new IllegalStateException("client is stopped");
+            throw new IllegalStateException("scout is stopped");
         }
     }
 
     private void assertIsGlobalClock(CausalityClock version) {
-        if (version.hasEventFrom(clientId)) {
+        if (version.hasEventFrom(scoutId)) {
             throw new IllegalArgumentException("transaction requested visibility of local transaction");
         }
     }
@@ -1285,7 +1285,7 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     /**
-     * Client representation of updates subscription. When listener is not null,
+     * Scout representation of updates subscription. When listener is not null,
      * the listener is awaiting for notification on update that occurred after
      * the readVersion.
      * 
