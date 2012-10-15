@@ -59,4 +59,10 @@ public class CommitUpdatesRequest extends ClientRequest {
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftServer) handler).onReceive(conn, this);
     }
+
+    public void addTimestampsToDeps(List<Timestamp> tsLst) {
+        if( tsLst != null)
+            for( Timestamp t: tsLst)
+                this.dependencyClock.record(t);
+    }
 }
