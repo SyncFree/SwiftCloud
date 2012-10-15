@@ -3,7 +3,7 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-46-137-21-255.eu-west-1.compute.amazonaws.com
+ec2-46-137-3-181.eu-west-1.compute.amazonaws.com
 )
 
 
@@ -73,10 +73,12 @@ ISOLATION=REPEATABLE_READS
 CACHING=STRICTLY_MOST_RECENT
 CACHING=CACHED
 CACHE_EVICTION_TIME_MS=120000 #120000
+ASYNC_COMMIT=false
 
 DC_NUMBER=${#DCS[@]}
 SCOUTS_NUMBER=${#SCOUTS[@]}
 CLIENTS_NUMBER=${#ENDCLIENTS[@]}
+
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
 . scripts/planetlab/pl-kill.sh $MACHINES
@@ -93,6 +95,8 @@ sleep 10
 
 # DEPLOY STUFF?
 DEPLOY=true
+
+
 
 # run_swift_client_bg <client> <server> <cmds_file>
 run_swift_cdn_server_bg() {
@@ -172,8 +176,11 @@ wait "${client_pids[0]}"
 echo "==== KILLING SERVERS AND CLIENTS ===="
 . scripts/planetlab/pl-kill.sh $MACHINES
 
+runDir="results/swiftdoc/"`date "+%b%s"`
+echo $runDir
+mkdir -p $runDir
+output_prefix=$runDir/1pc-osdi-result-cs-swiftdoc-$DC_NUMBER-$SCOUTS_NUMBER-$CLIENTS_NUMBER-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT.log
 echo "==== COLLECTING CLIENT LOGS AS RESULTS ===="
-output_prefix=results/swiftdoc/1pc-osdi-result-cs-swiftdoc-$ISOLATION-$CACHING-$NOTIFICATIONS.log
 for client in ${ENDCLIENTS[*]}; do
 	copy_from $client stdout.txt $output_prefix.$client
 done

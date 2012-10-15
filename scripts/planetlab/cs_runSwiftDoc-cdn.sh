@@ -1,17 +1,16 @@
 #! /bin/bash
 
-
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-46-137-29-110.eu-west-1.compute.amazonaws.com
+ec2-46-137-3-181.eu-west-1.compute.amazonaws.com
 )
+
 
 export SCOUT_NODES=(
 ait21.us.es
 ait05.us.es
 )
-
 
 export ENDCLIENT_NODES=(
 planetlab-3.iscte.pt
@@ -20,13 +19,14 @@ planetlab-4.iscte.pt
 
 # BELOW NOT USED, JUST A POOL OF AVAILABLE PLANETLAB NODES
 
-
 # WARNING - PlanetLab nodes are volatile; some may be down...
 export PLANETLAB_NODES_ALL=(
-
-
 ait21.us.es
 ait05.us.es
+
+planetlab-um00.di.uminho.pt
+planetlab-um10.di.uminho.pt
+
 planetlab2.di.fct.unl.pt
 planetlab-1.iscte.pt
 
@@ -46,14 +46,19 @@ planetlab-1.tagus.ist.utl.pt
 planetlab-2.tagus.ist.utl.pt
 planetlab1.eurecom.fr
 planetlab2.eurecom.fr
+
+)
+
+# TEST instances
+export EC2_TEST_EU=(
 )
 
 # TOPOLOGY
 DCS[0]=${DATACENTER_NODES[0]}
 DCSEQ[0]=${DATACENTER_NODES[0]}
 
-#DCS[1]=${DATACENTER_NODES[1]}
-#DCSEQ[1]=${DATACENTER_NODES[1]}
+#DCS[1]=${EC2_PROD_EU_MICRO[1]}
+#DCSEQ[1]=${EC2_PROD_EU_MICRO[1]}
 
 SCOUTS=("${SCOUT_NODES[@]}")
 
@@ -67,16 +72,18 @@ ISOLATION=REPEATABLE_READS
 CACHING=STRICTLY_MOST_RECENT
 CACHING=CACHED
 CACHE_EVICTION_TIME_MS=120000 #120000
+ASYNC_COMMIT=false
 
 DC_NUMBER=${#DCS[@]}
 SCOUTS_NUMBER=${#SCOUTS[@]}
 CLIENTS_NUMBER=${#ENDCLIENTS[@]}
 
+
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
 . scripts/planetlab/pl-kill.sh $MACHINES
 echo "==== DONE ===="
 
-ant -buildfile smd-jar-build.xml 
+#ant -buildfile smd-jar-build.xml
 
 if [ ! -f "$JAR" ]; then
 echo "file $JAR not found" && exit 1
@@ -87,6 +94,8 @@ sleep 10
 
 # DEPLOY STUFF?
 DEPLOY=true
+
+
 
 # run_swift_client_bg <client> <server> <cmds_file>
 run_swift_cdn_server_bg() {
@@ -146,7 +155,7 @@ for scout in ${SCOUTS[*]}; do
 done
 echo "==== WAITING A BIT BEFORE STARTING ENDCLIENTS ===="
 
-sleep 20
+sleep 15
 
 client_pids=()
 i=0;
@@ -166,8 +175,11 @@ wait "${client_pids[0]}"
 echo "==== KILLING SERVERS AND CLIENTS ===="
 . scripts/planetlab/pl-kill.sh $MACHINES
 
+runDir="results/swiftdoc/"`date "+%b%s"`
+echo $runDir
+mkdir -p $runDir
+output_prefix=$runDir/1pc-cdn-result-cs-swiftdoc-$DC_NUMBER-$SCOUTS_NUMBER-$CLIENTS_NUMBER-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT.log
 echo "==== COLLECTING CLIENT LOGS AS RESULTS ===="
-output_prefix=results/swiftdoc/1pc-cdn-result-cs-swiftdoc-$ISOLATION-$CACHING-$NOTIFICATIONS.log
 for client in ${ENDCLIENTS[*]}; do
 	copy_from $client stdout.txt $output_prefix.$client
 done

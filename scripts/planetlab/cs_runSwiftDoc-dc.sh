@@ -1,16 +1,15 @@
-e#! /bin/bash
-
+#! /bin/bash
 
 . ./scripts/planetlab/pl-common.sh
 
-export DATACENTER_SERVERS=(
-ec2-46-137-29-110.eu-west-1.compute.amazonaws.com
+export DATACENTER_NODES=(
+ec2-46-137-3-181.eu-west-1.compute.amazonaws.com
 )
 
 
 export SCOUT_NODES=(
-ec2-54-247-55-155.eu-west-1.compute.amazonaws.com
-ec2-176-34-78-57.eu-west-1.compute.amazonaws.com
+ec2-46-137-71-157.eu-west-1.compute.amazonaws.com
+ec2-54-247-28-149.eu-west-1.compute.amazonaws.com
 )
 
 
@@ -19,10 +18,7 @@ planetlab-3.iscte.pt
 planetlab-4.iscte.pt
 )
 
-
 # BELOW NOT USED, JUST A POOL OF AVAILABLE PLANETLAB NODES
-
-
 
 # WARNING - PlanetLab nodes are volatile; some may be down...
 export PLANETLAB_NODES_ALL=(
@@ -59,11 +55,11 @@ export EC2_TEST_EU=(
 )
 
 # TOPOLOGY
-DCS[0]=${DATACENTER_SERVERS[0]}
-DCSEQ[0]=${DATACENTER_SERVERS[0]}
+DCS[0]=${DATACENTER_NODES[0]}
+DCSEQ[0]=${DATACENTER_NODES[0]}
 
-#DCS[1]=${DATACENTER_SERVERS[1]}
-#DCSEQ[1]=${DATACENTER_SERVERS[1]}
+#DCS[1]=${EC2_PROD_EU_MICRO[1]}
+#DCSEQ[1]=${EC2_PROD_EU_MICRO[1]}
 
 SCOUTS=("${SCOUT_NODES[@]}")
 
@@ -77,10 +73,12 @@ ISOLATION=REPEATABLE_READS
 CACHING=STRICTLY_MOST_RECENT
 CACHING=CACHED
 CACHE_EVICTION_TIME_MS=120000 #120000
+ASYNC_COMMIT=false
 
 DC_NUMBER=${#DCS[@]}
 SCOUTS_NUMBER=${#SCOUTS[@]}
 CLIENTS_NUMBER=${#ENDCLIENTS[@]}
+
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
 . scripts/planetlab/pl-kill.sh $MACHINES
@@ -98,13 +96,15 @@ sleep 10
 # DEPLOY STUFF?
 DEPLOY=true
 
+
+
 # run_swift_client_bg <client> <server> <cmds_file>
 run_swift_cdn_server_bg() {
     target=$1
     id=$2
     id=$(($id+1))
     server=$3
-    swift_app_cmd_nostdout -Xmx256m swift.application.swiftdoc.cs.SwiftDocBenchmarkServer $server $id $ISOLATION $CACHING $NOTIFICATIONS
+    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkServer $server $id $ISOLATION $CACHING $NOTIFICATIONS
     run_cmd_bg $target $CMD
 }
 
@@ -114,7 +114,7 @@ run_swift_cdn_client_bg() {
     id=$(($id+1))
     server=$3
     dcname=$4
-    swift_app_cmd_nostdout -Xmx256m swift.application.swiftdoc.cs.SwiftDocBenchmarkClient $server $id $dcname
+    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkClient $server $id $dcname
 
     run_cmd_bg $target $CMD
 }
@@ -156,7 +156,7 @@ for scout in ${SCOUTS[*]}; do
 done
 echo "==== WAITING A BIT BEFORE STARTING ENDCLIENTS ===="
 
-sleep 10
+sleep 20
 
 client_pids=()
 i=0;
@@ -176,8 +176,11 @@ wait "${client_pids[0]}"
 echo "==== KILLING SERVERS AND CLIENTS ===="
 . scripts/planetlab/pl-kill.sh $MACHINES
 
+runDir="results/swiftdoc/"`date "+%b%s"`
+echo $runDir
+mkdir -p $runDir
+output_prefix=$runDir/1pc-dc-result-cs-swiftdoc-$DC_NUMBER-$SCOUTS_NUMBER-$CLIENTS_NUMBER-$ISOLATION-$CACHING-$NOTIFICATIONS-$CACHE_EVICTION_TIME_MS-$ASYNC_COMMIT.log
 echo "==== COLLECTING CLIENT LOGS AS RESULTS ===="
-output_prefix=results/swiftdoc/1pc-dc-result-cdn-swiftdoc-$ISOLATION-$CACHING-$NOTIFICATIONS.log
 for client in ${ENDCLIENTS[*]}; do
 	copy_from $client stdout.txt $output_prefix.$client
 done
