@@ -18,19 +18,15 @@ import swift.utils.Pair;
 
 public class FilesystemBasic implements Filesystem {
     // table in DHT that holds all entries for this filesystem
-
     private String table;
     // root directory
     private CRDTIdentifier root;
-
-    // private final Class fileContentClass;
 
     public FilesystemBasic(TxnHandle txn, String root, String table) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         this.table = table;
         this.root = DirectoryTxnLocal.createRootId(table, root, DirectoryVersioned.class);
         txn.get(this.root, true, DirectoryVersioned.class);
-        // this.fileContentClass = fileContentClass;
     }
 
     private static Class getFileClass(String name) {
@@ -134,42 +130,31 @@ public class FilesystemBasic implements Filesystem {
     @Override
     public boolean isDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
             VersionNotFoundException, NetworkException {
-        File fdummy = new File(path);
-        CRDTIdentifier parentId;
-        if (fdummy.getParent().equals("/")) {
-            parentId = DirectoryTxnLocal.createRootId(table, fdummy.getName(), DirectoryVersioned.class);
-        } else {
-            parentId = DirectoryTxnLocal.getCRDTIdentifier(table, fdummy.getParent(), fdummy.getName(),
-                    DirectoryVersioned.class);
-        }
-        DirectoryTxnLocal parent;
-        try {
-            parent = txn.get(parentId, false, DirectoryVersioned.class);
-        } catch (NoSuchObjectException e) {
-            return false;
-        }
-        Collection<Pair<String, Class<?>>> entries = parent.getValue();
-        return entries.contains(new Pair<String, Class<?>>(dname, DirectoryVersioned.class));
+        return getContentOfParentDirectory(txn, path, dname, DirectoryVersioned.class);
     }
 
     @Override
     public boolean isFile(TxnHandle txn, String fname, String path) throws WrongTypeException,
             VersionNotFoundException, NetworkException {
+        return getContentOfParentDirectory(txn, path, fname, getFileClass(fname));
+    }
+
+    private boolean getContentOfParentDirectory(TxnHandle txn, String path, String name, Class<?> type)
+            throws WrongTypeException, VersionNotFoundException, NetworkException {
         File fdummy = new File(path);
         CRDTIdentifier parentId;
-        if (fdummy.getParent().equals("/")) {
+        if ("/".equals(fdummy.getParent())) {
             parentId = DirectoryTxnLocal.createRootId(table, fdummy.getName(), DirectoryVersioned.class);
         } else {
             parentId = DirectoryTxnLocal.getCRDTIdentifier(table, fdummy.getParent(), fdummy.getName(),
                     DirectoryVersioned.class);
         }
-        DirectoryTxnLocal parent;
         try {
-            parent = txn.get(parentId, false, DirectoryVersioned.class);
+            DirectoryTxnLocal parent = txn.get(parentId, false, DirectoryVersioned.class);
+            Collection<Pair<String, Class<?>>> entries = parent.getValue();
+            return entries.contains(new Pair<String, Class<?>>(name, type));
         } catch (NoSuchObjectException e) {
             return false;
         }
-        Collection<Pair<String, Class<?>>> entries = parent.getValue();
-        return entries.contains(new Pair<String, Class<?>>(fname, getFileClass(fname)));
     }
 }

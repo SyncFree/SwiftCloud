@@ -95,13 +95,13 @@ public class FilePaged implements IFile {
 
     @Override
     public byte[] getBytes() {
-        assert (actualSize <= Integer.MAX_VALUE);
+        assert actualSize <= Integer.MAX_VALUE;
         return get(0, (int) actualSize);
     }
 
     @Override
     public int getSize() {
-        assert (actualSize <= Integer.MAX_VALUE);
+        assert actualSize <= Integer.MAX_VALUE;
         return (int) actualSize;
     }
 }
