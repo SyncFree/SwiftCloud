@@ -91,5 +91,6 @@ public class SwiftSocialTest {
         client.logout("Butterfly");
 
         clientServer.stop(true);
+        System.exit(0);
     }
 }
