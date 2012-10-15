@@ -3,6 +3,8 @@ package swift.utils;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
+import swift.utils.KryoCRDTUtils.Registerable;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
 
@@ -24,6 +26,12 @@ public class KryoDiskLog implements TransactionsLog {
      */
     public KryoDiskLog(final String fileName) throws FileNotFoundException {
         kryo = new Kryo();
+        KryoCRDTUtils.registerCRDTClasses(new Registerable() {
+            @Override
+            public void register(Class<?> cl, int id) {
+                kryo.register(cl, id);
+            }
+        });
         output = new Output(new FileOutputStream(fileName));
     }
 
