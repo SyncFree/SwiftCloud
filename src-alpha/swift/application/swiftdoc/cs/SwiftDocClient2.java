@@ -218,7 +218,6 @@ public class SwiftDocClient2 {
 
     // Echo the atoms received to the server...
     static void client2Code(final Endpoint server) {
-        final Object barrier = new Object();
 
         final AckHandler ackHandler = new AckHandler();
 
@@ -226,11 +225,7 @@ public class SwiftDocClient2 {
 
         try {
             endpoint.send(server, new InitScoutServer(), new AppRpcHandler() {
-                public void onReceive(final ServerReply r) {
-
-                    Threading.newThread(true, new Runnable() {
-                        public void run() {
-                            synchronized (barrier) {
+                synchronized public void onReceive(final ServerReply r) {
                                 endpoint.send( server, new BeginTransaction(), ackHandler, 0 ) ;
                                 for( TextLine i : r.atoms )
                                     endpoint.send( server, new InsertAtom(i , -1), ackHandler, 0 );
@@ -240,9 +235,6 @@ public class SwiftDocClient2 {
 //                                for (TextLine i : r.atoms)
 //                                    t.ops.add(  new InsertAtom(i, -1) ) ;                                
 //                                endpoint.send(server, t , ackHandler);
-                            }
-                        }
-                    }).start();
                 }
             });
 
