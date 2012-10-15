@@ -1098,6 +1098,7 @@ public class SwiftImpl implements Swift, TxnManager {
         // impose more restrictions, but contains less holes.
         final CausalityClock optimizedDependencyClock = getCommittedVersion(true);
         optimizedDependencyClock.merge(txn.getUpdatesDependencyClock());
+        optimizedDependencyClock.drop(clientId);
         final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
         for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
             operationsGroups.add(group.withWithDependencyClock(optimizedDependencyClock));
