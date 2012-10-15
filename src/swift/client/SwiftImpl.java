@@ -76,6 +76,7 @@ import sys.net.api.rpc.RpcHandle;
  * @author mzawirski
  */
 public class SwiftImpl implements Swift, TxnManager {
+    // Temporary Nuno's hack:
     public static final boolean DEFAULT_LISTENER_FOR_GET = false;
     static ObjectUpdatesListener DEFAULT_LISTENER = new AbstractObjectUpdatesListener() {
         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
@@ -95,8 +96,8 @@ public class SwiftImpl implements Swift, TxnManager {
     // this way. In any case, locking should not affect responsiveness to
     // pendingTxn requests.
 
-    // WISHME: decouple "object store" from the rest of transactions and
-    // notifications processing
+    // WISHME: decouple this monolithic untestable monster, e.g. extract
+    // "object store" from the rest of transactions and notifications processing
 
     // WISHME: subscribe updates of frequently accessed objects
 

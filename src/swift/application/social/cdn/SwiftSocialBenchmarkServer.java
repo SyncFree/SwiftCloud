@@ -22,9 +22,10 @@ import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
 import sys.utils.Args;
+
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
- * prototype [Sovran et al. OSDI 2011].
+ * prototype [Sovran et al. SOSP 2011].
  * <p>
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.

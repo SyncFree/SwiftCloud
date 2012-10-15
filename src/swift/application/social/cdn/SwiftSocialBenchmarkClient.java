@@ -30,7 +30,7 @@ import static sys.Sys.*;
 import static sys.net.api.Networking.Networking;
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
- * prototype [Sovran et al. OSDI 2011].
+ * prototype [Sovran et al. SOSP 2011].
  * <p>
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.

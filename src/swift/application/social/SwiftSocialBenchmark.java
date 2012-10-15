@@ -18,9 +18,10 @@ import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
+
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
- * prototype [Sovran et al. OSDI 2011].
+ * prototype [Sovran et al. SOSP 2011].
  * <p>
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.

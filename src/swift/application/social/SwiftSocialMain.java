@@ -26,7 +26,7 @@ import sys.Sys;
 
 /**
  * Executing SwiftSocial operations, based on data model of WaltSocial prototype
- * [Sovran et al. OSDI 2011].
+ * [Sovran et al. SOSP 2011].
  */
 public class SwiftSocialMain {
     private static final long DELAY_AFTER_INIT = 3000;
