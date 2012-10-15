@@ -31,14 +31,14 @@ public class CRDTObject<V extends CRDT<V>> {
 //      crdtCopy.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
 //      3) clientTxClockService.unlock(clientId)
 //      4) return crdtCopy
-        if( DCDataServer.prune) {
+/*        if( DCDataServer.prune) {
             CMP_CLOCK cmp = version.compareTo( data.pruneClock);
             if( cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES)
                 this.crdt = data.prunedCrdt.copy();
             else
                 this.crdt = data.crdt.copy();
         } else;
-            this.crdt = data.crdt.copy();
+*/            this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
         if( data.cltClock.getLatestCounter(cltId) > 0)

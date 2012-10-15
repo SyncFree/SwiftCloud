@@ -370,9 +370,9 @@ class DCDataServer {
                 data.initValue(crdt, clk, prune, cltClock);
             } else {
                 data.crdt.merge(crdt);
-                if (DCDataServer.prune) {
-                    data.prunedCrdt.merge(crdt);
-                }
+//                if (DCDataServer.prune) {
+//                    data.prunedCrdt.merge(crdt);
+//                }
                 data.clock.merge(clk);
                 data.pruneClock.merge(prune);
                 data.cltClock.merge(cltClock);
@@ -431,7 +431,7 @@ class DCDataServer {
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
             data.crdt.augmentWithDCClock(curDCVersion);
 
-            if (DCDataServer.prune) {
+/*            if (DCDataServer.prune) {
                 if (prvCltTs != null)
                     data.prunedCrdt.augmentWithScoutClock(prvCltTs);
                 data.prunedCrdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
@@ -440,7 +440,7 @@ class DCDataServer {
                 data.prunedCrdt.discardScoutClock(cltTs.getIdentifier());
                 data.pruneClock = data.clock;
             }
-            data.crdt.discardScoutClock(cltTs.getIdentifier());
+*/            data.crdt.discardScoutClock(cltTs.getIdentifier());
             data.clock = data.crdt.getClock();
 
             setModifiedDatabaseEntry(data);
