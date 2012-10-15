@@ -13,6 +13,7 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.AbstractMessage;
+import sys.net.impl.NetworkingConstants;
 
 abstract class AbstractRpcPacket extends AbstractMessage implements Message, RpcHandle, RpcEndpoint, KryoSerializable {
 
@@ -29,6 +30,8 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 	Endpoint remote;
 	long timestamp;
 
+	int DEFAULT_TIMEOUT = NetworkingConstants.RPC_DEFAULT_TIMEOUT ;
+	
 	boolean failed = false;
 	Throwable failureCause;
 
@@ -37,6 +40,17 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 	protected AbstractRpcPacket() {
 	}
 
+	final public void setDefaultTimeout( int ms ) {
+	    if( ms < 0 )
+	        throw new RuntimeException("Invalid argument, timeout must be >= 0");	    
+	    this.DEFAULT_TIMEOUT = ms ;
+	}
+	
+	final public int getDefaultTimeout() {
+        return this.DEFAULT_TIMEOUT ;
+    }
+    
+	
 	final public Endpoint remote() {
 		return remote != null ? remote : conn.remoteEndpoint();
 	}
@@ -84,7 +98,7 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 
 	@Override
 	public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
-		return send(dst, m, replyHandler, -1);
+		return send(dst, m, replyHandler, DEFAULT_TIMEOUT);
 	}
 
 	@Override

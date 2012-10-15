@@ -59,5 +59,18 @@ public interface Endpoint {
 	 * @return the locator for this endpoint
 	 */
 	<T> T gid();
+	
+	
+	/**
+	 * Provides host/ip address associated with this endpoint
+	 * @return a string for the host address of this endpoint
+	 */
+	String getHost() ;
+	
+	/**
+	 * Provides the port associated with this endpoint
+	 * @return the port associated with this endpoint
+	 */
+	int getPort() ;
 
 }

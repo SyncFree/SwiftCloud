@@ -44,13 +44,13 @@ abstract public class Networking {
 	 * and a port. Endpoints returned by this function serve only as locators
 	 * and cannot be used to initiate communication by themselves.
 	 * 
-	 * @param host
-	 *            - the host/ip address of the remote location
+	 * @param address
+	 *            - the host/ip[:port] address of the remote location
 	 * @param tcpPort
-	 *            - the port for establishing connections
+	 *            - the port for establishing connections, ignored if host is specified as [host:port]
 	 * @return the endpoint created
 	 */
-	abstract public Endpoint resolve(final String host, final int tcpPort);
+	abstract public Endpoint resolve(final String address, final int tcpPort);
 
 	/**
 	 * Creates a local endpoint for accepting and sending messages according to

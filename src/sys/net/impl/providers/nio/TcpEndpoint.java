@@ -61,7 +61,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			if (((AbstractEndpoint) remote).isIncoming())
 				return new OutgoingConnection(remote);
 			else {
-				Log.warning("Attempting to connect to an outgoing only endpoint" + remote);
+				Log.info("Attempting to connect to an outgoing only endpoint." + remote);
 			}
 			return new FailedTransportConnection(localEndpoint, remote, null);
 		} catch (Throwable t) {

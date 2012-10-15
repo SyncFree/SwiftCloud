@@ -2,7 +2,6 @@ package sys.net.impl.rpc;
 
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
-import static sys.net.impl.NetworkingConstants.RPC_MAX_TIMEOUT;
 
 import java.util.logging.Logger;
 
@@ -112,7 +111,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 	}
 
 	final private void waitForReply() {
-		while (reply == null && !timedOut());
+		while (reply == null && ! timedOut() );
 
 		isWaiting4Reply = false;
 		if (reply != null)
@@ -121,7 +120,10 @@ final public class RpcPacket extends AbstractRpcPacket {
 	}
 
 	final private boolean timedOut() {
-		int ms = (int) ((timeout < 0 ? RPC_MAX_TIMEOUT : timeout) - (Sys.timeMillis() - timestamp));
+	    if( timeout < 0 )
+	        throw new RuntimeException("Default timeout...") ;
+	    
+		int ms = (int) (timeout - (Sys.timeMillis() - timestamp));
 		if (ms > 0)
 			Threading.waitOn(this, ms > 100 ? 100 : ms);
 		return ms <= 0;

@@ -2,6 +2,7 @@ package sys.net.impl;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 
@@ -129,5 +130,13 @@ abstract public class AbstractEndpoint implements Endpoint {
 	final public void read(Kryo kryo, Input input) {
 		this.locator = input.readLong();
 		this.gid = input.readLong();
+	}
+	
+	public String getHost() {
+	    return sockAddress().getHostName() ;
+	}
+	
+	public int getPort() {
+	    return sockAddress().getPort();
 	}
 }

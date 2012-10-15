@@ -29,8 +29,15 @@ public class NetworkingImpl extends Networking {
 	}
 
 	@Override
-	public Endpoint resolve(final String host, final int tcpPort) {
-		return new RemoteEndpoint(host, tcpPort);
+	public Endpoint resolve(final String address, final int tcpPort) {
+	    int i = address.indexOf(':');
+	    if( i < 0 )
+	        return new RemoteEndpoint(address, tcpPort);
+	    else {
+	        String host = address.substring(0, i);
+	        int port = Integer.parseInt( address.substring(i+1) ) ;
+            return new RemoteEndpoint(host, port);	        
+	    }
 	}
 
 	@Override

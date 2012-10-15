@@ -207,17 +207,20 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
     final ConcurrentHashMap<Long, RpcPacket> handlers0 = new ConcurrentHashMap<Long, RpcPacket>();
 
     void initStaleHandlersGC_Task() {
-        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD / (1000 * RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY)) {
+        final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName()+".gc");
+
+        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD / (RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY)) {
             public void run() {
                 double now = Sys.timeMillis();
                 synchronized (handlers0) {
+                    
                     for (Iterator<RpcPacket> it = handlers0.values().iterator(); it.hasNext();) {
                         RpcPacket p = it.next();
                         if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) > p.deferredRepliesTimeout) {
                             it.remove();
-                            Log.info("GC'ing Deferred Replies Handler: " + p);
                         }
                     }
+                    Log.info("Active Service+DeferredReplies Handlers: " + handlers0.size());
                 }
                 synchronized (handlers1) {
                     List<Long> expired = new ArrayList<Long>();
@@ -227,8 +230,12 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
                         if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_PERIOD)
                             expired.add(p.handlerId);
                     }
-                    for (Long i : expired)
+                    for (Long i : expired) {
                         handlers1.remove(i);
+                        Log.info("GC'ing Handlers: " + i);
+
+                    }
+                    Log.info("Active Reply Handlers: " + handlers1.size() );
                 }
             }
         };

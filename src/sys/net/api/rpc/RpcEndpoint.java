@@ -78,4 +78,16 @@ public interface RpcEndpoint {
 	 * @return the reference to the factory that created this endpoint.
 	 */
 	RpcFactory getFactory();
+
+	/**
+	 * Sets the default timeout for this endpoint, while waiting for a reply to a message sent.
+	 * @param ms - the new timeout value to be used in milliseconds.
+	 */
+	void setDefaultTimeout( int ms ) ;
+
+	/**
+	 * Obtains the default timeout in use for this endpoint, while waiting for a reply to a message sent.
+	 * @return the timeout in milliseconds.
+	 */
+	int getDefaultTimeout();
 }
