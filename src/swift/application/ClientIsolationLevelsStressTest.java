@@ -33,12 +33,14 @@ public class ClientIsolationLevelsStressTest {
         DCServer.main(new String[] { sequencerName });
 
         Sys.init();
+        final SwiftOptions options = new SwiftOptions("localhost", DCConstants.SURROGATE_PORT);
+        options.setMaxCommitBatchSize(10);
         final Thread[] clientThreads = new Thread[CLIENTS_NUMBER];
         for (int i = 0; i < clientThreads.length; i++) {
             final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftImpl client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+                    SwiftImpl client = SwiftImpl.newInstance(options);
                     runTransactions(client, id);
                     client.stop(true);
                 }

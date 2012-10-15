@@ -33,6 +33,7 @@ public class CommitUpdatesRequest extends ClientRequest {
         super(clientId);
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
         this.clientTimestamp = this.objectUpdateGroups.get(0).getClientTimestamp();
+        this.dependencyClock = this.objectUpdateGroups.get(0).getDependency();
     }
 
     /**
@@ -47,8 +48,8 @@ public class CommitUpdatesRequest extends ClientRequest {
     /**
      * @return list of groups of object operations; there is at most one group
      *         per object; note that all groups share the same base client
-     *         timestamp ( {@link #getClientTimestamp()}), timestamp mappings and
-     *         dependency clock.
+     *         timestamp ( {@link #getClientTimestamp()}), timestamp mappings
+     *         and dependency clock.
      * 
      */
     public List<CRDTObjectUpdatesGroup<?>> getObjectUpdateGroups() {
@@ -61,8 +62,10 @@ public class CommitUpdatesRequest extends ClientRequest {
     }
 
     public void addTimestampsToDeps(List<Timestamp> tsLst) {
-        if( tsLst != null)
-            for( Timestamp t: tsLst)
+        if (tsLst != null) {
+            for (Timestamp t : tsLst) {
                 this.dependencyClock.record(t);
+            }
+        }
     }
 }

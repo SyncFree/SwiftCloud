@@ -15,6 +15,7 @@ public class SwiftOptions {
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final int DEFAULT_CACHE_SIZE = 100000;
     public static final int DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE = 2;
+    public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
 
     private String serverHostname;
     private int serverPort;
@@ -27,6 +28,7 @@ public class SwiftOptions {
     private int cacheSize;
     private int notificationTimeoutMillis;
     private int notificationThreadPoolsSize;
+    private int maxCommitBatchSize;
 
     /**
      * Creates a new instance with default options and provided server endpoint
@@ -46,8 +48,9 @@ public class SwiftOptions {
         this.deadlineMillis = DEFAULT_DEADLINE_MILLIS;
         this.cacheEvictionTimeMillis = DEFAULT_CACHE_EVICTION_MILLIS;
         this.cacheSize = DEFAULT_CACHE_SIZE;
-        this.notificationTimeoutMillis =  DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
+        this.notificationTimeoutMillis = DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
         this.notificationThreadPoolsSize = DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE;
+        this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
     }
 
     /**
@@ -216,5 +219,21 @@ public class SwiftOptions {
      */
     public void setNotificationThreadPoolsSize(final int notificationThreadPoolsSize) {
         this.notificationThreadPoolsSize = notificationThreadPoolsSize;
+    }
+
+    /**
+     * @return maximum number of transactions in one commit request to the store
+     */
+    public int getMaxCommitBatchSize() {
+        return maxCommitBatchSize;
+    }
+
+    /**
+     * @param maxCommitBatchSize
+     *            maximum number of transactions in one commit request to the
+     *            store
+     */
+    public void setMaxCommitBatchSize(int maxCommitBatchSize) {
+        this.maxCommitBatchSize = maxCommitBatchSize;
     }
 }

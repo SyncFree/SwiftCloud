@@ -3,6 +3,7 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -21,8 +22,10 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import swift.client.proto.BatchCommitUpdatesReply;
+import swift.client.proto.BatchCommitUpdatesReplyHandler;
+import swift.client.proto.BatchCommitUpdatesRequest;
 import swift.client.proto.CommitUpdatesReply;
-import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
@@ -193,6 +196,8 @@ public class SwiftImpl implements Swift, TxnManager {
     // Maximum number of asynchronous transactions queued locally before they
     // block the application.
     private final int maxAsyncTransactionsQueued;
+    // Maximum number of transactions in a single commit request to the store.
+    private final int maxCommitBatchSize;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint,
             final TimeSizeBoundedObjectsCache objectsCache, final SwiftOptions options) {
@@ -203,9 +208,11 @@ public class SwiftImpl implements Swift, TxnManager {
         this.timeoutMillis = options.getTimeoutMillis();
         this.deadlineMillis = options.getDeadlineMillis();
         this.notificationTimeoutMillis = options.getNotificationTimeoutMillis();
+        this.maxCommitBatchSize = options.getMaxCommitBatchSize();
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
+
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
@@ -1089,76 +1096,94 @@ public class SwiftImpl implements Swift, TxnManager {
      * @param txn
      *            locally committed transaction
      */
-    private void commitTxnGlobally(final AbstractTxnHandle txn) {
-        txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
+    private void commitTxnGlobally(final List<AbstractTxnHandle> transactionsToCommit) {
+        final List<CommitUpdatesRequest> requests = new LinkedList<CommitUpdatesRequest>();
+        // Preprocess transactions before sending them.
+        for (final AbstractTxnHandle txn : transactionsToCommit) {
+            txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
-        txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
-        txn.getUpdatesDependencyClock().drop(scoutId);
-        // Use optimizedDependencyClock when sending out the updates - it may
-        // impose more restrictions, but contains less holes.
-        final CausalityClock optimizedDependencyClock = getCommittedVersion(true);
-        optimizedDependencyClock.merge(txn.getUpdatesDependencyClock());
-        optimizedDependencyClock.drop(clientId);
-        final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
-        for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
-            operationsGroups.add(group.withWithDependencyClock(optimizedDependencyClock));
+            txn.getUpdatesDependencyClock().drop(scoutId);
+            // Use optimizedDependencyClock when sending out the updates - it
+            // may impose more restrictions, but contains less holes.
+            final CausalityClock optimizedDependencyClock = getCommittedVersion(true);
+            optimizedDependencyClock.merge(txn.getUpdatesDependencyClock());
+            optimizedDependencyClock.drop(scoutId);
+            final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+            for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
+                operationsGroups.add(group.withWithDependencyClock(optimizedDependencyClock));
+            }
+            requests.add(new CommitUpdatesRequest(scoutId, operationsGroups));
         }
 
         // Commit at server.
-        final CommitUpdatesReply reply = retryableTaskExecutor.execute(new CallableWithDeadline<CommitUpdatesReply>(
-                null) {
-            public String toString() {
-                return "CommitUpdatesRequest";
-            }
+        final BatchCommitUpdatesReply batchReply = retryableTaskExecutor
+                .execute(new CallableWithDeadline<BatchCommitUpdatesReply>(null) {
+                    public String toString() {
+                        return "BatchCommitUpdatesRequest";
+                    }
 
-            @Override
-            protected CommitUpdatesReply callOrFailWithNull() {
-                localEndpoint.send(serverEndpoint, new CommitUpdatesRequest(scoutId, operationsGroups),
-                        new CommitUpdatesReplyHandler() {
-                            @Override
-                            public void onReceive(RpcHandle conn, CommitUpdatesReply reply) {
-                                setResult(reply);
-                            }
-                        }, timeoutMillis);
-                return super.getResult();
-            }
-        });
+                    @Override
+                    protected BatchCommitUpdatesReply callOrFailWithNull() {
+                        localEndpoint.send(serverEndpoint, new BatchCommitUpdatesRequest(scoutId, requests),
+                                new BatchCommitUpdatesReplyHandler() {
+                                    @Override
+                                    public void onReceive(RpcHandle conn, BatchCommitUpdatesReply reply) {
+                                        setResult(reply);
+                                    }
+                                }, timeoutMillis);
+                        return super.getResult();
+                    }
+                });
+
+        if (batchReply.getReplies().size() != requests.size()) {
+            throw new IllegalStateException("Fatal error: server returned " + batchReply.getReplies().size() + " for "
+                    + requests.size() + " commit requests!");
+        }
 
         synchronized (this) {
-            switch (reply.getStatus()) {
-            case COMMITTED_WITH_KNOWN_TIMESTAMPS:
-                for (final Timestamp ts : reply.getCommitTimestamps()) {
-                    txn.markGloballyCommitted(ts);
-                    lastGloballyCommittedTxnClock.record(ts);
-                    committedVersion.record(ts);
+            for (int i = 0; i < batchReply.getReplies().size(); i++) {
+                final CommitUpdatesReply reply = batchReply.getReplies().get(i);
+                final AbstractTxnHandle txn = transactionsToCommit.get(i);
+                txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
+                switch (reply.getStatus()) {
+                case COMMITTED_WITH_KNOWN_TIMESTAMPS:
+                    for (final Timestamp ts : reply.getCommitTimestamps()) {
+                        txn.markGloballyCommitted(ts);
+                        lastGloballyCommittedTxnClock.record(ts);
+                        committedVersion.record(ts);
+                        // TODO: call updateCommittedVersion?
+                    }
+                    break;
+                case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
+                    lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
+                    // TODO: call updateCommittedVersion?
+                    break;
+                case INVALID_OPERATION:
+                    throw new IllegalStateException("DC replied to commit request with INVALID_OPERATION");
+                    // break;
+                default:
+                    throw new UnsupportedOperationException("unknown commit status: " + reply.getStatus());
                 }
-                break;
-            case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
-                lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
-                break;
-            case INVALID_OPERATION:
-                throw new IllegalStateException("DC replied to commit request with INVALID_OPERATION");
-                // break;
-            default:
-                throw new UnsupportedOperationException("unknown commit status: " + reply.getStatus());
-            }
-            lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
-            lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
-            objectsCache.recordOnAll(txn.getTimestampMapping());
-            removeLocallyNowGloballyCommitedTxn(txn);
-            globallyCommittedUnstableTxns.addLast(txn);
 
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
-            }
+                lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
+                lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
+                objectsCache.recordOnAll(txn.getTimestampMapping());
+                removeLocallyNowGloballyCommitedTxn(txn);
+                globallyCommittedUnstableTxns.addLast(txn);
 
-            // Subscribe updates for newly created objects if they were
-            // requested. It can be done only at this stage once the objects are
-            // in the store.
-            for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
-                final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
-                if (subscription != null && opsGroup.hasCreationState()) {
-                    asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
+                }
+
+                // Subscribe updates for newly created objects if they were
+                // requested. It can be done only at this stage once the objects
+                // are
+                // in the store.
+                for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
+                    final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
+                    if (subscription != null && opsGroup.hasCreationState()) {
+                        asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
+                    }
                 }
             }
         }
@@ -1187,32 +1212,50 @@ public class SwiftImpl implements Swift, TxnManager {
         this.notifyAll();
     }
 
-    private synchronized AbstractTxnHandle getNextLocallyCommittedTxnBlocking() {
-        while (!stopFlag && !canConsumeLocallyCommitedTxnsQueue()) {
-            try {
-                this.wait();
-            } catch (InterruptedException e) {
-            }
-        }
-        return locallyCommittedTxnsOrderedQueue.isEmpty() ? null : locallyCommittedTxnsOrderedQueue.first();
-    }
+    /**
+     * @return a batch of transactions ready to commit (within
+     *         maxCommitBatchSize limit)
+     */
+    private synchronized List<AbstractTxnHandle> consumeLocallyCommitedTxnsQueue() {
+        List<AbstractTxnHandle> result = new LinkedList<AbstractTxnHandle>();
+        do {
+            final Iterator<AbstractTxnHandle> queueIter = locallyCommittedTxnsOrderedQueue.iterator();
+            for (int i = 0; i < maxCommitBatchSize && queueIter.hasNext(); i++) {
+                final AbstractTxnHandle candidateTxn = queueIter.next();
+                boolean validCandidate = true;
+                if (concurrentOpenTransactions) {
+                    // Check whether transactions with lower timestamps already
+                    // committed. TODO: this is a quick HACK, do it better.
+                    final long candidateCounter = locallyCommittedTxnsOrderedQueue.first().getTimestampMapping()
+                            .getClientTimestamp().getCounter();
+                    for (final AbstractTxnHandle txn : pendingTxns) {
+                        if (!txn.isReadOnly()
+                                && txn.getTimestampMapping().getClientTimestamp().getCounter() < candidateCounter) {
+                            validCandidate = false;
+                            break;
+                        }
+                    }
+                }
 
-    private boolean canConsumeLocallyCommitedTxnsQueue() {
-        if (locallyCommittedTxnsOrderedQueue.isEmpty()) {
-            return false;
-        }
-        if (concurrentOpenTransactions) {
-            // Check whether transactions with lower timestamps already
-            // committed. TODO: this is a quick HACK, do it better.
-            final long peekCounter = locallyCommittedTxnsOrderedQueue.first().getTimestampMapping()
-                    .getClientTimestamp().getCounter();
-            for (final AbstractTxnHandle txn : pendingTxns) {
-                if (!txn.isReadOnly() && txn.getTimestampMapping().getClientTimestamp().getCounter() < peekCounter) {
-                    return false;
+                if (validCandidate) {
+                    result.add(candidateTxn);
+                } else {
+                    break;
                 }
             }
-        }
-        return true;
+
+            if (result.size() > maxCommitBatchSize) {
+                throw new IllegalStateException("Internal error, transaction batch size computed wrongly");
+            }
+            if (result.isEmpty() && !stopFlag) {
+                try {
+                    this.wait();
+                } catch (InterruptedException e) {
+                }
+            } else {
+                return result;
+            }
+        } while (true);
     }
 
     private synchronized void addPendingTxn(final AbstractTxnHandle txn) {
@@ -1256,11 +1299,14 @@ public class SwiftImpl implements Swift, TxnManager {
         @Override
         public void run() {
             while (true) {
-                final AbstractTxnHandle nextToCommit = getNextLocallyCommittedTxnBlocking();
-                if (stopFlag && (!stopGracefully || nextToCommit == null)) {
+                List<AbstractTxnHandle> transactionsToCommit = consumeLocallyCommitedTxnsQueue();
+                if (stopFlag && (transactionsToCommit.isEmpty() || !stopGracefully)) {
+                    if (!transactionsToCommit.isEmpty()) {
+                        logger.warning("Scout ungraceful stop, some transactions may not globally committed");
+                    }
                     return;
                 }
-                commitTxnGlobally(nextToCommit);
+                commitTxnGlobally(transactionsToCommit);
             }
         }
     }
