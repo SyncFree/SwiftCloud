@@ -324,10 +324,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
         CRDTObject<?> crdt = getCRDT(request.getUid(), request.getSubscriptionType(), request.getVersion(),
                 request.getClientId());
         if (crdt == null) {
-            if (cltLastSeqNo != null)
-                estimatedDCVersionCopy.recordAllUntil(cltLastSeqNo);
+            final CausalityClock versionClock = estimatedDCVersionCopy.clone();
+            if (cltLastSeqNo != null) {
+                versionClock.recordAllUntil(cltLastSeqNo);
+            }
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
-                    estimatedDCVersionCopy, ClockFactory.newClock(), estimatedDCVersionCopy,
+                    versionClock, ClockFactory.newClock(), estimatedDCVersionCopy,
                     estimatedDCStableVersionCopy);
         } else {
             if (request.getSubscriptionType() != SubscriptionType.NONE) {
