@@ -159,6 +159,12 @@ public interface CausalityClock extends Serializable,Copyable {
     CMP_CLOCK intersect(CausalityClock cc);
     
     /**
+     * Trim this clock so that all events recorded are consecutive.
+     *
+     */
+    void trim();
+
+    /**
      * Create a copy of this causality clock.
      */
     CausalityClock clone();

@@ -436,4 +436,12 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
     public Object copy() {
         return new VersionVectorWithExceptionsOld(this);
     }
+    /**
+     * Trim this clock so that all events recorded are consecutive.
+     */
+    @Override
+    public void trim() {
+        //FIXME !!!
+        throw new RuntimeException("not implemented");
+    }
 }

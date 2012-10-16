@@ -476,7 +476,22 @@ public class VersionVectorWithExceptions implements CausalityClock {
         return intersectVV((VersionVectorWithExceptions) cc);
     }
 
-    protected CMP_CLOCK compareOneEntryVV(String siteid, LinkedList<Interval> l0) {
+    /**
+     * Trim this clock so that all events recorded are consecutive.
+     */
+    @Override
+    public void trim() {
+        for (Entry<String, LinkedList<Interval>> e: vv.entrySet()) {
+            List<Interval> l = e.getValue();
+            if (l.size() > 1) {
+                Interval interval = l.get(0);
+                l.clear();
+                l.add(interval);
+            }
+        }
+    }
+
+    protected CMP_CLOCK compareOneEntryVV (String siteid, LinkedList<Interval> l0) {
         LinkedList<Interval> l = vv.get(siteid);
         if (l == null) {
             return CMP_CLOCK.CMP_ISDOMINATED;

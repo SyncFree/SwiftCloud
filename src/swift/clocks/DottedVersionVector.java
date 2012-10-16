@@ -345,6 +345,14 @@ public class DottedVersionVector implements CausalityClock {
     }
 
     /**
+     * Trim this clock so that all events recorded are consecutive.
+     */
+    @Override
+    public void trim() {
+        ts = null;
+    }
+
+    /**
      * Create a copy of this causality clock.
      */
     public CausalityClock clone() {

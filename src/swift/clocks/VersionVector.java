@@ -284,6 +284,14 @@ public class VersionVector implements CausalityClock {
         // }
         return intersectVV((VersionVector) cc);
     }
+    
+    /**
+     * Trim this clock so that all events recorded are consecutive.
+     */
+    @Override
+    public void trim() {
+        // do nothing
+    }
 
     /**
      * Create a copy of this causality clock.

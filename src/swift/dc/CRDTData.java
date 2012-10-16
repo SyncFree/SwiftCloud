@@ -65,6 +65,7 @@ public class CRDTData<V extends CRDT<V>> {
         this.id = id;
         this.clock = clock;
         this.pruneClock = pruneClock;
+        this.pruneClock.trim();
 //        this.cltClock = cltClock;
         observers = new TreeSet<Observer>();
         notifiers = new TreeSet<Observer>();
@@ -76,12 +77,14 @@ public class CRDTData<V extends CRDT<V>> {
         if( lastPrunedTime == -1) {
             lastPrunedTime = curTime;
             lastPrunedClock = (CausalityClock)clock.copy();
+            lastPrunedClock.trim();
         }
         if( lastPrunedTime + DCConstants.PRUNING_INTERVAL < curTime) {
             crdt.prune(lastPrunedClock, false);
             pruneClock = lastPrunedClock;
             lastPrunedTime = curTime;
             lastPrunedClock = (CausalityClock)clock.copy();
+            lastPrunedClock.trim();
             return true;
         } else
             return false;
