@@ -173,7 +173,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
      *            fi true, client wants to receive updated; otherwise,
      *            notifications
      */
-    void addToObserving(CRDTIdentifier id, boolean observing, CausalityClock clk, ClientPubInfo session) {
+    void addToObserving(CRDTIdentifier id, boolean observing, CausalityClock clk, CausalityClock pruneClk, ClientPubInfo session) {
         synchronized (cltsObserving) {
             Map<String, ClientPubInfo> clts = cltsObserving.get(id);
             if (clts == null) {
@@ -184,9 +184,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
                 PubSub.subscribe(id, this);
             clts.put(session.getClientId(), session);
             if (observing)
-                session.setObserving(clk, id, true);
+                session.setObserving(clk, pruneClk, id, true);
             else
-                session.setNotificating(clk, id, true);
+                session.setNotificating(clk, pruneClk, id, true);
         }
     }
 
@@ -335,9 +335,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
         } else {
             if (request.getSubscriptionType() != SubscriptionType.NONE) {
                 if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
-                    addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), session);
+                    addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), crdt.pruneClock.clone(), session);
                 else if (request.getSubscriptionType() == SubscriptionType.UPDATES)
-                    addToObserving(request.getUid(), true, crdt.crdt.getClock().clone(), session);
+                    addToObserving(request.getUid(), true, crdt.crdt.getClock().clone(), crdt.pruneClock.clone(),session);
             }
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
@@ -945,12 +945,12 @@ class ClientPubInfo {
             return info.isObserving() || info.isNotificating();
     }
 
-    public synchronized void setObserving(CausalityClock clk, CRDTIdentifier id, boolean set) {
+    public synchronized void setObserving(CausalityClock clk, CausalityClock pruneClk, CRDTIdentifier id, boolean set) {
         CRDTSessionInfo info = subscriptions.get(id);
         if (info == null) {
             if (!set)
                 return;
-            info = new CRDTSessionInfo(clk, true, false);
+            info = new CRDTSessionInfo(clk, pruneClk, true, false);
             subscriptions.put(id, info);
         }
         info.setObserving(set);
@@ -959,12 +959,12 @@ class ClientPubInfo {
         }
     }
 
-    public synchronized void setNotificating(CausalityClock clk, CRDTIdentifier id, boolean set) {
+    public synchronized void setNotificating(CausalityClock clk, CausalityClock pruneClk, CRDTIdentifier id, boolean set) {
         CRDTSessionInfo info = subscriptions.get(id);
         if (info == null) {
             if (!set)
                 return;
-            info = new CRDTSessionInfo(clk, false, true);
+            info = new CRDTSessionInfo(clk, pruneClk, false, true);
             subscriptions.put(id, info);
         }
         info.setNotificating(set);
@@ -1094,11 +1094,13 @@ class CRDTSessionInfo {
     private boolean hasChanges;
     private CausalityClock oldClock;
     private CausalityClock newClock;
+    private CausalityClock pruneClock;
     private List<CRDTObjectUpdatesGroup<?>> updates;
 
-    public CRDTSessionInfo(CausalityClock clk, boolean observing, boolean notificating) {
+    public CRDTSessionInfo(CausalityClock clk, CausalityClock pruneClk, boolean observing, boolean notificating) {
         this.oldClock = clk;
         this.newClock = clk.clone();
+        this.pruneClock = pruneClk;
         this.observing = observing;
         this.notificating = notificating;
         this.hasChanges = false;
@@ -1107,9 +1109,9 @@ class CRDTSessionInfo {
 
     public void addSubscriptionInfo(CRDTIdentifier id, List<ObjectSubscriptionInfo> notifications) {
         if (!hasChanges) {
-            notifications.add(new ObjectSubscriptionInfo(id, oldClock, newClock, updates, false));
+            notifications.add(new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, false));
         } else {
-            notifications.add(new ObjectSubscriptionInfo(id, oldClock, newClock, updates, true));
+            notifications.add(new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, true));
         }
         hasChanges = false;
         newClock = oldClock;
@@ -1120,11 +1122,16 @@ class CRDTSessionInfo {
         if (!hasChanges) {
             oldClock = info.getOldClock();
             newClock = info.getNewClock();
+            if( pruneClock == null)
+                pruneClock = info.getPruneClock();
+            else
+                pruneClock.merge(info.getPruneClock());
             updates.addAll(info.getUpdates());
             hasChanges = true;
         } else {
             // TODO: check if new clock == old clock
             newClock.merge(info.getNewClock());
+            pruneClock.merge(info.getPruneClock());
             updates.addAll(info.getUpdates());
         }
     }

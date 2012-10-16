@@ -462,10 +462,10 @@ class DCDataServer {
             if (data.observers.size() > 0 || data.notifiers.size() > 0) {
                 if (data.observers.size() > 0) {
                     result = new ExecCRDTResult(true, grp.getTargetUID(), false, new ObjectSubscriptionInfo(id,
-                            oldClock, data.clock.clone(), grp));
+                            oldClock, data.clock.clone(), data.pruneClock.clone(), grp));
                 } else {
                     result = new ExecCRDTResult(true, grp.getTargetUID(), true, new ObjectSubscriptionInfo(id,
-                            oldClock, data.clock.clone(), null));
+                            oldClock, data.clock.clone(), data.pruneClock.clone(), null));
                 }
             } else {
                 result = new ExecCRDTResult(true);
