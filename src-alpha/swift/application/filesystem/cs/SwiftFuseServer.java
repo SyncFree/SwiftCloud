@@ -25,15 +25,15 @@ import sys.net.api.rpc.RpcEndpoint;
 
 public class SwiftFuseServer extends RemoteFuseOperationHandler {
     public static final int PORT = 10001;
-    
+
     private static final Log log = LogFactory.getLog(SwiftFuseServer.class);
 
     RpcEndpoint endpoint;
-    
-    SwiftFuseServer() {        
+
+    SwiftFuseServer() {
     }
-    
-    void init( String[] args ) {
+
+    void init(String[] args) {
         DCSequencerServer.main(new String[] { "-name", "localhost" });
         try {
             Thread.sleep(500);
@@ -48,10 +48,9 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
         }
         Sys.init();
 
-        
         log.info("setting up servers");
         endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
-        
+
         try {
             server = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
 
@@ -63,7 +62,6 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
             fs = new FilesystemBasic(txn, ROOT, "DIR");
             txn.commit();
 
-
             System.out.println("SwiftFuseServer accepting requests...");
         } catch (Exception e) {
             e.printStackTrace();
@@ -71,36 +69,35 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
             log.info("exiting");
         }
     }
-    
+
     public static void main(String[] args) {
-        
-        new SwiftFuseServer().init( args ) ;
-        
+
+        new SwiftFuseServer().init(args);
+
     }
 
-    
-    public static void disposeFh( Object cfh ) {
+    public static void disposeFh(Object cfh) {
         Object sfh = c2s_fh(cfh);
-        c2s_fileHandles.remove( cfh);
-        s2c_fileHandles.remove( sfh);
+        c2s_fileHandles.remove(cfh);
+        s2c_fileHandles.remove(sfh);
     }
-    
-   public static  Object s2c_fh( Object fh ) {
-        Object res = s2c_fileHandles.get( fh ) ;
-        if( res == null ) {
+
+    public static Object s2c_fh(Object fh) {
+        Object res = s2c_fileHandles.get(fh);
+        if (res == null) {
             res = g_fh.getAndIncrement();
-            s2c_fileHandles.put( fh, res) ;
-            c2s_fileHandles.put( res, fh) ;
+            s2c_fileHandles.put(fh, res);
+            c2s_fileHandles.put(res, fh);
         }
         return res;
     }
-    
-    public static Object c2s_fh( Object fh ) {
-        return c2s_fileHandles.get( fh ) ;
+
+    public static Object c2s_fh(Object fh) {
+        return c2s_fileHandles.get(fh);
     }
-    
+
     static Map<Object, Object> c2s_fileHandles = new HashMap<Object, Object>();
-    static Map<Object, Object> s2c_fileHandles = new HashMap<Object, Object >();
-    
+    static Map<Object, Object> s2c_fileHandles = new HashMap<Object, Object>();
+
     static AtomicInteger g_fh = new AtomicInteger(1001);
 }
