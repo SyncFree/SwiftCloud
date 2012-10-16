@@ -5,6 +5,13 @@ import static sys.net.api.Networking.Networking;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -56,7 +63,42 @@ public class SwiftFuseClient implements Filesystem3, XattrSupport {
     Endpoint server;
     RpcEndpoint endpoint;
 
-    SwiftFuseClient() {
+    /** Cached attributes */
+    private final Map<String, GetAttrOperation.Result> attributes;
+    /** Expiration dates */
+    private final Map<String, Long> expirationDateAttr;
+    private final long defaultExpirationAttr;
+    private final ExecutorService threads;
+
+    SwiftFuseClient(long expFile) {
+        this.attributes = Collections.synchronizedMap(new HashMap<String, GetAttrOperation.Result>());
+        this.expirationDateAttr = Collections.synchronizedMap(new HashMap<String, Long>());
+        this.defaultExpirationAttr = expFile;
+        this.threads = Executors.newFixedThreadPool(128);
+        Executors.newScheduledThreadPool(2).scheduleWithFixedDelay(this.removeExpired(),
+                this.defaultExpirationAttr / 2, this.defaultExpirationAttr, TimeUnit.SECONDS);
+    }
+
+    private Runnable removeExpired() {
+        return new Runnable() {
+            public void run() {
+                for (final Entry<String, Long> e : expirationDateAttr.entrySet()) {
+                    if (System.currentTimeMillis() > e.getValue()) {
+                        threads.execute(removeExpiredEntry(e.getKey()));
+                    }
+                }
+            }
+        };
+
+    }
+
+    Runnable removeExpiredEntry(final String path) {
+        return new Runnable() {
+            public void run() {
+                attributes.remove(path);
+                expirationDateAttr.remove(path);
+            }
+        };
     }
 
     void init(String[] args) {
@@ -90,8 +132,7 @@ public class SwiftFuseClient implements Filesystem3, XattrSupport {
     }
 
     public static void main(String[] args) {
-        new SwiftFuseClient().init(args);
-
+        new SwiftFuseClient(3000).init(args);
     }
 
     @Override
@@ -106,17 +147,39 @@ public class SwiftFuseClient implements Filesystem3, XattrSupport {
 
     @Override
     public int flush(String path, Object handle) throws FuseException {
+        this.threads.execute(removeExpiredEntry(path));
         return send1(new FlushOperation(path, handle)).intResult();
     }
 
     @Override
     public int fsync(String path, Object fileHandle, boolean isDatasync) throws FuseException {
+        this.threads.execute(removeExpiredEntry(path));
         return send1(new FSyncOperation(path, fileHandle, isDatasync)).intResult();
     }
 
+    // file attr valid for 3 secs (NFS)
+    // dir attr valid for 30-60 secs (NFS)
+    // For consistency, attr cache must be invalidated if corresponding item is
+    // flushed or fsync'ed
+
+    // WISHME always caching special attr e.g. for home dir
     @Override
     public int getattr(String path, FuseGetattrSetter getattrSetter) throws FuseException {
-        GetAttrOperation.Result res = send2(new GetAttrOperation(path, getattrSetter));
+        GetAttrOperation.Result res = null;
+        Long expireTime = this.expirationDateAttr.get(path);
+        if (expireTime != null) {
+            if (System.currentTimeMillis() > expireTime) {
+                this.threads.execute(removeExpiredEntry(path));
+            } else {
+                res = this.attributes.get(path);
+            }
+        } else {
+            res = send2(new GetAttrOperation(path, getattrSetter));
+            // add to cache
+            this.attributes.put(path, res);
+            this.expirationDateAttr.put(path, System.currentTimeMillis() + this.defaultExpirationAttr);
+        }
+        // prepare the setter and return result code
         res.applyTo(getattrSetter);
         return res.intResult();
     }
@@ -124,7 +187,6 @@ public class SwiftFuseClient implements Filesystem3, XattrSupport {
     @Override
     public int getdir(String path, FuseDirFiller filler) throws FuseException {
         GetDirOperation.Result res = send2(new GetDirOperation(path));
-        ;
         res.applyTo(filler);
         return res.intResult();
     }
