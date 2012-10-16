@@ -6,6 +6,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -40,7 +41,7 @@ public class ClientIsolationLevelsStressTest {
             final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftImpl client = SwiftImpl.newInstance(options);
+                    Swift client = SwiftImpl.newInstance(options);
                     runTransactions(client, id);
                     client.stop(true);
                 }
@@ -59,7 +60,7 @@ public class ClientIsolationLevelsStressTest {
         System.exit(0);
     }
 
-    private static void runTransactions(SwiftImpl client, final int clientId) {
+    private static void runTransactions(Swift client, final int clientId) {
         try {
             for (int i = 0; i < TRANSACTIONS_PER_CLIENT; i++) {
                 TxnHandle txn = client.beginTxn(i % 2 == 0 ? IsolationLevel.SNAPSHOT_ISOLATION

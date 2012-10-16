@@ -8,6 +8,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -37,8 +38,8 @@ public class LocalConcurrencyTest {
             Thread client = new Thread("client" + i) {
                 public void run() {
                     Sys.init();
-                    SwiftImpl clientServer = SwiftImpl.newInstance(new SwiftOptions("localhost",
-                            DCConstants.SURROGATE_PORT));
+                    Swift clientServer = SwiftImpl
+                            .newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
                     clientCode(clientServer);
                     clientServer.stop(true);
                 }
@@ -46,7 +47,7 @@ public class LocalConcurrencyTest {
             threads[i] = client;
             client.start();
         }
-        SwiftImpl checkServer = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        Swift checkServer = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         boolean done = false;
         while (!done) {
             done = check(checkServer);
@@ -59,7 +60,7 @@ public class LocalConcurrencyTest {
         checkServer.stop(true);
     }
 
-    private static void clientCode(SwiftImpl server) {
+    private static void clientCode(Swift server) {
         try {
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
@@ -80,10 +81,10 @@ public class LocalConcurrencyTest {
         }
     }
 
-    private static boolean check(SwiftImpl server) {
+    private static boolean check(Swift checkServer) {
         try {
-            TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
-                    false);
+            TxnHandle handle = checkServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
+                    CachePolicy.STRICTLY_MOST_RECENT, false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
             IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerVersioned.class);
             int val1 = i1.getValue();

@@ -27,6 +27,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.SequenceTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.dc.DCConstants;
@@ -149,13 +150,13 @@ public class SwiftDocServer extends Thread {
     SequenceTxnLocal<TextLine> doc = null;
 
     RpcHandle clientHandle = null;
-    SwiftImpl swift1 = null, swift2 = null;
+    Swift swift1 = null, swift2 = null;
 
-    SwiftDocServer(SwiftImpl swift1, SwiftImpl swift2, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
+    SwiftDocServer(Swift swift12, Swift swift22, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
         this.j1 = j1;
         this.j2 = j2;
-        this.swift1 = swift1;
-        this.swift2 = swift2;
+        this.swift1 = swift12;
+        this.swift2 = swift22;
         installClientNotifier();
         this.clientHandle = client.enableDeferredReplies(Integer.MAX_VALUE);
     }
@@ -241,7 +242,7 @@ public class SwiftDocServer extends Thread {
     static Map<Object, Session> sessions = new HashMap<Object, Session>();
 
     static class Session {
-        final SwiftImpl swift1, swift2;
+        final Swift swift1, swift2;
         final RpcHandle client;
         final SwiftDocServer swiftdoc;
 

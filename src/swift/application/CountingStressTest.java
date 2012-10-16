@@ -6,6 +6,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -43,7 +44,7 @@ public class CountingStressTest {
             final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftImpl client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+                    Swift client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
                     runTransactions(client, id);
                     client.stop(true);
                 }
@@ -60,7 +61,7 @@ public class CountingStressTest {
         }
 
         // Check result
-        SwiftImpl client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        Swift client = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         TxnHandle txn = client.beginTxn(level, CachePolicy.STRICTLY_MOST_RECENT, false);
         IntegerTxnLocal i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerVersioned.class,
                 TxnHandle.UPDATES_SUBSCRIBER);
@@ -73,7 +74,7 @@ public class CountingStressTest {
 
     static IsolationLevel level = IsolationLevel.SNAPSHOT_ISOLATION;
 
-    private static void runTransactions(SwiftImpl client, final int clientId) {
+    private static void runTransactions(Swift client, final int clientId) {
         try {
             for (int i = 0; i < TRANSACTIONS_PER_CLIENT; i++) {
                 TxnHandle txn = client.beginTxn(level, CachePolicy.STRICTLY_MOST_RECENT, false);

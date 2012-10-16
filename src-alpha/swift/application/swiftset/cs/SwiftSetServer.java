@@ -12,15 +12,14 @@ import java.util.Set;
 import swift.application.swiftdoc.TextLine;
 import swift.application.swiftdoc.cs.msgs.AppRpcHandler;
 import swift.application.swiftdoc.cs.msgs.BeginTransaction;
+import swift.application.swiftdoc.cs.msgs.BulkTransaction;
 import swift.application.swiftdoc.cs.msgs.CommitTransaction;
 import swift.application.swiftdoc.cs.msgs.InitScoutServer;
 import swift.application.swiftdoc.cs.msgs.InsertAtom;
 import swift.application.swiftdoc.cs.msgs.RemoveAtom;
 import swift.application.swiftdoc.cs.msgs.ServerACK;
 import swift.application.swiftdoc.cs.msgs.ServerReply;
-import swift.application.swiftdoc.cs.msgs.BulkTransaction;
 import swift.application.swiftdoc.cs.msgs.SwiftDocRpc;
-
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
@@ -28,6 +27,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.SequenceTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.dc.DCConstants;
@@ -159,13 +159,15 @@ public class SwiftSetServer extends Thread {
     SequenceTxnLocal<TextLine> doc = null;
 
     RpcHandle clientHandle = null;
-    SwiftImpl swift1 = null, swift2 = null;
+    Swift swift1 = null;
 
-    SwiftSetServer(SwiftImpl swift1, SwiftImpl swift2, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
+    Swift swift2 = null;
+
+    SwiftSetServer(Swift swift12, Swift swift22, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
         this.j1 = j1;
         this.j2 = j2;
-        this.swift1 = swift1;
-        this.swift2 = swift2;
+        this.swift1 = swift12;
+        this.swift2 = swift22;
         this.clientHandle = client.enableDeferredReplies(Integer.MAX_VALUE);
     }
 
@@ -249,7 +251,8 @@ public class SwiftSetServer extends Thread {
     static Map<Object, Session> sessions = new HashMap<Object, Session>();
 
     static class Session {
-        final SwiftImpl swift1, swift2;
+        Swift swift1;
+        final Swift swift2;
         final RpcHandle client;
         final SwiftSetServer swiftdoc;
 

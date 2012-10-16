@@ -3,7 +3,6 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.io.FileNotFoundException;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -71,10 +70,10 @@ import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.CallableWithDeadline;
 import swift.utils.DummyLog;
-import swift.utils.NoFlushLogDecorator;
-import swift.utils.TransactionsLog;
 import swift.utils.ExponentialBackoffTaskExecutor;
 import swift.utils.KryoDiskLog;
+import swift.utils.NoFlushLogDecorator;
+import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -126,7 +125,7 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return instance of Swift client
      * @see SwiftOptions
      */
-    public static SwiftImpl newInstance(final SwiftOptions options) {
+    public static Swift newInstance(final SwiftOptions options) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
                 options.getServerHostname(), options.getServerPort()), new TimeSizeBoundedObjectsCache(
                 options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);

@@ -7,6 +7,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.Swift;
 import swift.dc.DCConstants;
 import sys.Sys;
 
@@ -47,8 +48,8 @@ public class SwiftDocBenchmark {
 		
 		Sys.init();
 		
-        SwiftImpl swift1 = SwiftImpl.newInstance(new SwiftOptions(dcName, dcPort));
-        SwiftImpl swift2 = SwiftImpl.newInstance(new SwiftOptions(dcName, dcPort));
+        Swift swift1 = SwiftImpl.newInstance(new SwiftOptions(dcName, dcPort));
+        Swift swift2 = SwiftImpl.newInstance(new SwiftOptions(dcName, dcPort));
 
 		if (clientId == 1) {
 			logger.info("Starting client 1");

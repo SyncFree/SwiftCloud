@@ -53,7 +53,7 @@ public class SwiftSocialBenchmark {
         sys.Sys.init();
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
-            final SwiftImpl swiftClient = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+            final Swift swiftClient = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
             final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
                     CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
