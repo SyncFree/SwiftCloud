@@ -19,6 +19,7 @@ import swift.client.proto.BatchCommitUpdatesRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
+import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
 import swift.client.proto.FastRecentUpdatesRequest;
@@ -673,9 +674,11 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
             } else {
                 r.addTimestampsToDeps( tsLst);
                 CommitUpdatesReply repOne = doProcessOneCommit( session, r);
-                List<Timestamp> tsLstOne = repOne.getCommitTimestamps();
-                if( tsLstOne != null)
-                    tsLst.addAll(tsLstOne);
+                if( repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
+                    List<Timestamp> tsLstOne = repOne.getCommitTimestamps();
+                    if( tsLstOne != null)
+                        tsLst.addAll(tsLstOne);
+                }
                 reply.addLast(repOne);
             }
         }
