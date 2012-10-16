@@ -5,12 +5,11 @@ import java.util.HashMap;
 
 import sys.net.api.Endpoint;
 import sys.net.impl.rpc.RpcPacket;
-import sys.scheduler.PeriodicTask;
 import sys.utils.XmlExternalizable;
 
 import static sys.Sys.*;
 
-public class RpcStats extends XmlExternalizable {
+public class RpcStats  {
 	private static double STATS_BIN_SIZE = 60.0;
 	
 	double T0 = Sys.currentTime();
@@ -52,18 +51,18 @@ public class RpcStats extends XmlExternalizable {
 	static {
 		RpcStats = new RpcStats();
 
-		new PeriodicTask(0, 30) {
-			public void run() {
-				synchronized (RpcStats) {
-					try {
-					    //System.err.printf( "%s %.1fKB/s\n", Sys.mainClass, (Sys.downloadedBytes.get()/1024) / Sys.currentTime() );
-						//RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
-					} catch (Exception x) {
-						x.printStackTrace();
-					}
-				}
-			}
-		};
+//		new PeriodicTask(0, 30) {
+//			public void run() {
+//				synchronized (RpcStats) {
+//					try {
+//					    //System.err.printf( "%s %.1fKB/s\n", Sys.mainClass, (Sys.downloadedBytes.get()/1024) / Sys.currentTime() );
+//						//RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
+//					} catch (Exception x) {
+//						x.printStackTrace();
+//					}
+//				}
+//			}
+//		};
 	}
 	
 	public static RpcStats RpcStats;
