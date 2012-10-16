@@ -82,6 +82,21 @@ public class SwiftSynchronizerTest {
        // txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
         
     }
+    
+    @Test
+    public void testLogootAsync() {
+        SwiftSynchronizer sync=new SwiftSynchronizer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, LogootVersioned.class);
+        sync.commit("test3", "123");
+        assertEquals("123",sync.update("test"));
+    }
+    
+    @Test
+    public void testLastWriterWinAsync() {
+        SwiftSynchronizer sync=new SwiftSynchronizer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, RegisterFileContent.class);
+        sync.commit("test4", "123");
+        assertEquals("123",sync.update("test2"));
+    }
+    
     @Test
     public void testLogoot() {
         SwiftSynchronizer sync=new SwiftSynchronizer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, false, LogootVersioned.class);
