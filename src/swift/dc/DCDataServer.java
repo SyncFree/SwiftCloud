@@ -47,6 +47,7 @@ class DCDataServer {
     Map<CRDTIdentifier, LockInfo> locks;
 
     CausalityClock version;
+    CausalityClock cltClock;
     String localSurrogateId;
     Observer localSurrogate;
 
@@ -213,6 +214,7 @@ class DCDataServer {
         this.modified = new HashSet<CRDTData<?>>();
 
         this.version = ClockFactory.newClock();
+        this.cltClock = ClockFactory.newClock();
 
         initDB(props);
 
@@ -375,7 +377,9 @@ class DCDataServer {
 //                }
                 data.clock.merge(clk);
                 data.pruneClock.merge(prune);
-                data.cltClock.merge(cltClock);
+                synchronized (this.cltClock) {
+                    this.cltClock.merge(cltClock);
+                }
             }
             setModifiedDatabaseEntry(data);
             return data;
@@ -412,6 +416,7 @@ class DCDataServer {
                 // object
                 // exists
             }
+            data.pruneIfPossible();
             CausalityClock oldClock = data.clock.clone();
 
             // crdt.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
@@ -447,9 +452,11 @@ class DCDataServer {
 
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
-                        + data.cltClock + ";  snapshotVersion = " + snapshotVersion);
+                        + cltClock + ";  snapshotVersion = " + snapshotVersion);
             }
-            data.cltClock.recordAllUntil(cltTs);
+            synchronized (this.cltClock) {
+                this.cltClock.recordAllUntil(cltTs);
+            }
 
             ExecCRDTResult result = null;
             if (data.observers.size() > 0 || data.notifiers.size() > 0) {
@@ -487,7 +494,7 @@ class DCDataServer {
             CRDTData<?> data = localGetCRDT(observer, id, subscribe);
             if (data == null)
                 return null;
-            return new CRDTObject(data, version, cltId);
+            return new CRDTObject(data, version, cltId, cltClock);
         } finally {
             unlock(id);
         }

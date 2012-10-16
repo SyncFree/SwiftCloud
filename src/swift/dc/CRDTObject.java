@@ -2,6 +2,7 @@ package swift.dc;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
+import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
 
 public class CRDTObject<V extends CRDT<V>> {
@@ -22,7 +23,7 @@ public class CRDTObject<V extends CRDT<V>> {
     public CRDTObject() {
         // do nothing
     }
-    public CRDTObject(CRDTData<V> data, CausalityClock version, String cltId) {
+    public CRDTObject(CRDTData<V> data, CausalityClock version, String cltId, CausalityClock cltClock) {
 //      1) let int clientTxs =
 //      clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
 //      probably it could be done better, lock-free
@@ -41,7 +42,11 @@ public class CRDTObject<V extends CRDT<V>> {
 */            this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
-        if( data.cltClock.getLatestCounter(cltId) > 0)
-            this.clock.recordAllUntil(data.cltClock.getLatest(cltId));
+        Timestamp ts = null;
+        synchronized(cltClock) {
+            ts = cltClock.getLatest(cltId);
+        }
+        if( ts != null && ts.getCounter() > 0)
+            this.clock.recordAllUntil(ts);
     }
 }
