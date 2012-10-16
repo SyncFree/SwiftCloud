@@ -45,22 +45,24 @@ public class FastRecentUpdatesReply implements RpcMessage {
         protected CausalityClock newClock;
         protected boolean dirty;
         protected List<CRDTObjectUpdatesGroup<?>> updates;
+        protected CausalityClock pruneClock;
 
         public ObjectSubscriptionInfo() {
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                CRDTObjectUpdatesGroup<?> update) {
+                CausalityClock pruneClock, CRDTObjectUpdatesGroup<?> update) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
             this.updates = new ArrayList<CRDTObjectUpdatesGroup<?>>();
             updates.add(update);
             this.dirty = true;
+            this.pruneClock = pruneClock;
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty) {
+                CausalityClock pruneClock, List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
@@ -68,6 +70,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
             if (updates != null)
                 this.updates.addAll(updates);
             this.dirty = dirty;
+            this.pruneClock = pruneClock;
         }
 
         /**
@@ -113,18 +116,22 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo clone() {
-            return new ObjectSubscriptionInfo(id, oldClock, newClock, updates, dirty);
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, dirty);
         }
 
         public ObjectSubscriptionInfo cloneNotification() {
-            return new ObjectSubscriptionInfo(id, oldClock, newClock, null, dirty);
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, null, dirty);
         }
 
         public ObjectSubscriptionInfo clone( Timestamp t) {
             CausalityClock newC = newClock.clone();
             if( t!= null)
                 newC.recordAllUntil(t);
-            return new ObjectSubscriptionInfo(id, oldClock, newC, updates, dirty);
+            return new ObjectSubscriptionInfo(id, oldClock, newC, pruneClock, updates, dirty);
+        }
+
+        public CausalityClock getPruneClock() {
+            return pruneClock;
         }
 
     }
