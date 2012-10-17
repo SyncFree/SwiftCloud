@@ -166,16 +166,14 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         assertStatus(TxnStatus.PENDING);
         this.commitListener = listener;
         manager.commitTxn(this);
-        // Flush the log before returning to the client call.
-        durableLog.flush();
     }
 
     @Override
     public synchronized void rollback() {
         assertStatus(TxnStatus.PENDING);
-        manager.discardTxn(this);
         status = TxnStatus.CANCELLED;
         logStatusChange();
+        manager.discardTxn(this);
     }
 
     protected void logStatusChange() {
@@ -238,6 +236,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         assertStatus(TxnStatus.PENDING);
         status = TxnStatus.COMMITTED_LOCAL;
         logStatusChange();
+        // Flush the log before returning to the client call.
+        durableLog.flush();
     }
 
     /**
