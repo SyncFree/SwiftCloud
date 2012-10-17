@@ -23,7 +23,7 @@ import swift.crdt.SetVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.NetworkException;
@@ -41,7 +41,7 @@ import sys.dht.catadupa.crdts.ORSet;
 public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
     private WorkerManager manager;
-    private Swift clientServer;
+    private SwiftSession clientServer;
     private CRDTIdentifier[] identifiers;
     private double updateRatio;
     private String workerID;
@@ -57,7 +57,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     private MicroBenchmarkUpdateListener listener;
 
     public SwiftExecutorWorker(WorkerManager manager, String workerID, CRDTIdentifier[] identifiers,
-            double updateRatio, Random random, Swift clientServer, int maxTxSize, CachePolicy cachePolicy,
+            double updateRatio, Random random, SwiftSession clientServer, int maxTxSize, CachePolicy cachePolicy,
             IsolationLevel isolationLevel, int runCount, String outputDir) {
         this.manager = manager;
         this.identifiers = identifiers;
@@ -131,7 +131,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
             }
         }
         //System.out.println("STOP CLIENT");
-        clientServer.stop(true);
+        clientServer.stopScout(true);
         endTime = System.currentTimeMillis();
         manager.onWorkerFinish(this);
 

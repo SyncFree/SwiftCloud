@@ -15,13 +15,15 @@ import swift.exceptions.WrongTypeException;
  * transaction {@link IsolationLevel}. The freshness of read objects is
  * determined by {@link CachePolicy}. All updates issued on objects within a
  * transaction become atomically visible to other transactions at some time
- * after commit ({@link #commit(boolean)}).
+ * after commit ({@link #commit(boolean)}), after causally depedent (read)
+ * transactions.
  * 
- * @author annettebieniusa
+ * @author annettebieniusa, mzawirski
  * 
  */
 // WISHME: separate client and system interface (needed for mocks)
 public interface TxnHandle {
+    // CLIENT API:
     /**
      * ObjectUpdatesListener that can be used in calls to
      * {@link #get(CRDTIdentifier, boolean, Class, ObjectUpdatesListener)},
@@ -113,8 +115,9 @@ public interface TxnHandle {
 
     /**
      * Commits the transaction, blocks only until local commit and commits to
-     * the store asynchronously. Note that this call may block if {@link Swift}
-     * transaction commit queue exceeds maxAsyncQueuedTransactions.
+     * the store asynchronously. Note that this call may block if
+     * {@link SwiftSession} transaction commit queue exceeds
+     * maxAsyncQueuedTransactions.
      * 
      * @param listener
      *            listener notified about transaction global commit;
@@ -139,6 +142,7 @@ public interface TxnHandle {
      */
     TxnStatus getStatus();
 
+    // SYSTEM API:
     /**
      * Generates timestamps for operations. Only called by system.
      * 

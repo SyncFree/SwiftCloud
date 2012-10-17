@@ -7,7 +7,7 @@ import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -20,13 +20,13 @@ import swift.test.microbenchmark.interfaces.WorkerManager;
 public class SwiftInitializerWorker implements MicroBenchmarkWorker {
 
     private WorkerManager manager;
-    private Swift clientServer;
+    private SwiftSession clientServer;
     private Random random;
     private CRDTIdentifier[] identifiers;
 
     protected long startTime, endTime;
 
-    public SwiftInitializerWorker(WorkerManager manager, CRDTIdentifier[] identifiers, Random random, Swift clientServer) {
+    public SwiftInitializerWorker(WorkerManager manager, CRDTIdentifier[] identifiers, Random random, SwiftSession clientServer) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.random = random;

@@ -15,7 +15,7 @@ import com.basho.riak.client.http.RiakClient;
 
 import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;

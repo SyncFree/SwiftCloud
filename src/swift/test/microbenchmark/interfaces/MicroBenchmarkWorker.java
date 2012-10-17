@@ -2,7 +2,7 @@ package swift.test.microbenchmark.interfaces;
 
 import java.util.List;
 
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.test.microbenchmark.BenchOperation;
 import swift.test.microbenchmark.RawDataCollector;
 

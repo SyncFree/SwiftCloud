@@ -8,7 +8,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -22,7 +22,7 @@ public class SwiftSocialTest {
         DCServer.main(new String[] { sequencerName });
 
         Sys.init();
-        Swift clientServer = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         SwiftSocial client = new SwiftSocial(clientServer, IsolationLevel.SNAPSHOT_ISOLATION,
                 CachePolicy.STRICTLY_MOST_RECENT, false, false);
 
@@ -90,7 +90,7 @@ public class SwiftSocialTest {
         }
         client.logout("Butterfly");
 
-        clientServer.stop(true);
+        clientServer.stopScout(true);
         System.exit(0);
     }
 }

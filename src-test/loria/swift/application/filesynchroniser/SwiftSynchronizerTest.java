@@ -33,7 +33,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -49,7 +49,7 @@ public class SwiftSynchronizerTest {
     private static String scoutName = "localhost";
     private static Logger logger = Logger.getLogger("loria.swift.application.filesynchroniser");
     //TxnHandle txn;
-    static Swift server;
+    static SwiftSession server;
     public SwiftSynchronizerTest() {
      
     }
@@ -75,7 +75,7 @@ public class SwiftSynchronizerTest {
         }
 
         Sys.init();
-        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
+        server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         
         // try {

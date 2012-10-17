@@ -32,6 +32,8 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param sessionId
+     *            id of the client session issuing this transaction
      * @param durableLog
      *            durable log for recovery
      * @param cachePolicy
@@ -43,9 +45,9 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      *            clock representing committed update transactions visible to
      *            this transaction; left unmodified
      */
-    SnapshotIsolationTxnHandle(final TxnManager manager, final TransactionsLog durableLog,
+    SnapshotIsolationTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
             final CachePolicy cachePolicy, final TimestampMapping timestampMapping, final CausalityClock snapshotClock) {
-        super(manager, durableLog, cachePolicy, timestampMapping);
+        super(manager, sessionId, durableLog, cachePolicy, timestampMapping);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }
@@ -55,15 +57,17 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param sessionId
+     *            id of the client session issuing this transaction
      * @param cachePolicy
      *            cache policy used by this transaction
      * @param snapshotClock
      *            clock representing committed update transactions visible to
      *            this transaction; left unmodified
      */
-    SnapshotIsolationTxnHandle(final TxnManager manager, final CachePolicy cachePolicy,
+    SnapshotIsolationTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
             final CausalityClock snapshotClock) {
-        super(manager, cachePolicy);
+        super(manager, sessionId, cachePolicy);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }

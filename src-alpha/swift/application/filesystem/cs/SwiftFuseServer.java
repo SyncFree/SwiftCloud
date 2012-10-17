@@ -52,7 +52,7 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
         endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
 
         try {
-            server = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+            server = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
 
             log.info("getting root directory");
             TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);

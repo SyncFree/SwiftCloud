@@ -5,7 +5,7 @@ import java.util.Random;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 
 import com.basho.riak.client.IRiakClient;
 import com.basho.riak.client.RiakException;
@@ -74,8 +74,8 @@ public class BenchUtil {
 
     }
 
-    public static Swift getNewSwiftInterface(String serverLocation, int serverPort) {
-        Swift client = SwiftImpl.newInstance(new SwiftOptions(serverLocation, serverPort));
+    public static SwiftSession getNewSwiftInterface(String serverLocation, int serverPort) {
+        SwiftSession client = SwiftImpl.newSingleSessionInstance(new SwiftOptions(serverLocation, serverPort));
         return client;
     }
 

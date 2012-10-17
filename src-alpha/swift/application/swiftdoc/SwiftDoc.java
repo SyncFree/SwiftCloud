@@ -16,7 +16,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.SequenceTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.dc.DCConstants;
@@ -51,8 +51,8 @@ public class SwiftDoc {
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
-                Swift swift1 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
-                Swift swift2 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
                 runClient1(swift1, swift2);
             }
         }).start();
@@ -62,22 +62,22 @@ public class SwiftDoc {
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
-                Swift swift1 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
-                Swift swift2 = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
                 runClient2(swift1, swift2);
             }
         }).start();
     }
 
-    static void runClient1(Swift swift1, Swift swift2) {
+    static void runClient1(SwiftSession swift1, SwiftSession swift2) {
         client1code(swift1, swift2);
     }
 
-    static void runClient2(Swift swift1, Swift swift2) {
+    static void runClient2(SwiftSession swift1, SwiftSession swift2) {
         client2code(swift1, swift2);
     }
 
-    static void client1code(final Swift swift1, final Swift swift2) {
+    static void client1code(final SwiftSession swift1, final SwiftSession swift2) {
         try {
             final AtomicBoolean done = new AtomicBoolean(false);
             final Map<Long, TextLine> samples = new HashMap<Long, TextLine>();
@@ -172,7 +172,7 @@ public class SwiftDoc {
         }
     }
 
-    static void client2code(final Swift swift1, final Swift swift2) {
+    static void client2code(final SwiftSession swift1, final SwiftSession swift2) {
         try {
             final Set<Long> serials = new HashSet<Long>();
             final Semaphore barrier = new Semaphore(1);

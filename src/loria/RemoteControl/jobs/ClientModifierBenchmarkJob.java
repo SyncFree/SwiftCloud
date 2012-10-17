@@ -13,7 +13,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 
 /**
@@ -33,7 +33,7 @@ public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
      */
     @Override
     public void run() {
-        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
+        server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
         sync = new SwiftSynchronizer(server, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true, false, classes[type.ordinal()]);
         profile = StandardDiffProfile.GIT;
 
@@ -56,7 +56,7 @@ public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
     List<String> filesList;
     int sleep = 0;
     Type type;
-    Swift server;
+    SwiftSession server;
     int maxFileNumber = 30;
     double probAddFile = 0.6;
     LinkedList<Task> todoList = new LinkedList();

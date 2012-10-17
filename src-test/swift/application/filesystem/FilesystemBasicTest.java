@@ -18,7 +18,7 @@ import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -39,7 +39,7 @@ public class FilesystemBasicTest {
     private static String sequencerName = "localhost";
     private static String scoutName = "localhost";
     private static Logger log = Logger.getLogger("swift.filesystem");
-    private static Swift server;
+    private static SwiftSession server;
     private static TxnHandle txn;
     private static Filesystem fs;
 
@@ -62,7 +62,7 @@ public class FilesystemBasicTest {
         }
 
         Sys.init();
-        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
+        server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
         fs = new FilesystemBasic(txn, "test", "DIR");

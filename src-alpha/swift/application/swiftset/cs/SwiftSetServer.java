@@ -27,7 +27,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.SequenceTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.dc.DCConstants;
@@ -159,11 +159,11 @@ public class SwiftSetServer extends Thread {
     SequenceTxnLocal<TextLine> doc = null;
 
     RpcHandle clientHandle = null;
-    Swift swift1 = null;
+    SwiftSession swift1 = null;
 
-    Swift swift2 = null;
+    SwiftSession swift2 = null;
 
-    SwiftSetServer(Swift swift12, Swift swift22, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
+    SwiftSetServer(SwiftSession swift12, SwiftSession swift22, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
         this.j1 = j1;
         this.j2 = j2;
         this.swift1 = swift12;
@@ -251,8 +251,8 @@ public class SwiftSetServer extends Thread {
     static Map<Object, Session> sessions = new HashMap<Object, Session>();
 
     static class Session {
-        Swift swift1;
-        final Swift swift2;
+        SwiftSession swift1;
+        final SwiftSession swift2;
         final RpcHandle client;
         final SwiftSetServer swiftdoc;
 
@@ -263,8 +263,8 @@ public class SwiftSetServer extends Thread {
             options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
             options.setCacheSize(Integer.MAX_VALUE);
             options.setDisasterSafe(false);
-            this.swift1 = SwiftImpl.newInstance(options);
-            this.swift2 = SwiftImpl.newInstance(options);
+            this.swift1 = SwiftImpl.newSingleSessionInstance(options);
+            this.swift2 = SwiftImpl.newSingleSessionInstance(options);
 
             swiftdoc = new SwiftSetServer(swift1, swift2, client, j1, j2);
             swiftdoc.start();

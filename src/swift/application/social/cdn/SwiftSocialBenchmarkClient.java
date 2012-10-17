@@ -16,7 +16,7 @@ import swift.application.social.SwiftSocialMain;
 import swift.client.SwiftImpl;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;

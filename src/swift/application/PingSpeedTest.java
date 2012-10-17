@@ -7,7 +7,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.dc.DCConstants;
@@ -46,7 +46,7 @@ public class PingSpeedTest {
         Thread client1 = new Thread("client1") {
             public void run() {
                 Sys.init();
-                Swift clientServer = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
                 runClient1(clientServer);
             }
         };
@@ -61,14 +61,14 @@ public class PingSpeedTest {
         Thread client2 = new Thread("client2") {
             public void run() {
                 Sys.init();
-                Swift clientServer = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
                 runClient2(clientServer);
             }
         };
         client2.start();
     }
 
-    static void runClient1(Swift swift) {
+    static void runClient1(SwiftSession swift) {
         if (notifications) {
             client1CodeNotifications(swift);
         } else {
@@ -76,7 +76,7 @@ public class PingSpeedTest {
         }
     }
 
-    static void runClient2(Swift clientServer) {
+    static void runClient2(SwiftSession clientServer) {
         if (notifications) {
             client2CodeNotifications(clientServer);
         } else {
@@ -84,7 +84,7 @@ public class PingSpeedTest {
         }
     }
 
-    protected static void client1Code(Swift swift) {
+    protected static void client1Code(SwiftSession swift) {
         try {
             System.out.println("Ping time");
             NanoTimeCollector timer = new NanoTimeCollector();
@@ -117,13 +117,13 @@ public class PingSpeedTest {
                     txn.rollback();
                 }
             }
-            swift.stop(true);
+            swift.stopScout(true);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    protected static void client2Code(Swift clientServer) {
+    protected static void client2Code(SwiftSession clientServer) {
         try {
             int expected = 1;
             while (true) {
@@ -146,7 +146,7 @@ public class PingSpeedTest {
         }
     }
 
-    protected static void increment(Swift swift, ObjectUpdatesListenerIncr1 listener) throws NetworkException,
+    protected static void increment(SwiftSession swift, ObjectUpdatesListenerIncr1 listener) throws NetworkException,
             WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
         IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class, listener);
@@ -154,7 +154,7 @@ public class PingSpeedTest {
         handle.commit();
     }
 
-    protected static void client1CodeNotifications(Swift swift) {
+    protected static void client1CodeNotifications(SwiftSession swift) {
         try {
             System.out.println("Ping time");
             NanoTimeCollector timer = new NanoTimeCollector();
@@ -171,7 +171,7 @@ public class PingSpeedTest {
         }
     }
 
-    protected static void client2CodeNotifications(Swift clientServer) {
+    protected static void client2CodeNotifications(SwiftSession clientServer) {
         try {
             int expected = 1;
             // Need cache policy MOST_RECENT for first read
@@ -195,10 +195,10 @@ public class PingSpeedTest {
 
     static class ObjectUpdatesListenerIncr1 extends AbstractObjectUpdatesListener {
         int expected;
-        Swift swift;
+        SwiftSession swift;
         NanoTimeCollector timer;
 
-        ObjectUpdatesListenerIncr1(int expected, Swift swift, NanoTimeCollector timer) {
+        ObjectUpdatesListenerIncr1(int expected, SwiftSession swift, NanoTimeCollector timer) {
             this.expected = expected;
             this.swift = swift;
             this.timer = timer;
@@ -221,7 +221,7 @@ public class PingSpeedTest {
                         timer.start();
                         increment(swift, this);
                     } else {
-                        swift.stop(true);
+                        swift.stopScout(true);
                     }
                 } else {
                     txn.rollback();
@@ -234,9 +234,9 @@ public class PingSpeedTest {
 
     static class ObjectUpdatesListenerIncr2 extends AbstractObjectUpdatesListener {
         int expected;
-        Swift swift;
+        SwiftSession swift;
 
-        ObjectUpdatesListenerIncr2(int expected, Swift clientServer) {
+        ObjectUpdatesListenerIncr2(int expected, SwiftSession clientServer) {
             this.expected = expected;
             this.swift = clientServer;
         }
@@ -253,7 +253,7 @@ public class PingSpeedTest {
                     if (expected / 2 < iterations - 1) {
                         expected += 2;
                     } else {
-                        swift.stop(true);
+                        swift.stopScout(true);
                     }
                 } else {
                     handle.rollback();

@@ -67,12 +67,15 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
     protected final TransactionsLog durableLog;
     protected final long id;
+    protected final String sessionId;
 
     /**
      * Creates an update transaction.
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param sessionId
+     *            id of the client session issuing this transaction
      * @param durableLog
      *            durable log for recovery
      * @param cachePolicy
@@ -81,10 +84,11 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            timestamp and timestamp mapping information used for all
      *            updates of this transaction
      */
-    AbstractTxnHandle(final TxnManager manager, final TransactionsLog durableLog, final CachePolicy cachePolicy,
-            final TimestampMapping timestampMapping) {
+    AbstractTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
+            final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
         this.manager = manager;
         this.readOnly = false;
+        this.sessionId = sessionId;
         this.durableLog = durableLog;
         this.id = timestampMapping.getClientTimestamp().getCounter();
         this.cachePolicy = cachePolicy;
@@ -101,14 +105,17 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param sessionId
+     *            id of the client session issuing this transaction
      * @param durableLog
      *            durable log for recovery
      * @param cachePolicy
      *            cache policy used by this transaction
      */
-    AbstractTxnHandle(final TxnManager manager, final CachePolicy cachePolicy) {
+    AbstractTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy) {
         this.manager = manager;
         this.readOnly = true;
+        this.sessionId = sessionId;
         this.durableLog = new DummyLog();
         this.id = -1;
         this.cachePolicy = cachePolicy;
@@ -293,6 +300,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     synchronized CausalityClock getUpdatesDependencyClock() {
         return updatesDependencyClock;
+    }
+
+    String getSessionId() {
+        return sessionId;
     }
 
     /**

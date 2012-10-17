@@ -12,7 +12,7 @@ import swift.application.filesystem.IFile;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -91,7 +91,7 @@ public class FileSystemCustom implements Filesystem {
     };
     private FolderStrategy folderStrategy = FolderStrategy.WordTree;
 
-    public FileSystemCustom(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
+    public FileSystemCustom(SwiftSession clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
             boolean subscribeUpdates, boolean asyncCommit) {
         /* server = clientServer;
          this.isolationLevel = isolationLevel;

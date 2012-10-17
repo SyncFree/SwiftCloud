@@ -15,7 +15,7 @@ import swift.crdt.SetTxnLocalMsg;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -32,13 +32,13 @@ public class SwiftSocial {
 
     // FIXME Add sessions? Local login possible? Cookies?
     private User currentUser;
-    private Swift server;
+    private SwiftSession server;
     private final IsolationLevel isolationLevel;
     private final CachePolicy cachePolicy;
     private final ObjectUpdatesListener updatesSubscriber;
     private final boolean asyncCommit;
 
-    public SwiftSocial(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
+    public SwiftSocial(SwiftSession clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
             boolean subscribeUpdates, boolean asyncCommit) {
         server = clientServer;
         this.isolationLevel = isolationLevel;

@@ -58,7 +58,8 @@ import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftScout;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
@@ -79,12 +80,13 @@ import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 
 /**
- * Implementation of Swift scout and transactions manager.
+ * Implementation of Swift scout and transactions manager. Scout can either
+ * support one or multiple client sessions.
  * 
  * @see Swift, TxnManager
  * @author mzawirski
  */
-public class SwiftImpl implements Swift, TxnManager {
+public class SwiftImpl implements SwiftScout, TxnManager {
     // Temporary Nuno's hack:
     public static final boolean DEFAULT_LISTENER_FOR_GET = false;
     static ObjectUpdatesListener DEFAULT_LISTENER = new AbstractObjectUpdatesListener() {
@@ -118,14 +120,29 @@ public class SwiftImpl implements Swift, TxnManager {
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
     /**
-     * Creates new instance of Swift using provided options.
+     * Creates new single session instance backed by a scout.
      * 
      * @param options
-     *            Swift options
-     * @return instance of Swift client
+     *            Swift scout options
+     * @return instance of Swift client session
      * @see SwiftOptions
      */
-    public static Swift newInstance(final SwiftOptions options) {
+    public static SwiftSession newSingleSessionInstance(final SwiftOptions options) {
+        final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
+                options.getServerHostname(), options.getServerPort()), new TimeSizeBoundedObjectsCache(
+                options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
+        return sharedImpl.newSession("singleton-session");
+    }
+
+    /**
+     * Creates a new scout that allows many open sessions.
+     * 
+     * @param options
+     *            Swift scout options
+     * @return instance of Swift client session
+     * @see SwiftOptions
+     */
+    public static SwiftScout newMultiSessionInstance(final SwiftOptions options) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
                 options.getServerHostname(), options.getServerPort()), new TimeSizeBoundedObjectsCache(
                 options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
@@ -146,9 +163,8 @@ public class SwiftImpl implements Swift, TxnManager {
     private final Endpoint serverEndpoint;
 
     // Cache of objects.
-    // Best-effort invariant: if object is in the cache, it includes all
-    // updates of locally and globally committed locally-originating
-    // transactions.
+    // Invariant: if object is in the cache, it includes all updates of locally
+    // and globally committed locally-originating transactions.
     private final TimeSizeBoundedObjectsCache objectsCache;
 
     // CLOCKS: all clocks grow over time. Careful with references, use copies.
@@ -262,10 +278,13 @@ public class SwiftImpl implements Swift, TxnManager {
         this.durableLog = log;
     }
 
-    @Override
     public void stop(boolean waitForCommit) {
-        logger.info("stopping scout");
+        logger.info("Stopping scout");
         synchronized (this) {
+            if (stopFlag) {
+                logger.warning("Scout is already stopped");
+                return;
+            }
             stopFlag = true;
             stopGracefully = waitForCommit;
             this.notifyAll();
@@ -292,8 +311,12 @@ public class SwiftImpl implements Swift, TxnManager {
     }
 
     @Override
-    public synchronized AbstractTxnHandle beginTxn(IsolationLevel isolationLevel, CachePolicy cachePolicy,
-            boolean readOnly) throws NetworkException {
+    public SwiftSession newSession(String sessionId) {
+        return new SwiftSessionToScoutAdapter(this, sessionId);
+    }
+
+    public synchronized AbstractTxnHandle beginTxn(String sessionId, IsolationLevel isolationLevel,
+            CachePolicy cachePolicy, boolean readOnly) throws NetworkException {
         if (!concurrentOpenTransactions && !pendingTxns.isEmpty()) {
             throw new IllegalStateException("Only one transaction can be executing at the time");
         }
@@ -335,10 +358,11 @@ public class SwiftImpl implements Swift, TxnManager {
             snapshotClock.merge(lastLocallyCommittedTxnClock);
             final SnapshotIsolationTxnHandle siTxn;
             if (readOnly) {
-                siTxn = new SnapshotIsolationTxnHandle(this, cachePolicy, snapshotClock);
+                siTxn = new SnapshotIsolationTxnHandle(this, sessionId, cachePolicy, snapshotClock);
             } else {
                 final TimestampMapping timestampMapping = generateNextTimestampMapping();
-                siTxn = new SnapshotIsolationTxnHandle(this, durableLog, cachePolicy, timestampMapping, snapshotClock);
+                siTxn = new SnapshotIsolationTxnHandle(this, sessionId, durableLog, cachePolicy, timestampMapping,
+                        snapshotClock);
             }
             addPendingTxn(siTxn);
             if (logger.isLoggable(Level.INFO)) {
@@ -349,10 +373,10 @@ public class SwiftImpl implements Swift, TxnManager {
         case REPEATABLE_READS:
             final RepeatableReadsTxnHandle rrTxn;
             if (readOnly) {
-                rrTxn = new RepeatableReadsTxnHandle(this, cachePolicy);
+                rrTxn = new RepeatableReadsTxnHandle(this, sessionId, cachePolicy);
             } else {
                 final TimestampMapping timestampMapping = generateNextTimestampMapping();
-                rrTxn = new RepeatableReadsTxnHandle(this, durableLog, cachePolicy, timestampMapping);
+                rrTxn = new RepeatableReadsTxnHandle(this, sessionId, durableLog, cachePolicy, timestampMapping);
             }
             addPendingTxn(rrTxn);
             if (logger.isLoggable(Level.INFO)) {
@@ -814,6 +838,7 @@ public class SwiftImpl implements Swift, TxnManager {
             // TODO: during failover, it may be unsafe to IGNORE.
             cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
         }
+        // TODO: notify other sessions, don't wait for DC :-)
     }
 
     private void fetchSubscribedNotifications() {
@@ -1066,8 +1091,8 @@ public class SwiftImpl implements Swift, TxnManager {
         if (requiresGlobalCommit(txn)) {
             // Need to create and commit a dummy transaction, we cannot
             // returnLastTimestamp :-(
-            final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, durableLog,
-                    CachePolicy.CACHED, txn.getTimestampMapping());
+            final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, txn.getSessionId(),
+                    durableLog, CachePolicy.CACHED, txn.getTimestampMapping());
             dummyTxn.markLocallyCommitted();
             commitTxn(dummyTxn);
         } else {

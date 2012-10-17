@@ -26,7 +26,7 @@ import swift.crdt.SetVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.NetworkException;

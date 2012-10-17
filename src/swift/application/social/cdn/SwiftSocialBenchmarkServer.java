@@ -17,7 +17,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
@@ -44,7 +44,7 @@ public class SwiftSocialBenchmarkServer {
     private static long cacheEvictionTimeMillis;
     private static long thinkTime;
     
-    static Swift g_swiftClient;
+    static SwiftSession g_swiftClient;
     
     public static void main(String[] args) {
         if (args.length < 3) {
@@ -62,12 +62,12 @@ public class SwiftSocialBenchmarkServer {
         
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
-            final Swift swiftClient = SwiftImpl
-                    .newInstance(new SwiftOptions(dcEndpoint.getHost(), dcEndpoint.getPort()));
+            final SwiftSession swiftClient = SwiftImpl
+                    .newSingleSessionInstance(new SwiftOptions(dcEndpoint.getHost(), dcEndpoint.getPort()));
             final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
                     CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
-            swiftClient.stop(true);
+            swiftClient.stopScout(true);
             System.out.println("Finished populating db with users.");
             System.exit(0);            
         } else if (command.equals("run") && args.length >= 10) {
@@ -177,7 +177,7 @@ public class SwiftSocialBenchmarkServer {
     
     
     static class Session {
-    	final Swift swiftClient;
+    	final SwiftSession swiftClient;
     	final SwiftSocial swiftSocial;
     	
     	Session() {
@@ -186,7 +186,7 @@ public class SwiftSocialBenchmarkServer {
             options.setDisasterSafe(false);
             options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
             options.setCacheSize(Integer.MAX_VALUE);
-            swiftClient = SwiftImpl.newInstance(options);
+            swiftClient = SwiftImpl.newSingleSessionInstance(options);
     	    
     		swiftSocial = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
     	                asyncCommit);

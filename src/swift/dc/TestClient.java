@@ -7,7 +7,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import sys.Sys;
@@ -18,9 +18,9 @@ public class TestClient {
             String host = args.length > 0 ? args[0] : "localhost";
             Sys.init();
 
-            Swift server0 = SwiftImpl.newInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
+            SwiftSession server0 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
 
-            Swift server = SwiftImpl.newInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
+            SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
@@ -105,7 +105,7 @@ public class TestClient {
             System.out.println("TetsClient ended with success");
 
             Thread.sleep(10000);
-            server.stop(true);
+            server.stopScout(true);
         } catch (Exception e) {
             e.printStackTrace();
         }

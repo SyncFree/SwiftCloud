@@ -6,10 +6,10 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 
-public class SwiftTester implements Swift {
+public class SwiftTester implements SwiftSession {
     public CausalityClock latestVersion;
     private IncrementalTimestampGenerator clientTimestampGenerator;
     private IncrementalTimestampGenerator globalTimestampGenerator;
@@ -47,6 +47,11 @@ public class SwiftTester implements Swift {
     }
 
     @Override
-    public void stop(boolean waitForCommit) {
+    public void stopScout(boolean waitForCommit) {
+    }
+
+    @Override
+    public String getSessionId() {
+        return "tester-session";
     }
 }

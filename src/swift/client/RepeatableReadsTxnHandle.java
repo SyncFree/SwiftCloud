@@ -9,7 +9,6 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -35,6 +34,8 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param sessionId
+     *            id of the client session issuing this transaction
      * @param durableLog
      *            durable log for recovery
      * @param cachePolicy
@@ -43,9 +44,9 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      *            timestamp and timestamp mapping information used for all
      *            update of this transaction
      */
-    RepeatableReadsTxnHandle(final TxnManager manager, final TransactionsLog durableLog, final CachePolicy cachePolicy,
-            final TimestampMapping timestampMapping) {
-        super(manager, durableLog, cachePolicy, timestampMapping);
+    RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
+            final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
+        super(manager, sessionId, durableLog, cachePolicy, timestampMapping);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 
@@ -54,11 +55,13 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      * 
      * @param manager
      *            manager maintaining this transaction
+     * @param sessionId
+     *            id of the client session issuing this transaction
      * @param cachePolicy
      *            cache policy used by this transaction
      */
-    RepeatableReadsTxnHandle(final TxnManager manager, final CachePolicy cachePolicy) {
-        super(manager, cachePolicy);
+    RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy) {
+        super(manager, sessionId, cachePolicy);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 

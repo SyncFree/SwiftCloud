@@ -17,7 +17,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -91,12 +91,12 @@ public class SwiftSocialMain {
 
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
-        Swift clientServer = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
         SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
 
         if (usersFileName != null) {
             initUsers(clientServer, client, usersFileName);
-            clientServer.stop(true);
+            clientServer.stopScout(true);
             try {
                 Thread.sleep(DELAY_AFTER_INIT);
             } catch (InterruptedException e) {
@@ -155,7 +155,7 @@ public class SwiftSocialMain {
 
     }
 
-    public static void initUsers(Swift swiftClient, SwiftSocial client, final String usersFileName) {
+    public static void initUsers(SwiftSession swiftClient, SwiftSocial client, final String usersFileName) {
         try {
             TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
             int txnSize = 0;

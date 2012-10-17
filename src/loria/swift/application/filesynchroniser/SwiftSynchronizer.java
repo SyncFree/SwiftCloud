@@ -7,7 +7,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.SwiftException;
 import swift.test.microbenchmark.objects.StringCopyable;
@@ -21,13 +21,13 @@ public class SwiftSynchronizer {
 
     private final Class textClass;
             
-    private Swift server;
+    private SwiftSession server;
     private final IsolationLevel isolationLevel;
     private final CachePolicy cachePolicy;
     private final ObjectUpdatesListener updatesSubscriber;
     private final boolean asyncCommit;
 
-    public SwiftSynchronizer(Swift clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
+    public SwiftSynchronizer(SwiftSession clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
             boolean subscribeUpdates, boolean asyncCommit, Class textClass) {
         server = clientServer;
         this.isolationLevel = isolationLevel;

@@ -18,7 +18,7 @@ import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -87,7 +87,7 @@ import fuse.XattrSupport;
 
 public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final Log log = LogFactory.getLog(FilesystemFuse.class);
-    protected static Swift server;
+    protected static SwiftSession server;
 
     protected Filesystem fs;
     private static final int MODE = 0777;
@@ -676,7 +676,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
             // do nothing
         }
         Sys.init();
-        server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
+        server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
     }
 

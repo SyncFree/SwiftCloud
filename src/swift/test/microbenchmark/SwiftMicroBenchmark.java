@@ -15,7 +15,7 @@ import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -109,7 +109,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
 
     public void doIt() throws InterruptedException {
         CRDTIdentifier[] identifiers = BenchUtil.generateOpIdentifiers(numObjects);
-        Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
+        SwiftSession client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
         if (initialize) {
             stopSemaphore = new Semaphore(-1);
             MicroBenchmarkWorker initializer = new SwiftInitializerWorker(this, identifiers, random, client);
@@ -117,7 +117,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
             try {
                 logger.info("START POPULATOR");
                 stopSemaphore.acquire();
-                client.stop(true);
+                client.stopScout(true);
                 logger.info("END POPULATOR");
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -151,7 +151,7 @@ public class SwiftMicroBenchmark implements WorkerManager {
             Collections.shuffle(l);
             for (int j = 0; j < ids.length; j++)
                 ids[j] = l.get(j);
-            Swift client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
+            SwiftSession client = BenchUtil.getNewSwiftInterface(serverLocation, DCConstants.SURROGATE_PORT);
             SwiftExecutorWorker worker = new SwiftExecutorWorker(this, workersName + i, ids, updateRatio, random,
                     client, maxTxSize, cachePolicy, isolationLevel, runCount, outputDir);
             new Thread(worker).start();

@@ -15,7 +15,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
 import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
@@ -53,11 +53,11 @@ public class SwiftSocialBenchmark {
         sys.Sys.init();
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
-            final Swift swiftClient = SwiftImpl.newInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+            final SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
             final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
                     CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
-            swiftClient.stop(true);
+            swiftClient.stopScout(true);
             System.out.println("Finished populating db with users.");
         } else if (command.equals("run") && args.length == 10) {
             isolationLevel = IsolationLevel.valueOf(args[3]);
@@ -127,7 +127,7 @@ public class SwiftSocialBenchmark {
         final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
         options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
         options.setCacheSize(Integer.MAX_VALUE);
-        Swift swiftCLient = SwiftImpl.newInstance(options);
+        SwiftSession swiftCLient = SwiftImpl.newSingleSessionInstance(options);
         SwiftSocial socialClient = new SwiftSocial(swiftCLient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
 
@@ -196,7 +196,7 @@ public class SwiftSocialBenchmark {
             }
             commandsDone.incrementAndGet();
         }
-        swiftCLient.stop(true);
+        swiftCLient.stopScout(true);
 
         final long now = System.currentTimeMillis();
         final long sessionExecTime = now - sessionStartTime;

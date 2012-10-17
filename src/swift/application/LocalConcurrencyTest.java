@@ -8,7 +8,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -38,16 +38,16 @@ public class LocalConcurrencyTest {
             Thread client = new Thread("client" + i) {
                 public void run() {
                     Sys.init();
-                    Swift clientServer = SwiftImpl
-                            .newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+                    SwiftSession clientServer = SwiftImpl
+                            .newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
                     clientCode(clientServer);
-                    clientServer.stop(true);
+                    clientServer.stopScout(true);
                 }
             };
             threads[i] = client;
             client.start();
         }
-        Swift checkServer = SwiftImpl.newInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        SwiftSession checkServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
         boolean done = false;
         while (!done) {
             done = check(checkServer);
@@ -57,10 +57,10 @@ public class LocalConcurrencyTest {
                 e.printStackTrace();
             }
         }
-        checkServer.stop(true);
+        checkServer.stopScout(true);
     }
 
-    private static void clientCode(Swift server) {
+    private static void clientCode(SwiftSession server) {
         try {
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
@@ -81,7 +81,7 @@ public class LocalConcurrencyTest {
         }
     }
 
-    private static boolean check(Swift checkServer) {
+    private static boolean check(SwiftSession checkServer) {
         try {
             TxnHandle handle = checkServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
                     CachePolicy.STRICTLY_MOST_RECENT, false);

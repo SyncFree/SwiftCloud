@@ -8,7 +8,7 @@ import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
@@ -37,7 +37,7 @@ public class FilesystemTest {
         }
 
         Sys.init();
-        Swift server = SwiftImpl.newInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
+        SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         TxnHandle txn;
         try {
@@ -136,6 +136,6 @@ public class FilesystemTest {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        server.stop(true);
+        server.stopScout(true);
     }
 }

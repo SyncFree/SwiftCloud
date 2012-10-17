@@ -6,7 +6,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.Swift;
+import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import sys.Sys;
 
@@ -23,7 +23,7 @@ public class TestIncClient {
             
             Sys.init();
 
-            Swift server = SwiftImpl.newInstance(new SwiftOptions(serverNode, DCConstants.SURROGATE_PORT));
+            SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(serverNode, DCConstants.SURROGATE_PORT));
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier(table, key), false, swift.crdt.IntegerVersioned.class);

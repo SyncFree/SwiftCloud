@@ -179,8 +179,8 @@ public class SwiftImplTest extends EasyMockSupport {
 
         // Actual test: execute 1 transaction creating and updating object A.
         swiftImpl = createSwift();
-        final AbstractTxnHandle txn = swiftImpl.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.MOST_RECENT,
-                true);
+        final AbstractTxnHandle txn = swiftImpl.beginTxn("session", IsolationLevel.SNAPSHOT_ISOLATION,
+                CachePolicy.MOST_RECENT, true);
         final IntegerTxnLocal crdtA = txn.get(idCrdtA, true, IntegerVersioned.class);
         assertEquals(new Integer(0), crdtA.getValue());
         crdtA.add(5);

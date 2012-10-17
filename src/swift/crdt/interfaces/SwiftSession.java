@@ -1,17 +1,22 @@
 package swift.crdt.interfaces;
 
+import swift.client.SwiftImpl;
 import swift.exceptions.NetworkException;
 
 /**
- * API for the Swift system.
+ * API for the Swift system, a client session that can issue transactions. A
+ * session is normally attached to a scout ({@link SwiftScout}). See
+ * {@link SwiftImpl} to learn how to start a scout and session. Note that all
+ * "session guarantees" apply to this unit of session.
  * 
- * @author annettebieniusa
+ * @author annettebieniusa, mzawirski
+ * @see SwiftImpl
  */
-public interface Swift {
+public interface SwiftSession {
     /**
      * Starts a new transaction, observing the results of locally committed
-     * transactions, and some external transactions committed to the store,
-     * depending on cache and isolation options.
+     * transactions in this session, and some external transactions committed to
+     * the store, depending on cache and isolation options.
      * 
      * @param isolationLevel
      *            isolation level defining consistency guarantees for
@@ -39,11 +44,19 @@ public interface Swift {
     // transaction.
 
     /**
-     * Stops the client, which renders it unusable after this call returns.
+     * Stops the underlying scout, which renders it unusable after this call
+     * returns. Careful, it may also affect other sessions of this scout.
      * 
      * @param waitForCommit
      *            when true, this call blocks until all locally committed
      *            transactions commit globally in the store
      */
-    void stop(boolean waitForCommit);
+    void stopScout(boolean waitForCommit);
+
+    // TODO: change to stopSession() and count opened sessions?
+
+    /**
+     * @return session identifier
+     */
+    String getSessionId();
 }
