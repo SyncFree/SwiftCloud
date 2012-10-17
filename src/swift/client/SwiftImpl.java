@@ -1032,6 +1032,8 @@ public class SwiftImpl implements Swift, TxnManager {
                     version.drop(scoutId);
                 }
                 try {
+                    // FIXME: this fetch seems unnecessary when user first
+                    // triggered notifications via get()!
                     fetchObjectVersion(null, id, false, BaseCRDT.class, version, false, true);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
