@@ -20,29 +20,37 @@ abstract public class AbstractEndpoint implements Endpoint {
     protected long locator;
     protected InetSocketAddress sockAddress;
 
-    protected AtomicLong incomingBytesCounter ;
+    protected AtomicLong incomingBytesCounter = new AtomicLong(0);
     protected AtomicLong outgoingBytesCounter = new AtomicLong(0);
 
     protected MessageHandler handler;
 
     protected AbstractEndpoint() {
         this.handler = new DefaultMessageHandler(false);
+        this.incomingBytesCounter = new AtomicLong(0);
+        this.outgoingBytesCounter = new AtomicLong(0);
     }
 
     protected AbstractEndpoint(MessageHandler handler) {
         this.handler = handler;
+        this.incomingBytesCounter = new AtomicLong(0);
+        this.outgoingBytesCounter = new AtomicLong(0);
     }
 
     protected AbstractEndpoint(InetSocketAddress sockAddress, long gid) {
         this.gid = gid;
         this.sockAddress = sockAddress;
         this.locator = encodeLocator(sockAddress);
+        this.incomingBytesCounter = new AtomicLong(0);
+        this.outgoingBytesCounter = new AtomicLong(0);
     }
 
     protected AbstractEndpoint(long locator, long gid) {
         this.gid = gid;
         this.locator = locator;
         this.sockAddress = decodeLocator(locator);
+        this.incomingBytesCounter = new AtomicLong(0);
+        this.outgoingBytesCounter = new AtomicLong(0);
     }
 
     public final boolean isOutgoing() {
@@ -146,10 +154,18 @@ abstract public class AbstractEndpoint implements Endpoint {
     }
 
     public AtomicLong getIncomingBytesCounter() {
+        if (incomingBytesCounter == null)
+            return (incomingBytesCounter = new AtomicLong(0));
         return incomingBytesCounter;
     }
 
+    public int getConnectionRetryDelay() {
+        return 0;
+    }
+    
     public AtomicLong getOutgoingBytesCounter() {
+        if (outgoingBytesCounter == null)
+            return (outgoingBytesCounter = new AtomicLong(0));
         return outgoingBytesCounter;
     }
 }

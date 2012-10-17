@@ -21,19 +21,18 @@ import sys.net.api.TransportConnection;
  */
 public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable {
 
+    private int delay = 0;
+    private long connectionAttempt = 0;
+    
 	public RemoteEndpoint() {	
 	}
 	
 	public RemoteEndpoint(final String host, final int tcpPort) {
 		super(new InetSocketAddress(host, tcpPort), 0);
-		incomingBytesCounter = new AtomicLong(0);
-		outgoingBytesCounter = new AtomicLong(0);
 	}
 
 	public RemoteEndpoint(long locator, long gid) {
 		super(locator, gid);
-        incomingBytesCounter = new AtomicLong(0);
-        outgoingBytesCounter = new AtomicLong(0);
 	}
 
 	@Override
@@ -49,5 +48,15 @@ public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable
 	@Override
 	public TransportConnection connect(Endpoint dst) {
 		throw new NetworkingException("Not supported...[This is a remote endpoint...]");
+	}
+	
+	public int getConnectionRetryDelay() {
+	    long elapsed = System.currentTimeMillis() - connectionAttempt;
+	    if( elapsed > 2000) {
+	        connectionAttempt += elapsed;
+	        delay = 0;
+	    }
+	    delay += 2 * (delay + 1);
+	    return delay;
 	}
 }

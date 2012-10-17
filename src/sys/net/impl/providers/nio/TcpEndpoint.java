@@ -121,9 +121,11 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		}
 
 	    public void setRemoteEndpoint(Endpoint remote) {
-	        this.remote = remote;
-	        this.incomingBytesCounter = remote.getIncomingBytesCounter();
-	        this.outgoingBytesCounter = remote.getOutgoingBytesCounter();
+	        if( remote != null ) {
+	            this.remote = remote;
+    	        this.incomingBytesCounter = remote.getIncomingBytesCounter();
+    	        this.outgoingBytesCounter = remote.getOutgoingBytesCounter();
+	        }
 	    }
 		
 		@Override
@@ -295,6 +297,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
 		void init() throws IOException {
 			try {
+			    Threading.sleep( ((AbstractEndpoint)remote).getConnectionRetryDelay() );
 				channel = SocketChannel.open();
 				channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), NIO_CONNECTION_TIMEOUT);
 				configureChannel(channel);
