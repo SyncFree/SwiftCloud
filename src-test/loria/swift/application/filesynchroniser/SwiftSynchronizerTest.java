@@ -87,14 +87,14 @@ public class SwiftSynchronizerTest {
     public void testLogootAsync() {
         SwiftSynchronizer sync=new SwiftSynchronizer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, LogootVersioned.class);
         sync.commit("test3", "123");
-        assertEquals("123",sync.update("test"));
+        assertEquals("123", sync.update("test3"));
     }
-    
+
     @Test
     public void testLastWriterWinAsync() {
         SwiftSynchronizer sync=new SwiftSynchronizer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, RegisterFileContent.class);
         sync.commit("test4", "123");
-        assertEquals("123",sync.update("test2"));
+        assertEquals("123", sync.update("test4"));
     }
     
     @Test
