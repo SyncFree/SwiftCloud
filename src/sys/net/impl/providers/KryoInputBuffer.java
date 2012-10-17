@@ -4,11 +4,13 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 
+import sys.net.api.Endpoint;
 import sys.net.impl.KryoLib;
 
 import static sys.Sys.*;
@@ -41,11 +43,12 @@ public class KryoInputBuffer implements Runnable {
 		this.handler = handler;
 	}
 
-	final public boolean readFrom(ReadableByteChannel ch) throws IOException {
+	final public boolean readFrom(ReadableByteChannel ch, AtomicLong counter) throws IOException {
 		int c = 1;
 
 		buffer.clear().limit(4);
-		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0);
+		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0)
+		    counter.addAndGet( c );
 
 		if (buffer.hasRemaining()) {
 			Log.finest("#####ERROR: READING MSG HEADER:" + c);
@@ -57,7 +60,9 @@ public class KryoInputBuffer implements Runnable {
 		ensureCapacity(contentLength);
 
 		buffer.clear().limit(contentLength);
-		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0);
+		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0)
+		    counter.addAndGet(c);
+		    
 
 		if (buffer.hasRemaining()) {
 			Log.finest("#####ERROR: READING MSG BODY:" + c);

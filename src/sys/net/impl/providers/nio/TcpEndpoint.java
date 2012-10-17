@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
@@ -29,6 +30,7 @@ import sys.utils.IO;
 import sys.utils.Threading;
 
 import com.esotericsoftware.kryo.KryoException;
+import com.sun.corba.se.impl.oa.poa.AOMEntry;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
@@ -109,12 +111,21 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
 		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
 
+		AtomicLong incomingBytesCounter = new AtomicLong(0);
+        AtomicLong outgoingBytesCounter = new AtomicLong(0);
+		
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
 			this.readPool = new BufferPool<KryoInputBuffer>();
 			this.writePool = new BufferPool<KryoOutputBuffer>();
 		}
 
+	    public void setRemoteEndpoint(Endpoint remote) {
+	        this.remote = remote;
+	        this.incomingBytesCounter = remote.getIncomingBytesCounter();
+	        this.outgoingBytesCounter = remote.getOutgoingBytesCounter();
+	    }
+		
 		@Override
 		final public void run() {
 
@@ -135,7 +146,8 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 						if (inBuf == null)
 							inBuf = new _ReadBuffer();
 					}
-					if (inBuf.readFrom(channel)) {
+					
+					if (inBuf.readFrom(channel, incomingBytesCounter )) {
 
 						if (execPolicy == NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL)
 							executor.execute( this, inBuf);
@@ -149,7 +161,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					}
 				}
 			} catch (Throwable t) {
-				//t.printStackTrace();
+				t.printStackTrace();
 				cause = t;
 				handler.onFailure(this);
 			}
@@ -197,8 +209,11 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				}
 				int size = outBuf.writeClassAndObjectFrame(m, channel);
 				m.setSize(size);
+				outgoingBytesCounter.addAndGet( size );
 				return true;
 			} catch (Throwable t) {
+			    t.printStackTrace();
+			    
 				if( t instanceof KryoException )
 					t.printStackTrace();
 
@@ -284,6 +299,8 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), NIO_CONNECTION_TIMEOUT);
 				configureChannel(channel);
 			} catch (IOException x) {
+			    //x.printStackTrace();
+			    
 				cause = x;
 				isBroken = true;
 				IO.close(channel);

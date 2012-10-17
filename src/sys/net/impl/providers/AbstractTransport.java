@@ -11,6 +11,7 @@ public abstract class AbstractTransport implements TransportConnection {
 	protected boolean isBroken;
 	protected final Endpoint local;
 
+
 	public AbstractTransport(Endpoint local, Endpoint remote) {
 		this.local = local;
 		this.remote = remote;
@@ -45,11 +46,7 @@ public abstract class AbstractTransport implements TransportConnection {
 	public Endpoint remoteEndpoint() {
 		return remote;
 	}
-	
-	public void setRemoteEndpoint(Endpoint remote) {
-		this.remote = remote;
-	}
-	
+		
 	public void setOption( String op, Object val) {		
 	}
 }

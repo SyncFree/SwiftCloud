@@ -1,6 +1,7 @@
 package sys.net.impl;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.esotericsoftware.kryo.KryoSerializable;
 
@@ -25,10 +26,14 @@ public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable
 	
 	public RemoteEndpoint(final String host, final int tcpPort) {
 		super(new InetSocketAddress(host, tcpPort), 0);
+		incomingBytesCounter = new AtomicLong(0);
+		outgoingBytesCounter = new AtomicLong(0);
 	}
 
 	public RemoteEndpoint(long locator, long gid) {
 		super(locator, gid);
+        incomingBytesCounter = new AtomicLong(0);
+        outgoingBytesCounter = new AtomicLong(0);
 	}
 
 	@Override
