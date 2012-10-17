@@ -19,6 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -108,8 +109,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // this way. In any case, locking should not affect responsiveness to
     // pendingTxn requests.
 
-    // WISHME: decouple this monolithic untestable monster, e.g. extract
-    // "object store" from the rest of transactions and notifications processing
+    // WISHME: split this monolithic untestable monster, e.g. extract
+    // "object store" from the rest of transactions and notifications
+    // processing.
 
     // WISHME: subscribe updates of frequently accessed objects
 
@@ -196,8 +198,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final CommitterThread committerThread;
 
     // Update subscriptions stuff.
-    // id -> update subscription information
-    private final Map<CRDTIdentifier, UpdateSubscription> objectUpdateSubscriptions;
+    // id -> sessionId -> update subscription information; the presence of any
+    // first-level mapping corresponds roughly to the fact that
+    // updates are currently subscribed; if there is any 2nd level mapping, it
+    // means that a listener is additionally installed and awaits notification
+    private final Map<CRDTIdentifier, Map<String, UpdateSubscriptionWithListener>> objectSessionsUpdateSubscriptions;
     // map from timestamp mapping of an uncommitted update to objects that may
     // await notification with this mapping
     private final Map<TimestampMapping, Set<CRDTIdentifier>> uncommittedUpdatesObjectsToNotify;
@@ -255,7 +260,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.committerThread = new CommitterThread();
         this.fetchVersionsInProgress = new HashSet<CausalityClock>();
         this.committerThread.start();
-        this.objectUpdateSubscriptions = new HashMap<CRDTIdentifier, UpdateSubscription>();
+        this.objectSessionsUpdateSubscriptions = new HashMap<CRDTIdentifier, Map<String, UpdateSubscriptionWithListener>>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
         this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
         this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
@@ -291,7 +296,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
         try {
             committerThread.join();
-            for (final CRDTIdentifier id : new ArrayList<CRDTIdentifier>(objectUpdateSubscriptions.keySet())) {
+            for (final CRDTIdentifier id : new ArrayList<CRDTIdentifier>(objectSessionsUpdateSubscriptions.keySet())) {
                 removeUpdateSubscriptionAsyncUnsubscribe(id);
             }
             notificationsSubscriberExecutor.shutdown();
@@ -453,9 +458,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             if (entry.getKey().anyTimestampIncluded(getCommittedVersion(false))) {
                 iter.remove();
                 for (final CRDTIdentifier id : entry.getValue()) {
-                    final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-                    if (subscription != null && subscription.hasListener()) {
-                        notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+                    final Map<String, UpdateSubscriptionWithListener> subscriptions = objectSessionsUpdateSubscriptions
+                            .get(id);
+                    if (subscriptions != null) {
+                        for (UpdateSubscriptionWithListener subscription : subscriptions.values()) {
+                            notificationsCallbacksExecutor.execute(subscription
+                                    .generateNotificationAndDiscard(this, id));
+                        }
                     }
                 }
             }
@@ -485,7 +494,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
             if (cachePolicy == CachePolicy.CACHED) {
                 try {
-                    return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
+                    return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener, false);
                 } catch (NoSuchObjectException x) {
                     // Ok, let's try to fetch then.
                 } catch (VersionNotFoundException x) {
@@ -506,21 +515,24 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 // Try to get the latest one.
             }
 
+            boolean fetchError = false;
             try {
                 fetchObjectVersion(txn, id, create, classOfV, fetchClock, false, updatesListener != null);
             } catch (VersionNotFoundException x) {
                 if (fetchStrictlyRequired) {
                     throw x;
                 }
+                fetchError = true;
             } catch (NetworkException x) {
                 if (fetchStrictlyRequired) {
                     throw x;
                 }
+                fetchError = true;
             }
             // Pass other exceptions through.
 
             try {
-                return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener);
+                return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener, !fetchError);
             } catch (NoSuchObjectException x) {
                 logger.warning("Object not found in the cache just after fetch (retrying): " + x);
             } catch (VersionNotFoundException x) {
@@ -537,7 +549,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         assertPendingTransaction(txn);
 
         try {
-            return getCachedObjectForTxn(txn, id, version, classOfV, updatesListener);
+            return getCachedObjectForTxn(txn, id, version, classOfV, updatesListener, false);
         } catch (NoSuchObjectException x) {
             // Ok, let's try to fetch then.
         } catch (VersionNotFoundException x) {
@@ -550,7 +562,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             fetchObjectVersion(txn, id, create, classOfV, globalVersion, true, updatesListener != null);
 
             try {
-                return getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener);
+                return getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener, true);
             } catch (NoSuchObjectException x) {
                 logger.warning("Object not found in the cache just after fetch (retrying): " + x);
             } catch (VersionNotFoundException x) {
@@ -577,8 +589,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
      */
     @SuppressWarnings("unchecked")
     private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(final AbstractTxnHandle txn,
-            CRDTIdentifier id, CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener)
-            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
+            CRDTIdentifier id, CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener,
+            boolean justFetched) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         V crdt;
         try {
             crdt = (V) objectsCache.getAndTouch(id);
@@ -619,8 +631,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         if (updatesListener != null) {
-            final UpdateSubscription subscription = addUpdateSubscription(txn, crdt, crdtView, updatesListener);
-            if (subscription.hasListener()) {
+            if (updatesListener.isSubscriptionOnly()) {
+                addUpdateSubscriptionNoListener(crdt, !justFetched);
+            } else {
+                final UpdateSubscriptionWithListener subscription = addUpdateSubscriptionWithListener(txn, crdt,
+                        crdtView, updatesListener, !justFetched);
                 // Trigger update listener if we already know updates more
                 // recent than the returned version.
                 handleObjectNewVersionTryNotify(id, subscription, crdt);
@@ -804,15 +819,19 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 applyLocalObjectUpdates(request.getUid(), cacheCRDT, localTxn);
             }
 
-            UpdateSubscription subscription = objectUpdateSubscriptions.get(request.getUid());
-            if (request.getSubscriptionType() != SubscriptionType.NONE && subscription == null) {
+            Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(request
+                    .getUid());
+            if (request.getSubscriptionType() != SubscriptionType.NONE && sessionsSubs == null) {
                 // Add temporary subscription entry without specifying full
                 // information on what value has been read.
-                subscription = addUpdateSubscription(txn, crdt, null, null);
+                addUpdateSubscriptionNoListener(crdt, false);
             }
 
-            if (subscription != null && subscription.hasListener()) {
-                handleObjectNewVersionTryNotify(request.getUid(), subscription, cacheCRDT);
+            // See if anybody is interested in new updates on this object.
+            if (sessionsSubs != null) {
+                for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
+                    handleObjectNewVersionTryNotify(crdt.getUID(), subscription, cacheCRDT);
+                }
             }
         }
 
@@ -838,7 +857,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // TODO: during failover, it may be unsafe to IGNORE.
             cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
         }
-        // TODO: notify other sessions, don't wait for DC :-)
     }
 
     private void fetchSubscribedNotifications() {
@@ -883,8 +901,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         } else {
             // Renew lost subscriptions.
             synchronized (this) {
-                for (final CRDTIdentifier id : objectUpdateSubscriptions.keySet()) {
-                    asyncSubscribeObjectUpdates(id);
+                for (final CRDTIdentifier id : objectSessionsUpdateSubscriptions.keySet()) {
+                    asyncFetchAndSubscribeObjectUpdates(id);
                 }
             }
         }
@@ -900,8 +918,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             return;
         }
 
-        final UpdateSubscription subscription = objectUpdateSubscriptions.get(id);
-        if (subscription == null) {
+        final Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(id);
+        if (sessionsSubs == null) {
             removeUpdateSubscriptionAsyncUnsubscribe(id);
         }
 
@@ -909,12 +927,12 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
             logger.info("cannot apply received updates on object " + id + " as it has been evicted from the cache");
-            if (subscription != null) {
-                if (subscription.hasListener()) {
+            if (sessionsSubs != null) {
+                if (!sessionsSubs.isEmpty()) {
                     if (!ops.isEmpty()) {
                         // There is still listener waiting, make some efforts to
                         // fire the notification.
-                        asyncSubscribeObjectUpdates(id);
+                        asyncFetchAndSubscribeObjectUpdates(id);
                     }
                 } else {
                     // Stop subscription for object evicted from the cache.
@@ -927,13 +945,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         if (crdt.getClock().compareTo(dependencyClock).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
             // Ooops, we missed some update or messages were ordered.
             logger.info("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
-            if (subscription != null && !ops.isEmpty()) {
-                asyncSubscribeObjectUpdates(id);
+            if (sessionsSubs != null && !ops.isEmpty()) {
+                asyncFetchAndSubscribeObjectUpdates(id);
             }
             return;
         }
 
         if (logger.isLoggable(Level.INFO)) {
+            // TODO: printf usage wouldn't hurt :-)
             logger.info("applying received updates on object " + id + ";num.ops=" + ops.size() + ";tx="
                     + (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp())
                     + ";clttx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + ";vv=" + outputClock
@@ -954,16 +973,18 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 // Already applied update.
                 continue;
             }
-            if (subscription != null && subscription.hasListener()) {
-                handleObjectUpdatesTryNotify(id, subscription, op.getTimestampMapping());
+            if (sessionsSubs != null) {
+                for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
+                    handleObjectUpdatesTryNotify(id, subscription, op.getTimestampMapping());
+                }
             }
         }
         crdt.getClock().merge(outputClock);
         crdt.prune(pruneClock, true);
     }
 
-    private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id, UpdateSubscription subscription,
-            TimestampMapping... timestampMappings) {
+    private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id,
+            UpdateSubscriptionWithListener subscription, TimestampMapping... timestampMappings) {
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
@@ -973,7 +994,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         for (final TimestampMapping tm : timestampMappings) {
             if (!tm.anyTimestampIncluded(subscription.readVersion)) {
                 if (tm.anyTimestampIncluded(getCommittedVersion(false))) {
-                    notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+                    notificationsCallbacksExecutor.execute(subscription.generateNotificationAndDiscard(this, id));
                     return;
                 }
                 uncommittedUpdates.put(tm, id);
@@ -999,7 +1020,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     }
 
     private synchronized <V extends CRDT<V>> void handleObjectNewVersionTryNotify(CRDTIdentifier id,
-            final UpdateSubscription subscription, final V newCrdtVersion) {
+            final UpdateSubscriptionWithListener subscription, final V newCrdtVersion) {
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
@@ -1015,30 +1036,53 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             final TxnLocalCRDT<V> newView = newCrdtVersion
                     .getTxnLocalCopy(getCommittedVersion(false), subscription.txn);
             if (!newView.getValue().equals(subscription.crdtView.getValue())) {
-                notificationsCallbacksExecutor.execute(subscription.generateListenerNotification(id));
+                notificationsCallbacksExecutor.execute(subscription.generateNotificationAndDiscard(this, id));
             }
             return;
         }
         handleObjectUpdatesTryNotify(id, subscription, recentUpdates.toArray(new TimestampMapping[0]));
     }
 
-    private synchronized UpdateSubscription addUpdateSubscription(final AbstractTxnHandle txn, final CRDT<?> crdt,
-            final TxnLocalCRDT<?> localView, ObjectUpdatesListener listener) {
-        final UpdateSubscription updateSubscription = new UpdateSubscription(txn, localView, listener);
-        // Overwriting old entry and even subscribing again is fine, the
-        // interface specifies clearly that the latest get() matters.
-        final UpdateSubscription oldSubscription = objectUpdateSubscriptions.put(crdt.getUID(), updateSubscription);
-        if (oldSubscription == null) {
-            if (crdt.isRegisteredInStore()) {
-                asyncSubscribeObjectUpdates(crdt.getUID());
+    private synchronized void addUpdateSubscriptionNoListener(final CRDT<?> crdt, boolean needsFetch) {
+        if (!objectSessionsUpdateSubscriptions.containsKey(crdt.getUID())) {
+            objectSessionsUpdateSubscriptions.put(crdt.getUID(), new HashMap<String, UpdateSubscriptionWithListener>());
+            if (needsFetch && crdt.isRegisteredInStore()) {
+                asyncFetchAndSubscribeObjectUpdates(crdt.getUID());
             }
             // else: newly created object, wait until untilcommitTxnGlobally()
             // with subscription.
         }
+    }
+
+    private synchronized UpdateSubscriptionWithListener addUpdateSubscriptionWithListener(final AbstractTxnHandle txn,
+            final CRDT<?> crdt, final TxnLocalCRDT<?> localView, ObjectUpdatesListener listener, boolean needsFetch) {
+        if (listener.isSubscriptionOnly()) {
+            throw new IllegalArgumentException("Dummy listener subscribing udpates like a real listener for object "
+                    + crdt.getUID());
+        }
+
+        Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(crdt.getUID());
+        if (sessionsSubs == null) {
+            addUpdateSubscriptionNoListener(crdt, needsFetch);
+            sessionsSubs = objectSessionsUpdateSubscriptions.get(crdt.getUID());
+        }
+
+        final UpdateSubscriptionWithListener updateSubscription = new UpdateSubscriptionWithListener(txn, localView,
+                listener);
+        // Overwriting old session entry and even subscribing again is fine, the
+        // interface specifies clearly that the latest get() matters.
+        sessionsSubs.put(txn.getSessionId(), updateSubscription);
         return updateSubscription;
     }
 
-    private void asyncSubscribeObjectUpdates(final CRDTIdentifier id) {
+    private synchronized void removeUpdateSubscriptionWithListener(CRDTIdentifier id, String sessionId) {
+        final Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(id);
+        if (sessionsSubs != null) {
+            sessionsSubs.remove(sessionId);
+        }
+    }
+
+    private void asyncFetchAndSubscribeObjectUpdates(final CRDTIdentifier id) {
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
@@ -1049,7 +1093,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             public void run() {
                 final CausalityClock version;
                 synchronized (SwiftImpl.this) {
-                    if (!objectUpdateSubscriptions.containsKey(id)) {
+                    if (!objectSessionsUpdateSubscriptions.containsKey(id)) {
                         return;
                     }
                     version = getCommittedVersion(true);
@@ -1057,8 +1101,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     version.drop(scoutId);
                 }
                 try {
-                    // FIXME: this fetch seems unnecessary when user first
-                    // triggered notifications via get()!
                     fetchObjectVersion(null, id, false, BaseCRDT.class, version, false, true);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
@@ -1069,11 +1111,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     }
 
     private synchronized void removeUpdateSubscriptionAsyncUnsubscribe(final CRDTIdentifier id) {
-        objectUpdateSubscriptions.remove(id);
+        objectSessionsUpdateSubscriptions.remove(id);
         notificationsSubscriberExecutor.execute(new Runnable() {
             @Override
             public void run() {
-                if (objectUpdateSubscriptions.containsKey(id)) {
+                if (objectSessionsUpdateSubscriptions.containsKey(id)) {
                     return;
                 }
                 if (localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(scoutId, id)).failed()) {
@@ -1117,15 +1159,22 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         assertPendingTransaction(txn);
         assertRunning();
 
-        // TODO / WISHME: write disk log and allow local recovery.
         txn.markLocallyCommitted();
         if (logger.isLoggable(Level.INFO)) {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
         if (requiresGlobalCommit(txn)) {
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
-                applyLocalObjectUpdates(opsGroup.getTargetUID(), objectsCache.getWithoutTouch(opsGroup.getTargetUID()),
-                        txn);
+                final CRDTIdentifier id = opsGroup.getTargetUID();
+                applyLocalObjectUpdates(id, objectsCache.getWithoutTouch(id), txn);
+                // Look if there is any other session to notify.
+                final Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions
+                        .get(id);
+                if (sessionsSubs != null) {
+                    for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
+                        handleObjectUpdatesTryNotify(id, subscription, opsGroup.getTimestampMapping());
+                    }
+                }
             }
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
@@ -1240,12 +1289,12 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
                 // Subscribe updates for newly created objects if they were
                 // requested. It can be done only at this stage once the objects
-                // are
-                // in the store.
+                // are in the store.
                 for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
-                    final UpdateSubscription subscription = objectUpdateSubscriptions.get(opsGroup.getTargetUID());
-                    if (subscription != null && opsGroup.hasCreationState()) {
-                        asyncSubscribeObjectUpdates(opsGroup.getTargetUID());
+                    final boolean subscriptionsExist = objectSessionsUpdateSubscriptions.containsKey(opsGroup
+                            .getTargetUID());
+                    if (subscriptionsExist && opsGroup.hasCreationState()) {
+                        asyncFetchAndSubscribeObjectUpdates(opsGroup.getTargetUID());
                     }
                 }
             }
@@ -1394,55 +1443,39 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     }
 
     /**
-     * Scout representation of updates subscription. When listener is not null,
-     * the listener is awaiting for notification on update that occurred after
+     * Scout representation of updates subscription with listener for a session.
+     * The listener is awaiting for notification on update that occurred after
      * the readVersion.
      * 
      * @author mzawirski
      */
-    private static class UpdateSubscription {
-        public ObjectUpdatesListener listener;
-        private AbstractTxnHandle txn;
-        private TxnLocalCRDT<?> crdtView;
-        private CausalityClock readVersion;
+    private static class UpdateSubscriptionWithListener {
+        private final AbstractTxnHandle txn;
+        private final ObjectUpdatesListener listener;
+        private final TxnLocalCRDT<?> crdtView;
+        private final CausalityClock readVersion;
+        private final AtomicBoolean fired;
 
-        public UpdateSubscription(AbstractTxnHandle txn, TxnLocalCRDT<?> crdtView, final ObjectUpdatesListener listener) {
-            if (listener != null && !listener.isSubscriptionOnly()) {
-                this.txn = txn;
-                this.crdtView = crdtView;
-                this.listener = listener;
-                this.readVersion = crdtView.getClock().clone();
-            }
-            // else: only subscribe updates, but do not bother with notifying on
-            // updates
+        public UpdateSubscriptionWithListener(AbstractTxnHandle txn, TxnLocalCRDT<?> crdtView,
+                final ObjectUpdatesListener listener) {
+            this.txn = txn;
+            this.crdtView = crdtView;
+            this.listener = listener;
+            this.readVersion = crdtView.getClock().clone();
+            this.fired = new AtomicBoolean();
         }
 
-        /**
-         * @return true if there is listener registered; only subscription
-         *         without listener can be stopped
-         */
-        public boolean hasListener() {
-            return listener != null;
-        }
-
-        public Runnable generateListenerNotification(final CRDTIdentifier id) {
-            if (!hasListener()) {
-                throw new IllegalStateException("Trying to notify already notified updates listener");
-            }
-
-            final ObjectUpdatesListener listenerRef = this.listener;
-            final AbstractTxnHandle txnRef = this.txn;
-            final TxnLocalCRDT<?> crdtRef = this.crdtView;
-            txn = null;
-            crdtView = null;
-            listener = null;
-            readVersion = null;
-
+        public Runnable generateNotificationAndDiscard(final SwiftImpl scout, final CRDTIdentifier id) {
             return new Runnable() {
                 @Override
                 public void run() {
+                    if (fired.getAndSet(true)) {
+                        return;
+                    }
                     logger.info("Notifying on update on object " + id);
-                    listenerRef.onObjectUpdate(txnRef, id, crdtRef);
+                    listener.onObjectUpdate(txn, id, crdtView);
+                    // Mummy (well, daddy) tells you: clean up after yourself.
+                    scout.removeUpdateSubscriptionWithListener(id, txn.getSessionId());
                 }
             };
         }
