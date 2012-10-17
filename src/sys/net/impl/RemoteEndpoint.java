@@ -51,12 +51,13 @@ public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable
 	}
 	
 	public int getConnectionRetryDelay() {
-	    long elapsed = System.currentTimeMillis() - connectionAttempt;
-	    if( elapsed > 2000) {
-	        connectionAttempt += elapsed;
-	        delay = 0;
-	    }
-	    delay += 2 * (delay + 1);
-	    return delay;
+	    return 10;
+//	    long elapsed = System.currentTimeMillis() - connectionAttempt;
+//	    if( elapsed > 2000) {
+//	        connectionAttempt += elapsed;
+//	        delay = 0;
+//	    }
+//	    delay += 2 * (delay + 1);
+//	    return delay;
 	}
 }

@@ -30,7 +30,6 @@ import sys.utils.IO;
 import sys.utils.Threading;
 
 import com.esotericsoftware.kryo.KryoException;
-import com.sun.corba.se.impl.oa.poa.AOMEntry;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
@@ -111,8 +110,8 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
 		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
 
-		AtomicLong incomingBytesCounter = new AtomicLong(0);
-        AtomicLong outgoingBytesCounter = new AtomicLong(0);
+//		AtomicLong incomingBytesCounter = new AtomicLong(0);
+//        AtomicLong outgoingBytesCounter = new AtomicLong(0);
 		
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
@@ -121,11 +120,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		}
 
 	    public void setRemoteEndpoint(Endpoint remote) {
-	        if( remote != null ) {
 	            this.remote = remote;
-    	        this.incomingBytesCounter = remote.getIncomingBytesCounter();
-    	        this.outgoingBytesCounter = remote.getOutgoingBytesCounter();
-	        }
 	    }
 		
 		@Override
@@ -149,7 +144,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 							inBuf = new _ReadBuffer();
 					}
 					
-					if (inBuf.readFrom(channel, incomingBytesCounter )) {
+					if (inBuf.readFrom(channel)) {
 
 						if (execPolicy == NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL)
 							executor.execute( this, inBuf);
@@ -211,7 +206,6 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				}
 				int size = outBuf.writeClassAndObjectFrame(m, channel);
 				m.setSize(size);
-				outgoingBytesCounter.addAndGet( size );
 				return true;
 			} catch (Throwable t) {
 			    t.printStackTrace();

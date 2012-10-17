@@ -43,12 +43,11 @@ public class KryoInputBuffer implements Runnable {
 		this.handler = handler;
 	}
 
-	final public boolean readFrom(ReadableByteChannel ch, AtomicLong counter) throws IOException {
+	final public boolean readFrom(ReadableByteChannel ch) throws IOException {
 		int c = 1;
 
 		buffer.clear().limit(4);
-		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0)
-		    counter.addAndGet( c );
+		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0);
 
 		if (buffer.hasRemaining()) {
 			Log.finest("#####ERROR: READING MSG HEADER:" + c);
@@ -60,10 +59,8 @@ public class KryoInputBuffer implements Runnable {
 		ensureCapacity(contentLength);
 
 		buffer.clear().limit(contentLength);
-		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0)
-		    counter.addAndGet(c);
+		while (buffer.hasRemaining() && (c = ch.read(buffer)) > 0);
 		    
-
 		if (buffer.hasRemaining()) {
 			Log.finest("#####ERROR: READING MSG BODY:" + c);
 			return false;
