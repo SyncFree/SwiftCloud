@@ -30,7 +30,6 @@ public class LocalEndpoint extends AbstractEndpoint {
 
 	static synchronized Endpoint open(final int tcpPort, MessageHandler handler, TransportProvider provider) {
 		try {
-		    System.err.println("binding to port:" + tcpPort );
 			return new LocalEndpoint(tcpPort, handler, provider);
 		} catch (Exception x) {
 		    x.printStackTrace();
