@@ -718,7 +718,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                             public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
                                 setResult(reply);
                             }
-                        }, Math.min(timeoutMillis, getDeadlineLeft())).enableDeferredReplies(30000);
+                        }, Math.min(timeoutMillis, getDeadlineLeft()));
                         return getResult();
                     }
                 });
