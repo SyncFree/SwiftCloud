@@ -15,6 +15,9 @@ import swift.crdt.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
 
+import com.sleepycat.db.*;
+
+
 public class DCBerkeleyDBDatabase implements DCNodeDatabase {
     static Logger logger = Logger.getLogger(DCBerkeleyDBDatabase.class.getName());
     Environment env;
