@@ -851,7 +851,8 @@ public class SwiftImpl implements Swift, TxnManager {
                     logger.warning("unexpected server notification information without update");
                 } else {
                     applyObjectUpdates(subscriptionInfo.getId(), subscriptionInfo.getOldClock(),
-                            subscriptionInfo.getUpdates(), subscriptionInfo.getNewClock());
+                            subscriptionInfo.getUpdates(), subscriptionInfo.getNewClock(),
+                            subscriptionInfo.getPruneClock());
                 }
             }
         } else {
@@ -868,7 +869,7 @@ public class SwiftImpl implements Swift, TxnManager {
      * @return true if subscription should be continued for this object
      */
     private synchronized void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
-            final List<CRDTObjectUpdatesGroup<?>> ops, final CausalityClock outputClock) {
+            final List<CRDTObjectUpdatesGroup<?>> ops, final CausalityClock outputClock, final CausalityClock pruneClock) {
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
@@ -933,6 +934,7 @@ public class SwiftImpl implements Swift, TxnManager {
             }
         }
         crdt.getClock().merge(outputClock);
+        crdt.prune(pruneClock, true);
     }
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id, UpdateSubscription subscription,
