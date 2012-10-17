@@ -12,9 +12,6 @@ import java.util.TreeMap;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.CRDTUpdate;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.utils.PrettyPrint;
 
 /**
@@ -67,7 +64,7 @@ public abstract class AbstractSortedSetVersioned<V extends Comparable<V>, T exte
     }
 
     @Override
-    protected void mergePayload(T other) {
+    protected boolean mergePayload(T other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
         AddWinsUtils.mergePayload(this.elems, this.getClock(), other.elems, other.getClock(), newTimestampUsages,
@@ -78,6 +75,7 @@ public abstract class AbstractSortedSetVersioned<V extends Comparable<V>, T exte
         for (final TripleTimestamp ts : releasedTimestampUsages) {
             unregisterTimestampUsage(ts);
         }
+        return false;
     }
 
     @Override

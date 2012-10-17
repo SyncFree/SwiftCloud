@@ -30,7 +30,7 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
     }
 
     @Override
-    protected void mergePayload(DirectoryVersioned other) {
+    protected boolean mergePayload(DirectoryVersioned other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
         AddWinsUtils.mergePayload(this.dir, this.getClock(), other.dir, other.getClock(), newTimestampUsages,
@@ -41,6 +41,7 @@ public class DirectoryVersioned extends BaseCRDT<DirectoryVersioned> {
         for (final TripleTimestamp ts : releasedTimestampUsages) {
             unregisterTimestampUsage(ts);
         }
+        return false;
     }
 
     protected void execute(CRDTUpdate<DirectoryVersioned> op) {

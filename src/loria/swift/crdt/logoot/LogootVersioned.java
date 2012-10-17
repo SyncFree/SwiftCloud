@@ -46,7 +46,7 @@ public class LogootVersioned extends BaseCRDT<LogootVersioned> {
     }
 
     @Override
-    protected void mergePayload(LogootVersioned other) {
+    protected boolean mergePayload(LogootVersioned other) {
         int i = 1, j = 1, tj = other.doc.idTable.size() - 1;
         while (j < tj) {
             int comp = doc.idTable.get(i).compareTo(other.doc.idTable.get(j));
@@ -81,6 +81,7 @@ public class LogootVersioned extends BaseCRDT<LogootVersioned> {
             }
             ++i;
         }
+        return true;
     }
 
     @Override

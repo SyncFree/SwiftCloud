@@ -112,12 +112,13 @@ public class RegisterVersioned<V extends Copyable> extends BaseCRDT<RegisterVers
     }
 
     @Override
-    protected void mergePayload(RegisterVersioned<V> otherObject) {
+    protected boolean mergePayload(RegisterVersioned<V> otherObject) {
         for (final UpdateEntry<V> entry : otherObject.values) {
             if (values.add(entry)) {
                 registerTimestampUsage(entry.ts);
             }
         }
+        return true;
     }
 
     @Override

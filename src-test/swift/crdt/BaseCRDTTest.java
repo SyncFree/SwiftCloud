@@ -67,13 +67,14 @@ public class BaseCRDTTest {
         }
 
         @Override
-        protected void mergePayload(MaxIntegerCRDT otherObject) {
+        protected boolean mergePayload(MaxIntegerCRDT otherObject) {
             for (Entry<TripleTimestamp, Integer> otherEntry : otherObject.idsToValues.entrySet()) {
                 if (!idsToValues.containsKey(otherEntry.getKey())) {
                     idsToValues.put(otherEntry.getKey(), otherEntry.getValue());
                     registerTimestampUsage(otherEntry.getKey());
                 }
             }
+            return true;
         }
 
         @Override

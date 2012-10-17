@@ -62,7 +62,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    protected void mergePayload(T other) {
+    protected boolean mergePayload(T other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
         AddWinsUtils.mergePayload(this.elems, this.getClock(), ((SetVersioned<V, T>) other).elems, other.getClock(),
@@ -73,6 +73,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         for (final TripleTimestamp ts : releasedTimestampUsages) {
             unregisterTimestampUsage(ts);
         }
+        return false;
     }
 
     @Override

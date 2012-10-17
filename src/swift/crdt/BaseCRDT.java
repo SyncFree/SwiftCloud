@@ -77,15 +77,26 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
 
     @Override
     public void prune(CausalityClock pruningPoint, boolean checkVersionClock) {
-        assertGreaterEqualsPruneClock(pruningPoint);
         if (checkVersionClock
                 && updatesClock.compareTo(pruningPoint).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
             throw new IllegalStateException("Cannot prune concurrently or later than updates clock of this version");
         }
+        // FIXME: this assert is disabled only because of bug in
+        // VersionVectorWithException
+        // if (pruningPoint.hasExceptions()) {
+        // throw new IllegalArgumentException("Pruning point (" + pruningPoint +
+        // " ) cannot contain holes");
+        // Rationale: for two merged replicas A and B with different
+        // pruningPoint, the two slices of state for the same source of
+        // concurrency X, respectively A.X and B.X, must be ordered - merge
+        // is possible.
+        // }
 
         updatesClock.merge(pruningPoint);
-        pruneClock.merge(pruningPoint);
-        pruneImpl(pruningPoint);
+        final CMP_CLOCK cmpPrune = pruneClock.merge(pruningPoint);
+        if (cmpPrune.is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
+            pruneImpl(pruningPoint);
+        }
     }
 
     /**
@@ -122,12 +133,15 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @SuppressWarnings("unchecked")
     @Override
     public void merge(CRDT<V> otherObject) {
-        mergePayload((V) otherObject);
         mergeTimestampMappings((V) otherObject);
+        ((V) otherObject).mergeTimestampMappings((V) this);
+        final boolean requiresPrune = mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
         pruneClock.merge(otherObject.getPruneClock());
-        prune(pruneClock.clone(), false);
         registeredInStore |= otherObject.isRegisteredInStore();
+        if (requiresPrune) {
+            pruneImpl(pruneClock);
+        }
     }
 
     protected Iterator<TimestampMapping> iteratorTimestampMappings() {
@@ -159,22 +173,23 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     }
 
     /**
-     * Merges the payload of the object with the payload of another object
-     * having the same CRDT type. Note that {@link #pruneImpl(CausalityClock)}
-     * is always called immediatelly afterwards, clock and pruneCLock are also
-     * updated, but the implementation may already perform some pruning
-     * necessary during merge.
+     * Merges the pruned and unpruned payload of the object with the payload of
+     * another object having the same CRDT type.
+     * <p>
+     * Note that timestamp mappings in both crdts are merged PRIOR to this call.
+     * Clock and pruneCLock are updated AFTER this call.
      * <p>
      * Newly used timestamp mapping should be registered via
      * {@link #registerTimestampUsage(TripleTimestamp)} during merge and
      * released timestamp mappings should be released via
-     * {@link #unregisterTimestampUsage(TripleTimestamp)}; the remaining
-     * mappings will be merged by this base class after this call.
+     * {@link #unregisterTimestampUsage(TripleTimestamp)}.
      * 
      * @param otherObject
      *            object to merge with
+     * @return true if {@link #pruneImpl(CausalityClock)} shall be called after
+     *         the merge of payload and clocks is done
      */
-    protected abstract void mergePayload(V otherObject);
+    protected abstract boolean mergePayload(V otherObject);
 
     protected void registerTimestampUsage(final TripleTimestamp ts) {
         List<TripleTimestamp> timestampsForClient = clientTimestampsInUse.get(ts.getClientTimestamp());
@@ -318,12 +333,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         if (clockCmp == CMP_CLOCK.CMP_CONCURRENT || clockCmp == CMP_CLOCK.CMP_DOMINATES) {
             throw new IllegalStateException("provided clock (" + clock
                     + ") is not greater or equal to the prune clock (" + getPruneClock() + ")");
-        }
-    }
-
-    protected void assertPruneClockWithoutExceptions(CausalityClock clock) {
-        if (clock.hasExceptions()) {
-            throw new IllegalArgumentException("provided clock has exceptions and cannot be used as prune clock");
         }
     }
 

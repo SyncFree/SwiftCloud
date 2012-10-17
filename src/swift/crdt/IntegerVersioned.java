@@ -64,7 +64,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
     }
 
     @Override
-    protected void mergePayload(IntegerVersioned other) {
+    protected boolean mergePayload(IntegerVersioned other) {
         mergePrunedPayload(other);
 
         // Look for individual local updates that we can now remove because we
@@ -101,25 +101,30 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
 
         // Update current value.
         currentValue = pruneValue + getAggregateOfUpdatesIncluded(null);
+        return false;
     }
 
     private void mergePrunedPayload(IntegerVersioned other) {
         int sumOfNewlyPrunedUpdates = 0;
-        Iterator<Entry<String, Integer>> otherPrunedValuesIter = other.prunedValuesPerSite.entrySet().iterator();
-        while (otherPrunedValuesIter.hasNext()) {
-            final Entry<String, Integer> otherPrunedValue = otherPrunedValuesIter.next();
-            final String otherSite = otherPrunedValue.getKey();
-            Integer value = prunedValuesPerSite.get(otherSite);
-            if (value == null) {
-                value = 0;
+        // Update more recent entries.
+        for (final Entry<String, Integer> otherPrunedValue : other.prunedValuesPerSite.entrySet()) {
+            final String site = otherPrunedValue.getKey();
+            if (other.getPruneClock().getLatestCounter(site) > getPruneClock().getLatestCounter(site)) {
+                Integer oldValue = prunedValuesPerSite.put(site, otherPrunedValue.getValue());
+                if (oldValue == null) {
+                    oldValue = 0;
+                }
+                sumOfNewlyPrunedUpdates += otherPrunedValue.getValue() - oldValue;
             }
-            value += otherPrunedValue.getValue();
-            sumOfNewlyPrunedUpdates += otherPrunedValue.getValue();
-            ;
-            if (value != 0) {
-                prunedValuesPerSite.put(otherSite, value);
-            } else {
-                prunedValuesPerSite.remove(otherSite);
+        }
+        // Discard 0-ed more recent entries
+        final Iterator<Entry<String, Integer>> localPrunedValueIter = prunedValuesPerSite.entrySet().iterator();
+        while (localPrunedValueIter.hasNext()) {
+            final Entry<String, Integer> entry = localPrunedValueIter.next();
+            final String site = entry.getKey();
+            if (other.getPruneClock().getLatestCounter(site) > getPruneClock().getLatestCounter(site)
+                    && !other.prunedValuesPerSite.containsKey(site)) {
+                sumOfNewlyPrunedUpdates -= entry.getValue();
             }
         }
         pruneValue += sumOfNewlyPrunedUpdates;
