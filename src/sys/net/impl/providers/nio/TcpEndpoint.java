@@ -66,7 +66,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 			}
 			return new FailedTransportConnection(localEndpoint, remote, null);
 		} catch (Throwable t) {
-			//t.printStackTrace();
+			t.printStackTrace();
 			Log.severe("Cannot connect to: <" + remote + "> :" + t.getMessage());
 			return new FailedTransportConnection(localEndpoint, remote, t);
 		}
@@ -110,18 +110,12 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
 		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
 
-//		AtomicLong incomingBytesCounter = new AtomicLong(0);
-//        AtomicLong outgoingBytesCounter = new AtomicLong(0);
 		
 		public AbstractConnection() throws IOException {
 			super(localEndpoint, null);
 			this.readPool = new BufferPool<KryoInputBuffer>();
 			this.writePool = new BufferPool<KryoOutputBuffer>();
 		}
-
-	    public void setRemoteEndpoint(Endpoint remote) {
-	            this.remote = remote;
-	    }
 		
 		@Override
 		final public void run() {
@@ -158,7 +152,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 					}
 				}
 			} catch (Throwable t) {
-				t.printStackTrace();
+				//t.printStackTrace();
 				cause = t;
 				handler.onFailure(this);
 			}
@@ -208,7 +202,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				m.setSize(size);
 				return true;
 			} catch (Throwable t) {
-			    t.printStackTrace();
+			   //t.printStackTrace();
 			    
 				if( t instanceof KryoException )
 					t.printStackTrace();
@@ -232,6 +226,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 				m.setSize(size);
 				return true;
 			} catch (Throwable t) {
+			    //t.printStackTrace();
 			}
 			return false;
 		}
@@ -291,7 +286,6 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
 		void init() throws IOException {
 			try {
-			    Threading.sleep( ((AbstractEndpoint)remote).getConnectionRetryDelay() );
 				channel = SocketChannel.open();
 				channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), NIO_CONNECTION_TIMEOUT);
 				configureChannel(channel);
