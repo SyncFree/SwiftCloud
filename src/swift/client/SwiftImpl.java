@@ -1173,7 +1173,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
                 operationsGroups.add(group.withWithDependencyClock(optimizedDependencyClock));
             }
-            requests.add(new CommitUpdatesRequest(scoutId, operationsGroups));
+            requests.add(new CommitUpdatesRequest(scoutId, txn.getTimestampMapping().getClientTimestamp(), txn
+                    .getUpdatesDependencyClock(), operationsGroups));
         }
 
         // Commit at server.

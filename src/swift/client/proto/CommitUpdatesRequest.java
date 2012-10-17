@@ -29,11 +29,12 @@ public class CommitUpdatesRequest extends ClientRequest {
     CommitUpdatesRequest() {
     }
 
-    public CommitUpdatesRequest(String clientId, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
+    public CommitUpdatesRequest(String clientId, final Timestamp clientTimestamp, final CausalityClock dependencyClock,
+            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
         super(clientId);
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
-        this.clientTimestamp = this.objectUpdateGroups.get(0).getClientTimestamp();
-        this.dependencyClock = this.objectUpdateGroups.get(0).getDependency();
+        this.clientTimestamp = clientTimestamp;
+        this.dependencyClock = dependencyClock;
     }
 
     /**
