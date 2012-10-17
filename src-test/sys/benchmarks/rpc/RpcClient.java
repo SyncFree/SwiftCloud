@@ -36,7 +36,7 @@ public class RpcClient {
 				values.add(n);
 			}
 
-			endpoint.send(server, new Request(n), new Handler() {
+			RpcHandle h = endpoint.send(server, new Request(n), new Handler() {
 
 				@Override
 				public void onFailure(RpcHandle handle) {
@@ -52,14 +52,17 @@ public class RpcClient {
 					totRTT++;
 				}
 
-			}).getReply();
-
+			}) ;
+			
+			h.getReply();
+			
 			int total = n;
 			if (total % 10000 == 0) {
 				synchronized (values) {
 					System.out.printf(endpoint + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total, +total / (Sys.currentTime() - T0), (values.isEmpty() ? 0 : (n - values.first())), sumRTT / totRTT);
 				}
 			}
+			System.out.printf("\rBytes sent: %s, received: %s", server.getOutgoingBytesCounter(), server.getIncomingBytesCounter());
 			while (values.size() > 1000)
 				Threading.sleep(1);
 		}
