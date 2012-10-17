@@ -11,12 +11,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Properties;
 
-import swift.client.SwiftImpl;
-import swift.client.proto.*;
+import swift.client.proto.GenerateTimestampReply;
+import swift.client.proto.GenerateTimestampRequest;
+import swift.client.proto.KeepaliveReply;
+import swift.client.proto.KeepaliveRequest;
+import swift.client.proto.LatestKnownClockReply;
+import swift.client.proto.LatestKnownClockReplyHandler;
+import swift.client.proto.LatestKnownClockRequest;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
@@ -25,6 +30,7 @@ import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
 import swift.dc.proto.CommitTSReply;
+import swift.dc.proto.CommitTSReplyHandler;
 import swift.dc.proto.CommitTSRequest;
 import swift.dc.proto.GenerateDCTimestampReply;
 import swift.dc.proto.GenerateDCTimestampRequest;
@@ -47,7 +53,7 @@ import sys.utils.Threading;
  * 
  */
 public class DCSequencerServer extends Handler implements SequencerServer {
-    private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
+    private static Logger logger = Logger.getLogger(DCSequencerServer.class.getName());
 
     RpcEndpoint endpoint;
     IncrementalTimestampGenerator clockGen;

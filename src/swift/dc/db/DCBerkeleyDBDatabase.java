@@ -5,19 +5,18 @@ import static sys.net.api.Networking.Networking;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.sleepycat.db.*;
-
-import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
 
 public class DCBerkeleyDBDatabase implements DCNodeDatabase {
-    static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
+    static Logger logger = Logger.getLogger(DCBerkeleyDBDatabase.class.getName());
     Environment env;
     Map<String,Database> databases;
     File dir;

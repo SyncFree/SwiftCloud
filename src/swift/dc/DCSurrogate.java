@@ -13,13 +13,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.client.SwiftImpl;
 import swift.client.proto.BatchCommitUpdatesReply;
 import swift.client.proto.BatchCommitUpdatesRequest;
 import swift.client.proto.CommitUpdatesReply;
+import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.CommitUpdatesRequest;
 import swift.client.proto.FastRecentUpdatesReply;
-import swift.client.proto.CommitUpdatesReply.CommitStatus;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
 import swift.client.proto.FastRecentUpdatesRequest;
@@ -72,7 +71,7 @@ import sys.utils.Threading;
  */
 class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
         PubSub.Handler<CRDTIdentifier, DHTSendNotification> {
-    static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
+    static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     String surrogateId;
     RpcEndpoint endpoint;
