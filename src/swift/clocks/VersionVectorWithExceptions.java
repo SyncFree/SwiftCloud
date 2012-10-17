@@ -1,14 +1,13 @@
 package swift.clocks;
 
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.TreeMap;
+
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -196,6 +195,7 @@ public class VersionVectorWithExceptions implements CausalityClock {
             l = new LinkedList<Interval>();
             vv.put(cc.getIdentifier(), l);
             l.add(new Interval(v, v));
+            numPairs++;
             return true;
         }
 
