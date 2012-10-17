@@ -451,10 +451,14 @@ class DCDataServer {
 
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
-                        + cltClock + ";  snapshotVersion = " + snapshotVersion);
+                        + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
             }
             synchronized (this.cltClock) {
                 this.cltClock.recordAllUntil(cltTs);
+            }
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
+                        + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
             }
 
             ExecCRDTResult result = null;
