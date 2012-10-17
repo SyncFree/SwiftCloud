@@ -29,6 +29,7 @@ public class FilesystemBasic implements Filesystem {
         txn.get(this.root, true, DirectoryVersioned.class);
     }
 
+    // FIXME
     private static Class getFileClass(String name) {
         if (name.endsWith(".txt")) {
             return LogootVersioned.class;

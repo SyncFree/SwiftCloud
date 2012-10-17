@@ -89,11 +89,22 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     private static final Log log = LogFactory.getLog(FilesystemFuse.class);
     protected static SwiftSession server;
 
+    protected IsolationLevel isolationlevel = IsolationLevel.REPEATABLE_READS;
+    protected boolean commitAsync = true;
+
     protected Filesystem fs;
     private static final int MODE = 0777;
     private static final int BLOCK_SIZE = 512;
     private static final int NAME_LENGTH = 1024;
     protected static final String ROOT = "test";
+
+    private void commit(TxnHandle txn) {
+        if (commitAsync) {
+            txn.commitAsync(null);
+        } else {
+            txn.commit();
+        }
+    }
 
     @Override
     public int chmod(String path, int mode) throws FuseException {
@@ -116,11 +127,11 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 IFile f = (IFile) fileHandle;
                 File fstub = new File(remotePath);
                 fs.updateFile(txn, fstub.getName(), fstub.getParent(), f);
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block
@@ -150,14 +161,15 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 IFile f = (IFile) fileHandle;
                 File fstub = new File(remotePath);
                 fs.updateFile(txn, fstub.getName(), fstub.getParent(), f);
-                txn.commit();
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                commit(txn);
+                // TODO Shouldn't this be one txn?
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 fileHandle = fs.readFile(txn, fstub.getName(), fstub.getParent());
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block
@@ -189,7 +201,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, true);
                 if ("/".equals(path)) {
                     DirectoryTxnLocal root = fs.getDirectory(txn, "/" + ROOT);
                     getattrSetter.set(root.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, root.getValue()
@@ -208,7 +220,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
                     txn.rollback();
                     return Errno.ENOENT;
                 }
-                txn.commit();
+                commit(txn);
                 return 0;
 
             } catch (NetworkException e) {
@@ -240,7 +252,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, true);
                 DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
                 Collection<Pair<String, Class<?>>> c = dir.getValue();
                 for (Pair<String, Class<?>> entry : c) {
@@ -253,7 +265,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
                     }
                     filler.add(name, entry.hashCode(), ftype | mode);
                 }
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block
@@ -287,11 +299,11 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 File f = new File(remotePath);
                 log.info("creating dir " + f.getName() + " in parentdir " + f.getParent());
                 fs.createDirectory(txn, f.getName(), f.getParent());
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block
@@ -328,11 +340,11 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 File f = new File(remotePath);
                 log.info("creating file " + f.getName() + " in parentdir " + f.getParent());
                 fs.createFile(txn, f.getName(), f.getParent());
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block
@@ -365,7 +377,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, true);
                 File fstub = new File(remotePath);
                 if (fstub.isDirectory()) {
                     txn.rollback();
@@ -374,7 +386,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
 
                 log.info("opening file " + fstub.getName() + " in parentdir " + fstub.getParent());
                 IFile f = fs.readFile(txn, fstub.getName(), fstub.getParent());
-                txn.commit();
+                commit(txn);
                 openSetter.setFh(f);
                 return 0;
             } catch (NetworkException e) {
@@ -438,10 +450,10 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 File f = new File(remotePath);
                 fs.removeDirectory(txn, f.getName(), f.getParent());
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block
@@ -492,10 +504,10 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
                 File f = new File(remotePath);
                 fs.removeFile(txn, f.getName(), f.getParent());
-                txn.commit();
+                commit(txn);
                 return 0;
             } catch (NetworkException e) {
                 // TODO Auto-generated catch block

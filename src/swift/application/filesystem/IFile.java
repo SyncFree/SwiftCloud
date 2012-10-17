@@ -28,14 +28,26 @@ public interface IFile {
     void read(ByteBuffer buf, long offset);
 
     /**
-     * Returns content as byte array.
+     * Returns the content of specified from the offset as byte buffer.
      * 
+     * @param offset
+     * @param length
      * @return
      */
     byte[] get(int offset, int length);
 
+    /**
+     * Returns content as byte array.
+     * 
+     * @return
+     */
     byte[] getBytes();
 
+    /**
+     * Returns the size of the file in bytes.
+     * 
+     * @return
+     */
     int getSize();
 
 }
