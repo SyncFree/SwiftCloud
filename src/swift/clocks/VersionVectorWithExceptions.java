@@ -771,9 +771,24 @@ public class VersionVectorWithExceptions implements CausalityClock {
     @Override
     public void recordAllUntil(Timestamp timestamp) {
         if (vv.containsKey(timestamp.getIdentifier())) {
-            for (long i = Timestamp.MIN_VALUE + 1; i < timestamp.getCounter(); i++) {
-                record(new Timestamp(timestamp.getIdentifier(), i));
+            final LinkedList<Interval> l = vv.get(timestamp.getIdentifier());
+            Iterator<Interval> it = l.iterator();
+            while (it.hasNext()) {
+                Interval v = it.next();
+                if( v.to <= timestamp.getCounter())
+                    it.remove();
+                else {
+                    if( v.from <= timestamp.getCounter() + 1) {
+                        v.from = Timestamp.MIN_VALUE + 1;
+                        return;
+                    }
+                    break;
+                }
             }
+            l.addFirst(new Interval(Timestamp.MIN_VALUE + 1,timestamp.getCounter()));
+//            for (long i = Timestamp.MIN_VALUE + 1; i < timestamp.getCounter(); i++) {
+//                record(new Timestamp(timestamp.getIdentifier(), i));
+//            }
         } else {
             final LinkedList<Interval> l = new LinkedList<Interval>();
             vv.put(timestamp.getIdentifier(), l);
