@@ -14,8 +14,8 @@ ec2-79-125-44-157.eu-west-1.compute.amazonaws.com
 
 
 export ENDCLIENT_NODES=(
-planetlab-3.iscte.pt
-planetlab-4.iscte.pt
+ait21.us.es
+ait05.us.es
 )
 
 # BELOW NOT USED, JUST A POOL OF AVAILABLE PLANETLAB NODES
@@ -47,6 +47,9 @@ planetlab-1.tagus.ist.utl.pt
 planetlab-2.tagus.ist.utl.pt
 planetlab1.eurecom.fr
 planetlab2.eurecom.fr
+
+planetlab-3.iscte.pt
+planetlab-4.iscte.pt
 
 )
 
