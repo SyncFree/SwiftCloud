@@ -3,7 +3,7 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-46-137-3-181.eu-west-1.compute.amazonaws.com
+ec2-46-137-38-61.eu-west-1.compute.amazonaws.com
 )
 
 
@@ -182,5 +182,13 @@ output_prefix=$runDir/1pc-cdn-result-cs-swiftdoc-$DC_NUMBER-$SCOUTS_NUMBER-$CLIE
 echo "==== COLLECTING CLIENT LOGS AS RESULTS ===="
 for client in ${ENDCLIENTS[*]}; do
 	copy_from $client stdout.txt $output_prefix.$client
+done
+echo "==== COLLECTING DATACENTER LOGS AS RESULTS ===="
+for node in $DATACENTER_NODES; do
+	copy_from $node stdout.txt $output_prefix.$node
+done
+echo "==== COLLECTING SCOUT LOGS AS RESULTS ===="
+for node in $SCOUT_NODES; do
+	copy_from $node stdout.txt $output_prefix.$node
 done
 
