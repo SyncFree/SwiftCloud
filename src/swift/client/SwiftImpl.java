@@ -292,6 +292,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 logger.warning("Scout is already stopped");
                 return;
             }
+            if (!pendingTxns.isEmpty()) {
+                logger.warning("Stopping while there are pending transactions!");
+                return;
+            }
+
             stopFlag = true;
             stopGracefully = waitForCommit;
             this.notifyAll();
@@ -1322,6 +1327,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         // transactions.
         while (locallyCommittedTxnsOrderedQueue.size() >= maxAsyncTransactionsQueued
                 && locallyCommittedTxnsOrderedQueue.first().compareTo(txn) < 0) {
+            logger.warning("Asynchronous commit queue is full - blocking the transaction commit");
             try {
                 this.wait();
             } catch (InterruptedException e) {
