@@ -22,6 +22,7 @@ import swift.dc.DCServer;
 import sys.Sys;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.utils.Args;
 
 public class SwiftFuseServer extends RemoteFuseOperationHandler {
     public static final int PORT = 10001;
@@ -34,25 +35,33 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
     }
 
     void init(String[] args) {
-        DCSequencerServer.main(new String[] { "-name", "localhost" });
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            // do nothing
+        String dcServer;
+
+        if (args.length == 0) {
+            dcServer = "localhost";
+            DCSequencerServer.main(new String[] { "-name", dcServer });
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                // do nothing
+            }
+            DCServer.main(new String[] { dcServer });
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                // do nothing
+            }
+        } else {
+            dcServer = Args.valueOf(args, "-server", "localhost");            
         }
-        DCServer.main(new String[] { "localhost" });
-        try {
-            Thread.sleep(500);
-        } catch (InterruptedException e) {
-            // do nothing
-        }
+        
         Sys.init();
 
         log.info("setting up servers");
         endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
 
         try {
-            server = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+            server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcServer, DCConstants.SURROGATE_PORT));
 
             log.info("getting root directory");
             TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false);
