@@ -59,4 +59,9 @@ public interface SwiftSession {
      * @return session identifier
      */
     String getSessionId();
+
+    /**
+     * @return scout associated with this session
+     */
+    SwiftScout getScout();
 }

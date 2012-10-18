@@ -25,4 +25,9 @@ public interface SwiftScout {
      *            transactions commit globally in the store
      */
     void stop(boolean waitForCommit);
+
+    /**
+     * Prints and resets caching statistics.
+     */
+    void printAndResetCacheStats();
 }

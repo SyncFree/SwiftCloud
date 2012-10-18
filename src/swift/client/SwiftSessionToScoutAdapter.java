@@ -2,6 +2,7 @@ package swift.client;
 
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.SwiftScout;
 import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -35,5 +36,10 @@ class SwiftSessionToScoutAdapter implements SwiftSession {
     @Override
     public String getSessionId() {
         return sessionId;
+    }
+
+    @Override
+    public SwiftScout getScout() {
+        return sharedSwift;
     }
 }

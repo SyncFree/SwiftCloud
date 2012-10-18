@@ -212,6 +212,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
     private final TransactionsLog durableLog;
+    private final CacheStats cacheStats;
 
     // OPTIONS
     private final int timeoutMillis;
@@ -245,6 +246,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
+        this.cacheStats = new CacheStats();
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
@@ -313,11 +315,17 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             logger.warning(e.getMessage());
         }
         logger.info("scout stopped");
+        cacheStats.printAndReset();
     }
 
     @Override
     public SwiftSession newSession(String sessionId) {
         return new SwiftSessionToScoutAdapter(this, sessionId);
+    }
+
+    @Override
+    public void printAndResetCacheStats() {
+        cacheStats.printAndReset();
     }
 
     public synchronized AbstractTxnHandle beginTxn(String sessionId, IsolationLevel isolationLevel,
@@ -494,10 +502,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
             if (cachePolicy == CachePolicy.CACHED) {
                 try {
-                    return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener, false);
+                    final TxnLocalCRDT<V> view = getCachedObjectForTxn(txn, id, null, classOfV, updatesListener, false);
+                    cacheStats.addCacheHit(id);
+                    return view;
                 } catch (NoSuchObjectException x) {
+                    cacheStats.addCacheMissNoObject(id);
                     // Ok, let's try to fetch then.
                 } catch (VersionNotFoundException x) {
+                    cacheStats.addCacheMissBizarre(id);
                     logger.warning("No self-consistent version found in cache: " + x);
                 }
             }
@@ -549,10 +561,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         assertPendingTransaction(txn);
 
         try {
-            return getCachedObjectForTxn(txn, id, version, classOfV, updatesListener, false);
+            final TxnLocalCRDT<V> view = getCachedObjectForTxn(txn, id, version, classOfV, updatesListener, false);
+            cacheStats.addCacheHit(id);
+            return view;
         } catch (NoSuchObjectException x) {
+            cacheStats.addCacheMissNoObject(id);
             // Ok, let's try to fetch then.
         } catch (VersionNotFoundException x) {
+            cacheStats.addCacheMissWrongVersion(id);
             // Ok, let's try to fetch the right version.
         }
 
