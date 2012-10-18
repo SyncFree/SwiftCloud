@@ -3,13 +3,13 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-46-137-3-181.eu-west-1.compute.amazonaws.com
+ec2-46-51-145-67.eu-west-1.compute.amazonaws.com
 )
 
 
 export SCOUT_NODES=(
-ec2-46-137-71-157.eu-west-1.compute.amazonaws.com
-ec2-54-247-28-149.eu-west-1.compute.amazonaws.com
+ec2-54-246-22-243.eu-west-1.compute.amazonaws.com
+ec2-46-137-33-164.eu-west-1.compute.amazonaws.com
 )
 
 
