@@ -8,6 +8,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
@@ -33,280 +34,276 @@ import com.esotericsoftware.kryo.KryoException;
 
 public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
-	private static Logger Log = Logger.getLogger( TcpEndpoint.class.getName() );
-	
-	ServerSocketChannel ssc;
-	MultiQueueExecutor executor = new MultiQueueExecutor();
-	
-	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
-		this.localEndpoint = local;
-		this.gid = Sys.rg.nextLong() >>> 1;
+    private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-		if (tcpPort >= 0) {
-			ssc = ServerSocketChannel.open();
-			ssc.socket().bind(new InetSocketAddress(tcpPort));
-		}
-		super.setSocketAddress(ssc == null ? 0 : ssc.socket().getLocalPort());
-	}
+    ServerSocketChannel ssc;
+    MultiQueueExecutor executor = new MultiQueueExecutor();
 
-	public void start() throws IOException {
+    public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
+        this.localEndpoint = local;
+        this.gid = Sys.rg.nextLong() >>> 1;
 
-		handler = localEndpoint.getHandler();
+        if (tcpPort >= 0) {
+            ssc = ServerSocketChannel.open();
+            ssc.socket().bind(new InetSocketAddress(tcpPort));
+        }
+        super.setSocketAddress(ssc == null ? 0 : ssc.socket().getLocalPort());
+    }
 
-		if (ssc != null)
-			Threading.newThread("accept", true, this).start();
-	}
+    public void start() throws IOException {
 
-	public TransportConnection connect(Endpoint remote) {
-		try {
-			if (((AbstractEndpoint) remote).isIncoming())
-				return new OutgoingConnection(remote);
-			else {
-				Log.info("Attempting to connect to an outgoing only endpoint." + remote);
-			}
-			return new FailedTransportConnection(localEndpoint, remote, null);
-		} catch (Throwable t) {
-			t.printStackTrace();
-			Log.severe("Cannot connect to: <" + remote + "> :" + t.getMessage());
-			return new FailedTransportConnection(localEndpoint, remote, t);
-		}
-	}
+        handler = localEndpoint.getHandler();
 
-	@Override
-	public void run() {
-		try {
-			Log.finest("Bound to: " + this);
-			for (;;) {
-				SocketChannel channel = ssc.accept();
-				configureChannel(channel);
-				new IncomingConnection(channel);
-			}
-		} catch (Exception x) {
-			//x.printStackTrace();
-			Log.severe("Unexpected error in incoming endpoint: " + localEndpoint);
-		}
-		IO.close(ssc);
-	}
+        if (ssc != null)
+            Threading.newThread("accept", true, this).start();
+    }
 
-	static void configureChannel(SocketChannel ch) {
-		try {
-			ch.socket().setTcpNoDelay(true);
-			ch.socket().setReceiveBufferSize(1 << 20);
-			ch.socket().setSendBufferSize(1500);
-		} catch (Exception x) {
-			x.printStackTrace();
-		}
-	}
+    public TransportConnection connect(Endpoint remote) {
+        try {
+            if (((AbstractEndpoint) remote).isIncoming())
+                return new OutgoingConnection(remote);
+            else {
+                Log.info("Attempting to connect to an outgoing only endpoint." + remote);
+            }
+            return new FailedTransportConnection(localEndpoint, remote, null);
+        } catch (Throwable t) {
+            Log.log(Level.WARNING, "Cannot connect to: <" + remote + "> :" + t.getMessage(), t);
+            return new FailedTransportConnection(localEndpoint, remote, t);
+        }
+    }
 
-	abstract class AbstractConnection extends AbstractTransport implements RemoteEndpointUpdater, Runnable {
+    @Override
+    public void run() {
+        try {
+            Log.finest("Bound to: " + this);
+            for (;;) {
+                SocketChannel channel = ssc.accept();
+                configureChannel(channel);
+                new IncomingConnection(channel);
+            }
+        } catch (Exception x) {
+            Log.log(Level.SEVERE, "Unexpected error in incoming endpoint: " + localEndpoint, x);
+        }
+        IO.close(ssc);
+    }
 
-		String type;
-		Throwable cause;
-		SocketChannel channel;
-		final BufferPool<KryoInputBuffer> readPool;
-		final BufferPool<KryoOutputBuffer> writePool;
+    static void configureChannel(SocketChannel ch) {
+        try {
+            ch.socket().setTcpNoDelay(true);
+            ch.socket().setReceiveBufferSize(1 << 20);
+            ch.socket().setSendBufferSize(1500);
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
+    }
 
-		NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
-		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
-		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
+    abstract class AbstractConnection extends AbstractTransport implements RemoteEndpointUpdater, Runnable {
 
-		
-		public AbstractConnection() throws IOException {
-			super(localEndpoint, null);
-			this.readPool = new BufferPool<KryoInputBuffer>();
-			this.writePool = new BufferPool<KryoOutputBuffer>();
-		}
-		
-		@Override
-		final public void run() {
+        String type;
+        Throwable cause;
+        SocketChannel channel;
+        final BufferPool<KryoInputBuffer> readPool;
+        final BufferPool<KryoOutputBuffer> writePool;
 
-			while (this.readPool.remainingCapacity() > 0)
-				this.readPool.offer(new _ReadBuffer());
+        NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
+        NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
+        NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
 
-			while (this.writePool.remainingCapacity() > 0)
-				this.writePool.offer(new KryoOutputBuffer());
+        public AbstractConnection() throws IOException {
+            super(localEndpoint, null);
+            this.readPool = new BufferPool<KryoInputBuffer>();
+            this.writePool = new BufferPool<KryoOutputBuffer>();
+        }
 
-			try {
-				for (;;) {
-					KryoInputBuffer inBuf;
+        @Override
+        final public void run() {
 
-					if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
-						inBuf = readPool.take();
-					else {
-						inBuf = readPool.poll();
-						if (inBuf == null)
-							inBuf = new _ReadBuffer();
-					}
-					
-					if (inBuf.readFrom(channel)) {
+            while (this.readPool.remainingCapacity() > 0)
+                this.readPool.offer(new _ReadBuffer());
 
-						if (execPolicy == NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL)
-							executor.execute( this, inBuf);
-						else
-							inBuf.run();
+            while (this.writePool.remainingCapacity() > 0)
+                this.writePool.offer(new KryoOutputBuffer());
 
-					} else {
-						this.readPool.offer(inBuf);
-						handler.onClose(this);
-						break;
-					}
-				}
-			} catch (Throwable t) {
-				//t.printStackTrace();
-				cause = t;
-				handler.onFailure(this);
-			}
-			isBroken = true;
-			IO.close(channel);
-			Log.fine("Closed connection to: " + remote);
-		}
+            try {
+                for (;;) {
+                    KryoInputBuffer inBuf;
 
-		final class _ReadBuffer extends KryoInputBuffer {
-			@Override
-			public void run() {
-				Message msg;
-				try {
-					msg = super.readClassAndObject();
-					msg.setSize( super.contentLength ) ;
-				} catch (Throwable t) {
-					
-					if( t instanceof KryoException )
-						t.printStackTrace();
-					
-					Log.severe("Serialization Exception: " + t.getMessage() );
-					return;
-					
-				} finally {
-					readPool.offer(this);					
-				}
-				try {
-					msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
-				} catch (Throwable t) {
-					t.printStackTrace();
-					Log.warning("Dispatch Exception: " + t.getClass() + " caused by: " + msg.getClass() + " received from: " + remoteEndpoint() + " with " + super.contentLength );
-				}
-			}
-		}
+                    if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
+                        inBuf = readPool.take();
+                    else {
+                        inBuf = readPool.poll();
+                        if (inBuf == null)
+                            inBuf = new _ReadBuffer();
+                    }
 
-		final public boolean send(final Message m) {
-			KryoOutputBuffer outBuf = null;
-			try {
-				if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
-					outBuf = writePool.take();
-				else {
-					outBuf = writePool.poll();
-					if (outBuf == null)
-						outBuf = new KryoOutputBuffer();
-				}
-				int size = outBuf.writeClassAndObjectFrame(m, channel);
-				m.setSize(size);
-				return true;
-			} catch (Throwable t) {
-			   //t.printStackTrace();
-			    
-				if( t instanceof KryoException )
-					t.printStackTrace();
+                    if (inBuf.readFrom(channel)) {
 
-				cause = t;
-				isBroken = true;
-				IO.close(channel);
-				handler.onFailure(this);
-			} finally {
-				if (outBuf != null)
-					writePool.offer(outBuf);
-			}
-			return false;
-		}
+                        if (execPolicy == NIO_ReadBufferDispatchPolicy.USE_THREAD_POOL)
+                            executor.execute(this, inBuf);
+                        else
+                            inBuf.run();
 
-		public boolean sendNow(final Message m) {
+                    } else {
+                        this.readPool.offer(inBuf);
+                        handler.onClose(this);
+                        break;
+                    }
+                }
+            } catch (Throwable t) {
+                Log.log(Level.FINEST, "Exception in connection to" + remote, t);
+                // t.printStackTrace();
+                cause = t;
+                handler.onFailure(this);
+            }
+            isBroken = true;
+            IO.close(channel);
+            Log.fine("Closed connection to: " + remote);
+        }
 
-			try {
-				KryoOutputBuffer outBuf = new KryoOutputBuffer();
-				int size = outBuf.writeClassAndObjectFrame(m, channel);
-				m.setSize(size);
-				return true;
-			} catch (Throwable t) {
-			    //t.printStackTrace();
-			}
-			return false;
-		}
+        final class _ReadBuffer extends KryoInputBuffer {
+            @Override
+            public void run() {
+                Message msg;
+                try {
+                    msg = super.readClassAndObject();
+                    msg.setSize(super.contentLength);
+                } catch (Throwable t) {
+                    Log.log(Level.SEVERE, "Exception in connection to" + remote, t);
+                    return;
 
-		public <T extends Message> T receive() {
-			throw new RuntimeException("Not implemented...");
-			// KryoBuffer inBuf = null;
-			// try {
-			// inBuf = rq.take();
-			// T msg = inBuf.readClassAndObject();
-			// return msg;
-			//
-			// } catch (Throwable t) {
-			// t.printStackTrace();
-			// } finally {
-			// if (inBuf != null)
-			// readPool.offer(inBuf);
-			// }
-			// return null;
-		}
+                } finally {
+                    readPool.offer(this);
+                }
+                try {
+                    msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
+                } catch (Throwable t) {
+                    Log.log(Level.WARNING,"Dispatch Exception: " + t.getClass() + " caused by: " + msg.getClass()
+                            + " received from: " + remoteEndpoint() + " with " + super.contentLength, t);
+                }
+            }
+        }
 
-		@Override
-		public Throwable causeOfFailure() {
-			return failed() ? cause : new Exception("?");
-		}
+        final public boolean send(final Message m) {
+            KryoOutputBuffer outBuf = null;
+            try {
+                if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
+                    outBuf = writePool.take();
+                else {
+                    outBuf = writePool.poll();
+                    if (outBuf == null)
+                        outBuf = new KryoOutputBuffer();
+                }
+                int size = outBuf.writeClassAndObjectFrame(m, channel);
+                m.setSize(size);
+                return true;
+            } catch (Throwable t) {
+                
+                if (t instanceof KryoException)
+                    Log.log(Level.SEVERE, "Exception in connection to" + remote, t);
+                else
+                    Log.log(Level.WARNING, "Exception in connection to" + remote, t);
 
-		public String toString() {
-			return String.format("%s (%s->%s)", type, channel.socket().getLocalPort(), channel.socket().getRemoteSocketAddress());
-		}
+                cause = t;
+                isBroken = true;
+                IO.close(channel);
+                handler.onFailure(this);
+            } finally {
+                if (outBuf != null)
+                    writePool.offer(outBuf);
+            }
+            return false;
+        }
 
-		public void setOption(String op, Object val) {
-			super.setOption(op, val);
+        public boolean sendNow(final Message m) {
 
-			if (op.equals("NIO_ReadBufferPoolPolicy"))
-				readPoolPolicy = (NIO_ReadBufferPoolPolicy) val;
-			else if (op.equals("NIO_ReadBufferPoolPolicy"))
-				execPolicy = (NIO_ReadBufferDispatchPolicy) val;
-		}
-	}
+            try {
+                KryoOutputBuffer outBuf = new KryoOutputBuffer();
+                int size = outBuf.writeClassAndObjectFrame(m, channel);
+                m.setSize(size);
+                return true;
+            } catch (Throwable t) {
+                Log.log(Level.SEVERE, "Exception in connection to" + remote, t);
+            }
+            return false;
+        }
 
-	class IncomingConnection extends AbstractConnection {
+        public <T extends Message> T receive() {
+            throw new RuntimeException("Not implemented...");
+            // KryoBuffer inBuf = null;
+            // try {
+            // inBuf = rq.take();
+            // T msg = inBuf.readClassAndObject();
+            // return msg;
+            //
+            // } catch (Throwable t) {
+            // t.printStackTrace();
+            // } finally {
+            // if (inBuf != null)
+            // readPool.offer(inBuf);
+            // }
+            // return null;
+        }
 
-		public IncomingConnection(SocketChannel channel) throws IOException {
-			super.channel = channel;
-			super.type = "in";
-			Threading.newThread("incoming-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
-		}
-	}
+        @Override
+        public Throwable causeOfFailure() {
+            return failed() ? cause : new Exception("?");
+        }
 
-	class OutgoingConnection extends AbstractConnection implements Runnable {
+        public String toString() {
+            return String.format("%s (%s->%s)", type, channel.socket().getLocalPort(), channel.socket()
+                    .getRemoteSocketAddress());
+        }
 
-		public OutgoingConnection(Endpoint remote) throws IOException {
-			super.setRemoteEndpoint(remote);
-			super.type = "out";
-			init();
-		}
+        public void setOption(String op, Object val) {
+            super.setOption(op, val);
 
-		void init() throws IOException {
-			try {
-				channel = SocketChannel.open();
-				channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), NIO_CONNECTION_TIMEOUT);
-				configureChannel(channel);
-			} catch (IOException x) {
-			    //x.printStackTrace();
-			    
-				cause = x;
-				isBroken = true;
-				IO.close(channel);
-				throw x;
-			}
-			this.send(new InitiatorInfo(localEndpoint));
-			handler.onConnect(this);
-			Threading.newThread("outgoing-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
+            if (op.equals("NIO_ReadBufferPoolPolicy"))
+                readPoolPolicy = (NIO_ReadBufferPoolPolicy) val;
+            else if (op.equals("NIO_ReadBufferPoolPolicy"))
+                execPolicy = (NIO_ReadBufferDispatchPolicy) val;
+        }
+    }
 
-			// new Task(Sys.rg.nextDouble() * 10) {
-			// public void run() {
-			// sendNow(new TcpPing( Sys.currentTime() ) );
-			// this.reSchedule(5 + Sys.rg.nextDouble() * 10);
-			// }
-			// };
-		}
-	}
+    class IncomingConnection extends AbstractConnection {
+
+        public IncomingConnection(SocketChannel channel) throws IOException {
+            super.channel = channel;
+            super.type = "in";
+            Threading.newThread("incoming-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
+        }
+    }
+
+    class OutgoingConnection extends AbstractConnection implements Runnable {
+
+        public OutgoingConnection(Endpoint remote) throws IOException {
+            super.setRemoteEndpoint(remote);
+            super.type = "out";
+            init();
+        }
+
+        void init() throws IOException {
+            try {
+                channel = SocketChannel.open();
+                channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), NIO_CONNECTION_TIMEOUT);
+                configureChannel(channel);
+            } catch (IOException x) {
+                Log.log(Level.FINEST, "Exception in connection to" + remote, x);
+
+                cause = x;
+                isBroken = true;
+                IO.close(channel);
+                throw x;
+            }
+            this.send(new InitiatorInfo(localEndpoint));
+            handler.onConnect(this);
+            Threading.newThread("outgoing-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
+
+            // new Task(Sys.rg.nextDouble() * 10) {
+            // public void run() {
+            // sendNow(new TcpPing( Sys.currentTime() ) );
+            // this.reSchedule(5 + Sys.rg.nextDouble() * 10);
+            // }
+            // };
+        }
+    }
 }
