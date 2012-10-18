@@ -209,7 +209,7 @@ public class SwiftDocServer extends Thread {
         synchronized public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             try {
                 final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
-                SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, null);
+                SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, this);
                 
                 List<TextLine> newAtoms = new ArrayList<TextLine>();
                 for (TextLine i : doc.getValue())
