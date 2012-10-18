@@ -9,6 +9,8 @@ mars.planetlab.haw-hamburg.de
 
 export SCOUT_NODES=(
 onelab-1.fhi-fokus.de
+planetlab1.eurecom.fr
+pl1.uni-rostock.de
 )
 
 
@@ -63,7 +65,7 @@ run_swift_cdn_server_bg() {
     id=$2
     id=$(($id+1))
     server=$3
-    swift_app_cmd_nostdout -Xmx1024m swift.application.filesystem.cs.SwiftFuseServer $server $id $ISOLATION $CACHING $NOTIFICATIONS
+    swift_app_cmd_nostdout -Xmx1024m swift.application.filesystem.cs.SwiftFuseServer -server $server $id $ISOLATION $CACHING $NOTIFICATIONS
     run_cmd_bg $target $CMD
 }
 
@@ -94,7 +96,7 @@ for scout in ${SCOUTS[*]}; do
 		scout_pids="$scout_pids $!"
 		i=$(($i+1))
 done
-echo "==== YOU CAN MOUNT THE FILESYTEM LOCALLY POINTING TO ONE OF:" $SCOUTS
+echo "==== YOU CAN MOUNT THE FILESYTEM LOCALLY POINTING TO ONE OF:" "${SCOUTS[*]}"
 
 
 
