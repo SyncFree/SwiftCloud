@@ -21,7 +21,7 @@ import static sys.net.api.Networking.*;
  * Used as a zero configuration debug convenience when running in a single
  * machine or local network.
  * 
- * @author SŽrgio Duarte (smd@fct.unl.pt)
+ * @author Sergio Duarte (smd@fct.unl.pt)
  * 
  */
 public class Discovery implements Runnable {

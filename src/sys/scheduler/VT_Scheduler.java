@@ -17,7 +17,7 @@ import sys.utils.Threading;
  * the time spent in their execution, virtual time can run faster or slower than
  * real time.
  * 
- * @author SŽrgio Duarte (smd@fct.unl.pt)
+ * @author Sergio Duarte (smd@fct.unl.pt)
  * 
  */
 public class VT_Scheduler<T extends Task> implements Runnable {
