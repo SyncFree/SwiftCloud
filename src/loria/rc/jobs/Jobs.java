@@ -31,27 +31,53 @@ import java.util.logging.Logger;
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
 public abstract class Jobs implements Serializable, Runnable {
-    protected boolean run=true;
-    Thread th;
-    ObjectOutputStream outObj;
-    public void doOperation(ObjectOutputStream s){
-        this.outObj=s;
-        th=new Thread(this);
+
+    protected boolean run = true;
+    protected Thread th;
+    protected String jobName = "";
+    protected String destHostName = "";
+    protected ObjectOutputStream outObj;
+
+    public void doOperation(ObjectOutputStream s) {
+        this.outObj = s;
+        th = new Thread(this);
         th.start();
     }
-    
-   // abstract public void doOperation();
-    void stop(){
-        run=false;
+
+    void stop() {
+        run = false;
     }
-    public boolean isRunning(){
+
+    public boolean isRunning() {
         return run;
     }
-    public void sendObejct(Object obj){
-        try {
-            outObj.writeObject(obj);
-        } catch (IOException ex) {
-            Logger.getLogger(Jobs.class.getName()).log(Level.SEVERE, null, ex);
+
+    public void sendObejct(Object obj) {
+        if (outObj == null) {
+            Logger.getLogger(Jobs.class.getName()).log(Level.INFO, null, obj);
+        } else {
+            try {
+                outObj.writeObject(obj);
+            } catch (IOException ex) {
+                Logger.getLogger(Jobs.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
         }
+    }
+
+    public String getJobName() {
+        return jobName;
+    }
+
+    public void setJobName(String jobName) {
+        this.jobName = jobName;
+    }
+
+    public String getDestHostName() {
+        return destHostName;
+    }
+
+    public void setDestHostName(String destHostName) {
+        this.destHostName = destHostName;
     }
 }

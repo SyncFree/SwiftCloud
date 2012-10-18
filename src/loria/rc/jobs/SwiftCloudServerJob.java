@@ -19,7 +19,7 @@
  */
 package loria.rc.jobs;
 
-import java.net.Socket;
+import loria.rc.info.Status;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import sys.Sys;
@@ -48,6 +48,7 @@ public class SwiftCloudServerJob extends Jobs {
         }
 
         Sys.init();
+        sendObejct(Status.READY);
     }
     
 }

@@ -17,16 +17,17 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  */
-package loria.swift.application.filesynchroniser;
+package loria.rc.jobs;
 
 /**
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public interface SwiftSynchronizer {
+public class ClientModifierBenchmarkServerJob extends Jobs{
 
-     void commit(String textName, String newValue);
-
-     String update(String textName);
+    @Override
+    public void run() {
+        
+    }
     
 }

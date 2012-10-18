@@ -18,9 +18,7 @@
  */
 package loria.swift.application.filesynchroniser;
 
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.io.File;
 
 /**
  * A profile that generates operation similar to VCS diff (block of lines).

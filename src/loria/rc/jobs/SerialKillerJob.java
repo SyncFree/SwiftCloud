@@ -26,16 +26,19 @@ import java.util.logging.Logger;
 
 /**
  * this jobs shuts down the machine
+ *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class SerialKillerJob extends Jobs{
+public class SerialKillerJob extends Jobs {
 
     @Override
     public void run() {
+        kill();
+    }
+
+    public static void kill() {
         try {
-            Process p =Runtime.getRuntime().exec("sudo poweroff");
-            
-            
+            Process p = Runtime.getRuntime().exec("sudo poweroff");
         } catch (IOException ex) {
             Logger.getLogger(SerialKillerJob.class.getName()).log(Level.SEVERE, null, ex);
         }

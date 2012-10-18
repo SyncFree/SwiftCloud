@@ -19,6 +19,8 @@
  */
 package loria.swift.application.filesynchroniser;
 
+import java.net.InetAddress;
+import java.util.logging.Level;
 import static org.junit.Assert.assertEquals;
 
 import java.util.logging.Logger;
@@ -27,6 +29,7 @@ import loria.swift.application.filesystem.mapper.RegisterFileContent;
 import loria.swift.crdt.logoot.LogootVersioned;
 
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import swift.client.SwiftImpl;
@@ -44,13 +47,13 @@ import sys.Sys;
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class SwiftSynchronizerTest {
+public class SwiftSynchronizerClientServerTest {
      private static String sequencerName = "localhost";
     private static String scoutName = "localhost";
     private static Logger logger = Logger.getLogger("loria.swift.application.filesynchroniser");
     //TxnHandle txn;
     static SwiftSession server;
-    public SwiftSynchronizerTest() {
+    public SwiftSynchronizerClientServerTest() {
      
     }
     /**
@@ -59,6 +62,10 @@ public class SwiftSynchronizerTest {
     
     @BeforeClass
     public static void setUp()throws NetworkException {
+        Logger log1= Logger.getLogger("");
+        Logger log2= Logger.getLogger("loria");
+        log1.setLevel(Level.SEVERE);
+        log2.setLevel(Level.ALL);
            DCSequencerServer.main(new String[]{"-name", sequencerName});
 
         try {
@@ -83,31 +90,51 @@ public class SwiftSynchronizerTest {
         
     }
     
+    void testCommitUpdate(SwiftSynchronizerServer serv,String name)throws Exception {
+        serv.start();
+         try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            // do nothing
+        }
+         System.out.println("Connecting");
+         System.out.flush();
+        SwiftSynchronizerClient sync=new SwiftSynchronizerClient(InetAddress.getLocalHost(),serv.getPort());
+        System.out.println("send commit");
+        System.out.flush();
+        sync.commit(name, "1234");
+        System.out.println("update");
+        System.out.flush();
+        
+        assertEquals("1234", sync.update(name));
+    }
+    
+    
     @Test
-    public void testLogootAsync() {
-        SwiftSynchronizerDirect sync=new SwiftSynchronizerDirect(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, LogootVersioned.class);
-        sync.commit("test3", "123");
-        assertEquals("123", sync.update("test3"));
+    public void testLogootAsync() throws Exception {
+        SwiftSynchronizerServer serv=new SwiftSynchronizerServer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, LogootVersioned.class);
+        testCommitUpdate(serv,"test1");
     }
 
+    
     @Test
-    public void testLastWriterWinAsync() {
-        SwiftSynchronizerDirect sync=new SwiftSynchronizerDirect(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, RegisterFileContent.class);
-        sync.commit("test4", "123");
-        assertEquals("123", sync.update("test4"));
+    public void testLastWriterWinAsync() throws Exception {
+        SwiftSynchronizerServer serv=new SwiftSynchronizerServer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, true, RegisterFileContent.class);
+        serv.setPort(serv.getPort()+1);
+        testCommitUpdate(serv,"test2");
     }
     
     @Test
-    public void testLogoot() {
-        SwiftSynchronizerDirect sync=new SwiftSynchronizerDirect(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, false, LogootVersioned.class);
-        sync.commit("test", "123");
-        assertEquals("123",sync.update("test"));
+    public void testLogoot()  throws Exception{
+        SwiftSynchronizerServer serv=new SwiftSynchronizerServer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, false, LogootVersioned.class);
+        serv.setPort(serv.getPort()+2);
+         testCommitUpdate(serv,"test3");
     }
     
     @Test
-    public void testLastWriterWin() {
-        SwiftSynchronizerDirect sync=new SwiftSynchronizerDirect(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, false, RegisterFileContent.class);
-        sync.commit("test2", "123");
-        assertEquals("123",sync.update("test2"));
+    public void testLastWriterWin() throws Exception {
+       SwiftSynchronizerServer serv=new SwiftSynchronizerServer(server,IsolationLevel.SNAPSHOT_ISOLATION,  CachePolicy.STRICTLY_MOST_RECENT, true, false, RegisterFileContent.class);
+       serv.setPort(serv.getPort()+3);
+        testCommitUpdate(serv,"test4");
     }
 }

@@ -10,6 +10,7 @@ import com.amazonaws.services.ec2.model.CancelSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.CreateSecurityGroupRequest;
 import com.amazonaws.services.ec2.model.DescribeInstanceStatusRequest;
 import com.amazonaws.services.ec2.model.DescribeInstanceStatusResult;
+import com.amazonaws.services.ec2.model.DescribeInstancesResult;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsRequest;
 import com.amazonaws.services.ec2.model.DescribeSpotInstanceRequestsResult;
 import com.amazonaws.services.ec2.model.Instance;
@@ -20,6 +21,7 @@ import com.amazonaws.services.ec2.model.LaunchSpecification;
 import com.amazonaws.services.ec2.model.Placement;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesRequest;
 import com.amazonaws.services.ec2.model.RequestSpotInstancesResult;
+import com.amazonaws.services.ec2.model.Reservation;
 import com.amazonaws.services.ec2.model.RunInstancesRequest;
 import com.amazonaws.services.ec2.model.RunInstancesResult;
 import com.amazonaws.services.ec2.model.SpotInstanceRequest;
@@ -28,10 +30,14 @@ import com.amazonaws.services.ec2.model.TerminateInstancesRequest;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import loria.rc.jobs.ClientModifierBenchmarkJob;
+import swift.dc.DCConstants;
 
 /**
  * toolkit to deploy on amazon EC2
@@ -46,10 +52,13 @@ public class AmazonMachine {
     public static final String INSTANCETYPE = "t1.micro";
     public static final String PRICE = "0.02";
     public static final String KEYPAIR = "connectec2";
+    public static final int REFRESH = 3000;
     public final String placement;
     private AmazonEC2 ec2;
     private LinkedList<String> instanceIds = new LinkedList();
+    private LinkedList<String> newInstanceIds = new LinkedList();
     private ArrayList<String> spotInstanceRequestIds;
+    private LinkedList<InetAddress> adresseMachine = new LinkedList();
     private LinkedList<Instance> instances = new LinkedList();
 
     /**
@@ -136,6 +145,12 @@ public class AmazonMachine {
          * Remote Control
          */
         ipPermissions.add(genIpPermission("0.0.0.0/0", Protocol.tcp, RemoteControl.PORT));
+        /*
+         * 
+         * swift 
+         */
+        ipPermissions.add(genIpPermission("0.0.0.0/0", Protocol.tcp, DCConstants.SEQUENCER_PORT));
+        ipPermissions.add(genIpPermission("0.0.0.0/0", Protocol.tcp, DCConstants.SURROGATE_PORT));
 
 
         // try {
@@ -148,7 +163,7 @@ public class AmazonMachine {
          }*/
     }
 
-    public void startInstanceRequest(int nb) {
+    public void startInstanceRequest(int nb) throws UnknownHostException {
         RunInstancesRequest ir = new RunInstancesRequest();
         ir.withInstanceType(InstanceType.T1Micro);
         ir.withImageId(AMIID);
@@ -166,7 +181,26 @@ public class AmazonMachine {
 
         for (Instance i : runInstance.getReservation().getInstances()) {
             this.instanceIds.add(i.getInstanceId());
+            this.newInstanceIds.add(i.getInstanceId());
+            this.instances.add(i);
+           
         }
+
+
+    }
+
+    String getInstancePublicDnsName(String instanceId) {
+        DescribeInstancesResult describeInstancesRequest = ec2.describeInstances();
+        List<Reservation> reservations = describeInstancesRequest.getReservations();
+        //Set<Instance> allInstances = new HashSet<Instance>();
+        for (Reservation reservation : reservations) {
+            for (Instance instance : reservation.getInstances()) {
+                if (instance.getInstanceId().equals(instanceId)) {
+                    return instance.getPublicDnsName();
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -237,34 +271,47 @@ public class AmazonMachine {
          startr.setInstanceIds(spotInstanceRequestIds);
          ec2.startInstances(startr);*/
     }
-    public void waitAllLauched(){
-        DescribeInstanceStatusRequest describeInstanceRequest = new DescribeInstanceStatusRequest().withInstanceIds(this.instanceIds);
-        DescribeInstanceStatusResult describeInstanceResult;// = ec2.describeInstanceStatus(describeInstanceRequest);
-        List<InstanceStatus> state ;//= describeInstanceResult.getInstanceStatuses();
-        int launched=0; 
-        do{
-            
-            describeInstanceResult = ec2.describeInstanceStatus(describeInstanceRequest);
-            state = describeInstanceResult.getInstanceStatuses();
-            launched=0; 
 
-            //System.out.println("---");
-            for (InstanceStatus is : state) {
-                if (is.getSystemStatus().getStatus().equals("ok")){
-                    launched++;
-                }
-/*                System.out.println(""+is.getSystemStatus().getStatus());
-                System.out.println(""+is.getInstanceStatus().getStatus());
-                System.out.println("" + is.getInstanceState().getName() + ":" + is.getInstanceState().getCode());*/
-            }
+    public void waitAllLauched() {
+        DescribeInstanceStatusRequest describeInstanceRequest = new DescribeInstanceStatusRequest().withInstanceIds(this.newInstanceIds);
+        DescribeInstanceStatusResult describeInstanceResult;// = ec2.describeInstanceStatus(describeInstanceRequest);
+        List<InstanceStatus> state;//= describeInstanceResult.getInstanceStatuses();
+        int launched = 0;
+        do {
             try {
-                Thread.sleep(3000);
+                Thread.sleep(REFRESH);
             } catch (InterruptedException ex) {
             }
+
+            describeInstanceResult = ec2.describeInstanceStatus(describeInstanceRequest);
+            state = describeInstanceResult.getInstanceStatuses();
+            launched = 0;
+
+            for (InstanceStatus is : state) {
+                if (is.getSystemStatus().getStatus().equals("ok")) {
+                    launched++;
+                }
+            }
+        } while (launched < newInstanceIds.size());
+        for(String id:newInstanceIds){
+         String dns;
+            do {
+                dns = getInstancePublicDnsName(id);
+                Logger.getLogger(ClientModifierBenchmarkJob.class.getName()).info("add Machine waiting dns...");
+            } while (dns.equals(""));
+            InetAddress addr=null;
+            try {
+                addr = InetAddress.getByName(dns);
+                this.adresseMachine.add(addr);
+            } catch (UnknownHostException ex) {
+                Logger.getLogger(AmazonMachine.class.getName()).log(Level.SEVERE, null, ex);
+            }
             
-        }while(launched<instanceIds.size());
-        
+            Logger.getLogger(ClientModifierBenchmarkJob.class.getName()).info("add Machine " + dns + " : " + addr.getHostAddress());
+        }
+        newInstanceIds.clear();
     }
+
     public boolean instanceIsLauched() {
 
         DescribeInstanceStatusRequest describeInstanceRequest = new DescribeInstanceStatusRequest().withInstanceIds(this.instanceIds);
@@ -283,8 +330,8 @@ public class AmazonMachine {
         for (int i = 0; i < 100; i++) {
             System.out.println("---");
             for (InstanceStatus is : state) {
-                System.out.println(""+is.getSystemStatus().getStatus());
-                System.out.println(""+is.getInstanceStatus().getStatus());
+                System.out.println("" + is.getSystemStatus().getStatus());
+                System.out.println("" + is.getInstanceStatus().getStatus());
                 System.out.println("" + is.getInstanceState().getName() + ":" + is.getInstanceState().getCode());
             }
             try {
@@ -356,9 +403,8 @@ public class AmazonMachine {
         return false;
     }
 
-    
-    public void cleanupInstances(){
-                try {
+    public void cleanupInstances() {
+        try {
             // Terminate instances.
             System.out.println("Terminate instances");
             TerminateInstancesRequest terminateRequest = new TerminateInstancesRequest(instanceIds);
@@ -375,7 +421,7 @@ public class AmazonMachine {
         // Delete all requests and instances that we have terminated.
         instanceIds.clear();
     }
-    
+
     /**
      * The cleanup method will cancel and active requests and terminate any
      * running instances that were created using this object.
@@ -401,6 +447,10 @@ public class AmazonMachine {
 
         spotInstanceRequestIds.clear();
         cleanupInstances();
+    }
+
+    public List<InetAddress> getInetAddress() {
+        return this.adresseMachine;
     }
 }
 // public static 

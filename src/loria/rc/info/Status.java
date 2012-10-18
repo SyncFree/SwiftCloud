@@ -17,23 +17,27 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  */
-package loria.rc.jobs;
-
-import java.net.Socket;
+package loria.rc.info;
 
 /**
- * This job consists to mount micro instance, and lauch them
+ *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class ControleurJob extends Jobs {
-    int number;
+public class Status extends Info {
 
-    @Override
-    public void run() {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public static enum State {
+
+        Finished, Ready
+    };
+    State state;
+    public static final Status FINISHED = new Status(State.Finished);
+    public static final Status READY = new Status(State.Ready);
+
+    public Status(State state) {
+        this.state = state;
     }
-    
-    
-   
-    
+
+    public State getState() {
+        return state;
+    }
 }

@@ -17,16 +17,28 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  */
-package loria.swift.application.filesynchroniser;
+package loria.rc.jobs;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  *
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public interface SwiftSynchronizer {
-
-     void commit(String textName, String newValue);
-
-     String update(String textName);
+public class ControlerJobTest {
     
+    public ControlerJobTest() {
+    }
+
+    @Test
+    public void testSomeMethod() {
+       
+        ClientModifierBenchmarkJob clientJob=new ClientModifierBenchmarkJob(ClientModifierBenchmarkJob.Type.Logout,10000);
+        ControlerJob controler=new ControlerJob();
+        controler.clientJob=clientJob;
+        controler.number=10;
+        controler.increment=1;
+        controler.run();
+    }
 }

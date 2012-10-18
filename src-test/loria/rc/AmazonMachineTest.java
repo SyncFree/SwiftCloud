@@ -19,9 +19,7 @@
  */
 package loria.rc;
 
-import loria.rc.AmazonMachine;
 import org.junit.Test;
-import static org.junit.Assert.*;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 
