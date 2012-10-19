@@ -1,5 +1,6 @@
 package swift.application.swiftdoc.cs.msgs;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import sys.net.api.rpc.RpcHandle;
@@ -13,7 +14,7 @@ public class BulkTransaction extends SwiftDocRpc {
     }
     
     public BulkTransaction( List<SwiftDocRpc> ops ) {    
-        this.ops = ops;
+        this.ops = new ArrayList<SwiftDocRpc>( ops );
     }
     
     @Override

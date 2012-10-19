@@ -74,14 +74,6 @@ public class SwiftDocPatchReplay<V> {
             if (i.getName().startsWith("100-"))
                 return;
         }
-
-        //Clear the document, by removing all atoms...
-        if( seq != null) {
-            seq.begin();
-            while( seq.size() > 0 )
-                seq.remove(doc.size()-1);            
-            seq.commit();
-        }
         System.err.println("All Done");
     }
 

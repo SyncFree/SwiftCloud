@@ -27,6 +27,7 @@ import swift.crdt.CRDTIdentifier;
 import swift.crdt.SequenceTxnLocal;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.interfaces.SwiftScout;
 import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -43,7 +44,7 @@ import sys.utils.Threading;
  * @author smduarte
  * 
  */
-public class SwiftDocServer extends Thread {
+public class SwiftDocServer {
     public static int PORT1 = 11111, PORT2 = 11112;
 
     static String dcName = "localhost";
@@ -191,11 +192,11 @@ public class SwiftDocServer extends Thread {
 
     void installClientNotifier() {
         try {
-            NotificationHandler notifier = new NotificationHandler();            
-            final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
-            handle.get(j2, true, swift.crdt.SequenceVersioned.class, notifier );
+            NotificationHandler notifier = new NotificationHandler();
+            final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
+            SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, notifier);
             handle.commit();
-            
+            notifier.onObjectUpdate(handle, j2, doc);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -206,58 +207,66 @@ public class SwiftDocServer extends Thread {
     class NotificationHandler extends AbstractObjectUpdatesListener {
 
         @Override
-        synchronized public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
             try {
-                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
-                SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, this);
-                
                 List<TextLine> newAtoms = new ArrayList<TextLine>();
-                for (TextLine i : doc.getValue())
-                    if (serials.add(i.serial())) {
-                        newAtoms.add(i);
-                    }
+                synchronized (serials) {
 
+                    final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
+                    SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, this);
+                    for (TextLine i : doc.getValue())
+                        if (serials.add(i.serial())) {
+                            newAtoms.add(i);
+                        }
+                    handle.commit();
+                }
                 if (newAtoms.size() > 0)
                     clientHandle.reply(new ServerReply(newAtoms));
-                handle.commit();
-                
+
             } catch (Exception x) {
                 x.printStackTrace();
             }
-        }        
-    } 
-    
-    static Session getSession(Object sessionId) {
-        return sessions.get(sessionId);
+        }
     }
+    
+    static class Session {
+        final RpcHandle client;
+        final SwiftSession swift1, swift2;
+        final SwiftDocServer swiftdoc;
 
-    static Session getSession(Object sessionId, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
+        Session(RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
+            this.client = client;
+
+            this.swift1 = this.swift2 = scout.newSession( client.remoteEndpoint().toString() );
+//            this.swift2 = scout.newSession( client.remoteEndpoint().toString() );
+
+            swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
+        }
+    }
+    static Map<Object, Session> sessions = new HashMap<Object, Session>();
+
+    static SwiftScout scout = null;
+
+    static void initScout() {
+        final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
+        options.setDisasterSafe(false);
+        options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
+        options.setCacheSize(Integer.MAX_VALUE);
+        scout = SwiftImpl.newMultiSessionInstance(options);
+    }
+    
+    synchronized static Session getSession(Object sessionId) {
+        return sessions.get(sessionId);        
+    }
+    
+    synchronized static Session getSession(Object sessionId, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
+         if( scout == null )
+            initScout();
+       
         Session res = sessions.get(sessionId);
         if (res == null) {
             sessions.put(sessionId, res = new Session(client, j1, j2));
         }
         return res;
     }
-
-    static Map<Object, Session> sessions = new HashMap<Object, Session>();
-
-    static class Session {
-        final SwiftSession swift1, swift2;
-        final RpcHandle client;
-        final SwiftDocServer swiftdoc;
-
-        Session(RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
-            this.client = client;
-
-            final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
-            options.setDisasterSafe(false);
-            options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
-            options.setCacheSize(Integer.MAX_VALUE);
-            this.swift1 = SwiftImpl.newSingleSessionInstance(options);
-            this.swift2 = SwiftImpl.newSingleSessionInstance(options);
-
-            swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
-        }
-    }
-
 }

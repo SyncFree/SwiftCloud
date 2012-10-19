@@ -5,6 +5,7 @@ import static sys.net.api.Networking.Networking;
 import java.util.ArrayList;
 import java.util.List;
 
+import swift.application.swiftdoc.SwiftDocLineNumberGenerator;
 import swift.application.swiftdoc.SwiftDocOps;
 import swift.application.swiftdoc.SwiftDocPatchReplay;
 import swift.application.swiftdoc.TextLine;
@@ -51,25 +52,33 @@ public class SwiftDocClient2 {
 
         Threading.newThread("client1", true, new Runnable() {
             public void run() {
-                runClient1Code(server, server);
+                try {
+                    runClient1Code(server, server);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }).start();
 
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
-                runClient2Code(server);
+                try {
+                    runClient2Code(server);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }).start();
     }
 
-    static void runClient1Code(String server, String dcName) {
+    static void runClient1Code(String server, String dcName) throws Exception {
         Endpoint srv = Networking.resolve(server, SwiftDocServer.PORT1);
         Endpoint dc = Networking.resolve(dcName, DCConstants.SURROGATE_PORT);
         client1Code(srv, dc);
     }
 
-    static void runClient2Code(String server) {
-        Endpoint srv = Networking.resolve(server, SwiftDocServer.PORT2);
+    static void runClient2Code(String server) throws Exception {
+        Endpoint srv = Networking.resolve(server, SwiftDocServer.PORT1);
         client2Code(srv);
     }
 
@@ -84,7 +93,7 @@ public class SwiftDocClient2 {
 
     static TransportConnection pingCon = null;
 
-    static void client1Code(final Endpoint server, final Endpoint DC) {
+    static void client1Code(final Endpoint server, final Endpoint DC) throws Exception {
         final Tally dcRTT = new Tally();
 
         // Initiate measurement of RTT to central datacenter...
@@ -95,7 +104,7 @@ public class SwiftDocClient2 {
                 dcRTT.add(pong.rtt());
             }
         });
-        
+
         new PeriodicTask(0.0, 1.0) {
             public void run() {
                 if (pingCon == null)
@@ -113,12 +122,14 @@ public class SwiftDocClient2 {
 
         SwiftDocPatchReplay<TextLine> player = new SwiftDocPatchReplay<TextLine>();
 
+        // SwiftDocLineNumberGenerator<TextLine> player = new
+        // SwiftDocLineNumberGenerator<TextLine>();
+
         endpoint.send(server, new InitScoutServer(), new AppRpcHandler() {
             public void onReceive(final ServerReply r) {
                 synchronized (results) {
                     for (TextLine i : r.atoms)
-                        if (!i.isWarmUp())
-                            results.add(i.latency());
+                        results.add(i.latency());
                 }
                 System.err.println("Got: " + r.atoms.size() + "/" + results.size());
             }
@@ -126,16 +137,7 @@ public class SwiftDocClient2 {
         });
 
         final int BATCHSIZE = 10;
-        try {
-            // Warmup Phase...
-//           player.parseFiles( new SwiftDocOpsImpl(true, BATCHSIZE, endpoint, server, 10));
-//
-//            // For real now...
-            player.parseFiles(new SwiftDocOpsImpl(false, BATCHSIZE, endpoint, server, 250));
-
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
+        player.parseFiles(new SwiftDocOpsImpl(BATCHSIZE, endpoint, server, 250));
 
         double t, t0 = System.currentTimeMillis() + 30000;
         while ((t = System.currentTimeMillis()) < t0) {
@@ -147,7 +149,7 @@ public class SwiftDocClient2 {
             System.out.printf("# RTT to %s min: %s max: %s avg: %s std: %s\n", DC, dcRTT.min(), dcRTT.max(),
                     dcRTT.average(), dcRTT.standardDeviation());
             for (Long i : results)
-                System.out.printf("%s\n", i );
+                System.out.printf("%s\n", i);
         }
         System.exit(0);
     }
@@ -157,17 +159,15 @@ public class SwiftDocClient2 {
         List<TextLine> mirror = new ArrayList<TextLine>();
 
         int batchsize;
-        boolean warmup;
         RpcEndpoint endpoint;
         Endpoint server;
         int delay;
         final AckHandler ackHandler = new AckHandler();
-        
+
         final List<SwiftDocRpc> ops = new ArrayList<SwiftDocRpc>();
 
-        SwiftDocOpsImpl(boolean warmup, int batchSize, RpcEndpoint endpoint, Endpoint server, int delay) {
+        SwiftDocOpsImpl(int batchSize, RpcEndpoint endpoint, Endpoint server, int delay) {
             this.delay = delay;
-            this.warmup = warmup;
             this.server = server;
             this.endpoint = endpoint;
             this.batchsize = batchSize;
@@ -210,7 +210,7 @@ public class SwiftDocClient2 {
 
         @Override
         public TextLine gen(String s) {
-            return new TextLine(s, warmup);
+            return new TextLine(s);
         }
     }
 
@@ -225,16 +225,17 @@ public class SwiftDocClient2 {
 
         try {
             endpoint.send(server, new InitScoutServer(), new AppRpcHandler() {
-                synchronized public void onReceive(final ServerReply r) {
-                                endpoint.send( server, new BeginTransaction(), ackHandler, 0 ) ;
-                                for( TextLine i : r.atoms )
-                                    endpoint.send( server, new InsertAtom(i , -1), ackHandler, 0 );
-                                
-                                endpoint.send( server, new CommitTransaction(), ackHandler);
-//                                BulkTransaction t = new BulkTransaction(new ArrayList<SwiftDocRpc>());
-//                                for (TextLine i : r.atoms)
-//                                    t.ops.add(  new InsertAtom(i, -1) ) ;                                
-//                                endpoint.send(server, t , ackHandler);
+                public void onReceive(final ServerReply r) {
+
+                    Threading.newThread(true, new Runnable() {
+                        public void run() {
+                            endpoint.send(server, new BeginTransaction(), ackHandler, 0);
+                            for (TextLine i : r.atoms)
+                                endpoint.send(server, new InsertAtom(i, -1), ackHandler, 0);
+
+                            endpoint.send(server, new CommitTransaction(), ackHandler);
+                        }
+                    }).start();
                 }
             });
 

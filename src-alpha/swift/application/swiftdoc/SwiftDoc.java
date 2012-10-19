@@ -81,7 +81,7 @@ public class SwiftDoc {
         try {
             final AtomicBoolean done = new AtomicBoolean(false);
             final Map<Long, TextLine> samples = new HashMap<Long, TextLine>();
-            final Semaphore semaphore = new Semaphore(1);
+            final Semaphore semaphore = new Semaphore(0);
 
             Threading.newThread(true, new Runnable() {
                 public void run() {
@@ -175,7 +175,7 @@ public class SwiftDoc {
     static void client2code(final SwiftSession swift1, final SwiftSession swift2) {
         try {
             final Set<Long> serials = new HashSet<Long>();
-            final Semaphore barrier = new Semaphore(1);
+            final Semaphore barrier = new Semaphore(0);
             
             for (int k = 0;; k++) {
                 final TxnHandle handle = swift1.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
@@ -209,7 +209,7 @@ public class SwiftDoc {
                         synchronized (serials) {// wait for the previous
                                                 // transaction to complete...
                             try {
-                                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
+                                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
                                 SequenceTxnLocal<TextLine> doc2 = handle.get(j2, true,
                                         swift.crdt.SequenceVersioned.class, null);
                                 for (TextLine i : newAtoms)
