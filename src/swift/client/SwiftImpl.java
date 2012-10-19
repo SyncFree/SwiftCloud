@@ -1196,6 +1196,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
                         handleObjectUpdatesTryNotify(id, subscription, opsGroup.getTimestampMapping());
                     }
+                    // FIXME: add this transaction timestamp from readVersion to
+                    // exclude self-notifications (needs to be done before)
                 }
             }
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());

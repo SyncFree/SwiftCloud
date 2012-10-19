@@ -83,7 +83,9 @@ public interface TxnHandle {
      *            before the client reads this object again; note that this
      *            event may fire even during this call or after the transaction
      *            has committed; when null, notification is disabled; the
-     *            provided listener will be fired at most once per each get call
+     *            provided listener will be fired at most once per each get
+     *            call; note that for read-only transactions, if object did not
+     *            exist and create=true, the listener is not installed
      * @return transactional view of an object; accepts queries and updates;
      *         note that this view of an object is valid only until the
      *         transaction is committed or rolled back
