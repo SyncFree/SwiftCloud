@@ -80,4 +80,7 @@ public abstract class Jobs implements Serializable, Runnable {
     public void setDestHostName(String destHostName) {
         this.destHostName = destHostName;
     }
+    public void join() throws InterruptedException{
+        th.join();
+    }
 }

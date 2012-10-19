@@ -4,12 +4,10 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import loria.rc.AmazonS3Upload;
 import loria.rc.info.Status;
 import loria.swift.application.filesynchroniser.StandardDiffProfile;
 import loria.swift.application.filesynchroniser.SwiftSynchronizer;
@@ -23,6 +21,9 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.SwiftSession;
 import swift.dc.DCConstants;
+import sys.net.api.Endpoint;
+import sys.net.api.Networking;
+import sys.net.impl.NetworkingImpl;
 
 /**
  * This jobs simulate a client
@@ -31,7 +32,7 @@ import swift.dc.DCConstants;
  */
 public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
 
-    Class classes[] = {LogootVersioned.class, RegisterFileContent.class};
+    public static Class classes[] = {LogootVersioned.class, RegisterFileContent.class};
     // private String scoutName = "localhost";
 
     public static enum Type {
@@ -74,24 +75,38 @@ public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
                 return;
             }
         } else {
-            server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(this.destHostName, DCConstants.SURROGATE_PORT));
-            sync = new SwiftSynchronizerDirect(server, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, true, aSynch, classes[type.ordinal()]);
+            Logger.getLogger(ClientModifierBenchmarkJob.class.getName()).info("connect to : "+this.destHostName);
+            //server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(this.destHostName, DCConstants.SURROGATE_PORT));
+            Endpoint dcEndpoint = Networking.Networking.resolve( this.destHostName, DCConstants.SURROGATE_PORT);
+            server= SwiftImpl
+                    .newSingleSessionInstance(new SwiftOptions(dcEndpoint.getHost(), dcEndpoint.getPort()));
+            sync = new SwiftSynchronizerDirect(server, IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT, false, aSynch, classes[type.ordinal()]);
         }
         profile = StandardDiffProfile.GIT;
         try {
             initFile();
 
             run = true;
-            while (isRunning() && numberOfCycle != 0) {
-                Task f = todoList.pollFirst();
+            int nbL=numberOfCycle;
+            Task f = new Task("File "+new Integer(todoList.size()).toString());
+            todoList.addLast(f);
+            while (isRunning() && numberOfCycle > 0) {
+                f = todoList.pollFirst();
                 f.updateOrModifyAndCommit();
                 todoList.addLast(f);
                 addFile();
-                sleep();
+                //sleep();
                 numberOfCycle--;
+                if (numberOfCycle<nbL-50){
+                    nbL=numberOfCycle;
+                    Logger.getLogger(this.getClass().getCanonicalName()).info(""+numberOfCycle+" Remaining");
+                }
             }
+            
             send2S3();
             sendObejct(Status.FINISHED);
+             System.out.println("Finished");
+             System.out.flush();
         } catch (Exception ex) {
             Logger.getLogger(ClientModifierBenchmarkJob.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -120,16 +135,19 @@ public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
 
     void initFile() throws Exception {
         outputFile = new File("" + System.getProperty("user.home")
-                + "/" + this.type + "." + this.getJobName() + "."
+                + "/" + this.type  +"."+(this.aSynch?"async":"sync")+ "." + this.getJobName() + "."
                 + InetAddress.getLocalHost().getHostName() + ".csv");
+        Logger.getLogger(this.getClass().getCanonicalName()).info("File : "+outputFile.getAbsolutePath());
+        outputFile.createNewFile();
         out = new PrintStream(outputFile);
     }
 
-    void send2S3() {
+    void send2S3() { 
+        Logger.getLogger(this.getClass().getCanonicalName()).info("Close File");
         out.flush();
         out.close();
-        AmazonS3Upload s3 = new AmazonS3Upload();
-        s3.uploadFile(outputFile, outputFile.getName());
+        /*AmazonS3Upload s3 = new AmazonS3Upload();
+        s3.uploadFile(outputFile, outputFile.getName());*/
     }
     /*
      * Just sleep if it is setted
@@ -149,8 +167,8 @@ public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
      * Add file on todoList
      */
     private void addFile() {
-        if (maxFileNumber < todoList.size() && Math.random() > probAddFile) {
-            Task f = new Task(new Integer(todoList.size() - 1).toString());
+        if (maxFileNumber > todoList.size() && Math.random() > probAddFile) {
+            Task f = new Task("File "+new Integer(todoList.size()).toString());
             todoList.addLast(f);
         }
     }
@@ -183,12 +201,12 @@ public class ClientModifierBenchmarkJob extends Jobs implements Runnable {
             long begin = System.currentTimeMillis();
             content = sync.update(name);
             long end = System.currentTimeMillis();
-            addUpdateTime(end - begin, content.length());
+            addUpdateTime(end - begin, content==null?-1:content.length());
 
         }
 
         void modifAndCommit() {
-            content = profile.change(content);
+            content = profile.change(content!=null?content:"");
             long begin = System.currentTimeMillis();
             sync.commit(name, content);
             long end = System.currentTimeMillis();

@@ -16,15 +16,15 @@ public class StringCopyable implements Copyable {
 
     @Override
     public Object copy() {
-        return new String(value);
+        return new StringCopyable(value);
     }
     public String getValue(){
         return value;
     }
-   /* @Override
+    @Override
     public String toString() {
         return value;
-    }*/
+    }
     
 
 }

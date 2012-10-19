@@ -17,7 +17,7 @@ import swift.test.microbenchmark.objects.StringCopyable;
 
 public class SwiftSynchronizerDirect implements SwiftSynchronizer {
 
-    private static final Logger logger = Logger.getLogger("swift.social");
+    private final Logger logger = Logger.getLogger(this.getClass().getCanonicalName());
 
     private final Class textClass;
             
@@ -61,8 +61,12 @@ public class SwiftSynchronizerDirect implements SwiftSynchronizer {
         } catch (Exception e) {
             logger.warning(e.getMessage());
         } finally {
+            try{
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
+            }
+            }catch(Exception ex){
+                 logger.warning(ex.getMessage());
             }
         }
         return ret;
@@ -81,8 +85,12 @@ public class SwiftSynchronizerDirect implements SwiftSynchronizer {
         } catch (Exception e) {
             logger.warning(e.getMessage());
         } finally {
+            try{
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
+            }
+            }catch(Exception ex){
+                 logger.warning(ex.getMessage());
             }
         }
     }

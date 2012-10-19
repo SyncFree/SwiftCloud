@@ -51,7 +51,7 @@ public class AmazonMachine {
     public static final String AMIID = "ami-1beded6f";
     public static final String INSTANCETYPE = "t1.micro";
     public static final String PRICE = "0.02";
-    public static final String KEYPAIR = "connectec2";
+    public static final String KEYPAIR = "martins";
     public static final int REFRESH = 3000;
     public final String placement;
     private AmazonEC2 ec2;
@@ -59,6 +59,7 @@ public class AmazonMachine {
     private LinkedList<String> newInstanceIds = new LinkedList();
     private ArrayList<String> spotInstanceRequestIds;
     private LinkedList<InetAddress> adresseMachine = new LinkedList();
+    private LinkedList<String> adresseDnsMachine = new LinkedList();
     private LinkedList<Instance> instances = new LinkedList();
 
     /**
@@ -301,6 +302,7 @@ public class AmazonMachine {
             } while (dns.equals(""));
             InetAddress addr=null;
             try {
+                this.adresseDnsMachine.add(dns);
                 addr = InetAddress.getByName(dns);
                 this.adresseMachine.add(addr);
             } catch (UnknownHostException ex) {
@@ -452,6 +454,11 @@ public class AmazonMachine {
     public List<InetAddress> getInetAddress() {
         return this.adresseMachine;
     }
+
+    public LinkedList<String> getAdresseDnsMachine() {
+        return adresseDnsMachine;
+    }
+    
 }
 // public static 
 
