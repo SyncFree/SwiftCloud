@@ -63,11 +63,11 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
             if (((AbstractEndpoint) remote).isIncoming())
                 return new OutgoingConnection(remote);
             else {
-                Log.info("Attempting to connect to an outgoing only endpoint." + remote);
+                Log.info("Attempting to connect to an outgoing only endpoint. " + remote);
             }
             return new FailedTransportConnection(localEndpoint, remote, null);
         } catch (Throwable t) {
-            Log.log(Level.WARNING, "Cannot connect to: <" + remote + "> :" + t.getMessage(), t);
+            Log.log(Level.WARNING, "Cannot connect to: <" + remote + "> :" + t.getMessage());
             return new FailedTransportConnection(localEndpoint, remote, t);
         }
     }
@@ -150,7 +150,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
                     }
                 }
             } catch (Throwable t) {
-                Log.log(Level.FINEST, "Exception in connection to" + remote, t);
+                Log.log(Level.FINEST, "Exception in connection to: " + remote, t);
                 // t.printStackTrace();
                 cause = t;
                 handler.onFailure(this);
@@ -168,7 +168,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
                     msg = super.readClassAndObject();
                     msg.setSize(super.contentLength);
                 } catch (Throwable t) {
-                    Log.log(Level.SEVERE, "Exception in connection to" + remote, t);
+                    Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
                     return;
 
                 } finally {
@@ -199,9 +199,9 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
             } catch (Throwable t) {
                 
                 if (t instanceof KryoException)
-                    Log.log(Level.SEVERE, "Exception in connection to" + remote, t);
+                    Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
                 else
-                    Log.log(Level.WARNING, "Exception in connection to" + remote, t);
+                    Log.log(Level.WARNING, "Exception in connection to: " + remote, t);
 
                 cause = t;
                 isBroken = true;
@@ -222,7 +222,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
                 m.setSize(size);
                 return true;
             } catch (Throwable t) {
-                Log.log(Level.SEVERE, "Exception in connection to" + remote, t);
+                Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
             }
             return false;
         }
@@ -287,8 +287,6 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
                 channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), NIO_CONNECTION_TIMEOUT);
                 configureChannel(channel);
             } catch (IOException x) {
-                Log.log(Level.FINEST, "Exception in connection to" + remote, x);
-
                 cause = x;
                 isBroken = true;
                 IO.close(channel);
