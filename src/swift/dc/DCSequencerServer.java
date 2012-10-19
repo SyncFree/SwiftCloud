@@ -55,6 +55,8 @@ import sys.utils.Threading;
 public class DCSequencerServer extends Handler implements SequencerServer {
     private static Logger logger = Logger.getLogger(DCSequencerServer.class.getName());
 
+    DCSequencerServer thisServer = this;
+    
     RpcEndpoint endpoint;
     IncrementalTimestampGenerator clockGen;
     CausalityClock receivedMessages;
@@ -65,7 +67,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     CausalityClock clientClock; // keeps information about last known client
                                 // operation
     CausalityClock maxRemoteClock;
-    CausalityClock stableClock;
+    private CausalityClock stableClock;
     List<String> servers;
     List<Endpoint> serversEP;
     List<String> sequencers; // list of other sequencers
@@ -132,7 +134,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         }
     }
 
-    protected void init() {
+    protected synchronized void init() {
         // TODO: reinitiate clock to a correct value
         currentState = ClockFactory.newClock();
         stableClock = ClockFactory.newClock();
@@ -360,7 +362,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                         synchronized (r0) {
                                             r0.acked.set(i0);
                                         }
-                                        synchronized (this) {
+                                        synchronized (thisServer) {
                                             stableClock.record(req.getTimestamp());
                                         }
                                         setRemoteState(reply.getDcName(), reply.getDcKnownClock());
