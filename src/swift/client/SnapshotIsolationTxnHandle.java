@@ -77,6 +77,10 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
             Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectViewsCache.get(id);
+        if (localView != null && updatesListener != null) {
+            // force another read to install the listener and discard it
+            manager.getObjectVersionTxnView(this, id, localView.getClock(), create, classOfV, updatesListener);
+        }
         if (localView == null) {
             localView = manager.getObjectVersionTxnView(this, id, getUpdatesDependencyClock(), create, classOfV,
                     updatesListener);
