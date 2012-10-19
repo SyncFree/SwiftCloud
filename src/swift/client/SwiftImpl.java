@@ -1096,9 +1096,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         return updateSubscription;
     }
 
-    private synchronized void removeUpdateSubscriptionWithListener(CRDTIdentifier id, String sessionId) {
+    private synchronized void removeUpdateSubscriptionWithListener(CRDTIdentifier id, String sessionId,
+            UpdateSubscriptionWithListener listener) {
         final Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(id);
-        if (sessionsSubs != null) {
+        if (sessionsSubs != null && sessionsSubs.get(sessionId) == listener) {
             sessionsSubs.remove(sessionId);
         }
     }
@@ -1497,7 +1498,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     logger.info("Notifying on update on object " + id);
                     listener.onObjectUpdate(txn, id, crdtView);
                     // Mummy (well, daddy) tells you: clean up after yourself.
-                    scout.removeUpdateSubscriptionWithListener(id, txn.getSessionId());
+                    scout.removeUpdateSubscriptionWithListener(id, txn.getSessionId(),
+                            UpdateSubscriptionWithListener.this);
                 }
             };
         }
