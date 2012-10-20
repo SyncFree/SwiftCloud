@@ -3,18 +3,17 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-46-137-38-61.eu-west-1.compute.amazonaws.com
+ec2-176-34-92-206.eu-west-1.compute.amazonaws.com
 )
 
 
 export SCOUT_NODES=(
-ait21.us.es
-ait05.us.es
+planetlab-3.imperial.ac.uk
 )
 
 export ENDCLIENT_NODES=(
-planetlab-3.iscte.pt
-planetlab-4.iscte.pt
+peeramide.irisa.fr
+peeramidion.irisa.fr
 )
 
 # BELOW NOT USED, JUST A POOL OF AVAILABLE PLANETLAB NODES
@@ -69,7 +68,6 @@ MACHINES="${DCS[*]} ${DCSEQ[*]} ${SCOUTS[*]} ${ENDCLIENTS[*]}"
 # BENCHMARK PARAMS
 NOTIFICATIONS=true
 ISOLATION=REPEATABLE_READS
-CACHING=STRICTLY_MOST_RECENT
 CACHING=CACHED
 CACHE_EVICTION_TIME_MS=120000 #120000
 ASYNC_COMMIT=false
@@ -149,7 +147,7 @@ for scout in ${SCOUTS[*]}; do
 	j=$(($i % $DC_NUMBER))
 	SCOUT_DC=${DCS[$j]}
 	echo "==== STARTING CS SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
-		run_swift_cdn_server_bg "$scout" "$i" "$SCOUT_DC" 
+		run_swift_cdn_server_bg "$scout" 3 "$SCOUT_DC"
 		scout_pids="$scout_pids $!"
 		i=$(($i+1))
 done
@@ -161,7 +159,7 @@ client_pids=()
 i=0;
 for client in ${ENDCLIENTS[*]}; do
     j=$(($i % $SCOUTS_NUMBER))
-    CLIENT_SCOUT=${SCOUTS[$j]}
+    CLIENT_SCOUT=${SCOUTS[$j % $SCOUTS_NUMBER]}
     k=$(($j % $DC_NUMBER))
     SCOUT_DC=${DCS[$k]}
     echo "==== STARTING CS ENDCLIENT Nº $i @ $client CONNECTING TO $CLIENT_SCOUT ===="

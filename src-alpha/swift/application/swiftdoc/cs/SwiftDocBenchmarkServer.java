@@ -21,7 +21,8 @@ public class SwiftDocBenchmarkServer {
 
         if (args.length != 5) {
             System.err.println(Arrays.asList( args )) ;
-            System.err.println("Usage: [surrogate address] [server id (1|2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
+            System.err
+                    .println("Usage: [surrogate address] [server id (1|2|3=1+2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
             return;
         } else {
             SwiftDocServer.dcName = args[0];
@@ -35,10 +36,11 @@ public class SwiftDocBenchmarkServer {
 
             Sys.init();
 
-            if (serverId == 1) {
+            if (serverId == 1 || serverId == 3) {
                 logger.info("Starting scout/server 1");
                 SwiftDocServer.runScoutServer1();
-            } else if (serverId == 2) {
+            }
+            if (serverId == 2 || serverId == 3) {
                 logger.info("Starting scout/server 2");
                 SwiftDocServer.runScoutServer2();
             }
