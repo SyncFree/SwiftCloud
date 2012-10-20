@@ -78,7 +78,7 @@ public class SwiftDocClient2 {
     }
 
     static void runClient2Code(String server) throws Exception {
-        Endpoint srv = Networking.resolve(server, SwiftDocServer.PORT1);
+        Endpoint srv = Networking.resolve(server, SwiftDocServer.PORT2);
         client2Code(srv);
     }
 

@@ -252,6 +252,7 @@ public class SwiftDocServer {
         options.setDisasterSafe(false);
         options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
         options.setCacheSize(Integer.MAX_VALUE);
+        options.setConcurrentOpenTransactions(true);
         scout = SwiftImpl.newMultiSessionInstance(options);
     }
     
