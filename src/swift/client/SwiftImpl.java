@@ -177,6 +177,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // across the system even in case of disaster affecting part of the store.
     private final CausalityClock committedDisasterDurableVersion;
     // Last locally committed txn clock + dependencies.
+    // Attenzione attenzione! Can be slightly overestimated when
+    // concurrentOpenTransactions = true, but it shouldn't hurt since cache will
+    // not contain local transactions before they are committed.
     private CausalityClock lastLocallyCommittedTxnClock;
     // Last globally committed txn clock + dependencies.
     private CausalityClock lastGloballyCommittedTxnClock;
@@ -372,7 +375,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // Invariant: for SI snapshotClock of a new transaction dominates
             // clock of all previous SI transaction (monotonic reads), since
             // commitedVersion only grows.
-            final CausalityClock snapshotClock = getCommittedVersion(true);
+            final CausalityClock snapshotClock = getGlobalCommittedVersion(true);
             snapshotClock.merge(lastLocallyCommittedTxnClock);
             final SnapshotIsolationTxnHandle siTxn;
             if (readOnly) {
@@ -468,7 +471,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 .entrySet().iterator();
         while (iter.hasNext()) {
             final Entry<TimestampMapping, Set<CRDTIdentifier>> entry = iter.next();
-            if (entry.getKey().anyTimestampIncluded(getCommittedVersion(false))) {
+            if (entry.getKey().anyTimestampIncluded(getGlobalCommittedVersion(false))) {
                 iter.remove();
                 for (final CRDTIdentifier id : entry.getValue()) {
                     final Map<String, UpdateSubscriptionWithListener> subscriptions = objectSessionsUpdateSubscriptions
@@ -484,7 +487,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
     }
 
-    private synchronized CausalityClock getCommittedVersion(boolean copy) {
+    private synchronized CausalityClock getGlobalCommittedVersion(boolean copy) {
         CausalityClock result;
         if (disasterSafe) {
             result = committedDisasterDurableVersion;
@@ -526,7 +529,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             synchronized (this) {
                 fetchStrictlyRequired = (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT || objectsCache
                         .getAndTouch(id) == null);
-                fetchClock = getCommittedVersion(true);
+                fetchClock = getGlobalCommittedVersion(true);
                 fetchClock.merge(lastGloballyCommittedTxnClock);
                 fetchClock.drop(scoutId);
                 // Try to get the latest one.
@@ -626,13 +629,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // Set the requested clock to the latest committed version including
             // prior scout's transactions (the most recent thing we would like
             // to read).
-            clock = getCommittedVersion(true);
+            clock = getGlobalCommittedVersion(true);
             clock.merge(lastLocallyCommittedTxnClock);
             if (concurrentOpenTransactions && !txn.isReadOnly()) {
                 // Make sure we do not introduce cycles in dependencies. Include
                 // only transactions with lower timestamp in the snapshot,
                 // because timestamp order induces the commit order.
                 clock.drop(scoutId);
+                // FIXME: This hack looks tricky, can we do it better?
                 clock.recordAllUntil(txn.getTimestampMapping().getClientTimestamp());
             }
 
@@ -1014,7 +1018,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         Map<TimestampMapping, CRDTIdentifier> uncommittedUpdates = new HashMap<TimestampMapping, CRDTIdentifier>();
         for (final TimestampMapping tm : timestampMappings) {
             if (!tm.anyTimestampIncluded(subscription.readVersion)) {
-                if (tm.anyTimestampIncluded(getCommittedVersion(false))) {
+                if (tm.anyTimestampIncluded(getGlobalCommittedVersion(false))
+                        || tm.anyTimestampIncluded(lastLocallyCommittedTxnClock)) {
                     notificationsCallbacksExecutor.execute(subscription.generateNotificationAndDiscard(this, id));
                     return;
                 }
@@ -1054,8 +1059,15 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // Object has been pruned since then, approximate by comparing old
             // and new txn views. This is a very bizzare case.
             logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
-            final TxnLocalCRDT<V> newView = newCrdtVersion
-                    .getTxnLocalCopy(getCommittedVersion(false), subscription.txn);
+            final TxnLocalCRDT<V> newView;
+            try {
+                final CausalityClock committedClock = getGlobalCommittedVersion(true);
+                committedClock.merge(lastLocallyCommittedTxnClock);
+                newView = newCrdtVersion.getTxnLocalCopy(committedClock, subscription.txn);
+            } catch (IllegalStateException x2) {
+                logger.warning("Object has been pruned since notification was set up, and investigating the observable view due to incompatible version");
+                return;
+            }
             if (!newView.getValue().equals(subscription.crdtView.getValue())) {
                 notificationsCallbacksExecutor.execute(subscription.generateNotificationAndDiscard(this, id));
             }
@@ -1118,7 +1130,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     if (!objectSessionsUpdateSubscriptions.containsKey(id)) {
                         return;
                     }
-                    version = getCommittedVersion(true);
+                    version = getGlobalCommittedVersion(true);
                     version.merge(lastLocallyCommittedTxnClock);
                     version.drop(scoutId);
                 }
@@ -1186,6 +1198,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
         if (requiresGlobalCommit(txn)) {
+            lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
                 final CRDTIdentifier id = opsGroup.getTargetUID();
                 applyLocalObjectUpdates(id, objectsCache.getWithoutTouch(id), txn);
@@ -1200,7 +1213,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     // exclude self-notifications (needs to be done before)
                 }
             }
-            lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
             objectsCache.recordOnAll(txn.getTimestampMapping());
 
@@ -1239,7 +1251,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             txn.getUpdatesDependencyClock().drop(scoutId);
             // Use optimizedDependencyClock when sending out the updates - it
             // may impose more restrictions, but contains less holes.
-            final CausalityClock optimizedDependencyClock = getCommittedVersion(true);
+            final CausalityClock optimizedDependencyClock = getGlobalCommittedVersion(true);
             optimizedDependencyClock.merge(txn.getUpdatesDependencyClock());
             optimizedDependencyClock.drop(scoutId);
             final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
