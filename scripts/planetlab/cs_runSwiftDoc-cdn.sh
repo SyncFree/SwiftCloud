@@ -3,17 +3,18 @@
 . ./scripts/planetlab/pl-common.sh
 
 export DATACENTER_NODES=(
-ec2-176-34-92-206.eu-west-1.compute.amazonaws.com
+ec2-54-246-30-185.eu-west-1.compute.amazonaws.com
 )
 
 
 export SCOUT_NODES=(
-planetlab-3.imperial.ac.uk
+ait21.us.es
 )
+# peeramidion.irisa.fr
 
 export ENDCLIENT_NODES=(
-peeramide.irisa.fr
-peeramidion.irisa.fr
+planetlab-1.iscte.pt
+planetlab-2.iscte.pt
 )
 
 # BELOW NOT USED, JUST A POOL OF AVAILABLE PLANETLAB NODES
@@ -101,7 +102,7 @@ run_swift_cdn_server_bg() {
     id=$2
     id=$(($id+1))
     server=$3
-    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkServer $server $id $ISOLATION $CACHING $NOTIFICATIONS
+    swift_app_cmd_nostdout -Xmx1024m swift.application.swiftdoc.cs.SwiftDocBenchmarkServer $server 3 $ISOLATION $CACHING $NOTIFICATIONS
     run_cmd_bg $target $CMD
 }
 
@@ -147,7 +148,7 @@ for scout in ${SCOUTS[*]}; do
 	j=$(($i % $DC_NUMBER))
 	SCOUT_DC=${DCS[$j]}
 	echo "==== STARTING CS SCOUT-SWIFTDOC SERVER Nº $i @ $scout CONNECTING TO $SCOUT_DC ===="
-		run_swift_cdn_server_bg "$scout" 3 "$SCOUT_DC"
+		run_swift_cdn_server_bg "$scout" $i "$SCOUT_DC"
 		scout_pids="$scout_pids $!"
 		i=$(($i+1))
 done
