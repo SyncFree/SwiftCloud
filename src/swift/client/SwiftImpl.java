@@ -665,6 +665,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 // recent than the returned version.
                 handleObjectNewVersionTryNotify(id, subscription, crdt);
             }
+
+            if (txn.isReadOnly() && !crdt.isRegisteredInStore()) {
+                logger.warning("The read-only transaction request for updates listener on inexisting object cannot be fulfilled");
+            }
         }
         return crdtView;
     }
@@ -1207,10 +1211,15 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                         .get(id);
                 if (sessionsSubs != null) {
                     for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
+                        if (subscription.txn == txn) {
+                            // Add this update transaction timestamp to
+                            // readVersion to exclude self-notifications.
+                            for (final Timestamp ts : txn.getTimestampMapping().getTimestamps()) {
+                                subscription.readVersion.record(ts);
+                            }
+                        }
                         handleObjectUpdatesTryNotify(id, subscription, opsGroup.getTimestampMapping());
                     }
-                    // FIXME: add this transaction timestamp from readVersion to
-                    // exclude self-notifications (needs to be done before)
                 }
             }
             lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
