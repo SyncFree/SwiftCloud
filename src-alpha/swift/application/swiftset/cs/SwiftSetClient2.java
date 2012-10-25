@@ -119,7 +119,6 @@ public class SwiftSetClient2 {
             public void onReceive(final ServerReply r) {
                 synchronized (results) {
                     for (TextLine i : r.atoms)
-                        if (!i.isWarmUp())
                             results.add(i.latency());
                 }
                 System.err.println("Got: " + r.atoms.size() + "/" + results.size());
@@ -212,7 +211,7 @@ public class SwiftSetClient2 {
 
         @Override
         public TextLine gen(String s) {
-            return new TextLine(s, warmup);
+            return new TextLine(s);
         }
     }
 

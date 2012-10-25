@@ -137,7 +137,7 @@ public class SwiftSetClient {
 
                 @Override
                 public TextLine gen(String s) {
-                    return new TextLine(s, false);
+                    return new TextLine(s);
                 }
             });
         } catch (Exception x) {
