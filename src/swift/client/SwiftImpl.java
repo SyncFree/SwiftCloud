@@ -865,7 +865,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
-            logger.warning("requested object version not found in the store, retrying fetch");
+            logger.warning("requested object version (" + request.getVersion()
+                    + ") not found in the store, retrying fetch");
             return false;
         }
         return true;
