@@ -5,6 +5,7 @@ import java.util.HashMap;
 
 import sys.net.api.Endpoint;
 import sys.net.impl.rpc.RpcPacket;
+import sys.stats.common.BinnedTally;
 import sys.utils.XmlExternalizable;
 
 import static sys.Sys.*;
