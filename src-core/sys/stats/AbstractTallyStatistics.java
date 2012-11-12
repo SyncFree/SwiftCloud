@@ -9,7 +9,7 @@ import umontreal.iro.lecuyer.stat.Tally;
 
 public abstract class AbstractTallyStatistics {
 
-    protected long timespanMillis;
+    protected double valuePrecision;
     protected String sourceName;
     protected BinnedTally opsRecorder;
 
@@ -25,40 +25,27 @@ public abstract class AbstractTallyStatistics {
 
     }
 
+    
+    //TODO: Not correct, must check
     protected List<Pair<Long, Double>> getSumOverTime(double timespanMillis) {
-        assert timespanMillis > this.timespanMillis;
+        assert timespanMillis > this.valuePrecision;
 
         BinnedTally newBinnedTally = new BinnedTally(timespanMillis, sourceName);
         long dT = 0;
         for (Tally t : this.opsRecorder.bins) {
             if (t.numberObs() != 0)
                 newBinnedTally.tally(dT, t.sum());
-            dT += this.timespanMillis;
+            dT += this.valuePrecision;
         }
         return getSumOverTime(newBinnedTally, timespanMillis);
 
     }
 
     protected List<Pair<Long, Double>> getSumOverTime() {
-        return getSumOverTime(opsRecorder, timespanMillis);
+        return getSumOverTime(opsRecorder, valuePrecision);
 
     }
 
-    private List<Pair<Long, Double>> getAverageOverTime(BinnedTally bt, long timespanMillis) {
-        LinkedList<Pair<Long, Double>> results = new LinkedList<Pair<Long, Double>>();
-        long dT = 0;
-        for (Tally t : bt.bins) {
-            dT += timespanMillis;
-            if (t.numberObs() != 0)
-                results.add(new Pair<Long, Double>(dT, t.average()));
-        }
-        return results;
-
-    }
-
-    protected List<Pair<Long, Double>> getAverageOverTime() {
-        return getAverageOverTime(opsRecorder, timespanMillis);
-
-    }
+ 
 
 }

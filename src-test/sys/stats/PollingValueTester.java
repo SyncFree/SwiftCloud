@@ -1,13 +1,16 @@
-package sys.stats.test;
+package sys.stats;
 
 import static org.junit.Assert.*;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
 
 import swift.utils.Pair;
+import sys.stats.PlaneValues;
+import sys.stats.PlotValues;
 import sys.stats.PollingBasedValueProvider;
 import sys.stats.Stats;
 
@@ -15,11 +18,11 @@ public class PollingValueTester {
 
     @Test
     public void testpolling() {
+        Stats.init(1000);
 
         UpdatingFieldClass classWithField = new UpdatingFieldClass(1000);
         UpdatingFieldClass classWithField2 = new UpdatingFieldClass(500);
 
-        Stats.init();
 
         Stats.registerPollingBasedValueProvider("poll", classWithField.getPoller());
         Stats.registerPollingBasedValueProvider("poll2", classWithField2.getPoller());
@@ -30,23 +33,28 @@ public class PollingValueTester {
             e.printStackTrace();
         }
 
-        Map<String, List<Pair<Long, Double>>> pollingSummary = Stats.getPollingSummary();
-        
+        Map<String, PlotValues<Long, Double>> pollingSummary = Stats.getPollingSummary();
+
         System.out.println(pollingSummary);
 
-        List<Pair<Long, Double>> pollingValues = pollingSummary.get("poll");
+        PlotValues<Long, Double> pollingValues = pollingSummary.get("poll");
         int increment = 1;
         int expected = increment;
-        for (Pair<Long, Double> v : pollingValues) {
-            assertEquals(expected, v.getSecond().intValue());
+        Iterator<PlaneValues<Long, Double>> it = pollingValues.getPlotValuesIterator();
+        while (it.hasNext()) {
+            PlaneValues<Long, Double> v = it.next();
+            assertEquals(expected, v.getY().intValue());
             expected += increment;
         }
 
         pollingValues = pollingSummary.get("poll2");
         increment = 2;
         expected = 1;
-        for (Pair<Long, Double> v : pollingValues) {
-            assertEquals(expected, v.getSecond().intValue());
+
+        it = pollingValues.getPlotValuesIterator();
+        while (it.hasNext()) {
+            PlaneValues<Long, Double> v = it.next();
+            assertEquals(expected, v.getY().intValue());
             expected += increment;
         }
 
@@ -62,6 +70,7 @@ public class PollingValueTester {
                 public void run() {
                     while (true) {
                         theField++;
+                        // System.out.println(theField);
                         try {
                             Thread.sleep(frequency);
                         } catch (InterruptedException e) {

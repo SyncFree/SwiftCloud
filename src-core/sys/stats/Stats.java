@@ -8,21 +8,29 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import swift.utils.Pair;
+import sys.stats.common.SliceStatistics.SimpleValueSignalImpl;
 
 public class Stats {
-    // Make it configurable via init() or properties.
-    public static final int SAMPLING_INTERVAL_MILLIS = 1000;
+    public static final int SAMPLING_INTERVAL_MILLIS = 10000;
 
-    private static Map<String, CountingSource> countigSources;
-    private static Map<String, ValuesSource> valuesSources;
-    private static Map<String, Pair<ValuesSource, PollingBasedValueProvider>> pollingProviders;
+    private static Map<String, CounterOverTime> countigSources;
+    // private static Map<String, ValuesOverTime> valuesSources;
+    private static Map<String, HistogramOverTime> valuesFrequencySource;
+    private static Map<String, Pair<ValuesOverTime, PollingBasedValueProvider>> pollingProviders;
+    private static int currentSamplingInterval;
 
     private static Thread pollWorker;
 
     public static void init() {
-        countigSources = new HashMap<String, CountingSource>();
-        valuesSources = new HashMap<String, ValuesSource>();
-        pollingProviders = new LinkedHashMap<String, Pair<ValuesSource, PollingBasedValueProvider>>();
+        init(SAMPLING_INTERVAL_MILLIS);
+    }
+
+    public static void init(int samplingInterval) {
+        currentSamplingInterval = samplingInterval;
+        countigSources = new HashMap<String, CounterOverTime>();
+        // valuesSources = new HashMap<String, ValuesOverTime>();
+        valuesFrequencySource = new HashMap<String, HistogramOverTime>();
+        pollingProviders = new LinkedHashMap<String, Pair<ValuesOverTime, PollingBasedValueProvider>>();
 
         pollWorker = new Thread(new Runnable() {
 
@@ -30,13 +38,13 @@ public class Stats {
             public void run() {
                 while (true) {
                     try {
-                        for (Entry<String, Pair<ValuesSource, PollingBasedValueProvider>> p : pollingProviders
+                        for (Entry<String, Pair<ValuesOverTime, PollingBasedValueProvider>> p : pollingProviders
                                 .entrySet()) {
-                            Pair<ValuesSource, PollingBasedValueProvider> pollStats = p.getValue();
+                            Pair<ValuesOverTime, PollingBasedValueProvider> pollStats = p.getValue();
                             double value = pollStats.getSecond().poll();
-                            pollStats.getFirst().recordEventWithValue(value);
+                            pollStats.getFirst().recordSignal(value);
                         }
-                        Thread.sleep(SAMPLING_INTERVAL_MILLIS);
+                        Thread.sleep(currentSamplingInterval);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -47,46 +55,48 @@ public class Stats {
         pollWorker.setDaemon(true);
     }
 
-    public static CountingSource getCountingSourceForStat(String statName) {
-        CountingSource cs = null;
+    public static CounterSignal getCountingSourceForStat(String statName) {
+        CounterOverTime cs = null;
         synchronized (countigSources) {
             cs = countigSources.get(statName);
-            if (cs == null)
-                countigSources.put(statName, new CountingSourceImpl(statName, SAMPLING_INTERVAL_MILLIS));
+            if (cs == null) {
+                cs = new CounterOverTime(currentSamplingInterval, statName);
+                countigSources.put(statName, cs);
+            }
         }
         return cs;
     }
 
-    // TODO: Must think about this
-    public static ValuesSource getValuesSourceForStat(String statName, Double... exportedPercentiles) {
-        ValuesSource vs = null;
-        synchronized (valuesSources) {
-            vs = valuesSources.get(statName);
-            if (vs == null)
-                valuesSources.put(statName, new ValueSourceImpl(statName, SAMPLING_INTERVAL_MILLIS));
+    // TODO: Must abstract HistogramInterface
+    public static HistogramOverTime getValuesFrequencyOverTime(String statName, double... histogramIntervals) {
+        HistogramOverTime hist = null;
+        synchronized (valuesFrequencySource) {
+            hist = valuesFrequencySource.get(statName);
+            if (hist == null) {
+                hist = new HistogramOverTime(currentSamplingInterval, histogramIntervals, statName);
+                valuesFrequencySource.put(statName, hist);
+            }
         }
-        return vs;
+        return hist;
     }
 
     public static void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider) {
-        Pair<ValuesSource, PollingBasedValueProvider> ps = null;
+        Pair<ValuesOverTime, PollingBasedValueProvider> ps = null;
         synchronized (pollingProviders) {
             ps = pollingProviders.get(statName);
             if (ps == null)
-                pollingProviders.put(statName, new Pair<ValuesSource, PollingBasedValueProvider>(new ValueSourceImpl(
-                        statName, SAMPLING_INTERVAL_MILLIS), provider));
+                pollingProviders.put(statName, new Pair<ValuesOverTime, PollingBasedValueProvider>(new ValuesOverTime(
+                        currentSamplingInterval, statName), provider));
             if (!pollWorker.isAlive())
                 pollWorker.start();
         }
     }
 
-    public static Map<String, List<Pair<Long, Double>>> getPollingSummary() {
-        LinkedHashMap<String, List<Pair<Long, Double>>> pollingSummary = new LinkedHashMap<String, List<Pair<Long, Double>>>();
-        Set<Entry<String, Pair<ValuesSource, PollingBasedValueProvider>>> values = pollingProviders.entrySet();
-        for (Entry<String, Pair<ValuesSource, PollingBasedValueProvider>> v : values) {
-            // TODO: Abstarct this
-            pollingSummary.put(v.getKey(), ((ValueSourceImpl) v.getValue().getFirst()).getSumOverTime());
-
+    public static Map<String, PlotValues<Long, Double>> getPollingSummary() {
+        LinkedHashMap<String, PlotValues<Long, Double>> pollingSummary = new LinkedHashMap<String, PlotValues<Long, Double>>();
+        Set<Entry<String, Pair<ValuesOverTime, PollingBasedValueProvider>>> values = pollingProviders.entrySet();
+        for (Entry<String, Pair<ValuesOverTime, PollingBasedValueProvider>> v : values) {
+            pollingSummary.put(v.getKey(), v.getValue().getFirst().getPlotValues());
         }
         return pollingSummary;
     }
