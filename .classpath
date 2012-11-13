@@ -1,25 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry excluding="sys/dht/api/DHT_Connection.java|sys/dht/api/DHT_Handler.java|sys/dht/api/DHT_Key.java|sys/dht/api/DHT_Message.java|sys/net/impl/rpc/RpcFactoryImpl2.java|sys/net/impl/KryoObjectBuffer2.java|sys/net/impl/KryoQueue.java|sys/net/impl/LocalEndpoint2.java|sys/net/impl2/rpc/tcp/|sys/net/oldimpl/|sys/net/impl2/tcp/nio2/TcpEndpoint.java" kind="src" path="src"/>
-	<classpathentry excluding="swift/client/TxnHandleImplTest.java" kind="src" path="src-test"/>
-	<classpathentry kind="src" path="src-alpha"/>
+	<classpathentry kind="src" path="src-core"/>
+	<classpathentry kind="src" path="src-app"/>
+	<classpathentry kind="src" path="src-contrib"/>
+	<classpathentry kind="src" path="src-core-test"/>
+	<classpathentry kind="src" path="src-core-bench"/>
+	<classpathentry kind="src" path="src-app-test"/>
+	<classpathentry kind="src" path="src-contrib-test"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
-	<classpathentry kind="lib" path="lib/activemq-protobuf-1.0.jar"/>
-	<classpathentry kind="lib" path="lib/riak-client-1.0.3-jar-with-dependencies.jar"/>
-	<classpathentry kind="lib" path="lib/easymock-3.1.jar">
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/core/db.jar"/>
+	<classpathentry kind="lib" path="lib/core/kryo-2.20-all.jar"/>
+	<classpathentry kind="lib" path="lib/core/netty-3.5.0.Final.jar"/>
+	<classpathentry kind="lib" path="lib/core/riak-client-1.0.3-jar-with-dependencies.jar"/>
+	<classpathentry kind="lib" path="lib/core/ssj.jar"/>
+	<classpathentry kind="lib" path="lib/core/xmlpull-1.1.3.1.jar"/>
+	<classpathentry kind="lib" path="lib/core/xpp3_min-1.1.4c.jar"/>
+	<classpathentry kind="lib" path="lib/core/xstream-1.4.3.jar"/>
+	<classpathentry kind="lib" path="lib/extras/activemq-protobuf-1.0.jar"/>
+	<classpathentry kind="lib" path="lib/extras/aws-java-sdk-1.3.22.jar"/>
+	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
+	<classpathentry kind="lib" path="lib/extras/easymock-3.1.jar">
 		<attributes>
 			<attribute name="javadoc_location" value="http://www.easymock.org/api/easymock/3.1/"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="lib/kryo-2.20-all.jar"/>
-	<classpathentry kind="lib" path="lib/netty-3.5.0.Final.jar"/>
-	<classpathentry kind="lib" path="lib/ssj.jar"/>
-	<classpathentry kind="lib" path="lib/xmlpull-1.1.3.1.jar"/>
-	<classpathentry kind="lib" path="lib/xpp3_min-1.1.4c.jar"/>
-	<classpathentry kind="lib" path="lib/xstream-1.4.3.jar"/>
-	<classpathentry kind="lib" path="lib/fuse4j-core-2.4.0.0-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="lib/org.eclipse.jgit-2.1.0.201209190230-r.jar"/>
-	<classpathentry kind="lib" path="lib/diffutils-1.2.1.jar"/>
-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="lib/extras/fuse4j-core-2.4.0.0-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="lib/extras/junit-4.4.jar"/>
+	<classpathentry kind="lib" path="lib/extras/netty-3.5.0.Final-sources.jar"/>
+	<classpathentry kind="lib" path="lib/extras/org.eclipse.jgit-2.1.0.201209190230-r.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
