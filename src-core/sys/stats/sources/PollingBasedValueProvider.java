@@ -1,4 +1,4 @@
-package sys.stats;
+package sys.stats.sources;
 
 public interface PollingBasedValueProvider {
     double poll();

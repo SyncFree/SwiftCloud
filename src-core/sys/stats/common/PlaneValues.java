@@ -1,4 +1,4 @@
-package sys.stats;
+package sys.stats.common;
 
 public class PlaneValues<X, Y> {
 

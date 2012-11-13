@@ -1,8 +1,8 @@
-package sys.stats;
+package sys.stats.sources;
 
-public interface ValuesSignal {
+public interface ValueSignalSource {
     
-    public void recordSignal(double value);
+    public void setValue(double value) ;
 
     public Stopper createEventDurationSignal();
     

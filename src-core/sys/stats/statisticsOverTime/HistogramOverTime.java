@@ -1,22 +1,21 @@
-package sys.stats;
+package sys.stats.statisticsOverTime;
 
 import java.util.List;
 
 import swift.utils.Pair;
-import sys.stats.common.SliceStatistics.CommDistributionImpl;
-import sys.stats.common.SliceStatistics.CounterSignalImpl;
-import sys.stats.common.SliceStatistics.GenericStatisticsOverTime;
-import sys.stats.common.SliceStatistics.Histogram;
-import sys.stats.common.SliceStatistics.HistogramImpl;
+import sys.stats.common.PlotValues;
+import sys.stats.slicedStatistics.slices.histogram.CommDistributionImpl;
+import sys.stats.slicedStatistics.slices.histogram.Histogram;
+import sys.stats.sources.ValueSignalSource;
 
-public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributionImpl> implements ValuesSignal {
+public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributionImpl> implements ValueSignalSource {
 
     public HistogramOverTime(long timeSlice, double[] commValues, String sourceName) {
         super(timeSlice, new CommDistributionImpl(sourceName, commValues));
     }
 
     @Override
-    public void recordSignal(double value) {
+    public void setValue(double value) {
         CommDistributionImpl slice = getCurrentSlice(System.currentTimeMillis());
         slice.addValue(value);
 
@@ -29,7 +28,7 @@ public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributio
             public void stop() {
                 long TE = System.currentTimeMillis();
                 long duration = TE - TS;
-                recordSignal(duration);
+                setValue(duration);
             }
 
         };

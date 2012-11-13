@@ -1,4 +1,4 @@
-package sys.stats;
+package sys.stats.common;
 
 import java.util.ArrayList;
 import java.util.Iterator;
