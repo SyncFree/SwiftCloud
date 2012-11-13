@@ -64,7 +64,7 @@ import fuse.XattrSupport;
  * - There is no create() operation, mknod() will be called for creation of all
  * non directory, non symlink nodes.
  * 
- * - open() No creation, or trunctation flags (O_CREAT, O_EXCL, O_TRUNC) will be
+ * - open() No creation, or truncation flags (O_CREAT, O_EXCL, O_TRUNC) will be
  * passed to open(). Open should only check if the operation is permitted for
  * the given flags.
  * 
@@ -90,6 +90,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
     protected static SwiftSession server;
 
     protected IsolationLevel isolationlevel = IsolationLevel.REPEATABLE_READS;
+    protected CachePolicy cachepolicy = CachePolicy.CACHED;
     protected boolean commitAsync = true;
 
     protected Filesystem fs;
@@ -127,7 +128,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 IFile f = (IFile) fileHandle;
                 File fstub = new File(remotePath);
                 fs.updateFile(txn, fstub.getName(), fstub.getParent(), f);
@@ -161,13 +162,13 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 IFile f = (IFile) fileHandle;
                 File fstub = new File(remotePath);
                 fs.updateFile(txn, fstub.getName(), fstub.getParent(), f);
                 commit(txn);
                 // TODO Shouldn't this be one txn?
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 fileHandle = fs.readFile(txn, fstub.getName(), fstub.getParent());
                 commit(txn);
                 return 0;
@@ -201,7 +202,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, true);
+                txn = server.beginTxn(isolationlevel, cachepolicy, true);
                 if ("/".equals(path)) {
                     DirectoryTxnLocal root = fs.getDirectory(txn, "/" + ROOT);
                     getattrSetter.set(root.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, root.getValue()
@@ -252,7 +253,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, true);
+                txn = server.beginTxn(isolationlevel, cachepolicy, true);
                 DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
                 Collection<Pair<String, Class<?>>> c = dir.getValue();
                 for (Pair<String, Class<?>> entry : c) {
@@ -299,7 +300,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 File f = new File(remotePath);
                 log.info("creating dir " + f.getName() + " in parentdir " + f.getParent());
                 fs.createDirectory(txn, f.getName(), f.getParent());
@@ -340,7 +341,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 File f = new File(remotePath);
                 log.info("creating file " + f.getName() + " in parentdir " + f.getParent());
                 fs.createFile(txn, f.getName(), f.getParent());
@@ -377,7 +378,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, true);
+                txn = server.beginTxn(isolationlevel, cachepolicy, true);
                 File fstub = new File(remotePath);
                 if (fstub.isDirectory()) {
                     txn.rollback();
@@ -450,7 +451,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 File f = new File(remotePath);
                 fs.removeDirectory(txn, f.getName(), f.getParent());
                 commit(txn);
@@ -504,7 +505,7 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
         synchronized (this) {
             TxnHandle txn = null;
             try {
-                txn = server.beginTxn(isolationlevel, CachePolicy.STRICTLY_MOST_RECENT, false);
+                txn = server.beginTxn(isolationlevel, cachepolicy, false);
                 File f = new File(remotePath);
                 fs.removeFile(txn, f.getName(), f.getParent());
                 commit(txn);
