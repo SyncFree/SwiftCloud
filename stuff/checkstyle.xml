@@ -11,6 +11,8 @@
 <module name="Checker">
   <property name="severity" value="warning"/>
   <module name="TreeWalker">
+    <property name="severity" value="ignore"/>
+    <metadata name="net.sf.eclipsecs.core.lastEnabledSeverity" value="inherit"/>
     <module name="SuppressWarnings"/>
     <module name="MissingDeprecated"/>
     <module name="AnnotationUseStyle"/>
@@ -57,7 +59,10 @@
       <property name="severity" value="ignore"/>
       <metadata name="net.sf.eclipsecs.core.lastEnabledSeverity" value="inherit"/>
     </module>
-    <module name="DoubleCheckedLocking"/>
+    <module name="DoubleCheckedLocking">
+      <property name="severity" value="ignore"/>
+      <metadata name="net.sf.eclipsecs.core.lastEnabledSeverity" value="inherit"/>
+    </module>
     <module name="EmptyStatement"/>
     <module name="EqualsAvoidNull"/>
     <module name="EqualsHashCode"/>
