@@ -16,7 +16,7 @@ public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributio
 
     @Override
     public void setValue(double value) {
-        CommDistributionImpl slice = getCurrentSlice(System.currentTimeMillis());
+        CommDistributionImpl slice = getCurrentSlice();
         slice.addValue(value);
 
     }

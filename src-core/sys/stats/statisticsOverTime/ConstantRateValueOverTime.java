@@ -7,16 +7,22 @@ import sys.stats.common.PlotValues;
 import sys.stats.slicedStatistics.slices.ValueImpl;
 import sys.stats.sources.ValueSignalSource;
 
-public class ValueOverTime extends GenericStatisticsOverTime<ValueImpl> implements ValueSignalSource {
+public class ConstantRateValueOverTime extends GenericStatisticsOverTime<ValueImpl> implements ValueSignalSource {
 
-    public ValueOverTime(long timeSlice, String sourceName) {
+    public ConstantRateValueOverTime(long timeSlice, String sourceName) {
         super(timeSlice, new ValueImpl());
     }
 
     @Override
     public synchronized void setValue(double value) {
-        ValueImpl slice = getCurrentSlice();
-        slice.setValue(value);
+        long currTime = System.currentTimeMillis()-T0;
+        List<Pair<Long, ValueImpl>> allSlices = getAllSlices();
+        if (allSlices.get(allSlices.size() - 1).getFirst() - currTime == 0)
+            allSlices.get(allSlices.size() - 1).getSecond().setValue(value);
+        else {
+            ValueImpl slice = addSliceAndReturn();
+            slice.setValue(value);
+        }
 
     }
 

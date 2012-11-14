@@ -10,6 +10,7 @@ import swift.utils.Pair;
 import sys.stats.common.PlotValues;
 import sys.stats.sources.CounterSignalSource;
 import sys.stats.sources.PollingBasedValueProvider;
+import sys.stats.statisticsOverTime.ConstantRateValueOverTime;
 import sys.stats.statisticsOverTime.CounterOverTime;
 import sys.stats.statisticsOverTime.HistogramOverTime;
 import sys.stats.statisticsOverTime.ValueOverTime;
@@ -20,8 +21,9 @@ public class Stats {
     private static Map<String, CounterOverTime> countigSources;
     // private static Map<String, ValuesOverTime> valuesSources;
     private static Map<String, HistogramOverTime> valuesFrequencySource;
-    private static Map<String, Pair<ValueOverTime, PollingBasedValueProvider>> pollingProviders;
+    private static Map<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>> pollingProviders;
     private static int currentSamplingInterval;
+    private static boolean terminate = true;
 
     private static Thread pollWorker;
 
@@ -30,25 +32,30 @@ public class Stats {
     }
 
     public static void init(int samplingInterval) {
+        if(terminate == false){
+            System.out.println("already initialized");
+        }
+        terminate = false;
         currentSamplingInterval = samplingInterval;
         countigSources = new HashMap<String, CounterOverTime>();
         // valuesSources = new HashMap<String, ValuesOverTime>();
         valuesFrequencySource = new HashMap<String, HistogramOverTime>();
-        pollingProviders = new LinkedHashMap<String, Pair<ValueOverTime, PollingBasedValueProvider>>();
+        pollingProviders = new LinkedHashMap<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>>();
 
         pollWorker = new Thread(new Runnable() {
 
             @Override
             public void run() {
-                while (true) {
+                while (!terminate) {
                     try {
-                        for (Entry<String, Pair<ValueOverTime, PollingBasedValueProvider>> p : pollingProviders
+                        for (Entry<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>> p : pollingProviders
                                 .entrySet()) {
-                            Pair<ValueOverTime, PollingBasedValueProvider> pollStats = p.getValue();
+                            Pair<ConstantRateValueOverTime, PollingBasedValueProvider> pollStats = p.getValue();
                             double value = pollStats.getSecond().poll();
                             pollStats.getFirst().setValue(value);
                         }
                         Thread.sleep(currentSamplingInterval);
+
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -57,6 +64,11 @@ public class Stats {
             }
         });
         pollWorker.setDaemon(true);
+        pollWorker.start();
+    }
+
+    public static void dispose() {
+        terminate = true;
     }
 
     public static CounterSignalSource getCountingSourceForStat(String statName) {
@@ -85,21 +97,21 @@ public class Stats {
     }
 
     public static void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider) {
-        Pair<ValueOverTime, PollingBasedValueProvider> ps = null;
+        Pair<ConstantRateValueOverTime, PollingBasedValueProvider> ps = null;
         synchronized (pollingProviders) {
             ps = pollingProviders.get(statName);
             if (ps == null)
-                pollingProviders.put(statName, new Pair<ValueOverTime, PollingBasedValueProvider>(new ValueOverTime(
-                        currentSamplingInterval, statName), provider));
-            if (!pollWorker.isAlive())
-                pollWorker.start();
+                pollingProviders.put(statName, new Pair<ConstantRateValueOverTime, PollingBasedValueProvider>(
+                        new ConstantRateValueOverTime(currentSamplingInterval, statName), provider));
+
         }
     }
 
     public static Map<String, PlotValues<Long, Double>> getPollingSummary() {
         LinkedHashMap<String, PlotValues<Long, Double>> pollingSummary = new LinkedHashMap<String, PlotValues<Long, Double>>();
-        Set<Entry<String, Pair<ValueOverTime, PollingBasedValueProvider>>> values = pollingProviders.entrySet();
-        for (Entry<String, Pair<ValueOverTime, PollingBasedValueProvider>> v : values) {
+        Set<Entry<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>>> values = pollingProviders
+                .entrySet();
+        for (Entry<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>> v : values) {
             pollingSummary.put(v.getKey(), v.getValue().getFirst().getPlotValues());
         }
         return pollingSummary;

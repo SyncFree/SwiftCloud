@@ -15,7 +15,7 @@ public class CounterOverTime extends GenericStatisticsOverTime<CounterImpl> impl
 
     @Override
     public void incCounter() {
-        CounterImpl slice = getCurrentSlice(System.currentTimeMillis());
+        CounterImpl slice = getCurrentSlice();
         slice.incCounter();
     }
 

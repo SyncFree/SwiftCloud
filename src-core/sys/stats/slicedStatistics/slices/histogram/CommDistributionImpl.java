@@ -54,5 +54,9 @@ public class CommDistributionImpl implements Histogram, SlicedStatistics<CommDis
             results.addValue(v.getFirst(), v.getSecond());
         return results;
     }
+    
+    public String toString(){
+        return countLessThan.toString();
+    }
 
 }

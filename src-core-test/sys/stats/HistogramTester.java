@@ -6,15 +6,10 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import sys.stats.HistogramOverTime;
-import sys.stats.Stats;
-import sys.stats.TallyHistogramOverTime;
-import sys.stats.PlaneValues;
-import sys.stats.PlotValues;
-import sys.stats.ValuesOverTime;
-import sys.stats.ValuesSignal;
-import sys.stats.ValuesSignal.Stopper;
-import sys.stats.common.SliceStatistics.Histogram;
+import sys.stats.common.PlaneValues;
+import sys.stats.slicedStatistics.slices.histogram.Histogram;
+import sys.stats.sources.ValueSignalSource.Stopper;
+import sys.stats.statisticsOverTime.HistogramOverTime;
 
 public class HistogramTester {
 
@@ -39,9 +34,11 @@ public class HistogramTester {
             e.printStackTrace();
         }
         stopper.stop();
+        System.out.println(opsLatency.getPlotValues());
 
         // Latency should be under 600ms for successive operations.
         Iterator<PlaneValues<Long, Histogram>> it = opsLatency.getPlotValues().getPlotValuesIterator();
+        it.next();
         // The Histograms iterator
         while (it.hasNext()) {
             PlaneValues<Long, Histogram> value = it.next();
@@ -59,10 +56,9 @@ public class HistogramTester {
     // Experiencia que dura mais tempo do que apenas um slice. Os resutlados n
     // podem aparecer agregados, mas devem fazer referencia aos mesmos valores.
     // Depois fazer o merge de dois slices
-    @Test
+//    @Test
     public void testOpLatency2() {
-        Stats.init(1300);
-
+        
         HistogramOverTime opsLatency = Stats.getValuesFrequencyOverTime("histogram", 200, 400, 1000);
 
         Stopper stopper = opsLatency.createEventDurationSignal();

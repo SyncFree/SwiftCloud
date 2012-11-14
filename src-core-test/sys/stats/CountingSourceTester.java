@@ -6,10 +6,9 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import swift.utils.Pair;
-import sys.stats.CounterOverTime;
-import sys.stats.PlaneValues;
-import sys.stats.PlotValues;
+import sys.stats.common.PlaneValues;
+import sys.stats.common.PlotValues;
+import sys.stats.statisticsOverTime.CounterOverTime;
 
 public class CountingSourceTester {
 
