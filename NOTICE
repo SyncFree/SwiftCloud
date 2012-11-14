@@ -1,0 +1,19 @@
+SwiftCloud
+Copyright 2011-2012 INRIA
+Copyright 2011-2012 Universidade Nova de Lisboa
+Copyright 2012 Kaiserslautern University of Technology
+
+This product includes software developed at
+- INRIA (http://www.inria.fr/),
+- Universidade Nova de Lisboa (http://www.unl.pt/),
+- Kaiserslautern University of Technology (http://www.uni-kl.de/).
+
+FIXME: The packages in src-contribe were developed by LORIA, the licensing status is to be determined!
+
+This product includes/uses software(s) developed by 'OFFIS, Tammo Freese, Henri Tremblay'
+  - EasyMock (http://www.easymock.org/) under The Apache License 2.0
+
+This product includes/uses software(s) developed by 'www.hamcrest.org'
+  - junit (http://www.junit.org/) under the BSD license
+
+FIXME: provide information for other libraries
