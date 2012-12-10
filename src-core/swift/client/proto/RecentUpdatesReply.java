@@ -28,7 +28,9 @@ import sys.net.api.rpc.RpcMessage;
 
 /**
  * Server reply to recent updates request, a summary of all subscription changes
- * and updates since the last message.
+ * and updates since the last message. This message includes all the updates
+ * since the {@link #getObjectsPreviousClocks()} (specified for each object) and
+ * the new {@link #getClock()}.
  * 
  * @author mzawirski
  */
@@ -46,12 +48,15 @@ public class RecentUpdatesReply implements RpcMessage {
          */
         LOST
         // TODO(mzawirski): a more involved protocol could distinguish these two
-        // cases and deal with them more efficiently; let's keep it as a
-        // possible optimization
+        // cases and deal with lost messages more efficiently; let's keep it as
+        // a possible optimization
+        // TODO(mzawirski): the status is actually not needed for this simple
+        // version of protocol that includes all objects from subscription set
+        // in each message.
     }
 
     protected SubscriptionStatus status;
-    protected Map<CRDTIdentifier, CausalityClock> newlyConfirmedSubscriptions;
+    protected Map<CRDTIdentifier, CausalityClock> objectsPreviousClocks;
     protected List<CRDTObjectUpdatesGroup> updates;
     protected CausalityClock clock;
 
@@ -61,11 +66,10 @@ public class RecentUpdatesReply implements RpcMessage {
     RecentUpdatesReply() {
     }
 
-    public RecentUpdatesReply(SubscriptionStatus status,
-            Map<CRDTIdentifier, CausalityClock> newlyConfirmedSubscriptions, List<CRDTObjectUpdatesGroup> updates,
-            CausalityClock clock) {
+    public RecentUpdatesReply(SubscriptionStatus status, Map<CRDTIdentifier, CausalityClock> objectsPreviousClocks,
+            List<CRDTObjectUpdatesGroup> updates, CausalityClock clock) {
         this.status = status;
-        this.newlyConfirmedSubscriptions = newlyConfirmedSubscriptions;
+        this.objectsPreviousClocks = objectsPreviousClocks;
         this.updates = updates;
         this.clock = clock;
     }
@@ -78,34 +82,27 @@ public class RecentUpdatesReply implements RpcMessage {
     }
 
     /**
-     * @return confirmation of successful new (or needlessly renewed)
-     *         subscriptions since the last message, triggered by
-     *         {@link FetchObjectVersionRequest#getSubscriptionType()};
-     *         map of object identifier to the first clock covered by this and
-     *         future notifications, i.e. client will be informed about all
-     *         updates since that clock; null in case of no subscriptions;
-     *         meaningless if status is {@link SubscriptionStatus#LOST}
+     * @return a map from object identifier to clock; there is an entry for each
+     *         object that is in the subscription set of this session to the old
+     *         object version; this message is guaranteed to contain all updates
+     *         since this version until {@link #getClock()}; meaningless if
+     *         status is {@link SubscriptionStatus#LOST}
      */
-    public Map<CRDTIdentifier, CausalityClock> getNewlyConfirmedSubscriptions() {
-        return newlyConfirmedSubscriptions;
+    public Map<CRDTIdentifier, CausalityClock> getObjectsPreviousClocks() {
+        return objectsPreviousClocks;
     }
 
     /**
      * @return true if this notification confirms any new subscription
      * @see #getNewlyConfirmedSubscriptions()
      */
-    public boolean hasNewlyConfirmedSubscriptions() {
-        return newlyConfirmedSubscriptions != null;
+    public boolean hasActiveSubscriptions() {
+        return objectsPreviousClocks != null && !objectsPreviousClocks.isEmpty();
     }
 
     /**
      * @return the latest clock for which every update on subscribed objects was
-     *         sent; more precisely, all updates for every subscribed object
-     *         performed between {@link RecentUpdatesRequest#getLastClock()}
-     *         exclusive (or {@link #getNewlyConfirmedSubscriptions()} clock for
-     *         a newly subscribed object) and this clock inclusive are included
-     *         in this message; meaningless if status is
-     *         {@link SubscriptionStatus#LOST}
+     *         sent; meaningless if status is {@link SubscriptionStatus#LOST}
      */
     public CausalityClock getClock() {
         return clock;
@@ -125,7 +122,7 @@ public class RecentUpdatesReply implements RpcMessage {
      * @return true if the message contains any updates
      */
     public boolean hasUpdates() {
-        return !updates.isEmpty();
+        return updates != null && !updates.isEmpty();
     }
 
     @Override
