@@ -1,6 +1,6 @@
 /*****************************************************************************
  * Copyright 2011-2012 INRIA
- * Copyright 2012 Kaiserslautern University of Technology
+ * Copyright 2012 University of Kaiserslautern
  * Copyright 2011-2012 Universidade Nova de Lisboa
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
