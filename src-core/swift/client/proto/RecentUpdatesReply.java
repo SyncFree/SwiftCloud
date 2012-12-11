@@ -68,6 +68,34 @@ public class RecentUpdatesReply implements RpcMessage {
     RecentUpdatesReply() {
     }
 
+    /**
+     * @param status
+     *            subscription status; when {@link SubscriptionStatus#LOST} all
+     *            other arguments are meaningless
+     * @param objectsPreviousClocks
+     *            map from object identifier to the previous version of an
+     *            object, indicating that updates since that version must be
+     *            included in this message; there is an entry for each object
+     *            that is in the subscription set of this session; for most
+     *            objects the old version is expected to be the
+     *            {@link #getClock()} of the preceding notification message
+     *            (using the same clock instance is encouraged as a space
+     *            optimization) except for the object just added to subscription
+     *            set where it points to the object version sent in the fetch
+     *            reply; the map can be empty or null, but cannot point to a
+     *            null value
+     * @param updates
+     *            a sequence of all updates since objectsPreviousClocks old
+     *            versions and a clock for all objects in objectsPreviousClocks
+     *            key-set; a subsequence (projection) of this updates on object
+     *            X must be a valid linear extension of updates on X; note that
+     *            updates can use shared dependency clock to save space (see
+     *            {@link CRDTObjectUpdatesGroup#withDependencyClock(CausalityClock)}
+     *            ); the list can be empty or null
+     * @param clock
+     *            new version of all subscribed objects, indicating that prior
+     *            updates since the old version are included in this message
+     */
     public RecentUpdatesReply(SubscriptionStatus status, Map<CRDTIdentifier, CausalityClock> objectsPreviousClocks,
             List<CRDTObjectUpdatesGroup> updates, CausalityClock clock, CausalityClock estimatedCommittedVersion,
             CausalityClock estimatedDistasterDurableCommittedVersion) {
@@ -87,37 +115,43 @@ public class RecentUpdatesReply implements RpcMessage {
     }
 
     /**
-     * @return a map from object identifier to clock; there is an entry for each
-     *         object that is in the subscription set of this session to the old
-     *         object version; this message is guaranteed to contain all updates
-     *         since this version until {@link #getClock()}; meaningless if
-     *         status is {@link SubscriptionStatus#LOST}
+     * @return map from object identifier to the previous version of an object,
+     *         indicating that updates since that version must be included in
+     *         this message; there is an entry for each object that is in the
+     *         subscription set of this session; for most objects the old
+     *         version is expected to be the {@link #getClock()} of the
+     *         preceding notification message except for the object just added
+     *         to subscription set where it points to the object version sent in
+     *         the fetch reply; the map can be empty or null, but cannot point
+     *         to a null value; meaningless if status is
+     *         {@link SubscriptionStatus#LOST}
      */
     public Map<CRDTIdentifier, CausalityClock> getObjectsPreviousClocks() {
         return objectsPreviousClocks;
     }
 
     /**
-     * @return true if this notification confirms any new subscription
-     * @see #getNewlyConfirmedSubscriptions()
+     * @return true if this session has any active subscriptions
      */
     public boolean hasActiveSubscriptions() {
         return objectsPreviousClocks != null && !objectsPreviousClocks.isEmpty();
     }
 
     /**
-     * @return the latest clock for which every update on subscribed objects was
-     *         sent; meaningless if status is {@link SubscriptionStatus#LOST}
+     * @return new version of all subscribed objects, indicating that prior
+     *         updates since the old version are included in this message;
+     *         meaningless if status is {@link SubscriptionStatus#LOST}
      */
     public CausalityClock getClock() {
         return clock;
     }
 
     /**
-     * @return list of updates on subscribed objects; null in case of no
-     *         updates; the order in the list is a linear extension of the
-     *         causal order; meaningless if status is
-     *         {@link SubscriptionStatus#LOST}
+     * @return a sequence of all updates between
+     *         {@link #getObjectsPreviousClocks()} old versions and
+     *         {@link #getClock()} for all subscribed objects; a subsequence
+     *         (projection) of this updates on object X must be a valid linear
+     *         extension of updates on X; the list can be empty or null
      */
     public List<CRDTObjectUpdatesGroup> getUpdates() {
         return updates;
