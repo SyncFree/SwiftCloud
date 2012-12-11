@@ -30,7 +30,7 @@ import sys.net.api.rpc.RpcMessage;
  * Server reply to recent updates request, a summary of all subscription changes
  * and updates since the last message. This message includes all the updates
  * since the {@link #getObjectsPreviousClocks()} (specified for each object) and
- * the new {@link #getClock()}.
+ * the new {@link #getClock()}, and estimated values of committed clocks.
  * 
  * @author mzawirski
  */
@@ -59,6 +59,8 @@ public class RecentUpdatesReply implements RpcMessage {
     protected Map<CRDTIdentifier, CausalityClock> objectsPreviousClocks;
     protected List<CRDTObjectUpdatesGroup> updates;
     protected CausalityClock clock;
+    protected CausalityClock estimatedCommittedVersion;
+    protected CausalityClock estimatedDistasterDurableCommittedVersion;
 
     /**
      * No-args constructor for Kryo-serialization.
@@ -67,11 +69,14 @@ public class RecentUpdatesReply implements RpcMessage {
     }
 
     public RecentUpdatesReply(SubscriptionStatus status, Map<CRDTIdentifier, CausalityClock> objectsPreviousClocks,
-            List<CRDTObjectUpdatesGroup> updates, CausalityClock clock) {
+            List<CRDTObjectUpdatesGroup> updates, CausalityClock clock, CausalityClock estimatedCommittedVersion,
+            CausalityClock estimatedDistasterDurableCommittedVersion) {
         this.status = status;
         this.objectsPreviousClocks = objectsPreviousClocks;
         this.updates = updates;
         this.clock = clock;
+        this.estimatedCommittedVersion = estimatedCommittedVersion;
+        this.estimatedDistasterDurableCommittedVersion = estimatedDistasterDurableCommittedVersion;
     }
 
     /**
@@ -123,6 +128,21 @@ public class RecentUpdatesReply implements RpcMessage {
      */
     public boolean hasUpdates() {
         return updates != null && !updates.isEmpty();
+    }
+
+    /**
+     * @return estimation of the latest committed clock in the store
+     */
+    public CausalityClock getEstimatedCommittedVersion() {
+        return estimatedCommittedVersion;
+    }
+
+    /**
+     * @return estimation of the latest committed clock in the store, durable in
+     *         even in case of disaster affecting fragment of the store
+     */
+    public CausalityClock getEstimatedDisasterDurableCommittedVersion() {
+        return estimatedDistasterDurableCommittedVersion;
     }
 
     @Override
