@@ -164,7 +164,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
      *            another one.
      * @return
      */
-    public CRDTObjectUpdatesGroup<V> withWithDependencyClock(final CausalityClock newDependencyClock) {
+    public CRDTObjectUpdatesGroup<V> withDependencyClock(final CausalityClock newDependencyClock) {
         if (!newDependencyClock.compareTo(dependencyClock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
             throw new IllegalArgumentException("new dependency clock is concurrent or lower than the old one");
         }
