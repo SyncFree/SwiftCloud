@@ -34,6 +34,7 @@ public class SwiftOptions {
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
+    private static final String DEFAULT_STATISTICS_FOLDER = "statistics";
 
     private String serverHostname;
     private int serverPort;
@@ -49,6 +50,9 @@ public class SwiftOptions {
     private int maxCommitBatchSize;
     private String logFilename;
     private boolean logFlushOnCommit;
+
+    private boolean overwriteStatisticsDir;
+    private String statisticsOutputDir;
 
     /**
      * Creates a new instance with default options and provided server endpoint
@@ -73,6 +77,7 @@ public class SwiftOptions {
         this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
         this.logFilename = DEFAULT_LOG_FILENAME;
         this.setLogFlushOnCommit(DEFAULT_LOG_FLUSH_ON_COMMIT);
+        this.statisticsOutputDir = DEFAULT_STATISTICS_FOLDER;
     }
 
     /**
@@ -287,5 +292,19 @@ public class SwiftOptions {
      */
     public void setLogFlushOnCommit(boolean logFlushOnCommit) {
         this.logFlushOnCommit = logFlushOnCommit;
+    }
+
+    public void setStatisticsOutputFolder(String outputFolder, boolean overwriteExistingDir) {
+        this.statisticsOutputDir = outputFolder;
+        this.overwriteStatisticsDir = overwriteExistingDir;
+
+    }
+
+    public String getStatisticsOuputDir() {
+        return statisticsOutputDir;
+    }
+
+    public boolean getStatisticsOverwriteDir() {
+        return overwriteStatisticsDir;
     }
 }

@@ -19,6 +19,7 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,6 +96,11 @@ import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.stats.Stats;
+import sys.stats.StatsConstants;
+import sys.stats.sources.CounterSignalSource;
+import sys.stats.sources.PollingBasedValueProvider;
+import sys.stats.sources.ValueSignalSource;
 
 /**
  * Implementation of Swift scout and transactions manager. Scout can either
@@ -231,7 +237,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
     private final TransactionsLog durableLog;
-    private final CacheStats cacheStats;
 
     // OPTIONS
     private final int timeoutMillis;
@@ -252,6 +257,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // Maximum number of transactions in a single commit request to the store.
     private final int maxCommitBatchSize;
 
+    // TODO: track stable global commits
+
+    private Stats stats;
+    private final CoarseCacheStats cacheStats;
+
+    private CounterSignalSource ongoingObjectFetchesStats;
+    private ValueSignalSource batchSizeOnCommitStats;
+
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint,
             final TimeSizeBoundedObjectsCache objectsCache, final SwiftOptions options) {
         this.scoutId = generateScoutId();
@@ -265,7 +278,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
         this.objectsCache = objectsCache;
-        this.cacheStats = new CacheStats();
+
+        this.stats = Stats.getInstance("scout-" + scoutId, Stats.SAMPLING_INTERVAL_MILLIS,
+                options.getStatisticsOuputDir(), options.getStatisticsOverwriteDir());
+        this.cacheStats = new CoarseCacheStats(stats);
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
@@ -287,6 +303,57 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
+
+        this.ongoingObjectFetchesStats = this.stats.getCountingSourceForStat("ongoing-object-fetches");
+
+        this.stats.registerPollingBasedValueProvider("uncommited-updates-objects-to-notify",
+                new PollingBasedValueProvider() {
+                    @Override
+                    public double poll() {
+                        double count = 0;
+                        synchronized (uncommittedUpdatesObjectsToNotify) {
+                            for (Entry<TimestampMapping, Set<CRDTIdentifier>> uncommittedUpdates : uncommittedUpdatesObjectsToNotify
+                                    .entrySet()) {
+                                count += uncommittedUpdates.getValue().size();
+                            }
+                        }
+                        return count;
+                    }
+                });
+
+        this.stats.registerPollingBasedValueProvider("pending-txns", new PollingBasedValueProvider() {
+
+            @Override
+            public double poll() {
+                synchronized (pendingTxns) {
+                    return pendingTxns.size();
+                }
+            }
+        });
+
+        this.stats.registerPollingBasedValueProvider("locally-committed-txns-queue", new PollingBasedValueProvider() {
+
+            @Override
+            public double poll() {
+                synchronized (locallyCommittedTxnsOrderedQueue) {
+                    return locallyCommittedTxnsOrderedQueue.size();
+                }
+            }
+        });
+
+        this.stats.registerPollingBasedValueProvider("global-committed-unstable-txns-queue",
+                new PollingBasedValueProvider() {
+
+                    @Override
+                    public double poll() {
+                        synchronized (globallyCommittedUnstableTxns) {
+                            return globallyCommittedUnstableTxns.size();
+                        }
+                    }
+                });
+
+        batchSizeOnCommitStats = this.stats.getValuesFrequencyOverTime("batch-size-on-commit",
+                StatsConstants.BATCH_SIZE);
 
         TransactionsLog log = new DummyLog();
         if (options.getLogFilename() != null) {
@@ -313,6 +380,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             }
             if (!pendingTxns.isEmpty()) {
                 logger.warning("Stopping while there are pending transactions!");
+
+                try {
+                    stats.outputAndDispose();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
                 return;
             }
 
@@ -340,6 +414,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
         logger.info("scout stopped");
         cacheStats.printAndReset();
+
+        try {
+            stats.outputAndDispose();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
     @Override
@@ -395,11 +476,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             snapshotClock.merge(lastLocallyCommittedTxnClock);
             final SnapshotIsolationTxnHandle siTxn;
             if (readOnly) {
-                siTxn = new SnapshotIsolationTxnHandle(this, sessionId, cachePolicy, snapshotClock);
+                siTxn = new SnapshotIsolationTxnHandle(this, sessionId, cachePolicy, snapshotClock, stats);
             } else {
                 final TimestampMapping timestampMapping = generateNextTimestampMapping();
                 siTxn = new SnapshotIsolationTxnHandle(this, sessionId, durableLog, cachePolicy, timestampMapping,
-                        snapshotClock);
+                        snapshotClock, stats);
             }
             addPendingTxn(siTxn);
             if (logger.isLoggable(Level.INFO)) {
@@ -410,10 +491,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         case REPEATABLE_READS:
             final RepeatableReadsTxnHandle rrTxn;
             if (readOnly) {
-                rrTxn = new RepeatableReadsTxnHandle(this, sessionId, cachePolicy);
+                rrTxn = new RepeatableReadsTxnHandle(this, sessionId, cachePolicy, stats);
             } else {
                 final TimestampMapping timestampMapping = generateNextTimestampMapping();
-                rrTxn = new RepeatableReadsTxnHandle(this, sessionId, durableLog, cachePolicy, timestampMapping);
+                rrTxn = new RepeatableReadsTxnHandle(this, sessionId, durableLog, cachePolicy, timestampMapping, stats);
             }
             addPendingTxn(rrTxn);
             if (logger.isLoggable(Level.INFO)) {
@@ -754,6 +835,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             NoSuchObjectException, WrongTypeException {
         synchronized (this) {
             fetchVersionsInProgress.add(fetchRequest.getVersion());
+            ongoingObjectFetchesStats.incCounter();
         }
 
         try {
@@ -793,6 +875,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         } finally {
             synchronized (this) {
                 fetchVersionsInProgress.remove(fetchRequest.getVersion());
+                ongoingObjectFetchesStats.decCounter();
             }
         }
     }
@@ -1190,7 +1273,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // Need to create and commit a dummy transaction, we cannot
             // returnLastTimestamp :-(
             final RepeatableReadsTxnHandle dummyTxn = new RepeatableReadsTxnHandle(this, txn.getSessionId(),
-                    durableLog, CachePolicy.CACHED, txn.getTimestampMapping());
+                    durableLog, CachePolicy.CACHED, txn.getTimestampMapping(), stats);
             dummyTxn.markLocallyCommitted();
             commitTxn(dummyTxn);
         } else {
@@ -1219,6 +1302,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
+
         if (requiresGlobalCommit(txn)) {
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
@@ -1246,6 +1330,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // Transaction is queued up for global commit.
             // THIS MAY BLOCK in wait() if the queue is full!
             addLocallyCommittedTransactionBlocking(txn);
+
         } else {
             tryReuseTxnTimestamp(txn);
             txn.markGloballyCommitted(null);
@@ -1476,6 +1561,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         public void run() {
             while (true) {
                 List<AbstractTxnHandle> transactionsToCommit = consumeLocallyCommitedTxnsQueue();
+                batchSizeOnCommitStats.setValue(transactionsToCommit.size());
                 if (stopFlag && (transactionsToCommit.isEmpty() || !stopGracefully)) {
                     if (!transactionsToCommit.isEmpty()) {
                         logger.warning("Scout ungraceful stop, some transactions may not globally committed");

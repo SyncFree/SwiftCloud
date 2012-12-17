@@ -29,10 +29,10 @@ import swift.crdt.CRDTIdentifier;
  * @author mzawirski
  */
 // TODO introduce time dimension
-public class CacheStats {
+public class FineCacheStats {
     private Map<String, TableCacheStats> tablesStats;
 
-    public CacheStats() {
+    public FineCacheStats() {
         tablesStats = new ConcurrentHashMap<String, TableCacheStats>();
     }
 

@@ -44,6 +44,11 @@ import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.DummyLog;
 import swift.utils.TransactionsLog;
+import sys.stats.Stats;
+import sys.stats.StatsConstants;
+import sys.stats.sources.CounterSignalSource;
+import sys.stats.sources.ValueSignalSource;
+import sys.stats.sources.ValueSignalSource.Stopper;
 
 /**
  * Implementation of abstract SwiftCloud transaction with unspecified isolation
@@ -84,6 +89,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final TransactionsLog durableLog;
     protected final long id;
     protected final String sessionId;
+    private CounterSignalSource locallyCommitCountStats;
+    private CounterSignalSource unstableCommitCountStats;
+    private ValueSignalSource unstableCommitDurationStats;
+    private Stopper unstableGlocalCron;
 
     /**
      * Creates an update transaction.
@@ -101,7 +110,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            updates of this transaction
      */
     AbstractTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
-            final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
+            final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats stats) {
         this.manager = manager;
         this.readOnly = false;
         this.sessionId = sessionId;
@@ -114,6 +123,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+        initStats(stats);
     }
 
     /**
@@ -128,7 +138,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      * @param cachePolicy
      *            cache policy used by this transaction
      */
-    AbstractTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy) {
+    AbstractTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy, Stats stats) {
         this.manager = manager;
         this.readOnly = true;
         this.sessionId = sessionId;
@@ -141,6 +151,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+        initStats(stats);
     }
 
     @Override
@@ -254,6 +265,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         logStatusChange();
         // Flush the log before returning to the client call.
         durableLog.flush();
+        locallyCommitCountStats.incCounter();
+        unstableGlocalCron = unstableCommitDurationStats.createEventDurationSignal();
     }
 
     /**
@@ -271,6 +284,11 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
             if (status == TxnStatus.COMMITTED_LOCAL) {
                 justGloballyCommitted = true;
                 status = TxnStatus.COMMITTED_GLOBAL;
+
+                // include Read-Only transactions
+                unstableCommitCountStats.incCounter();
+                unstableGlocalCron.stop();
+
             }
             if (systemTimestamp != null) {
                 timestampMapping.addSystemTimestamp(systemTimestamp);
@@ -383,5 +401,13 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     private long orderingScore() {
         return getTimestampMapping() == null ? 0 : getTimestampMapping().getClientTimestamp().getCounter();
+    }
+
+    private void initStats(Stats stats) {
+        locallyCommitCountStats = stats.getCountingSourceForStat("transactions-local-commit");
+        unstableCommitCountStats = stats.getCountingSourceForStat("transactions-unstable-commit");
+        unstableCommitDurationStats = stats.getValuesFrequencyOverTime("transactions-unstable-commit-duration",
+                StatsConstants.UNSTABLE_COMMIT_DURATION);
+
     }
 }

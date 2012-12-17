@@ -31,6 +31,7 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.TransactionsLog;
+import sys.stats.Stats;
 
 /**
  * Implementation of {@link IsolationLevel#REPEATABLE_READS} transaction, which
@@ -61,8 +62,8 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      *            update of this transaction
      */
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
-            final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
-        super(manager, sessionId, durableLog, cachePolicy, timestampMapping);
+            final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats statistics) {
+        super(manager, sessionId, durableLog, cachePolicy, timestampMapping, statistics);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 
@@ -76,8 +77,9 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      * @param cachePolicy
      *            cache policy used by this transaction
      */
-    RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy) {
-        super(manager, sessionId, cachePolicy);
+    RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
+            Stats statistics) {
+        super(manager, sessionId, cachePolicy, statistics);
         this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 
