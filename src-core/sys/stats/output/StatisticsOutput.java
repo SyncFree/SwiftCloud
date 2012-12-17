@@ -14,42 +14,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.common;
+package sys.stats.output;
 
-public class PlaneValues<X, Y> {
+import java.io.IOException;
 
-    private X x;
-    private Y y;
+/**
+ * The output interface for the statistics collectors TODO: Needs improvement,
+ * interface seems redundant
+ * 
+ * @author balegas
+ * 
+ */
+public interface StatisticsOutput {
 
-    public PlaneValues() {
+    public void output(ValuesOutput valuesOutput) throws IOException;
 
-    }
+    public void output(HistogramOutput valuesOutput) throws IOException;
 
-    public PlaneValues(X x, Y y) {
-        super();
-        this.x = x;
-        this.y = y;
-    }
-
-    public X getX() {
-        return x;
-    }
-
-    public void setX(X x) {
-        this.x = x;
-    }
-
-    public Y getY() {
-        return y;
-    }
-
-    public void setY(Y y) {
-        this.y = y;
-    }
-
-    @Override
-    public String toString() {
-        return "(" + ((x != null) ? x.toString() : "NULL") + ";" + ((y != null) ? y.toString() : "NULL") + ")";
-    }
+    public void close() throws IOException;
 
 }

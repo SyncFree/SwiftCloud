@@ -14,37 +14,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.slicedStatistics.slices;
+package sys.stats.output;
 
-import sys.stats.slicedStatistics.SlicedStatistics;
-import umontreal.iro.lecuyer.stat.Tally;
+import sys.stats.common.PlotValues;
+import sys.stats.sliced.slices.histogram.Histogram;
 
-public class TallyValueImpl implements SlicedStatistics<TallyValueImpl> {
+/**
+ * Represents the output form of a sequence of histograms created over time.
+ * 
+ * @author balegas
+ * 
+ */
 
-    private Tally value;
+public interface HistogramOutput {
+    /**
+     * Returns the sequence of histograms indexed by the time-interval to which
+     * they refer
+     * 
+     * @return the plot values indexed by time
+     */
+    PlotValues<Long, Histogram> getPlotValues();
 
-    public TallyValueImpl() {
-        value = new Tally();
-    }
+    /**
+     * Returns the bin value text representation
+     * 
+     * @return a string containing the values
+     */
 
-    public void addValue(double value) {
-        this.value.add(value);
-    }
-
-    public int getTotalOperations() {
-        return this.value.numberObs();
-    }
-
-    public double getSumValue() {
-        return this.value.sum();
-    }
-
-    public double getAvgValue() {
-        return this.value.average();
-    }
-
-    public TallyValueImpl createNew() {
-        return new TallyValueImpl();
-    }
-
+    String getHistogramBinValues();
 }

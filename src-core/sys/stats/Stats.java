@@ -16,46 +16,122 @@
  *****************************************************************************/
 package sys.stats;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import swift.utils.Pair;
-import sys.stats.common.PlotValues;
+import sys.stats.output.BufferedFileDumper;
+import sys.stats.overtime.CounterOverTime;
+import sys.stats.overtime.FixedRateValueOverTime;
+import sys.stats.overtime.HistogramOverTime;
 import sys.stats.sources.CounterSignalSource;
 import sys.stats.sources.PollingBasedValueProvider;
-import sys.stats.statisticsOverTime.ConstantRateValueOverTime;
-import sys.stats.statisticsOverTime.CounterOverTime;
-import sys.stats.statisticsOverTime.HistogramOverTime;
+import sys.stats.sources.ValueSignalSource;
 
-public class Stats {
-    public static final int SAMPLING_INTERVAL_MILLIS = 10000;
+/**
+ * Collects statistics for different types of sources over time. Enables
+ * collecting values opportunistically, or periodically, with different
+ * semantics. Class is intended to use as a singleton, which requires special
+ * attention to re-use of names.
+ * 
+ * @author balegas
+ * 
+ */
+public final class Stats {
 
-    private static Map<String, CounterOverTime> countigSources;
-    // private static Map<String, ValuesOverTime> valuesSources;
-    private static Map<String, HistogramOverTime> valuesFrequencySource;
-    private static Map<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>> pollingProviders;
-    private static int currentSamplingInterval;
-    private static boolean terminate = true;
+    public static final int SAMPLING_INTERVAL_MILLIS = 2000;
 
-    private static Thread pollWorker;
+    private static Map<String, Stats> statisticsByName = new HashMap<String, Stats>();
 
-    public static void init() {
+    private Map<String, CounterOverTime> countigSources;
+    private Map<String, HistogramOverTime> valuesFrequencySource;
+    private Map<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> pollingProviders;
+    private int currentSamplingInterval;
+    private boolean terminate = true;
+
+    private Thread pollWorker;
+
+    private String outputDir;
+
+    private boolean overwriteDir;
+    private static Logger logger = Logger.getLogger(Stats.class.getName());
+
+    /**
+     * Retrieves the statistics manager with a given name, or a new one if it
+     * does not exist, using the default parameters.
+     * 
+     * @param name
+     *            the name of the Statistics manager
+     * @return a statistics manager instance
+     */
+
+    public synchronized static Stats getInstance(String name) {
+        Stats stats = statisticsByName.get(name);
+        if (stats == null) {
+            stats = new Stats(name, true);
+            stats.init();
+            statisticsByName.put(name, stats);
+        }
+        return stats;
+    }
+
+    /**
+     * Retrieves the statistics manager with a given name, or a new one if it
+     * does not exist. Ignores parameter if already exists a Statistics manager
+     * with the given name.
+     * 
+     * @param name
+     *            the name of the Statistics manager
+     * @param samplingInterval
+     *            the frequency on which polling values are collected
+     * @param outputDir
+     *            the output directory for the statistics manager measures
+     * @return a statistics manager instance
+     */
+    public synchronized static Stats getInstance(String name, int samplingInterval, String outputDir,
+            boolean overwriteDir) {
+        logger.log(Level.WARNING, "Stats " + name + " already initialized ignoring output folder and sampling interval");
+        Stats stats = statisticsByName.get(name);
+        if (stats == null) {
+            stats = new Stats(outputDir, overwriteDir, samplingInterval);
+            statisticsByName.put(name, stats);
+        }
+        return stats;
+    }
+
+    private Stats(String outputDir, boolean overwriteDir) {
+        this.outputDir = outputDir;
+        this.overwriteDir = overwriteDir;
+        this.init();
+    }
+
+    private Stats(String outputDir, boolean overwriteDir, int samplingInterval) {
+        this.outputDir = outputDir;
+        this.overwriteDir = overwriteDir;
+        this.init(samplingInterval);
+
+    }
+
+    private void init() {
         init(SAMPLING_INTERVAL_MILLIS);
     }
 
-    public static void init(int samplingInterval) {
-        if (terminate == false) {
-            System.out.println("already initialized");
-        }
+    private void init(int samplingInterval) {
+
         terminate = false;
         currentSamplingInterval = samplingInterval;
         countigSources = new HashMap<String, CounterOverTime>();
-        // valuesSources = new HashMap<String, ValuesOverTime>();
         valuesFrequencySource = new HashMap<String, HistogramOverTime>();
-        pollingProviders = new LinkedHashMap<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>>();
+        pollingProviders = new LinkedHashMap<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>>();
 
         pollWorker = new Thread(new Runnable() {
 
@@ -63,9 +139,9 @@ public class Stats {
             public void run() {
                 while (!terminate) {
                     try {
-                        for (Entry<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>> p : pollingProviders
+                        for (Entry<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> p : pollingProviders
                                 .entrySet()) {
-                            Pair<ConstantRateValueOverTime, PollingBasedValueProvider> pollStats = p.getValue();
+                            Pair<FixedRateValueOverTime, PollingBasedValueProvider> pollStats = p.getValue();
                             double value = pollStats.getSecond().poll();
                             pollStats.getFirst().setValue(value);
                         }
@@ -82,53 +158,160 @@ public class Stats {
         pollWorker.start();
     }
 
-    public static void dispose() {
+    /**
+     * Writes the gathered statistics to the output folder since the creation of
+     * the statistics manager. Probe names with ":" are split and created in
+     * sub-folders accordingly
+     * 
+     * @throws IOException
+     */
+    public void outputAndDispose() throws IOException {
         terminate = true;
+        dump(outputDir);
+
     }
 
-    public static CounterSignalSource getCountingSourceForStat(String statName) {
+    /**
+     * Returns a CounterSignalSource with the given name and value 0, or an
+     * already existing one with the current value.
+     * 
+     * @param statName
+     *            the name of the counter
+     * @return CounterSignalSource
+     */
+    public CounterSignalSource getCountingSourceForStat(String statName) {
         CounterOverTime cs = null;
         synchronized (countigSources) {
             cs = countigSources.get(statName);
             if (cs == null) {
                 cs = new CounterOverTime(currentSamplingInterval, statName);
                 countigSources.put(statName, cs);
+            } else {
+                logger.log(Level.INFO, "CounterSignalSource " + statName + " already initialized");
+
             }
         }
         return cs;
     }
 
-    // TODO: Must abstract HistogramInterface
-    public static HistogramOverTime getValuesFrequencyOverTime(String statName, double... histogramIntervals) {
+    /**
+     * Returns an empty ValueSignalSource with the given name, or an already
+     * existing one with the gathered values, ignoring the requested bins.
+     * 
+     * @param statName
+     *            the name of the ValueSignalSource
+     * @param valueBins
+     *            an array containing the values to store the frequency. Values
+     *            in-between are assigned to the greatest specified.
+     * @return CounterSignalSource
+     */
+    public ValueSignalSource getValuesFrequencyOverTime(String statName, double... valueBins) {
+
         HistogramOverTime hist = null;
         synchronized (valuesFrequencySource) {
             hist = valuesFrequencySource.get(statName);
             if (hist == null) {
-                hist = new HistogramOverTime(currentSamplingInterval, histogramIntervals, statName);
+                Arrays.sort(valueBins);
+                hist = new HistogramOverTime(StatsConstants.histogramTimeFrequency, valueBins, statName);
                 valuesFrequencySource.put(statName, hist);
+            } else {
+                logger.log(Level.INFO, "ValueSignalSource " + statName + " already initialized ignoring value bins");
             }
         }
         return hist;
     }
 
-    public static void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider) {
-        Pair<ConstantRateValueOverTime, PollingBasedValueProvider> ps = null;
+    /**
+     * Assigns a new polling based statistics gatherer to this statistics
+     * manager
+     * 
+     * @param statName
+     *            the name of the polling based value provider
+     * @param provider
+     *            the implementation of the provider
+     */
+    public void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider) {
+        Pair<FixedRateValueOverTime, PollingBasedValueProvider> ps = null;
         synchronized (pollingProviders) {
             ps = pollingProviders.get(statName);
-            if (ps == null)
-                pollingProviders.put(statName, new Pair<ConstantRateValueOverTime, PollingBasedValueProvider>(
-                        new ConstantRateValueOverTime(currentSamplingInterval, statName), provider));
+            if (ps == null) {
+                pollingProviders.put(statName, new Pair<FixedRateValueOverTime, PollingBasedValueProvider>(
+                        new FixedRateValueOverTime(currentSamplingInterval, statName), provider));
+            } else {
+                logger.log(Level.INFO, "PollingBasedValueProvider " + statName + " already initialized");
 
+            }
         }
     }
 
-    public static Map<String, PlotValues<Long, Double>> getPollingSummary() {
-        LinkedHashMap<String, PlotValues<Long, Double>> pollingSummary = new LinkedHashMap<String, PlotValues<Long, Double>>();
-        Set<Entry<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>>> values = pollingProviders
-                .entrySet();
-        for (Entry<String, Pair<ConstantRateValueOverTime, PollingBasedValueProvider>> v : values) {
-            pollingSummary.put(v.getKey(), v.getValue().getFirst().getPlotValues());
+    private void dump(String outputDir) throws IOException {
+        File dir;
+        if (!overwriteDir) {
+            AtomicInteger suffixCounter = new AtomicInteger();
+            do {
+                int suf = suffixCounter.incrementAndGet();
+                dir = new File(outputDir + "-" + suf);
+
+            } while (dir.exists());
+        } else {
+            dir = new File(outputDir);
         }
-        return pollingSummary;
+
+        if (!dir.exists()) {
+            boolean result = dir.mkdir();
+            if (!result) {
+                logger.log(Level.WARNING, outputDir
+                        + " directory does not exist and it is impossible to create, cannot dump statistics");
+                return;
+            } else {
+                logger.log(Level.INFO, outputDir + " directory was created successfully");
+            }
+        }
+
+        if (!dir.isDirectory()) {
+            logger.log(Level.WARNING, outputDir + " is not a directory, cannot dump statistics");
+            return;
+        }
+
+        if (!dir.canWrite()) {
+            logger.log(Level.WARNING, outputDir + " has no write permissions, cannot dump statistics");
+            return;
+        }
+        synchronized (countigSources) {
+            for (Entry<String, CounterOverTime> counter : countigSources.entrySet()) {
+                BufferedFileDumper statsOutput = createFile(dir, counter.getKey() + "-count");
+                statsOutput.output(counter.getValue());
+                statsOutput.close();
+            }
+        }
+        synchronized (valuesFrequencySource) {
+            for (Entry<String, HistogramOverTime> histogram : valuesFrequencySource.entrySet()) {
+                BufferedFileDumper statsOutput = createFile(dir, histogram.getKey() + "-histo");
+                statsOutput.output(histogram.getValue());
+                statsOutput.close();
+            }
+        }
+        synchronized (valuesFrequencySource) {
+            for (Entry<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> pollingValues : pollingProviders
+                    .entrySet()) {
+                BufferedFileDumper statsOutput = createFile(dir, pollingValues.getKey() + "-poll");
+                statsOutput.output(pollingValues.getValue().getFirst());
+                statsOutput.close();
+            }
+        }
+    }
+
+    private BufferedFileDumper createFile(File dir, String key) throws FileNotFoundException {
+        String[] filePath = key.split(":");
+        String absolutPath = dir.getAbsolutePath();
+        for (int i = 0; i < filePath.length - 1; i++) {
+            absolutPath = absolutPath + "/" + filePath[i];
+            dir = new File(absolutPath);
+        }
+        dir.mkdirs();
+        String filename = absolutPath + "/" + filePath[filePath.length - 1];
+        BufferedFileDumper statsOutput = new BufferedFileDumper(filename);
+        statsOutput.init();
+        return statsOutput;
     }
 }

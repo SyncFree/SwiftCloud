@@ -14,11 +14,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.sources;
+package sys.stats.sliced.slices.histogram;
 
-public interface CounterSignalSource {
-    void incCounter();
+import sys.stats.common.PlotValues;
 
-    void decCounter();
+public interface Histogram {
+
+    PlotValues<Double, Integer> getHistogram();
 
 }

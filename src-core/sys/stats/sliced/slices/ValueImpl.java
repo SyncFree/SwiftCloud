@@ -14,9 +14,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.slicedStatistics.slices;
+package sys.stats.sliced.slices;
 
-import sys.stats.slicedStatistics.SlicedStatistics;
+import sys.stats.sliced.SlicedStatistics;
 
 public class ValueImpl implements SlicedStatistics<ValueImpl> {
 

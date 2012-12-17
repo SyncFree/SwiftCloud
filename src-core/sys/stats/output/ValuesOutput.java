@@ -14,12 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.slicedStatistics.slices.histogram;
+package sys.stats.output;
 
 import sys.stats.common.PlotValues;
 
-public interface Histogram {
-
-    PlotValues<Double, Integer> getHistogram();
-
+public interface ValuesOutput {
+    PlotValues getPlotValues();
 }

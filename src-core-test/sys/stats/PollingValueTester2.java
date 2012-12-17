@@ -23,7 +23,6 @@ import java.util.Map;
 
 import org.junit.Test;
 
-import sys.stats.common.PlaneValues;
 import sys.stats.common.PlotValues;
 import sys.stats.sources.PollingBasedValueProvider;
 

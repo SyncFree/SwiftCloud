@@ -14,28 +14,47 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.slicedStatistics.slices;
+package sys.stats.common;
 
-import sys.stats.slicedStatistics.SlicedStatistics;
+/**
+ * Represents a Two-Dimensional value
+ * 
+ * @author balegas
+ **/
+public class PlaneValue<X, Y> {
 
-public class CounterImpl implements SlicedStatistics<CounterImpl> {
+    private X x;
+    private Y y;
 
-    int counter;
-
-    public CounterImpl() {
+    public PlaneValue() {
 
     }
 
-    public void incCounter() {
-        counter++;
+    public PlaneValue(X x, Y y) {
+        super();
+        this.x = x;
+        this.y = y;
     }
 
-    public int getTotalOperations() {
-        return counter;
+    public X getX() {
+        return x;
     }
 
-    public CounterImpl createNew() {
-        return new CounterImpl();
+    public void setX(X x) {
+        this.x = x;
+    }
+
+    public Y getY() {
+        return y;
+    }
+
+    public void setY(Y y) {
+        this.y = y;
+    }
+
+    @Override
+    public String toString() {
+        return "(" + ((x != null) ? x.toString() : "NULL") + ";" + ((y != null) ? y.toString() : "NULL") + ")";
     }
 
 }

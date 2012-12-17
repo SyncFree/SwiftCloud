@@ -14,11 +14,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.sources;
+package sys.stats.sliced.slices;
 
-public interface CounterSignalSource {
-    void incCounter();
+import java.util.concurrent.atomic.AtomicInteger;
 
-    void decCounter();
+import sys.stats.sliced.SlicedStatistics;
+
+public class CounterImpl implements SlicedStatistics<CounterImpl> {
+
+    AtomicInteger counter;
+
+    public CounterImpl() {
+        counter = new AtomicInteger();
+    }
+
+    public void incCounter() {
+        counter.incrementAndGet();
+    }
+
+    public int getTotalOperations() {
+        return counter.get();
+    }
+
+    public CounterImpl createNew() {
+        return new CounterImpl();
+    }
+
+    public void decCounter() {
+        counter.decrementAndGet();
+
+    }
 
 }

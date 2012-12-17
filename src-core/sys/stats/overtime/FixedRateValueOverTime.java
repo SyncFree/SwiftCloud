@@ -14,26 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.statisticsOverTime;
+package sys.stats.overtime;
 
 import java.util.List;
 
 import swift.utils.Pair;
 import sys.stats.common.PlotValues;
-import sys.stats.slicedStatistics.slices.histogram.CommDistributionImpl;
-import sys.stats.slicedStatistics.slices.histogram.Histogram;
+import sys.stats.output.ValuesOutput;
+import sys.stats.sliced.slices.ValueImpl;
 import sys.stats.sources.ValueSignalSource;
 
-public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributionImpl> implements ValueSignalSource {
+public class FixedRateValueOverTime extends GenericStatisticsOverTime<ValueImpl> implements ValueSignalSource,
+        ValuesOutput {
 
-    public HistogramOverTime(long timeSlice, double[] commValues, String sourceName) {
-        super(timeSlice, new CommDistributionImpl(sourceName, commValues));
+    public FixedRateValueOverTime(long timeSlice, String sourceName) {
+        super(timeSlice, new ValueImpl());
     }
 
     @Override
-    public void setValue(double value) {
-        CommDistributionImpl slice = getCurrentSlice();
-        slice.addValue(value);
+    public synchronized void setValue(double value) {
+        long currTime = System.currentTimeMillis() - T0;
+        List<Pair<Long, ValueImpl>> allSlices = getAllSlices();
+        if (currTime - allSlices.get(allSlices.size() - 1).getFirst() < 0) {
+            allSlices.get(allSlices.size() - 1).getSecond().setValue(value);
+        } else {
+            ValueImpl slice = addSliceAndReturn();
+            slice.setValue(value);
+        }
 
     }
 
@@ -53,13 +60,13 @@ public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributio
     }
 
     @Override
-    public PlotValues<Long, Histogram> getPlotValues() {
-        List<Pair<Long, CommDistributionImpl>> slices = getAllSlices();
-        PlotValues<Long, Histogram> histogram = new PlotValues<Long, Histogram>();
-        for (Pair<Long, CommDistributionImpl> s : slices) {
-            histogram.addValue(s.getFirst(), s.getSecond());
+    public synchronized PlotValues<Long, Double> getPlotValues() {
+        List<Pair<Long, ValueImpl>> slices = getAllSlices();
+        PlotValues<Long, Double> plotValues = new PlotValues<Long, Double>();
+        for (Pair<Long, ValueImpl> v : slices) {
+            plotValues.addValue(v.getFirst(), v.getSecond().getValue());
         }
-        return histogram;
+        return plotValues;
     }
 
 }

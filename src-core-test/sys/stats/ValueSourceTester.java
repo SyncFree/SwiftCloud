@@ -22,9 +22,8 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import sys.stats.common.PlaneValues;
+import sys.stats.overtime.ValueOverTime;
 import sys.stats.sources.ValueSignalSource.Stopper;
-import sys.stats.statisticsOverTime.ValueOverTime;
 
 public class ValueSourceTester {
 

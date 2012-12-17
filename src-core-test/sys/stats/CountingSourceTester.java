@@ -22,9 +22,8 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import sys.stats.common.PlaneValues;
 import sys.stats.common.PlotValues;
-import sys.stats.statisticsOverTime.CounterOverTime;
+import sys.stats.overtime.CounterOverTime;
 
 public class CountingSourceTester {
 

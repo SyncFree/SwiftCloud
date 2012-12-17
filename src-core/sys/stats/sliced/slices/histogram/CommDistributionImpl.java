@@ -14,32 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.slicedStatistics.slices.histogram;
+package sys.stats.sliced.slices.histogram;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import swift.utils.Pair;
+import sys.stats.StatsConstants;
 import sys.stats.common.PlotValues;
-import sys.stats.slicedStatistics.SlicedStatistics;
+import sys.stats.sliced.SlicedStatistics;
 
 public class CommDistributionImpl implements Histogram, SlicedStatistics<CommDistributionImpl> {
 
     private List<Pair<Double, Integer>> countLessThan;
     private String sourceName;
+    private double max;
 
     public CommDistributionImpl(String sourceName, double[] values) {
         this.sourceName = sourceName;
         this.countLessThan = new ArrayList<Pair<Double, Integer>>();
+        double last = Double.MIN_VALUE;
         for (double d : values) {
-            countLessThan.add(new Pair<Double, Integer>(d, 0));
+            if (d > last)
+                countLessThan.add(new Pair<Double, Integer>(d, 0));
         }
+        if (Double.MAX_VALUE > values[values.length - 1])
+            countLessThan.add(new Pair<Double, Integer>(Double.MAX_VALUE, 0));
+        this.max = values[values.length - 1];
     }
 
     public void addValue(double value) {
         for (Pair<Double, Integer> p : countLessThan) {
-            if (p.getFirst() > value)
+            if (p.getFirst() >= value) {
                 p.setSecond(p.getSecond() + 1);
+                if (value > max)
+                    max = value;
+                break;
+            }
         }
     }
 
@@ -66,13 +77,29 @@ public class CommDistributionImpl implements Histogram, SlicedStatistics<CommDis
     @Override
     public PlotValues<Double, Integer> getHistogram() {
         PlotValues<Double, Integer> results = new PlotValues<Double, Integer>();
-        for (Pair<Double, Integer> v : countLessThan)
-            results.addValue(v.getFirst(), v.getSecond());
+        for (int i = 0; i < countLessThan.size(); i++) {
+            Pair<Double, Integer> v = countLessThan.get(i);
+            if (i < countLessThan.size() - 1) {
+                results.addValue(v.getFirst(), v.getSecond());
+            } else {
+                results.addValue(max, v.getSecond());
+            }
+        }
         return results;
     }
 
     public String toString() {
-        return countLessThan.toString();
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < countLessThan.size(); i++) {
+            Pair<Double, Integer> v = countLessThan.get(i);
+            if (i < countLessThan.size() - 1) {
+                out.append(v.getSecond() + StatsConstants.VS);
+            } else {
+                out.append(v.getSecond());
+            }
+        }
+
+        return out.toString();
     }
 
 }

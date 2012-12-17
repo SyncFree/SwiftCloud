@@ -22,10 +22,9 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
-import sys.stats.common.PlaneValues;
-import sys.stats.slicedStatistics.slices.histogram.Histogram;
+import sys.stats.overtime.HistogramOverTime;
+import sys.stats.sliced.slices.histogram.Histogram;
 import sys.stats.sources.ValueSignalSource.Stopper;
-import sys.stats.statisticsOverTime.HistogramOverTime;
 
 public class HistogramTester {
 

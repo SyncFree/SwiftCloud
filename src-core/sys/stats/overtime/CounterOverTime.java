@@ -14,16 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.stats.statisticsOverTime;
+package sys.stats.overtime;
 
 import java.util.List;
 
 import swift.utils.Pair;
 import sys.stats.common.PlotValues;
-import sys.stats.slicedStatistics.slices.CounterImpl;
+import sys.stats.output.ValuesOutput;
+import sys.stats.sliced.slices.CounterImpl;
 import sys.stats.sources.CounterSignalSource;
 
-public class CounterOverTime extends GenericStatisticsOverTime<CounterImpl> implements CounterSignalSource {
+public class CounterOverTime extends GenericStatisticsOverTime<CounterImpl> implements CounterSignalSource,
+        ValuesOutput {
 
     public CounterOverTime(long timeSlice, String sourceName) {
         super(timeSlice, new CounterImpl());
@@ -33,6 +35,11 @@ public class CounterOverTime extends GenericStatisticsOverTime<CounterImpl> impl
     public void incCounter() {
         CounterImpl slice = getCurrentSlice();
         slice.incCounter();
+    }
+
+    public void decCounter() {
+        CounterImpl slice = getCurrentSlice();
+        slice.decCounter();
     }
 
     public int getTotalCount() {
@@ -45,7 +52,7 @@ public class CounterOverTime extends GenericStatisticsOverTime<CounterImpl> impl
     }
 
     @Override
-    public PlotValues<Long, Integer> getPlotValues() {
+    public synchronized PlotValues<Long, Integer> getPlotValues() {
         List<Pair<Long, CounterImpl>> slices = getAllSlices();
         PlotValues<Long, Integer> plotValues = new PlotValues<Long, Integer>();
         for (Pair<Long, CounterImpl> v : slices) {

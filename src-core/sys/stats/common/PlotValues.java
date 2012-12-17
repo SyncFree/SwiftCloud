@@ -20,24 +20,29 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Stores a sequence of values in a plane
+ * 
+ * @author balegas
+ **/
 public class PlotValues<X, Y> {
 
-    List<PlaneValues<X, Y>> values;
+    List<PlaneValue<X, Y>> values;
 
     public PlotValues() {
-        values = new ArrayList<PlaneValues<X, Y>>();
+        values = new ArrayList<PlaneValue<X, Y>>();
     }
 
-    public PlotValues(List<PlaneValues<X, Y>> slices) {
+    public PlotValues(List<PlaneValue<X, Y>> slices) {
         this.values = slices;
 
     }
 
     public void addValue(X x, Y y) {
-        values.add(new PlaneValues<X, Y>(x, y));
+        values.add(new PlaneValue<X, Y>(x, y));
     }
 
-    public Iterator<PlaneValues<X, Y>> getPlotValuesIterator() {
+    public Iterator<PlaneValue<X, Y>> getPlotValuesIterator() {
         return values.iterator();
     }
 
