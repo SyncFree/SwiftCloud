@@ -26,16 +26,17 @@ import sys.net.api.rpc.RpcMessage;
 public class ServerReply implements RpcMessage {
 
     public List<TextLine> atoms;
-    
-	ServerReply(){}
-	
-	public ServerReply( List<TextLine> atoms ){
-	    this.atoms = atoms;
-	}
-	
-	@Override
-	public void deliverTo(RpcHandle handle, RpcHandler handler) {
-		((AppRpcHandler)handler).onReceive(this);			
-	}
+
+    ServerReply() {
+    }
+
+    public ServerReply(List<TextLine> atoms) {
+        this.atoms = atoms;
+    }
+
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((AppRpcHandler) handler).onReceive(this);
+    }
 
 }

@@ -34,9 +34,11 @@ public class TestClient {
             String host = args.length > 0 ? args[0] : "localhost";
             Sys.init();
 
-            SwiftSession server0 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
+            SwiftSession server0 = SwiftImpl
+                    .newSingleSessionInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
 
-            SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
+            SwiftSession server = SwiftImpl
+                    .newSingleSessionInstance(new SwiftOptions(host, DCConstants.SURROGATE_PORT));
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class,
@@ -59,7 +61,7 @@ public class TestClient {
                     false);
             IntegerTxnLocal i0 = handle0.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
             i0.add(1);
-            System.out.println( "Changing (e,1) in other transaction");
+            System.out.println("Changing (e,1) in other transaction");
             handle0.commit();
             Thread.sleep(5000);
 

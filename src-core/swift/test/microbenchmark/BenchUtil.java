@@ -80,7 +80,7 @@ public class BenchUtil {
         return operations;
 
     }
-    
+
     public static Integer[] generateIntegers(int size) {
         Integer[] operations = new Integer[size];
         for (int i = 0; i < operations.length; i++) {
@@ -96,8 +96,8 @@ public class BenchUtil {
     }
 
     public static IRiakClient getNewRiakClient(String address, int port) throws RiakException {
-        
+
         return RiakFactory.pbcClient(address, port);
-        
+
     }
 }

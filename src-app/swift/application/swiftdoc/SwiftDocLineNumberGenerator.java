@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.application.swiftdoc;
 
-
 public class SwiftDocLineNumberGenerator<V> {
 
     public void parseFiles(SwiftDocOps<V> seq) throws Exception {

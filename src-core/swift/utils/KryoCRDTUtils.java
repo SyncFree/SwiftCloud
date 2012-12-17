@@ -101,7 +101,7 @@ public class KryoCRDTUtils {
 
     public static void registerCRDTClasses(Registerable registerable) {
         // FIXME: remove dependency from src-core to src-app!
-        
+
         registerable.register(Timestamp.class, 0x50);
         registerable.register(TripleTimestamp.class, 0x51);
         registerable.register(VersionVectorWithExceptions.class, 0x52);
@@ -109,7 +109,7 @@ public class KryoCRDTUtils {
         registerable.register(TimestampMapping.class, 0x54);
         registerable.register(CRDTIdentifier.class, 0x55);
         registerable.register(BaseCRDT.class, 0x56);
-        
+
         registerable.register(RegisterVersioned.class, 0x58);
         registerable.register(RegisterVersioned.UpdateEntry.class, 0x59);
         registerable.register(SetIds.class, 0x60);
@@ -163,7 +163,7 @@ public class KryoCRDTUtils {
         registerable.register(DHTGetCRDT.class, 0x8F);
         registerable.register(DHTGetCRDTReply.class, 0x90);
         registerable.register(DHTSendNotification.class, 0x91);
-        
+
         registerable.register(ArrayList.class, 0xA0);
         registerable.register(LinkedList.class, 0xA1);
         registerable.register(TreeMap.class, 0xA2);

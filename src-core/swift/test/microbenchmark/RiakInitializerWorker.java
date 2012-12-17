@@ -16,14 +16,11 @@
  *****************************************************************************/
 package swift.test.microbenchmark;
 
-import java.nio.ByteBuffer;
 import java.util.Random;
 
 import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
 import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
-import sys.net.api.Networking;
-import sys.net.api.Serializer;
 import sys.net.impl.KryoSerializer;
 
 import com.basho.riak.client.IRiakClient;
@@ -53,14 +50,13 @@ public class RiakInitializerWorker implements MicroBenchmarkWorker {
     public void run() {
         manager.onWorkerStart(this);
         startTime = System.currentTimeMillis();
-        
+
         KryoSerializer serializer = new KryoSerializer();
         try {
             clientServer.createBucket(RiakMicroBenchmark.TABLE_NAME).allowSiblings(false).execute();
             for (Integer i : identifiers) {
-            	byte[] data = serializer.writeObject(i) ;
-                clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store("object" + i, data)
-                        .execute();
+                byte[] data = serializer.writeObject(i);
+                clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store("object" + i, data).execute();
                 // byte[] b =
                 // clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().fetch("object"
                 // + i).execute().getValue();
@@ -136,9 +132,7 @@ class RiakInitializerResultHandler implements ResultHandler {
         return "RIAKINITIALIZER";
     }
 
-/*    @Override
-    public String getRawResults() {
-        return "INITIALIZER";
-    }
-*/
+    /*
+     * @Override public String getRawResults() { return "INITIALIZER"; }
+     */
 }

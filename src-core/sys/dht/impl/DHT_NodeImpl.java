@@ -38,104 +38,107 @@ import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
 
 public class DHT_NodeImpl extends CatadupaNode {
-	private static Logger Log = Logger.getLogger( DHT_NodeImpl.class.getName() );
+    private static Logger Log = Logger.getLogger(DHT_NodeImpl.class.getName());
 
-	public long ordinalKey = 0;
-	
-	protected static DHT_ClientStub clientStub;
-	protected static _DHT_ServerStub serverStub;
+    public long ordinalKey = 0;
 
-	protected DHT_NodeImpl() {
-	}
+    protected static DHT_ClientStub clientStub;
+    protected static _DHT_ServerStub serverStub;
 
-	@Override
-	public void init() {
-		super.init();
+    protected DHT_NodeImpl() {
+    }
 
-		while (!super.isReady())
-			Threading.sleep(50);
+    @Override
+    public void init() {
+        super.init();
 
-		serverStub = new _DHT_ServerStub(new DHT.MessageHandler() {
+        while (!super.isReady())
+            Threading.sleep(50);
 
-			@Override
-			public void onFailure() {
-				Thread.dumpStack();
-			}
+        serverStub = new _DHT_ServerStub(new DHT.MessageHandler() {
 
-			@Override
-			public void onReceive(Handle conn, DHT.Key key, DHT.Message m) {
-				Log.finest(String.format("Un-handled DHT message [<%s,%s>]", key, m.getClass()));
-			}
-		});
+            @Override
+            public void onFailure() {
+                Thread.dumpStack();
+            }
 
-		String name = DHT_Node.DHT_ENDPOINT + Sys.getDatacenter();
-		Discovery.register(name, serverStub.getEndpoint().localEndpoint());
+            @Override
+            public void onReceive(Handle conn, DHT.Key key, DHT.Message m) {
+                Log.finest(String.format("Un-handled DHT message [<%s,%s>]", key, m.getClass()));
+            }
+        });
 
-		clientStub = new DHT_ClientStub( serverStub.getEndpoint(), serverStub.getEndpoint().localEndpoint() );
-	}
+        String name = DHT_Node.DHT_ENDPOINT + Sys.getDatacenter();
+        Discovery.register(name, serverStub.getEndpoint().localEndpoint());
 
-	@Override
-	public void onNodeAdded(Node n) {
-		ordinalKey = super.db.ordinalKey();
-		Log.finest("Catadupa added:" + n + "; ordKey:" + ordinalKey );
-	}
+        clientStub = new DHT_ClientStub(serverStub.getEndpoint(), serverStub.getEndpoint().localEndpoint());
+    }
 
-	@Override
-	public void onNodeRemoved(Node n) {
-		ordinalKey = super.db.ordinalKey();
-		Log.finest("Catadupa removed:" + n + "; ordKey:" + ordinalKey );
-	}
+    @Override
+    public void onNodeAdded(Node n) {
+        ordinalKey = super.db.ordinalKey();
+        Log.finest("Catadupa added:" + n + "; ordKey:" + ordinalKey);
+    }
 
-	protected Node resolveNextHop(final DHT.Key key) {
-		long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
-		Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()));
-//		System.err.println(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()) + "---" + RpcFactoryImpl.rpcCounter.get());
-		for (Node i : super.db.nodes(key2key))
-			if (i.isOnline())
-				return i;
+    @Override
+    public void onNodeRemoved(Node n) {
+        ordinalKey = super.db.ordinalKey();
+        Log.finest("Catadupa removed:" + n + "; ordKey:" + ordinalKey);
+    }
 
-		return self;
-	}
+    protected Node resolveNextHop(final DHT.Key key) {
+        long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
+        Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()));
+        // System.err.println(String.format("Hashing %s (%s) @ %s DB:%s", key,
+        // key2key, self.key, db.nodeKeys()) + "---" +
+        // RpcFactoryImpl.rpcCounter.get());
+        for (Node i : super.db.nodes(key2key))
+            if (i.isOnline())
+                return i;
 
-	protected class _DHT_ServerStub extends DHT_StubHandler {
+        return self;
+    }
 
-		DHT.MessageHandler myHandler;
-		final RpcEndpoint myEndpoint;
+    protected class _DHT_ServerStub extends DHT_StubHandler {
 
-		_DHT_ServerStub(DHT.MessageHandler myHandler) {
-			this.myHandler = myHandler;
-			myEndpoint = rpcFactory.toService(RpcServices.DHT.ordinal(), this);
-		}
+        DHT.MessageHandler myHandler;
+        final RpcEndpoint myEndpoint;
 
-		RpcEndpoint getEndpoint() {
-			return myEndpoint;
-		}
+        _DHT_ServerStub(DHT.MessageHandler myHandler) {
+            this.myHandler = myHandler;
+            myEndpoint = rpcFactory.toService(RpcServices.DHT.ordinal(), this);
+        }
 
-		public void setHandler(DHT.MessageHandler handler) {
-			myHandler = handler;
-		}
+        RpcEndpoint getEndpoint() {
+            return myEndpoint;
+        }
 
-		public void onReceive(final RpcHandle conn, final DHT_ResolveKey req) {
-			Node nextHop = resolveNextHop(req.key);
-			if( nextHop != null )
-				conn.reply( new DHT_ResolveKeyReply(req.key, nextHop.endpoint)) ;
-		}
+        public void setHandler(DHT.MessageHandler handler) {
+            myHandler = handler;
+        }
 
-		@Override
-		public void onReceive(RpcHandle handle, DHT_Request req) {
-			Node nextHop = resolveNextHop(req.key);
-			if (nextHop != null && nextHop.key != self.key && ! req.redirected ) {
-				// handle.reply( new DHT_ResolveKeyReply(req.key, nextHop.endpoint) ) ;
-				req.redirected = true;
-				DHT_RequestReply reply = clientStub.send(nextHop.endpoint, req);
-				if( reply != null )
-					handle.reply( reply ) ;
-			} else {
-				req.payload.deliverTo( new DHT_Handle(handle, req.expectingReply), req.key, myHandler);
-				if(!req.expectingReply)
-					handle.reply(  new DHT_RequestReply(null) );
-			}
-		}
-	}
+        public void onReceive(final RpcHandle conn, final DHT_ResolveKey req) {
+            Node nextHop = resolveNextHop(req.key);
+            if (nextHop != null)
+                conn.reply(new DHT_ResolveKeyReply(req.key, nextHop.endpoint));
+        }
+
+        @Override
+        public void onReceive(RpcHandle handle, DHT_Request req) {
+            Node nextHop = resolveNextHop(req.key);
+            if (nextHop != null && nextHop.key != self.key && !req.redirected) {
+                // handle.reply( new DHT_ResolveKeyReply(req.key,
+                // nextHop.endpoint) ) ;
+                req.redirected = true;
+                DHT_RequestReply reply = clientStub.send(nextHop.endpoint, req);
+                if (reply != null)
+                    handle.reply(reply);
+            } else {
+                req.payload.deliverTo(new DHT_Handle(handle, req.expectingReply), req.key, myHandler);
+                if (!req.expectingReply)
+                    handle.reply(new DHT_RequestReply(null));
+            }
+        }
+    }
 
 }

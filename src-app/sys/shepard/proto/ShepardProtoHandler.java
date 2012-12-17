@@ -34,13 +34,13 @@ public class ShepardProtoHandler implements RpcHandler {
     public void onFailure(RpcHandle handle) {
     }
 
-    public void onReceive( RpcHandle client, GrazingRequest q ) {
+    public void onReceive(RpcHandle client, GrazingRequest q) {
     }
 
-    public void onReceive( GrazingGranted p ) {        
+    public void onReceive(GrazingGranted p) {
     }
-    
-    public void onReceive( GrazingAccepted p ) {   
+
+    public void onReceive(GrazingAccepted p) {
         System.err.println("Request Accepted from Shepard!!!");
     }
 }

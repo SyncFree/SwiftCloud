@@ -35,26 +35,26 @@
  */
 package swift.clocks;
 
+import static org.junit.Assert.assertEquals;
+
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
-import static org.junit.Assert.*;
+
 import org.junit.Test;
+
 import swift.clocks.VersionVectorWithExceptions.Interval;
 
 /**
- *
+ * 
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
 public class VersionVectorWithExceptionBasicTest {
 
-    
-   
-    
     @Test
     public void registerListCompact() {
         VersionVectorWithExceptions clock = new VersionVectorWithExceptions();
-        
+
         clock.record(new Timestamp("a", 1));
         clock.record(new Timestamp("a", 3));
         clock.record(new Timestamp("a", 8));
@@ -62,16 +62,15 @@ public class VersionVectorWithExceptionBasicTest {
         clock.record(new Timestamp("a", 7));
         clock.record(new Timestamp("a", 2));
         clock.record(new Timestamp("a", 9));
-        
-        
-        
-        assertEquals(Arrays.asList(new Interval(1,4),new Interval(7,9)),clock.vv.get("a"));
+
+        assertEquals(Arrays.asList(new Interval(1, 4), new Interval(7, 9)), clock.vv.get("a"));
     }
-     @Test
+
+    @Test
     public void registerListCompactMerge() {
         VersionVectorWithExceptions clock = new VersionVectorWithExceptions();
         VersionVectorWithExceptions clock2 = new VersionVectorWithExceptions();
-        
+
         clock.record(new Timestamp("a", 1));
         clock.record(new Timestamp("a", 3));
         clock.record(new Timestamp("a", 8));
@@ -79,50 +78,44 @@ public class VersionVectorWithExceptionBasicTest {
         clock.record(new Timestamp("a", 7));
         clock.record(new Timestamp("a", 2));
         clock.record(new Timestamp("a", 9));
-       
+
         clock2.record(new Timestamp("a", 6));
         clock2.record(new Timestamp("a", 9));
-      
+
         clock2.merge(clock);
-      
-        assertEquals(Arrays.asList(new Interval(1,4),new Interval(6,9)),clock2.vv.get("a"));
+
+        assertEquals(Arrays.asList(new Interval(1, 4), new Interval(6, 9)), clock2.vv.get("a"));
     }
-     
+
     @Test
     public void testMaxListCovers() {
-        VersionVectorWithExceptions clock  = new VersionVectorWithExceptions();
-        VersionVectorWithExceptions clock2  = new VersionVectorWithExceptions();
-        
+        VersionVectorWithExceptions clock = new VersionVectorWithExceptions();
+        VersionVectorWithExceptions clock2 = new VersionVectorWithExceptions();
+
         List<Interval> l1 = Arrays.asList(new Interval(1, 3));
         List<Interval> l2 = Arrays.asList(new Interval(2, 2));
         clock.vv.put("a", new LinkedList(l1));
         clock2.vv.put("a", new LinkedList(l2));
-        
+
         clock2.merge(clock);
-        
-        assertEquals(l1,clock2.vv.get("a"));
 
+        assertEquals(l1, clock2.vv.get("a"));
 
-        
     }
 
     @Test
     public void testMergeSplitedList() {
         List<Interval> l1 = Arrays.asList(new Interval(1, 1), new Interval(4, 5), new Interval(20, 20));
-        List<Interval> l2 = Arrays.asList(new Interval(2, 3), new Interval(6, 6), new Interval(9, 10), new Interval(19,19));
-        VersionVectorWithExceptions clock  = new VersionVectorWithExceptions();
-        VersionVectorWithExceptions clock2  = new VersionVectorWithExceptions();
+        List<Interval> l2 = Arrays.asList(new Interval(2, 3), new Interval(6, 6), new Interval(9, 10), new Interval(19,
+                19));
+        VersionVectorWithExceptions clock = new VersionVectorWithExceptions();
+        VersionVectorWithExceptions clock2 = new VersionVectorWithExceptions();
         clock.vv.put("a", new LinkedList(l1));
         clock2.vv.put("a", new LinkedList(l2));
-        List<Interval> exp = Arrays.asList(new Interval(1, 6),new Interval(9,10),new Interval(19,20));
+        List<Interval> exp = Arrays.asList(new Interval(1, 6), new Interval(9, 10), new Interval(19, 20));
         clock2.merge(clock);
-        assertEquals(exp,clock2.vv.get("a")); 
+        assertEquals(exp, clock2.vv.get("a"));
 
-      
-
-
-        
     }
 
-    
 }

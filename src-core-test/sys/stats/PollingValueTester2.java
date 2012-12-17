@@ -33,7 +33,7 @@ public class PollingValueTester2 {
     public void testpolling2() {
 
         Stats.init(5000);
-        
+
         UpdatingFieldClass classWithField = new UpdatingFieldClass(1000);
 
         Stats.registerPollingBasedValueProvider("poll2", classWithField.getPoller());

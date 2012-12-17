@@ -244,7 +244,7 @@ public class SwiftDocServer {
             }
         }
     }
-    
+
     static class Session {
         final RpcHandle client;
         final SwiftSession swift1, swift2;
@@ -253,12 +253,14 @@ public class SwiftDocServer {
         Session(RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
             this.client = client;
 
-            this.swift1 = this.swift2 = scout.newSession( client.remoteEndpoint().toString() );
-//            this.swift2 = scout.newSession( client.remoteEndpoint().toString() );
+            this.swift1 = this.swift2 = scout.newSession(client.remoteEndpoint().toString());
+            // this.swift2 = scout.newSession(
+            // client.remoteEndpoint().toString() );
 
             swiftdoc = new SwiftDocServer(swift1, swift2, client, j1, j2);
         }
     }
+
     static Map<Object, Session> sessions = new HashMap<Object, Session>();
 
     static SwiftScout scout = null;
@@ -271,15 +273,15 @@ public class SwiftDocServer {
         options.setConcurrentOpenTransactions(true);
         scout = SwiftImpl.newMultiSessionInstance(options);
     }
-    
+
     synchronized static Session getSession(Object sessionId) {
-        return sessions.get(sessionId);        
+        return sessions.get(sessionId);
     }
-    
+
     synchronized static Session getSession(Object sessionId, RpcHandle client, CRDTIdentifier j1, CRDTIdentifier j2) {
-         if( scout == null )
+        if (scout == null)
             initScout();
-       
+
         Session res = sessions.get(sessionId);
         if (res == null) {
             sessions.put(sessionId, res = new Session(client, j1, j2));

@@ -17,11 +17,11 @@
  *****************************************************************************/
 package swift.application.filesystem.cs.proto;
 
-import fuse.FuseException;
-import fuse.FuseOpenSetter;
 import swift.application.filesystem.cs.SwiftFuseServer;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import fuse.FuseException;
+import fuse.FuseOpenSetter;
 
 public class OpenOperation extends FuseRemoteOperation {
 
@@ -39,10 +39,10 @@ public class OpenOperation extends FuseRemoteOperation {
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         try {
-            Result result = new Result() ;
+            Result result = new Result();
             int res = ((RemoteFuseOperationHandler) handler).open(path, flags, result);
-            result.setResult(res) ;
-            handle.reply( result );
+            result.setResult(res);
+            handle.reply(result);
         } catch (FuseException e) {
             e.printStackTrace();
             handle.reply(new FuseOperationResult());
@@ -54,20 +54,20 @@ public class OpenOperation extends FuseRemoteOperation {
         Object fh;
         boolean isDirectIO;
         boolean keepInCache;
-        
+
         Result() {
         }
 
-        public void applyTo( FuseOpenSetter setter ) {
-            setter.setFh( fh ) ;
-            setter.setDirectIO( isDirectIO ) ;
-            setter.setKeepCache( keepInCache );
+        public void applyTo(FuseOpenSetter setter) {
+            setter.setFh(fh);
+            setter.setDirectIO(isDirectIO);
+            setter.setKeepCache(keepInCache);
         }
-        
-        public void setResult( int result ) {
+
+        public void setResult(int result) {
             super.result = result;
         }
-        
+
         @Override
         public boolean isDirectIO() {
             return isDirectIO;
@@ -85,12 +85,12 @@ public class OpenOperation extends FuseRemoteOperation {
 
         @Override
         public void setFh(Object fh) {
-            this.fh = SwiftFuseServer.s2c_fh( fh);
+            this.fh = SwiftFuseServer.s2c_fh(fh);
         }
 
         @Override
         public void setKeepCache(boolean keepInCache) {
-            this.keepInCache = keepInCache;                    
+            this.keepInCache = keepInCache;
             Thread.dumpStack();
         }
 
@@ -99,5 +99,4 @@ public class OpenOperation extends FuseRemoteOperation {
         }
     }
 
-    
 }

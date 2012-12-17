@@ -25,20 +25,13 @@ import java.util.Random;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Logger;
 
-import com.basho.riak.client.IRiakClient;
-import com.basho.riak.client.RiakException;
-import com.basho.riak.client.http.RiakClient;
-
-import swift.client.SwiftImpl;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.SwiftSession;
-import swift.dc.DCConstants;
-import swift.dc.DCSequencerServer;
-import swift.dc.DCServer;
 import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
 import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
 import sys.Sys;
+
+import com.basho.riak.client.IRiakClient;
+import com.basho.riak.client.RiakException;
 
 public class RiakMicroBenchmark implements WorkerManager {
 
@@ -132,9 +125,9 @@ public class RiakMicroBenchmark implements WorkerManager {
 
         for (int r = 0; r < runs; r++) {
             logger.info("WARMING UP FOR " + executionTime / 2 + "ms");
-            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client,r, outputDir);
+            executeWorkers("WARM_UP", numWorkers, identifiers, executionTime / 2, client, r, outputDir);
             logger.info("START");
-            executeWorkers("RiakWorker", numWorkers, identifiers, executionTime, client,r, outputDir);
+            executeWorkers("RiakWorker", numWorkers, identifiers, executionTime, client, r, outputDir);
             logger.info("END");
 
         }
@@ -165,7 +158,7 @@ public class RiakMicroBenchmark implements WorkerManager {
         stopSemaphore.acquire();
         if (!workersName.contains("WARM_UP"))
             for (MicroBenchmarkWorker w : workers) {
-               // System.out.println(w.getRawData().RawData());
+                // System.out.println(w.getRawData().RawData());
             }
     }
 
@@ -234,6 +227,5 @@ public class RiakMicroBenchmark implements WorkerManager {
         int initialSize = (int) (maxTxSize * (1 - updateRatio) + 1) * executionTime * ESTIMATED_THGPT_MILLIS;
         return new RawDataCollector(initialSize, workerName, runCount, outputDir);
     }
-
 
 }

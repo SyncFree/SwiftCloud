@@ -28,27 +28,32 @@ package sys.net.api;
  */
 public interface Message {
 
-	/**
-	 * Implement this method by casting the handler to a more specific class,
-	 * with an onReceive(...) method for this particular object.
-	 * 
-	 * @param conn
-	 *            The connection that received the message, which may be used to
-	 *            sending a reply back.
-	 * @param handler
-	 *            The handler the message should be delivered to.
-	 */
-	void deliverTo(final TransportConnection conn, final MessageHandler handler);
+    /**
+     * Implement this method by casting the handler to a more specific class,
+     * with an onReceive(...) method for this particular object.
+     * 
+     * @param conn
+     *            The connection that received the message, which may be used to
+     *            sending a reply back.
+     * @param handler
+     *            The handler the message should be delivered to.
+     */
+    void deliverTo(final TransportConnection conn, final MessageHandler handler);
 
-	/**
-	 * Records the size of the message after being de-or-serialized...Meant for gathering traffic statistics...
-	 * @param size - the length of the serialized representation of the message
-	 */
-	void setSize( int size ) ;
-	
-	/**
-	 * Retrieves the size of the message after being de-or-serialized...Meant for gathering traffic statistics...
-	 * @return
-	 */
-	int getSize() ;
+    /**
+     * Records the size of the message after being de-or-serialized...Meant for
+     * gathering traffic statistics...
+     * 
+     * @param size
+     *            - the length of the serialized representation of the message
+     */
+    void setSize(int size);
+
+    /**
+     * Retrieves the size of the message after being de-or-serialized...Meant
+     * for gathering traffic statistics...
+     * 
+     * @return
+     */
+    int getSize();
 }

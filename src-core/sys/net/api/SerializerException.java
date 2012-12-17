@@ -26,13 +26,13 @@ package sys.net.api;
  */
 public class SerializerException extends RuntimeException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public SerializerException(final String cause) {
-		super(cause);
-	}
+    public SerializerException(final String cause) {
+        super(cause);
+    }
 
-	public SerializerException(final Throwable t) {
-		super(t);
-	}
+    public SerializerException(final Throwable t) {
+        super(t);
+    }
 }

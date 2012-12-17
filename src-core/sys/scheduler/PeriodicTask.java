@@ -37,66 +37,66 @@ package sys.scheduler;
  */
 public class PeriodicTask extends Task {
 
-	protected double jitter;
+    protected double jitter;
 
-	/**
-	 * Creates a task that is automatically scheduled to run with a given
-	 * frequency/period. When a node is disposed all of its "named" tasks are
-	 * canceled as well.
-	 * 
-	 * @param owner
-	 *            The node that issued this task
-	 * @param due
-	 *            The number of seconds before this task executes for the first
-	 *            time.
-	 */
-	public PeriodicTask(double due, double period) {
-		this(null, due, period, 0);
-	}
+    /**
+     * Creates a task that is automatically scheduled to run with a given
+     * frequency/period. When a node is disposed all of its "named" tasks are
+     * canceled as well.
+     * 
+     * @param owner
+     *            The node that issued this task
+     * @param due
+     *            The number of seconds before this task executes for the first
+     *            time.
+     */
+    public PeriodicTask(double due, double period) {
+        this(null, due, period, 0);
+    }
 
-	/**
-	 * Creates a "named" task that is automatically scheduled to run with a
-	 * given frequency/period. When a node is disposed all of its "named" tasks
-	 * are canceled as well.
-	 * 
-	 * @param owner
-	 *            The node that issued this task
-	 * @param due
-	 *            The number of seconds before this task executes for the first
-	 *            time.
-	 * @param period
-	 *            The period of this task.
-	 */
-	public PeriodicTask(TaskOwner owner, double due, double period) {
-		this(owner, due, period, 0);
-	}
+    /**
+     * Creates a "named" task that is automatically scheduled to run with a
+     * given frequency/period. When a node is disposed all of its "named" tasks
+     * are canceled as well.
+     * 
+     * @param owner
+     *            The node that issued this task
+     * @param due
+     *            The number of seconds before this task executes for the first
+     *            time.
+     * @param period
+     *            The period of this task.
+     */
+    public PeriodicTask(TaskOwner owner, double due, double period) {
+        this(owner, due, period, 0);
+    }
 
-	/**
-	 * Creates a "named" task that is automatically scheduled to run with a
-	 * given frequency/period. When a node is disposed all of its "named" tasks
-	 * are canceled as well.
-	 * 
-	 * @param owner
-	 *            The node that issued this task, or, null.
-	 * @param due
-	 *            The number of seconds before this task executes for the first
-	 *            time.
-	 * @param period
-	 *            The period of this task.
-	 * 
-	 * @param jitter
-	 *            The jitter introduced to the period of this task measured as a
-	 *            fraction.
-	 */
-	public PeriodicTask(TaskOwner owner, double due, double period, double jitter) {
-		super(owner, due, period);
-		this.jitter = jitter;
-	}
+    /**
+     * Creates a "named" task that is automatically scheduled to run with a
+     * given frequency/period. When a node is disposed all of its "named" tasks
+     * are canceled as well.
+     * 
+     * @param owner
+     *            The node that issued this task, or, null.
+     * @param due
+     *            The number of seconds before this task executes for the first
+     *            time.
+     * @param period
+     *            The period of this task.
+     * 
+     * @param jitter
+     *            The jitter introduced to the period of this task measured as a
+     *            fraction.
+     */
+    public PeriodicTask(TaskOwner owner, double due, double period, double jitter) {
+        super(owner, due, period);
+        this.jitter = jitter;
+    }
 
-	@Override
-	protected void reSchedule() {
-		if (!wasReScheduled && !isCancelled) {
-			super.reSchedule(Math.max(0, period));
-		}
-	}
+    @Override
+    protected void reSchedule() {
+        if (!wasReScheduled && !isCancelled) {
+            super.reSchedule(Math.max(0, period));
+        }
+    }
 }

@@ -16,27 +16,12 @@
  *****************************************************************************/
 package swift.test.microbenchmark;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.util.List;
 import java.util.Random;
 
-import org.apache.http.ReasonPhraseCatalog;
-import org.codehaus.jackson.Versioned;
-
-import swift.application.social.User;
 import swift.client.AbstractObjectUpdatesListener;
-import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.IntegerTxnLocal;
 import swift.crdt.IntegerVersioned;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
-import swift.crdt.SetTxnLocalString;
-import swift.crdt.SetVersioned;
-import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.SwiftSession;
@@ -49,10 +34,6 @@ import swift.exceptions.WrongTypeException;
 import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
 import swift.test.microbenchmark.interfaces.ResultHandler;
 import swift.test.microbenchmark.interfaces.WorkerManager;
-import swift.test.microbenchmark.objects.StringCopyable;
-import swift.utils.NanoTimeCollector;
-import sys.Sys;
-import sys.dht.catadupa.crdts.ORSet;
 
 public class SwiftExecutorWorker implements MicroBenchmarkWorker {
 
@@ -102,7 +83,10 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                 case UPDATE: {
                     long txStartTime = System.nanoTime();
                     TxnHandle txh = clientServer.beginTxn(isolationLevel, cachePolicy, false);
-                    int randomIndex = random.nextInt(identifiers.length);// (int) Math.floor(random.nextDouble() * identifiers.length);
+                    int randomIndex = random.nextInt(identifiers.length);// (int)
+                                                                         // Math.floor(random.nextDouble()
+                                                                         // *
+                                                                         // identifiers.length);
                     IntegerTxnLocal integerCRDT = txh.get(identifiers[randomIndex], false, IntegerVersioned.class,
                             listener);
                     if (random.nextDouble() > 0.5) {
@@ -122,8 +106,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                     TxnHandle txh = clientServer.beginTxn(isolationLevel, cachePolicy, true);
                     for (int i = 0; i < txSize; i++) {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
-                        txh.get(identifiers[randomIndex], false, IntegerVersioned.class,
-                                listener);
+                        txh.get(identifiers[randomIndex], false, IntegerVersioned.class, listener);
                         readOps++;
                     }
                     txh.commit();
@@ -146,7 +129,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                 e.printStackTrace();
             }
         }
-        //System.out.println("STOP CLIENT");
+        // System.out.println("STOP CLIENT");
         clientServer.stopScout(true);
         endTime = System.currentTimeMillis();
         manager.onWorkerFinish(this);
@@ -161,7 +144,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     @Override
     public void stop() {
         stop = true;
-       
+
     }
 
     @Override
@@ -237,10 +220,8 @@ class SwiftOperationExecutorResultHandler implements ResultHandler {
         return workerID;
     }
 
-/*    @Override
-    public String getRawResults() {
-        return rawData.RawData();
-    }
-*/
+    /*
+     * @Override public String getRawResults() { return rawData.RawData(); }
+     */
 
 }

@@ -31,13 +31,22 @@ import swift.crdt.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
 
-import com.sleepycat.db.*;
-
+import com.sleepycat.db.Database;
+import com.sleepycat.db.DatabaseConfig;
+import com.sleepycat.db.DatabaseEntry;
+import com.sleepycat.db.DatabaseException;
+import com.sleepycat.db.DatabaseType;
+import com.sleepycat.db.Environment;
+import com.sleepycat.db.EnvironmentConfig;
+import com.sleepycat.db.LockMode;
+import com.sleepycat.db.OperationStatus;
+import com.sleepycat.db.Transaction;
+import com.sleepycat.db.TransactionConfig;
 
 public class DCBerkeleyDBDatabase implements DCNodeDatabase {
     static Logger logger = Logger.getLogger(DCBerkeleyDBDatabase.class.getName());
     Environment env;
-    Map<String,Database> databases;
+    Map<String, Database> databases;
     File dir;
     TransactionConfig txnConfig;
 
@@ -84,10 +93,11 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
             throw new RuntimeException("Cannot create databases", e);
         } catch (DatabaseException e) {
             throw new RuntimeException("Cannot create databases", e);
-        } catch( Error e) {
-            throw new RuntimeException("Cannot create databases - maybe you are forgetting to include library in path.\n" +
-                                "Try something like: -Djava.library.path=lib/build_unix/.libs to java command", e);
-            
+        } catch (Error e) {
+            throw new RuntimeException(
+                    "Cannot create databases - maybe you are forgetting to include library in path.\n"
+                            + "Try something like: -Djava.library.path=lib/build_unix/.libs to java command", e);
+
         }
     }
 

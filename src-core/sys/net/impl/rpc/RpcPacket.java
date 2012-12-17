@@ -21,7 +21,6 @@ import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 
 import java.util.logging.Logger;
 
-
 import sys.net.api.Endpoint;
 import sys.net.api.MessageHandler;
 import sys.net.api.TransportConnection;
@@ -33,169 +32,172 @@ import sys.utils.Threading;
 
 final public class RpcPacket extends AbstractRpcPacket {
 
-	private static Logger Log = Logger.getLogger( RpcPacket.class.getName() );
+    private static Logger Log = Logger.getLogger(RpcPacket.class.getName());
 
-
-	RpcFactoryImpl fac;
+    RpcFactoryImpl fac;
     boolean isWaiting4Reply = false;
 
-	long rtt;
-	
-	RpcPacket() {
-	}
+    long rtt;
 
-	RpcPacket(RpcFactoryImpl fac, long service, RpcHandler handler) {
-		this.fac = fac;
-		this.timeout = 0;
-		this.handler = handler;
-		this.handlerId = service;
-		this.replyHandlerId = service;
-		fac.handlers0.put(handlerId, this);
-	}
+    RpcPacket() {
+    }
 
-	RpcPacket(RpcFactoryImpl fac, Endpoint remote, RpcMessage payload, RpcPacket handle, RpcHandler replyhandler, int timeout) {
-		this.fac = fac;
-		this.remote = remote;
-		this.timeout = timeout;
-		this.payload = payload;
-		this.handler = replyhandler;
-		this.handlerId = handle.replyHandlerId;
-		this.deferredRepliesTimeout = handle.deferredRepliesTimeout;
-		
-		if (replyhandler != null) {
-			synchronized (fac.handlers1) {
-				this.replyHandlerId = ++g_handlers;
-				fac.handlers1.put(this.replyHandlerId, this);
-			}
-			this.timestamp = Sys.timeMillis();
-		} else
-			this.replyHandlerId = 0L;
-	}
+    RpcPacket(RpcFactoryImpl fac, long service, RpcHandler handler) {
+        this.fac = fac;
+        this.timeout = 0;
+        this.handler = handler;
+        this.handlerId = service;
+        this.replyHandlerId = service;
+        fac.handlers0.put(handlerId, this);
+    }
 
-	@Override
-	public Endpoint localEndpoint() {
-		return fac.facEndpoint;
-	}
+    RpcPacket(RpcFactoryImpl fac, Endpoint remote, RpcMessage payload, RpcPacket handle, RpcHandler replyhandler,
+            int timeout) {
+        this.fac = fac;
+        this.remote = remote;
+        this.timeout = timeout;
+        this.payload = payload;
+        this.handler = replyhandler;
+        this.handlerId = handle.replyHandlerId;
+        this.deferredRepliesTimeout = handle.deferredRepliesTimeout;
 
-	@Override
-	public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
-		Log.finest("Sending: " + msg + " to " + remote );
+        if (replyhandler != null) {
+            synchronized (fac.handlers1) {
+                this.replyHandlerId = ++g_handlers;
+                fac.handlers1.put(this.replyHandlerId, this);
+            }
+            this.timestamp = Sys.timeMillis();
+        } else
+            this.replyHandlerId = 0L;
+    }
 
-		RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout);
-		if (timeout != 0)
-			synchronized (pkt) {
-				pkt.isWaiting4Reply = true;
-				if (pkt.sendRpcSuccess(null, this))
-					pkt.waitForReply();
-			}
-		else {
-			pkt.remote = remote;
-			pkt.sendRpcSuccess(null, this);
-		}
-		return pkt;
-	}
+    @Override
+    public Endpoint localEndpoint() {
+        return fac.facEndpoint;
+    }
 
-	public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
-//		Log.finest("Replying: " + msg + " to " + remote );
-		RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout);
-		if (timeout != 0)
-			synchronized (pkt) {
-				// System.out.println("sync for:" + pkt.hashCode() );
-				pkt.isWaiting4Reply = true;
-				if (pkt.sendRpcSuccess(conn, this))
-					pkt.waitForReply();
-			}
-		else
-			pkt.sendRpcSuccess(conn, this);
-		return pkt;
-	}
+    @Override
+    public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
+        Log.finest("Sending: " + msg + " to " + remote);
 
-	final void deliver(AbstractRpcPacket pkt) {
-		this.rtt = Sys.timeMillis() - timestamp;
-		
-		if (isWaiting4Reply) {
-			synchronized (this) {
-				reply = pkt;
-				Threading.notifyAllOn(this);
-			}
-		} else {
-			if( this.handler != null )
-				pkt.payload.deliverTo(pkt, this.handler);
-			else
-				Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null", pkt.getClass(), pkt.remote() ) );
-		}
-	}
+        RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout);
+        if (timeout != 0)
+            synchronized (pkt) {
+                pkt.isWaiting4Reply = true;
+                if (pkt.sendRpcSuccess(null, this))
+                    pkt.waitForReply();
+            }
+        else {
+            pkt.remote = remote;
+            pkt.sendRpcSuccess(null, this);
+        }
+        return pkt;
+    }
 
-	final private void waitForReply() {
-		while (reply == null && ! timedOut() );
+    public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
+        // Log.finest("Replying: " + msg + " to " + remote );
+        RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout);
+        if (timeout != 0)
+            synchronized (pkt) {
+                // System.out.println("sync for:" + pkt.hashCode() );
+                pkt.isWaiting4Reply = true;
+                if (pkt.sendRpcSuccess(conn, this))
+                    pkt.waitForReply();
+            }
+        else
+            pkt.sendRpcSuccess(conn, this);
+        return pkt;
+    }
 
-		isWaiting4Reply = false;
-		if (reply != null)
-			reply.payload.deliverTo(reply, this.handler);
-		
-	}
+    final void deliver(AbstractRpcPacket pkt) {
+        this.rtt = Sys.timeMillis() - timestamp;
 
-	final private boolean timedOut() {
-	    if( timeout < 0 )
-	        throw new RuntimeException("Default timeout...") ;
-	    
-		int ms = (int) (timeout - (Sys.timeMillis() - timestamp));
-		if (ms > 0)
-			Threading.waitOn(this, ms > 100 ? 100 : ms);
-		return ms <= 0;
-	}
+        if (isWaiting4Reply) {
+            synchronized (this) {
+                reply = pkt;
+                Threading.notifyAllOn(this);
+            }
+        } else {
+            if (this.handler != null)
+                pkt.payload.deliverTo(pkt, this.handler);
+            else
+                Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null",
+                        pkt.getClass(), pkt.remote()));
+        }
+    }
 
-	private boolean sendRpcSuccess(TransportConnection conn, AbstractRpcPacket handle) {
-		try {
-			if (conn != null && conn.send(this) || fac.conMgr.send(remote(), this)) {
-				payload = null;
-				return true;
-			} else {
-				if (handler != null)
-					handler.onFailure(this);
-				else if (handle.handler != null)
-					handle.handler.onFailure(this);
+    final private void waitForReply() {
+        while (reply == null && !timedOut())
+            ;
 
-				return false;
-			}
-		} catch (Throwable t) {
-			failed = true;
-			failureCause = t;
+        isWaiting4Reply = false;
+        if (reply != null)
+            reply.payload.deliverTo(reply, this.handler);
 
-			if (handler != null)
-				handler.onFailure(this);
-			else
-				handle.handler.onFailure(this);
+    }
 
-			return false;
-		}
-	}
+    final private boolean timedOut() {
+        if (timeout < 0)
+            throw new RuntimeException("Default timeout...");
 
-	@Override
-	public RpcHandle enableDeferredReplies(int timeout) {
-		deferredRepliesTimeout = timeout ;
-		synchronized (fac.handlers1) {
-			fac.handlers0.put(replyHandlerId, this);
+        int ms = (int) (timeout - (Sys.timeMillis() - timestamp));
+        if (ms > 0)
+            Threading.waitOn(this, ms > 100 ? 100 : ms);
+        return ms <= 0;
+    }
+
+    private boolean sendRpcSuccess(TransportConnection conn, AbstractRpcPacket handle) {
+        try {
+            if (conn != null && conn.send(this) || fac.conMgr.send(remote(), this)) {
+                payload = null;
+                return true;
+            } else {
+                if (handler != null)
+                    handler.onFailure(this);
+                else if (handle.handler != null)
+                    handle.handler.onFailure(this);
+
+                return false;
+            }
+        } catch (Throwable t) {
+            failed = true;
+            failureCause = t;
+
+            if (handler != null)
+                handler.onFailure(this);
+            else
+                handle.handler.onFailure(this);
+
+            return false;
+        }
+    }
+
+    @Override
+    public RpcHandle enableDeferredReplies(int timeout) {
+        deferredRepliesTimeout = timeout;
+        synchronized (fac.handlers1) {
+            fac.handlers0.put(replyHandlerId, this);
             fac.handlers1.remove(replyHandlerId);
-		}
-		return this;
-	}
+        }
+        return this;
+    }
 
-	public String toString() {
-		return payload != null ? payload.getClass().toString() : String.format("RPC(%s,%s,%s)", handlerId, replyHandlerId, this.handler);
-	}
+    public String toString() {
+        return payload != null ? payload.getClass().toString() : String.format("RPC(%s,%s,%s)", handlerId,
+                replyHandlerId, this.handler);
+    }
 
-	@Override
-	public void deliverTo(TransportConnection conn, MessageHandler handler) {
-		((RpcFactoryImpl) handler).onReceive(conn, this);
-	}
-	
-	// [0-MAX_SERVICE_ID[ are reserved for static service handlers.
-	static long g_handlers = RPC_MAX_SERVICE_ID;
+    @Override
+    public void deliverTo(TransportConnection conn, MessageHandler handler) {
+        ((RpcFactoryImpl) handler).onReceive(conn, this);
+    }
 
-	@Override
-	public RpcFactory getFactory() {
-		return fac;
-	}
+    // [0-MAX_SERVICE_ID[ are reserved for static service handlers.
+    static long g_handlers = RPC_MAX_SERVICE_ID;
+
+    @Override
+    public RpcFactory getFactory() {
+        return fac;
+    }
 
 }

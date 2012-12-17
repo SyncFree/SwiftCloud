@@ -188,7 +188,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
      *            fi true, client wants to receive updated; otherwise,
      *            notifications
      */
-    void addToObserving(CRDTIdentifier id, boolean observing, CausalityClock clk, CausalityClock pruneClk, ClientPubInfo session) {
+    void addToObserving(CRDTIdentifier id, boolean observing, CausalityClock clk, CausalityClock pruneClk,
+            ClientPubInfo session) {
         synchronized (cltsObserving) {
             Map<String, ClientPubInfo> clts = cltsObserving.get(id);
             if (clts == null) {
@@ -345,14 +346,15 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
                 versionClock.recordAllUntil(cltLastSeqNo);
             }
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
-                    versionClock, ClockFactory.newClock(), estimatedDCVersionCopy,
-                    estimatedDCStableVersionCopy);
+                    versionClock, ClockFactory.newClock(), estimatedDCVersionCopy, estimatedDCStableVersionCopy);
         } else {
             if (request.getSubscriptionType() != SubscriptionType.NONE) {
                 if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
-                    addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), crdt.pruneClock.clone(), session);
+                    addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), crdt.pruneClock.clone(),
+                            session);
                 else if (request.getSubscriptionType() == SubscriptionType.UPDATES)
-                    addToObserving(request.getUid(), true, crdt.crdt.getClock().clone(), crdt.pruneClock.clone(),session);
+                    addToObserving(request.getUid(), true, crdt.crdt.getClock().clone(), crdt.pruneClock.clone(),
+                            session);
             }
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
@@ -407,106 +409,78 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
             }
         });
     }
-/*
-    protected void doProcessCommit(final ClientPubInfo session, final RpcHandle conn,
-            final CommitUpdatesRequest request, final GenerateDCTimestampReply reply) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("DOCommitUpdatesRequest client = " + request.getClientId() + ":cltts="
-                    + request.getClientTimestamp() + ":ts=" + reply.getTimestamp() + ":nops="
-                    + request.getObjectUpdateGroups().size());
-        }
-        // 0) updates.addSystemTimestamp(timestampService.allocateTimestamp())
-        // 1) let int clientTxs =
-        // clientTxClockService.getAndLockNumberOfCommitedTxs(clientId)
-        // 2) for all modified objects:
-        // crdt.augumentWithScoutClock(new Timestamp(clientId, clientTxs)) //
-        // ensures that execute() has enough information to ensure tx
-        // idempotence
-        // crdt.execute(updates...)
-        // crdt.discardScoutClock(clientId) // critical to not polute all data
-        // nodes and objects with big vectors, unless we want to do it until
-        // pruning
-        // 3) clientTxClockService.unlock(clientId)
 
-        List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
-        final Timestamp txTs = reply.getTimestamp();
-        final Timestamp cltTs = request.getClientTimestamp();
-        final Timestamp prvCltTs = session.getLastSeqNo();
-        for (CRDTObjectUpdatesGroup<?> o : ops) {
-            o.addSystemTimestamp(txTs);
-        }
-
-        final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
-        final CausalityClock trxClock = snapshotClock.clone();
-        trxClock.record(txTs);
-        Iterator<CRDTObjectUpdatesGroup<?>> it = ops.iterator();
-        final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()];
-        boolean ok = true;
-        int pos = 0;
-        CausalityClock estimatedDCVersionCopy0 = null;
-        synchronized (estimatedDCVersion) {
-            estimatedDCVersionCopy0 = estimatedDCVersion.clone();
-        }
-        final CausalityClock estimatedDCVersionCopy = estimatedDCVersionCopy0;
-        while (it.hasNext()) {
-            // TODO: must make this concurrent to be fast
-            CRDTObjectUpdatesGroup<?> grp = it.next();
-            results[pos] = execCRDT(grp, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy);
-            ok = ok && results[pos].isResult();
-            synchronized (estimatedDCVersion) {
-                estimatedDCVersion.merge(grp.getDependency());
-            }
-            pos++;
-        }
-        final boolean txResult = ok;
-        // TODO: handle failure
-
-        session.setLastSeqNo(cltTs);
-        sequencerClientEndpoint.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs,
-                estimatedDCVersionCopy, ok, request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
-            @Override
-            public void onReceive(RpcHandle conn0, CommitTSReply reply) {
-                if (logger.isLoggable(Level.INFO)) {
-                    logger.info("Commit: received CommitTSRequest:old vrs:" + estimatedDCVersionCopy + "; new vrs="
-                            + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
-                }
-                estimatedDCVersionCopy.record(txTs);
-                synchronized (estimatedDCVersion) {
-                    estimatedDCVersion.merge(reply.getCurrVersion());
-                }
-                CausalityClock estimatedDCStableVersionCopy = null;
-                synchronized (estimatedDCStableVersion) {
-                    estimatedDCStableVersion.merge(reply.getStableVersion());
-                    estimatedDCStableVersionCopy = estimatedDCStableVersion.clone();
-                }
-                if (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
-                    if (logger.isLoggable(Level.INFO)) {
-                        logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
-                    }
-                    conn.reply(new CommitUpdatesReply(txTs));
-                    for (int i = 0; i < results.length; i++) {
-                        ExecCRDTResult result = results[i];
-                        if (result == null)
-                            continue;
-                        if (result.hasNotification()) {
-                            if (results[i].isNotificationOnly()) {
-                                PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo()
-                                        .cloneNotification(), estimatedDCVersionCopy, estimatedDCStableVersionCopy));
-                            } else {
-                                PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo(),
-                                        estimatedDCVersionCopy, estimatedDCStableVersionCopy));
-                            }
-
-                        }
-                    }
-                } else {
-                    conn.reply(new CommitUpdatesReply());
-                }
-            }
-        });
-
-    }
-*/
+    /*
+     * protected void doProcessCommit(final ClientPubInfo session, final
+     * RpcHandle conn, final CommitUpdatesRequest request, final
+     * GenerateDCTimestampReply reply) { if (logger.isLoggable(Level.INFO)) {
+     * logger.info("DOCommitUpdatesRequest client = " + request.getClientId() +
+     * ":cltts=" + request.getClientTimestamp() + ":ts=" + reply.getTimestamp()
+     * + ":nops=" + request.getObjectUpdateGroups().size()); } // 0)
+     * updates.addSystemTimestamp(timestampService.allocateTimestamp()) // 1)
+     * let int clientTxs = //
+     * clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) // 2) for
+     * all modified objects: // crdt.augumentWithScoutClock(new
+     * Timestamp(clientId, clientTxs)) // // ensures that execute() has enough
+     * information to ensure tx // idempotence // crdt.execute(updates...) //
+     * crdt.discardScoutClock(clientId) // critical to not polute all data //
+     * nodes and objects with big vectors, unless we want to do it until //
+     * pruning // 3) clientTxClockService.unlock(clientId)
+     * 
+     * List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
+     * final Timestamp txTs = reply.getTimestamp(); final Timestamp cltTs =
+     * request.getClientTimestamp(); final Timestamp prvCltTs =
+     * session.getLastSeqNo(); for (CRDTObjectUpdatesGroup<?> o : ops) {
+     * o.addSystemTimestamp(txTs); }
+     * 
+     * final CausalityClock snapshotClock = ops.size() > 0 ?
+     * ops.get(0).getDependency() : ClockFactory.newClock(); final
+     * CausalityClock trxClock = snapshotClock.clone(); trxClock.record(txTs);
+     * Iterator<CRDTObjectUpdatesGroup<?>> it = ops.iterator(); final
+     * ExecCRDTResult[] results = new ExecCRDTResult[ops.size()]; boolean ok =
+     * true; int pos = 0; CausalityClock estimatedDCVersionCopy0 = null;
+     * synchronized (estimatedDCVersion) { estimatedDCVersionCopy0 =
+     * estimatedDCVersion.clone(); } final CausalityClock estimatedDCVersionCopy
+     * = estimatedDCVersionCopy0; while (it.hasNext()) { // TODO: must make this
+     * concurrent to be fast CRDTObjectUpdatesGroup<?> grp = it.next();
+     * results[pos] = execCRDT(grp, snapshotClock, trxClock, txTs, cltTs,
+     * prvCltTs, estimatedDCVersionCopy); ok = ok && results[pos].isResult();
+     * synchronized (estimatedDCVersion) {
+     * estimatedDCVersion.merge(grp.getDependency()); } pos++; } final boolean
+     * txResult = ok; // TODO: handle failure
+     * 
+     * session.setLastSeqNo(cltTs);
+     * sequencerClientEndpoint.send(sequencerServerEndpoint, new
+     * CommitTSRequest(txTs, cltTs, prvCltTs, estimatedDCVersionCopy, ok,
+     * request.getObjectUpdateGroups()), new CommitTSReplyHandler() {
+     * 
+     * @Override public void onReceive(RpcHandle conn0, CommitTSReply reply) {
+     * if (logger.isLoggable(Level.INFO)) {
+     * logger.info("Commit: received CommitTSRequest:old vrs:" +
+     * estimatedDCVersionCopy + "; new vrs=" + reply.getCurrVersion() + ";ts = "
+     * + txTs + ";cltts = " + cltTs); } estimatedDCVersionCopy.record(txTs);
+     * synchronized (estimatedDCVersion) {
+     * estimatedDCVersion.merge(reply.getCurrVersion()); } CausalityClock
+     * estimatedDCStableVersionCopy = null; synchronized
+     * (estimatedDCStableVersion) {
+     * estimatedDCStableVersion.merge(reply.getStableVersion());
+     * estimatedDCStableVersionCopy = estimatedDCStableVersion.clone(); } if
+     * (txResult && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) { if
+     * (logger.isLoggable(Level.INFO)) {
+     * logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs); }
+     * conn.reply(new CommitUpdatesReply(txTs)); for (int i = 0; i <
+     * results.length; i++) { ExecCRDTResult result = results[i]; if (result ==
+     * null) continue; if (result.hasNotification()) { if
+     * (results[i].isNotificationOnly()) { PubSub.publish(result.getId(), new
+     * DHTSendNotification(result.getInfo() .cloneNotification(),
+     * estimatedDCVersionCopy, estimatedDCStableVersionCopy)); } else {
+     * PubSub.publish(result.getId(), new DHTSendNotification(result.getInfo(),
+     * estimatedDCVersionCopy, estimatedDCStableVersionCopy)); }
+     * 
+     * } } } else { conn.reply(new CommitUpdatesReply()); } } });
+     * 
+     * }
+     */
     @Override
     public void onReceive(final RpcHandle conn, final CommitUpdatesRequest request) {
         if (logger.isLoggable(Level.INFO)) {
@@ -525,26 +499,23 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
             conn.reply(new CommitUpdatesReply(getEstimatedDCVersionCopy()));
             return;
         }
-        
-        conn.reply(doProcessOneCommit( session, request));
 
+        conn.reply(doProcessOneCommit(session, request));
 
-/*        sequencerClientEndpoint.send(sequencerServerEndpoint, new GenerateDCTimestampRequest(request.getClientId(),
-                request.getClientTimestamp(), request.getObjectUpdateGroups().size() > 0 ? request
-                        .getObjectUpdateGroups().get(0).getDependency() : ClockFactory.newClock()),
-                new GenerateDCTimestampReplyHandler() {
-                    @Override
-                    public void onReceive(RpcHandle conn0, GenerateDCTimestampReply reply) {
-                        doProcessCommit(session, conn, request, reply);
-                    }
-                });
-*/    }
+        /*
+         * sequencerClientEndpoint.send(sequencerServerEndpoint, new
+         * GenerateDCTimestampRequest(request.getClientId(),
+         * request.getClientTimestamp(), request.getObjectUpdateGroups().size()
+         * > 0 ? request .getObjectUpdateGroups().get(0).getDependency() :
+         * ClockFactory.newClock()), new GenerateDCTimestampReplyHandler() {
+         * 
+         * @Override public void onReceive(RpcHandle conn0,
+         * GenerateDCTimestampReply reply) { doProcessCommit(session, conn,
+         * request, reply); } });
+         */}
 
-
-    
-    protected void doAsyncProcessOneCommit(final FutureResult<CommitUpdatesReply> commitResult, 
-            final ClientPubInfo session,
-            final CommitUpdatesRequest request, final GenerateDCTimestampReply reply) {
+    protected void doAsyncProcessOneCommit(final FutureResult<CommitUpdatesReply> commitResult,
+            final ClientPubInfo session, final CommitUpdatesRequest request, final GenerateDCTimestampReply reply) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("doAsyncProcessOneCommit client = " + request.getClientId() + ":cltts="
                     + request.getClientTimestamp() + ":ts=" + reply.getTimestamp() + ":nops="
@@ -640,7 +611,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
             }
         });
     }
-    
 
     private CommitUpdatesReply doProcessOneCommit(final ClientPubInfo session, final CommitUpdatesRequest request) {
         final FutureResult<CommitUpdatesReply> commitResult = new FutureResult<CommitUpdatesReply>();
@@ -665,13 +635,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
             return new CommitUpdatesReply();
         }
     }
-    
-    
+
     @Override
     public void onReceive(RpcHandle conn, BatchCommitUpdatesRequest request) {
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("CommitUpdatesRequest client = " + request.getClientId() + 
-                    ":batch size=" + request.getCommitRequests().size());
+            logger.info("CommitUpdatesRequest client = " + request.getClientId() + ":batch size="
+                    + request.getCommitRequests().size());
         }
         final ClientPubInfo session = getSession(request.getClientId());
         if (logger.isLoggable(Level.INFO)) {
@@ -682,16 +651,16 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
 
         List<Timestamp> tsLst = new LinkedList<Timestamp>();
         LinkedList<CommitUpdatesReply> reply = new LinkedList<CommitUpdatesReply>();
-        for ( CommitUpdatesRequest r : request.getCommitRequests()) {
-            if( session.getLastSeqNo() != null &&
-                        session.getLastSeqNo().getCounter() >= r.getClientTimestamp().getCounter()) {
+        for (CommitUpdatesRequest r : request.getCommitRequests()) {
+            if (session.getLastSeqNo() != null
+                    && session.getLastSeqNo().getCounter() >= r.getClientTimestamp().getCounter()) {
                 reply.addLast(new CommitUpdatesReply(getEstimatedDCVersionCopy()));
             } else {
-                r.addTimestampsToDeps( tsLst);
-                CommitUpdatesReply repOne = doProcessOneCommit( session, r);
-                if( repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
+                r.addTimestampsToDeps(tsLst);
+                CommitUpdatesReply repOne = doProcessOneCommit(session, r);
+                if (repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
                     List<Timestamp> tsLstOne = repOne.getCommitTimestamps();
-                    if( tsLstOne != null)
+                    if (tsLstOne != null)
                         tsLst.addAll(tsLstOne);
                 }
                 reply.addLast(repOne);
@@ -699,7 +668,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer,
         }
         conn.reply(new BatchCommitUpdatesReply(reply));
     }
-
 
     // @Override
     // public void onReceive(final RpcHandle conn, CommitUpdatesRequest request)
@@ -1137,7 +1105,7 @@ class CRDTSessionInfo {
         if (!hasChanges) {
             oldClock = info.getOldClock();
             newClock = info.getNewClock();
-            if( pruneClock == null)
+            if (pruneClock == null)
                 pruneClock = info.getPruneClock();
             else
                 pruneClock.merge(info.getPruneClock());

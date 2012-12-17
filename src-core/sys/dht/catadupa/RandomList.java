@@ -30,28 +30,28 @@ import java.util.Iterator;
  */
 public class RandomList<T> extends ArrayList<T> {
 
-	public RandomList() {
-	}
+    public RandomList() {
+    }
 
-	public RandomList(Collection<? extends T> c) {
-		super(c);
-	}
+    public RandomList(Collection<? extends T> c) {
+        super(c);
+    }
 
-	public RandomList(Iterator<? extends T> it) {
-		for (; it.hasNext();)
-			add(it.next());
-	}
+    public RandomList(Iterator<? extends T> it) {
+        for (; it.hasNext();)
+            add(it.next());
+    }
 
-	public T randomElement() {
-		return isEmpty() ? null : get(Sys.rg.nextInt(super.size()));
-	}
+    public T randomElement() {
+        return isEmpty() ? null : get(Sys.rg.nextInt(super.size()));
+    }
 
-	public T removeRandomElement() {
-		return isEmpty() ? null : remove(Sys.rg.nextInt(super.size()));
-	}
+    public T removeRandomElement() {
+        return isEmpty() ? null : remove(Sys.rg.nextInt(super.size()));
+    }
 
-	/**
+    /**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 }

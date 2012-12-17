@@ -34,13 +34,14 @@ public class StringCopyable implements Copyable {
     public Object copy() {
         return new StringCopyable(value);
     }
-    public String getValue(){
+
+    public String getValue() {
         return value;
     }
+
     @Override
     public String toString() {
         return value;
     }
-    
 
 }

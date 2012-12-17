@@ -158,7 +158,7 @@ public final class AddWinsUtils {
 
     public static <V extends Comparable<V>> SortedMap<V, Set<TripleTimestamp>> getOrderedValue(
             SortedMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>> base, CausalityClock snapshotClock) {
-        
+
         SortedMap<V, Set<TripleTimestamp>> retValues = new TreeMap<V, Set<TripleTimestamp>>();
         Set<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> entrySet = base.entrySet();
         for (Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e : entrySet) {

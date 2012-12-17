@@ -72,7 +72,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     private static Logger logger = Logger.getLogger(DCSequencerServer.class.getName());
 
     DCSequencerServer thisServer = this;
-    
+
     RpcEndpoint endpoint;
     IncrementalTimestampGenerator clockGen;
     CausalityClock receivedMessages;

@@ -62,7 +62,8 @@ public class PingSpeedTest {
         Thread client1 = new Thread("client1") {
             public void run() {
                 Sys.init();
-                SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                        DCConstants.SURROGATE_PORT));
                 runClient1(clientServer);
             }
         };
@@ -77,7 +78,8 @@ public class PingSpeedTest {
         Thread client2 = new Thread("client2") {
             public void run() {
                 Sys.init();
-                SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                        DCConstants.SURROGATE_PORT));
                 runClient2(clientServer);
             }
         };

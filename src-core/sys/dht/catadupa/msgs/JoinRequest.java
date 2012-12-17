@@ -23,17 +23,17 @@ import sys.net.api.rpc.RpcMessage;
 
 public class JoinRequest implements RpcMessage {
 
-	public Node node;
+    public Node node;
 
-	public JoinRequest() {
-	}
+    public JoinRequest() {
+    }
 
-	public JoinRequest(final Node self) {
-		this.node = self;
-	}
+    public JoinRequest(final Node self) {
+        this.node = self;
+    }
 
-	public void deliverTo(RpcHandle call, RpcHandler handler) {
-		((CatadupaHandler) handler).onReceive(call, this);
-	}
+    public void deliverTo(RpcHandle call, RpcHandler handler) {
+        ((CatadupaHandler) handler).onReceive(call, this);
+    }
 
 }

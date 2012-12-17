@@ -21,7 +21,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
@@ -313,13 +312,17 @@ public class DottedVersionVector implements CausalityClock {
 
     /**
      * Intersect this clock with the given c clock.
-     *
-     * @param c Clock to merge to
+     * 
+     * @param c
+     *            Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
-     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
-     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
-     * clock and the given c clock were concurrent; <br>
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
      */
     public CMP_CLOCK intersectVV(DottedVersionVector cc) {
         CMP_CLOCK cmp = this.compareTo(cc);
@@ -435,6 +438,6 @@ public class DottedVersionVector implements CausalityClock {
 
     @Override
     public Object copy() {
-       return new DottedVersionVector(this);
+        return new DottedVersionVector(this);
     }
 }

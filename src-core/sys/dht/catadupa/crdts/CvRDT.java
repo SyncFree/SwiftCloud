@@ -30,10 +30,10 @@ import java.io.Serializable;
  */
 public interface CvRDT<V> extends Serializable {
 
-	void merge(V other);
+    void merge(V other);
 
-	// <C extends CausalityClock<C>> void merge(V that,
-	// CausalityClock<C> thisClock, CausalityClock<C> thatClock)
-	// throws IncompatibleTypeException;
+    // <C extends CausalityClock<C>> void merge(V that,
+    // CausalityClock<C> thisClock, CausalityClock<C> thatClock)
+    // throws IncompatibleTypeException;
 
 }

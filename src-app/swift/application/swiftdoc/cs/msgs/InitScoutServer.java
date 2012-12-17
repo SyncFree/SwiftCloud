@@ -21,12 +21,12 @@ import sys.net.api.rpc.RpcHandler;
 
 public class InitScoutServer extends SwiftDocRpc {
 
-	public InitScoutServer(){
-	}
-	
-	@Override
-	public void deliverTo(RpcHandle handle, RpcHandler handler) {
-		((AppRpcHandler)handler).onReceive(handle, this);
-	}
+    public InitScoutServer() {
+    }
+
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((AppRpcHandler) handler).onReceive(handle, this);
+    }
 
 }

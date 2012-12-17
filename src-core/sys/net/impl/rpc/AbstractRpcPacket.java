@@ -16,11 +16,6 @@
  *****************************************************************************/
 package sys.net.impl.rpc;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.TransportConnection;
@@ -31,130 +26,134 @@ import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.AbstractMessage;
 import sys.net.impl.NetworkingConstants;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 abstract class AbstractRpcPacket extends AbstractMessage implements Message, RpcHandle, RpcEndpoint, KryoSerializable {
 
-	long handlerId; // destination service handler
-	public long replyHandlerId; // reply handler, 0 = no reply expected.
-	public int deferredRepliesTimeout = 0;
+    long handlerId; // destination service handler
+    public long replyHandlerId; // reply handler, 0 = no reply expected.
+    public int deferredRepliesTimeout = 0;
 
-	RpcMessage payload;
+    RpcMessage payload;
 
-	RpcHandler handler;
-	TransportConnection conn;
+    RpcHandler handler;
+    TransportConnection conn;
 
-	int timeout;
-	Endpoint remote;
-	long timestamp;
+    int timeout;
+    Endpoint remote;
+    long timestamp;
 
-	int DEFAULT_TIMEOUT = NetworkingConstants.RPC_DEFAULT_TIMEOUT ;
-	
-	boolean failed = false;
-	Throwable failureCause;
+    int DEFAULT_TIMEOUT = NetworkingConstants.RPC_DEFAULT_TIMEOUT;
 
-	volatile AbstractRpcPacket reply;
+    boolean failed = false;
+    Throwable failureCause;
 
-	protected AbstractRpcPacket() {
-	}
+    volatile AbstractRpcPacket reply;
 
-	final public void setDefaultTimeout( int ms ) {
-	    if( ms < 0 )
-	        throw new RuntimeException("Invalid argument, timeout must be >= 0");	    
-	    this.DEFAULT_TIMEOUT = ms ;
-	}
-	
-	final public int getDefaultTimeout() {
-        return this.DEFAULT_TIMEOUT ;
+    protected AbstractRpcPacket() {
     }
-    
-	
-	final public Endpoint remote() {
-		return remote != null ? remote : conn.remoteEndpoint();
-	}
 
-	@Override
-	public boolean expectingReply() {
-		return replyHandlerId != 0;
-	}
+    final public void setDefaultTimeout(int ms) {
+        if (ms < 0)
+            throw new RuntimeException("Invalid argument, timeout must be >= 0");
+        this.DEFAULT_TIMEOUT = ms;
+    }
 
-	@Override
-	public RpcHandle reply(RpcMessage msg) {
-		return reply(msg, null, 0);
-	}
+    final public int getDefaultTimeout() {
+        return this.DEFAULT_TIMEOUT;
+    }
 
-	@Override
-	public RpcHandle reply(RpcMessage msg, RpcHandler handler) {
-		return reply(msg, handler, -1);
-	}
+    final public Endpoint remote() {
+        return remote != null ? remote : conn.remoteEndpoint();
+    }
 
-	@Override
-	public RpcHandle reply(RpcMessage msg, RpcHandler handler, int timeout) {
-		Thread.dumpStack();
-		return null;
-	}
+    @Override
+    public boolean expectingReply() {
+        return replyHandlerId != 0;
+    }
 
-	@Override
-	public boolean failed() {
-		return failed;
-	}
+    @Override
+    public RpcHandle reply(RpcMessage msg) {
+        return reply(msg, null, 0);
+    }
 
-	@Override
-	public boolean succeeded() {
-		return !failed;
-	}
+    @Override
+    public RpcHandle reply(RpcMessage msg, RpcHandler handler) {
+        return reply(msg, handler, -1);
+    }
 
-	@Override
-	public Endpoint remoteEndpoint() {
-		return remote == null ? conn.remoteEndpoint() : remote;
-	}
+    @Override
+    public RpcHandle reply(RpcMessage msg, RpcHandler handler, int timeout) {
+        Thread.dumpStack();
+        return null;
+    }
 
-	@Override
-	public RpcHandle send(Endpoint dst, RpcMessage m) {
-		return send(dst, m, null, 0);
-	}
+    @Override
+    public boolean failed() {
+        return failed;
+    }
 
-	@Override
-	public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
-		return send(dst, m, replyHandler, DEFAULT_TIMEOUT);
-	}
+    @Override
+    public boolean succeeded() {
+        return !failed;
+    }
 
-	@Override
-	public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
-		Thread.dumpStack();
-		return this;
-	}
+    @Override
+    public Endpoint remoteEndpoint() {
+        return remote == null ? conn.remoteEndpoint() : remote;
+    }
 
-	@SuppressWarnings("unchecked")
-	@Override
-	public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
-		this.handler = handler;
-		return (T) this;
-	}
+    @Override
+    public RpcHandle send(Endpoint dst, RpcMessage m) {
+        return send(dst, m, null, 0);
+    }
 
-	@Override
-	public RpcMessage getPayload() {
-		return payload;
-	}
+    @Override
+    public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler) {
+        return send(dst, m, replyHandler, DEFAULT_TIMEOUT);
+    }
 
-	@Override
-	public RpcHandle getReply() {
-		return reply;
-	}
+    @Override
+    public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
+        Thread.dumpStack();
+        return this;
+    }
 
-	@Override
-	final public void read(Kryo kryo, Input input) {
-		this.handlerId = input.readLong();
-		this.replyHandlerId = input.readLong();
-		this.deferredRepliesTimeout = input.readInt();
-		
-		this.payload = (RpcMessage) kryo.readClassAndObject(input);
-	}
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends RpcEndpoint> T setHandler(final RpcHandler handler) {
+        this.handler = handler;
+        return (T) this;
+    }
 
-	@Override
-	final public void write(Kryo kryo, Output output) {
-		output.writeLong(this.handlerId);
-		output.writeLong(this.replyHandlerId);
-		output.writeInt( deferredRepliesTimeout);
-		
-		kryo.writeClassAndObject(output, payload);
-	}
+    @Override
+    public RpcMessage getPayload() {
+        return payload;
+    }
+
+    @Override
+    public RpcHandle getReply() {
+        return reply;
+    }
+
+    @Override
+    final public void read(Kryo kryo, Input input) {
+        this.handlerId = input.readLong();
+        this.replyHandlerId = input.readLong();
+        this.deferredRepliesTimeout = input.readInt();
+
+        this.payload = (RpcMessage) kryo.readClassAndObject(input);
+    }
+
+    @Override
+    final public void write(Kryo kryo, Output output) {
+        output.writeLong(this.handlerId);
+        output.writeLong(this.replyHandlerId);
+        output.writeInt(deferredRepliesTimeout);
+
+        kryo.writeClassAndObject(output, payload);
+    }
 }

@@ -72,9 +72,9 @@ public class HistogramTester {
     // Experiencia que dura mais tempo do que apenas um slice. Os resutlados n
     // podem aparecer agregados, mas devem fazer referencia aos mesmos valores.
     // Depois fazer o merge de dois slices
-//    @Test
+    // @Test
     public void testOpLatency2() {
-        
+
         HistogramOverTime opsLatency = Stats.getValuesFrequencyOverTime("histogram", 200, 400, 1000);
 
         Stopper stopper = opsLatency.createEventDurationSignal();

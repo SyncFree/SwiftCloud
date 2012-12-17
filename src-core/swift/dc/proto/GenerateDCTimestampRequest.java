@@ -44,9 +44,9 @@ public class GenerateDCTimestampRequest extends ClientRequest {
         dependencyClk.drop(clientId);
     }
 
-
     /**
-     * @return client timestamp    */
+     * @return client timestamp
+     */
     public Timestamp getCltTimestamp() {
         return cltTimestamp;
     }

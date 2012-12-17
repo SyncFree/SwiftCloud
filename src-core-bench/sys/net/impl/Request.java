@@ -16,16 +16,16 @@
  *****************************************************************************/
 package sys.net.impl;
 
+import static sys.Sys.Sys;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
-import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
-
-import static sys.Sys.*;
 /**
  * 
  * @author smd
@@ -35,7 +35,7 @@ public class Request implements RpcMessage, KryoSerializable {
 
     public int val;
     public double timestamp;
-    
+
     Request() {
     }
 
@@ -44,11 +44,11 @@ public class Request implements RpcMessage, KryoSerializable {
         this.timestamp = Sys.currentTime();
     }
 
-    public Request(int val, double ts ) {
+    public Request(int val, double ts) {
         this.val = val;
         this.timestamp = ts;
     }
-    
+
     public String toString() {
         return "request: " + val;
     }
@@ -58,15 +58,15 @@ public class Request implements RpcMessage, KryoSerializable {
         ((Handler) handler).onReceive(handle, this);
     }
 
-	@Override
-	final public void read(Kryo kryo, Input input) {
-		this.val = input.readInt();
-		this.timestamp = input.readDouble();
-	}
+    @Override
+    final public void read(Kryo kryo, Input input) {
+        this.val = input.readInt();
+        this.timestamp = input.readDouble();
+    }
 
-	@Override
-	final public void write(Kryo kryo, Output output) {
-		output.writeInt( this.val ) ;
-		output.writeDouble( this.timestamp);
-	}
+    @Override
+    final public void write(Kryo kryo, Output output) {
+        output.writeInt(this.val);
+        output.writeDouble(this.timestamp);
+    }
 }

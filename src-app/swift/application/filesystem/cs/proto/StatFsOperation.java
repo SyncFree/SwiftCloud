@@ -17,10 +17,10 @@
  *****************************************************************************/
 package swift.application.filesystem.cs.proto;
 
-import fuse.FuseException;
-import fuse.FuseStatfsSetter;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import fuse.FuseException;
+import fuse.FuseStatfsSetter;
 
 public class StatFsOperation extends FuseRemoteOperation {
 
@@ -36,10 +36,10 @@ public class StatFsOperation extends FuseRemoteOperation {
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         try {
-            int res = ((RemoteFuseOperationHandler)handler).statfs( sfs );
-            handle.reply( new FuseOperationResult( res ) ) ;
+            int res = ((RemoteFuseOperationHandler) handler).statfs(sfs);
+            handle.reply(new FuseOperationResult(res));
         } catch (FuseException e) {
-            handle.reply( new FuseOperationResult() );
+            handle.reply(new FuseOperationResult());
         }
     }
 }

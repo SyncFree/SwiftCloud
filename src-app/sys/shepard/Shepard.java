@@ -19,26 +19,21 @@ package sys.shepard;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Semaphore;
 import java.util.logging.Logger;
 
-import swift.application.filesystem.cs.SwiftFuseServer;
-import swift.client.SwiftImpl;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.scheduler.Task;
+import sys.shepard.proto.GrazingAccepted;
 import sys.shepard.proto.GrazingGranted;
 import sys.shepard.proto.GrazingRequest;
-import sys.shepard.proto.GrazingAccepted;
 import sys.shepard.proto.ShepardProtoHandler;
 import sys.utils.Args;
 import sys.utils.IP;
-import sys.utils.Threading;
 
 public class Shepard extends ShepardProtoHandler {
     private static Logger Log = Logger.getLogger(Shepard.class.getName());
@@ -85,7 +80,7 @@ public class Shepard extends ShepardProtoHandler {
             }
         });
         barrier.acquireUninterruptibly();
-        Log.info( IP.localHostAddressString() + " Let's GO!!!!!");        
+        Log.info(IP.localHostAddressString() + " Let's GO!!!!!");
     }
 
     synchronized public void onReceive(RpcHandle sheep, GrazingRequest request) {

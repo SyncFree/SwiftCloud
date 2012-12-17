@@ -66,7 +66,6 @@ public class VersionVectorWithExceptionsNewTest {
         clock.record(tsA5);
         clock.record(tsA3);
 
-
         assertTrue(clock.includes(tsA1));
         assertFalse(clock.includes(tsA2));
         assertTrue(clock.includes(tsA3));
@@ -105,12 +104,12 @@ public class VersionVectorWithExceptionsNewTest {
         assertTrue(clock.includes(tsB2));
         assertFalse(clock.includes(tsA2));
     }
-    
+
     @Test
     public void testDropFirstTimestamp() {
         clock.record(tsA1);
         clock.record(tsA2);
-        
+
         clock.drop(tsA1);
 
         assertFalse(clock.includes(tsA1));
@@ -149,7 +148,7 @@ public class VersionVectorWithExceptionsNewTest {
         assertFalse(clock.includes(tsA1));
         assertTrue(clock.includes(tsA2));
     }
-    
+
     @Test
     public void testDominates1() {
         // Prepare [5 \ {2,4}, 0] vector.
@@ -191,7 +190,7 @@ public class VersionVectorWithExceptionsNewTest {
         assertTrue(clock.compareTo(clock2) == CMP_CLOCK.CMP_CONCURRENT);
         assertTrue(clock2.compareTo(clock) == CMP_CLOCK.CMP_CONCURRENT);
     }
-    
+
     @Test
     public void testDominates4() {
         // Prepare [3, 0] vector.
@@ -205,6 +204,7 @@ public class VersionVectorWithExceptionsNewTest {
         assertTrue(clock.compareTo(clock2) == CMP_CLOCK.CMP_DOMINATES);
         assertTrue(clock2.compareTo(clock) == CMP_CLOCK.CMP_ISDOMINATED);
     }
+
     @Test
     public void testMerge1() {
         // Prepare [5 \ {2,4}, 0] vector.
@@ -258,7 +258,7 @@ public class VersionVectorWithExceptionsNewTest {
         assertTrue(clock.merge(clock2) == CMP_CLOCK.CMP_CONCURRENT);
         assertTrue(clock.compareTo(clock3) == CMP_CLOCK.CMP_EQUALS);
     }
-    
+
     @Test
     public void testMerge4() {
         // Prepare [3, 0] vector.
@@ -306,10 +306,11 @@ public class VersionVectorWithExceptionsNewTest {
         // Prepare[2\{1}, 0] vector.
         clock2.record(tsA2);
         // Prepare[0, 0] vector.
- 
+
         assertTrue(clock.intersect(clock2) == CMP_CLOCK.CMP_CONCURRENT);
         assertTrue(clock.compareTo(clock3) == CMP_CLOCK.CMP_EQUALS);
     }
+
     @Test
     public void testIntersect2() {
         // Prepare [4 \ {2}, 0] vector.
@@ -321,10 +322,11 @@ public class VersionVectorWithExceptionsNewTest {
         clock2.record(tsA4);
         // Prepare[4\{1,2,3}, 0] vector.
         clock3.record(tsA4);
- 
+
         assertTrue(clock.intersect(clock2) == CMP_CLOCK.CMP_CONCURRENT);
         assertTrue(clock.compareTo(clock3) == CMP_CLOCK.CMP_EQUALS);
     }
+
     @Test
     public void testIntersect3() {
         // Prepare [4 \ {2}, 1] vector.
@@ -339,10 +341,11 @@ public class VersionVectorWithExceptionsNewTest {
         // Prepare[4\{1,2,3}, 1] vector.
         clock3.record(tsA4);
         clock3.record(tsB1);
- 
+
         assertTrue(clock.intersect(clock2) == CMP_CLOCK.CMP_CONCURRENT);
         assertTrue(clock.compareTo(clock3) == CMP_CLOCK.CMP_EQUALS);
     }
+
     @Test
     public void testIntersect4() {
         // Prepare [3, 2] vector.
@@ -362,7 +365,7 @@ public class VersionVectorWithExceptionsNewTest {
         clock3.record(tsA2);
         clock3.record(tsB1);
         clock3.record(tsB2);
- 
+
         assertTrue(clock.intersect(clock2) == CMP_CLOCK.CMP_CONCURRENT);
         assertTrue(clock.compareTo(clock3) == CMP_CLOCK.CMP_EQUALS);
     }

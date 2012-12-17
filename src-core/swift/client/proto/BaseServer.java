@@ -25,10 +25,9 @@ import sys.net.api.rpc.RpcHandler;
 /**
  * Server interface for client-server interaction.
  * <p>
- * This interface defines the common functions of the surrogate
- * and sequencer.
+ * This interface defines the common functions of the surrogate and sequencer.
  */
-public interface  BaseServer extends RpcHandler {
+public interface BaseServer extends RpcHandler {
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -48,7 +47,7 @@ public interface  BaseServer extends RpcHandler {
      *            request to serve
      */
     void onReceive(RpcHandle conn, KeepaliveRequest request);
-    
+
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -58,6 +57,7 @@ public interface  BaseServer extends RpcHandler {
      *            request to serve
      */
     void onReceive(RpcHandle conn, LatestKnownClockRequest request);
+
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -67,7 +67,5 @@ public interface  BaseServer extends RpcHandler {
      *            request to serve
      */
     void onReceive(RpcHandle conn, SeqCommitUpdatesRequest request);
-
-    
 
 }

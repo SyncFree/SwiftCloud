@@ -213,7 +213,8 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      * Augments update clock of this object with the vector clock of the server,
      * as the missing transactions guaranteedly have not touched the object
      * 
-     * @param currentDCClock current DC clock
+     * @param currentDCClock
+     *            current DC clock
      */
     public abstract void augmentWithDCClock(final CausalityClock currentDCClock);
 

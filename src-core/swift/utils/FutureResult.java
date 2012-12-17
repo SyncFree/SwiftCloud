@@ -21,19 +21,18 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public class FutureResult<V>
-    implements Future<V> {
+public class FutureResult<V> implements Future<V> {
     private V result;
     private boolean hasResult;
-    
+
     public FutureResult() {
         hasResult = false;
     }
-    
-    public synchronized void setResult( V res) {
-            this.result = res;
-            hasResult = true;
-            notifyAll();
+
+    public synchronized void setResult(V res) {
+        this.result = res;
+        hasResult = true;
+        notifyAll();
     }
 
     @Override
@@ -43,16 +42,17 @@ public class FutureResult<V>
 
     @Override
     public synchronized V get() throws InterruptedException, ExecutionException {
-            while( ! hasResult)
-                wait();
-            return result;
+        while (!hasResult)
+            wait();
+        return result;
     }
 
     @Override
-    public synchronized V get(long arg0, TimeUnit arg1) throws InterruptedException, ExecutionException, TimeoutException {
-            while( ! hasResult)
-                wait( arg1.toMillis(arg0));
-            return result;
+    public synchronized V get(long arg0, TimeUnit arg1) throws InterruptedException, ExecutionException,
+            TimeoutException {
+        while (!hasResult)
+            wait(arg1.toMillis(arg0));
+        return result;
     }
 
     @Override

@@ -35,7 +35,7 @@ public class CRDTData<V extends CRDT<V>> {
     /**
      * crdt object
      */
-//    CRDT<V> prunedCrdt;
+    // CRDT<V> prunedCrdt;
     /**
      * CRDT unique identifier
      */
@@ -45,9 +45,10 @@ public class CRDTData<V extends CRDT<V>> {
      */
     CausalityClock clock;
     /**
-     * current clock reflects all updates and their causal past, from the perspective of clients
+     * current clock reflects all updates and their causal past, from the
+     * perspective of clients
      */
-//    CausalityClock cltClock;
+    // CausalityClock cltClock;
     /**
      * prune clock reflects the updates that have been discarded, making it
      * impossible to access a snapshot that is dominated by this clock
@@ -58,7 +59,7 @@ public class CRDTData<V extends CRDT<V>> {
     transient Set<Observer> observers;
     transient Set<Observer> notifiers;
     transient Object dbInfo;
-    
+
     CRDTData() {
         lastPrunedTime = -1;
         observers = new TreeSet<Observer>();
@@ -76,45 +77,44 @@ public class CRDTData<V extends CRDT<V>> {
     CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         lastPrunedTime = -1;
         this.crdt = crdt;
-//        if( DCDataServer.prune)
-//            this.prunedCrdt = crdt.copy();
+        // if( DCDataServer.prune)
+        // this.prunedCrdt = crdt.copy();
         this.id = id;
         this.clock = clock;
         this.pruneClock = pruneClock;
         this.pruneClock.trim();
-//        this.cltClock = cltClock;
+        // this.cltClock = cltClock;
         observers = new TreeSet<Observer>();
         notifiers = new TreeSet<Observer>();
         this.empty = false;
     }
-    
+
     boolean pruneIfPossible() {
         long curTime = System.currentTimeMillis();
-        if( lastPrunedTime == -1) {
+        if (lastPrunedTime == -1) {
             lastPrunedTime = curTime;
-            lastPrunedClock = (CausalityClock)clock.copy();
+            lastPrunedClock = (CausalityClock) clock.copy();
             lastPrunedClock.trim();
         }
-        if( lastPrunedTime + DCConstants.PRUNING_INTERVAL < curTime) {
+        if (lastPrunedTime + DCConstants.PRUNING_INTERVAL < curTime) {
             crdt.prune(lastPrunedClock, false);
             pruneClock = lastPrunedClock;
             lastPrunedTime = curTime;
-            lastPrunedClock = (CausalityClock)clock.copy();
+            lastPrunedClock = (CausalityClock) clock.copy();
             lastPrunedClock.trim();
             return true;
         } else
             return false;
 
-        
     }
-    
-    void initValue( CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
+
+    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         this.crdt = crdt;
-//        if( DCDataServer.prune)
-//            this.prunedCrdt = crdt.copy();
+        // if( DCDataServer.prune)
+        // this.prunedCrdt = crdt.copy();
         this.clock = clock;
         this.pruneClock = pruneClock;
-//        this.cltClock = cltClock;
+        // this.cltClock = cltClock;
         this.empty = false;
     }
 
@@ -150,15 +150,16 @@ public class CRDTData<V extends CRDT<V>> {
     public void setDbInfo(Object dbInfo) {
         this.dbInfo = dbInfo;
     }
-    public void mergeInto( CRDTData<?> d) {
+
+    public void mergeInto(CRDTData<?> d) {
         empty = true;
-        crdt.merge((CRDT<V>)d.crdt);
+        crdt.merge((CRDT<V>) d.crdt);
         clock.merge(d.clock);
-//        if( DCDataServer.prune) {
-//            this.prunedCrdt.merge((CRDT<V>)d.crdt);
-//        }
+        // if( DCDataServer.prune) {
+        // this.prunedCrdt.merge((CRDT<V>)d.crdt);
+        // }
         pruneClock.merge(d.pruneClock);
-//        cltClock.merge(d.cltClock);
+        // cltClock.merge(d.cltClock);
     }
 
     public boolean isEmpty() {
@@ -180,8 +181,7 @@ public class CRDTData<V extends CRDT<V>> {
     public CausalityClock getPruneClock() {
         return pruneClock;
     }
-/*    public CausalityClock getCltClock() {
-        return cltClock;
-    }
-*/
+    /*
+     * public CausalityClock getCltClock() { return cltClock; }
+     */
 }

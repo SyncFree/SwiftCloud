@@ -54,8 +54,8 @@ public class LocalConcurrencyTest {
             Thread client = new Thread("client" + i) {
                 public void run() {
                     Sys.init();
-                    SwiftSession clientServer = SwiftImpl
-                            .newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+                    SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost",
+                            DCConstants.SURROGATE_PORT));
                     clientCode(clientServer);
                     clientServer.stopScout(true);
                 }
@@ -63,7 +63,8 @@ public class LocalConcurrencyTest {
             threads[i] = client;
             client.start();
         }
-        SwiftSession checkServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        SwiftSession checkServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost",
+                DCConstants.SURROGATE_PORT));
         boolean done = false;
         while (!done) {
             done = check(checkServer);

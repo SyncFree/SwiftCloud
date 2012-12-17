@@ -144,9 +144,9 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
     }
 
     public void onReceive(final TransportConnection conn, final RpcEcho echo) {
-        conn.send( echo );
+        conn.send(echo);
     }
-    
+
     public void onReceive(final TransportConnection conn, final RpcPing ping) {
         conn.send(new RpcPong(ping));
     }
@@ -223,13 +223,13 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
     final ConcurrentHashMap<Long, RpcPacket> handlers0 = new ConcurrentHashMap<Long, RpcPacket>();
 
     void initStaleHandlersGC_Task() {
-        final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName()+".gc");
+        final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName() + ".gc");
 
         new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD / (RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY)) {
             public void run() {
                 double now = Sys.timeMillis();
                 synchronized (handlers0) {
-                    
+
                     for (Iterator<RpcPacket> it = handlers0.values().iterator(); it.hasNext();) {
                         RpcPacket p = it.next();
                         if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) > p.deferredRepliesTimeout) {
@@ -251,7 +251,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
                         Log.info("GC'ing Handlers: " + i);
 
                     }
-                    Log.info("Active Reply Handlers: " + handlers1.size() );
+                    Log.info("Active Reply Handlers: " + handlers1.size());
                 }
             }
         };

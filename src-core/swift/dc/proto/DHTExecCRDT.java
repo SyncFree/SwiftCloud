@@ -16,13 +16,11 @@
  *****************************************************************************/
 package swift.dc.proto;
 
-import swift.client.proto.SubscriptionType;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
-import swift.dc.*;
+import swift.dc.DHTDataNode;
 import sys.dht.api.DHT;
 
 /**
@@ -40,14 +38,14 @@ public class DHTExecCRDT<V extends CRDT<V>> implements DHT.Message {
     Timestamp cltTs;
     Timestamp prvCltTs;
     String surrogateId;
-    
+
     /**
      * Needed for Kryo serialization
      */
     DHTExecCRDT() {
     }
 
-    public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion, 
+    public DHTExecCRDT(String surrogateId, CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
         this.surrogateId = surrogateId;
         this.grp = grp;

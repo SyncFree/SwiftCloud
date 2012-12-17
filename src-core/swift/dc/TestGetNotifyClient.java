@@ -31,17 +31,18 @@ import sys.Sys;
 public class TestGetNotifyClient {
     public static void main(String[] args) {
         try {
-            if( args.length != 3) {
-                System.out.println( "Use: jaba swift.dc.TestGetNotifyClient surrogate_node table key");
+            if (args.length != 3) {
+                System.out.println("Use: jaba swift.dc.TestGetNotifyClient surrogate_node table key");
                 return;
             }
             String serverNode = args[0];
             String table = args[1];
             String key = args[2];
-            
+
             Sys.init();
 
-            SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(serverNode, DCConstants.SURROGATE_PORT));
+            SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(serverNode,
+                    DCConstants.SURROGATE_PORT));
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
             IntegerTxnLocal i1 = handle.get(new CRDTIdentifier(table, key), false, swift.crdt.IntegerVersioned.class,
@@ -59,7 +60,8 @@ public class TestGetNotifyClient {
     static class DummyObjectUpdatesListener extends AbstractObjectUpdatesListener {
         @Override
         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-            System.out.println("Yoohoo, the object " + id + " has changed!\n"+previousValue+"\ntime notification recived = " + System.currentTimeMillis());
+            System.out.println("Yoohoo, the object " + id + " has changed!\n" + previousValue
+                    + "\ntime notification recived = " + System.currentTimeMillis());
         }
     }
 }

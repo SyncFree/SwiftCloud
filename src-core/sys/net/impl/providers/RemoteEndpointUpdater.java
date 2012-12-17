@@ -20,5 +20,5 @@ import sys.net.api.Endpoint;
 
 public interface RemoteEndpointUpdater {
 
-	void setRemoteEndpoint( Endpoint remote ) ;
+    void setRemoteEndpoint(Endpoint remote);
 }

@@ -24,24 +24,24 @@ import sys.net.api.rpc.RpcMessage;
 
 public class DHT_ResolveKeyReply implements RpcMessage {
 
-	public DHT.Key key;
-	public Endpoint endpoint;
+    public DHT.Key key;
+    public Endpoint endpoint;
 
-	DHT_ResolveKeyReply() {
-	}
+    DHT_ResolveKeyReply() {
+    }
 
-	public DHT_ResolveKeyReply(DHT.Key key, Endpoint endpoint) {
-		this.key = key;
-		this.endpoint = endpoint;
-	}
+    public DHT_ResolveKeyReply(DHT.Key key, Endpoint endpoint) {
+        this.key = key;
+        this.endpoint = endpoint;
+    }
 
-	@Override
-	public void deliverTo(RpcHandle conn, RpcHandler handler) {
-		((DHT_StubHandler) handler).onReceive(conn, this);
-	}
+    @Override
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((DHT_StubHandler) handler).onReceive(conn, this);
+    }
 
-	public String toString() {
-		return super.toString() + " :> " + key ;
-	}
-	
+    public String toString() {
+        return super.toString() + " :> " + key;
+    }
+
 }

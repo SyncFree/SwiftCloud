@@ -23,14 +23,15 @@ import swift.dc.CRDTData;
 
 /**
  * Database that stores no information
+ * 
  * @author nmp
- *
+ * 
  */
 public class DevNullNodeDatabase implements DCNodeDatabase {
 
     @Override
     public void init(Properties props) {
-        
+
     }
 
     @Override

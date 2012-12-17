@@ -20,8 +20,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import swift.utils.Pair;
-
 public class PlotValues<X, Y> {
 
     List<PlaneValues<X, Y>> values;
@@ -42,7 +40,6 @@ public class PlotValues<X, Y> {
     public Iterator<PlaneValues<X, Y>> getPlotValuesIterator() {
         return values.iterator();
     }
-    
 
     @Override
     public String toString() {

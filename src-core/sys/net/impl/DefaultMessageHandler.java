@@ -25,10 +25,10 @@ public class DefaultMessageHandler implements MessageHandler {
 
     final boolean silent;
 
-    public DefaultMessageHandler(){
+    public DefaultMessageHandler() {
         this(false);
     }
-    
+
     public DefaultMessageHandler(boolean silent) {
         this.silent = silent;
     }

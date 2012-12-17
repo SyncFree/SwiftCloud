@@ -38,7 +38,8 @@ public class SwiftSocialTest {
         DCServer.main(new String[] { sequencerName });
 
         Sys.init();
-        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost",
+                DCConstants.SURROGATE_PORT));
         SwiftSocial client = new SwiftSocial(clientServer, IsolationLevel.SNAPSHOT_ISOLATION,
                 CachePolicy.STRICTLY_MOST_RECENT, false, false);
 

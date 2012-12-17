@@ -16,13 +16,12 @@
  *****************************************************************************/
 package swift.dc;
 
+import static sys.net.api.Networking.Networking;
 import sys.Sys;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
-
-import static sys.net.api.Networking.*;
 
 public class RpcClient {
 
@@ -36,13 +35,13 @@ public class RpcClient {
         for (;;) {
             endpoint.send(server, new Request(), new Handler() {
 
-                public void onFailure( RpcHandle handler ) {
+                public void onFailure(RpcHandle handler) {
                     System.out.println("Client Send failed...");
                 }
 
                 public void onReceive(RpcHandle conn, Reply r) {
                     System.out.println("Client Got: " + r + " from:" + conn.remoteEndpoint());
-//                    conn.reply(new Reply());
+                    // conn.reply(new Reply());
                 }
 
             });

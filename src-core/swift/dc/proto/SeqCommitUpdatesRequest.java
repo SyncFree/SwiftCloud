@@ -17,10 +17,10 @@
 package swift.dc.proto;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
-import swift.client.proto.*;
+import swift.client.proto.BaseServer;
+import swift.client.proto.GenerateTimestampRequest;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -52,8 +52,9 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     SeqCommitUpdatesRequest() {
     }
 
-    public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp, final Timestamp prvCltTimestamp,
-            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, CausalityClock dcReceived, CausalityClock dcNotUsed) {
+    public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp,
+            final Timestamp prvCltTimestamp, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
+            CausalityClock dcReceived, CausalityClock dcNotUsed) {
         this.dcName = dcName;
         this.timestamp = timestamp;
         this.cltTimestamp = cltTimestamp;
@@ -73,8 +74,8 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     }
 
     /**
-     * @return client timestamp for this transaction; all individual
-     *         updates use TripleTimestamps with this base Timestamp
+     * @return client timestamp for this transaction; all individual updates use
+     *         TripleTimestamps with this base Timestamp
      */
     public Timestamp getCltTimestamp() {
         return cltTimestamp;

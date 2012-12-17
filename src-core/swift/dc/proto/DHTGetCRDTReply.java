@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.dc.proto;
 
-import swift.dc.*;
+import swift.dc.CRDTObject;
 import sys.dht.api.DHT;
 
 /**

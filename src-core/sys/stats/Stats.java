@@ -29,7 +29,6 @@ import sys.stats.sources.PollingBasedValueProvider;
 import sys.stats.statisticsOverTime.ConstantRateValueOverTime;
 import sys.stats.statisticsOverTime.CounterOverTime;
 import sys.stats.statisticsOverTime.HistogramOverTime;
-import sys.stats.statisticsOverTime.ValueOverTime;
 
 public class Stats {
     public static final int SAMPLING_INTERVAL_MILLIS = 10000;
@@ -48,7 +47,7 @@ public class Stats {
     }
 
     public static void init(int samplingInterval) {
-        if(terminate == false){
+        if (terminate == false) {
             System.out.println("already initialized");
         }
         terminate = false;

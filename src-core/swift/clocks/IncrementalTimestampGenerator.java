@@ -18,7 +18,6 @@ package swift.clocks;
 
 import java.util.concurrent.atomic.AtomicLong;
 
-
 /**
  * Timestamp generator for a given site. Always generates the consecutive
  * counter for the given site.
@@ -45,7 +44,7 @@ public class IncrementalTimestampGenerator implements TimestampSource<Timestamp>
 
     @Override
     public Timestamp generateNew() {
-        return new Timestamp(siteid, last.incrementAndGet() );
+        return new Timestamp(siteid, last.incrementAndGet());
     }
 
 }

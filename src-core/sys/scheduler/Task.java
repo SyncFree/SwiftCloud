@@ -36,157 +36,159 @@ import static sys.scheduler.VT_Scheduler.Scheduler;
  */
 public class Task implements Comparable<Task> {
 
-	public double due;
-	private TaskOwner owner;
-	protected boolean isQueued;
-	protected boolean isCancelled;
-	protected boolean wasReScheduled;
+    public double due;
+    private TaskOwner owner;
+    protected boolean isQueued;
+    protected boolean isCancelled;
+    protected boolean wasReScheduled;
 
-	protected int seqN = g_seqN++;
-	private static int g_seqN;
+    protected int seqN = g_seqN++;
+    private static int g_seqN;
 
-	protected double period;
-	
-	int queuePosition;
+    protected double period;
 
-	/**
-	 * Creates an new Task. By default it executes once, when it is due. Can be
-	 * re-scheduled to execute again at a given later time.
-	 * 
-	 * @param due
-	 *            Number of seconds to wait until the task executes.
-	 */
-	public Task(double due) {
-		this(null, due);
-	}
+    int queuePosition;
 
-	/**
-	 * Creates an new Task. By default it executes once, when it is due. Can be
-	 * re-scheduled to execute again at a given later time.
-	 * 
-	 * @param owner
-	 *            - Owner of the task, a node for certain in this case.
-	 *            Important for execution in simulation environments.
-	 * @param due
-	 *            Number of seconds to wait until the task executes.
-	 */
-	public Task(TaskOwner owner, double due) {
-		this.owner = owner;
-		Scheduler.schedule(this, due);
-		if (owner != null)
-			owner.registerTask(this);
-	}
+    /**
+     * Creates an new Task. By default it executes once, when it is due. Can be
+     * re-scheduled to execute again at a given later time.
+     * 
+     * @param due
+     *            Number of seconds to wait until the task executes.
+     */
+    public Task(double due) {
+        this(null, due);
+    }
 
-	public Task(TaskOwner owner, double due, double period) {
-		this.owner = owner;
-		this.period = period;
-		
-		Scheduler.schedule(this, due);
-		if (owner != null)
-			owner.registerTask(this);
-	}
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * This method should be overriden in all concrete subtypes of this base
-	 * class.
-	 * 
-	 * @see java.lang.Runnable#run()
-	 */
-	public void run() {
-		System.err.println("Unexpected execution of Task.run() method.");
-		System.err.println("Override public void run() in parent class...");
-	}
+    /**
+     * Creates an new Task. By default it executes once, when it is due. Can be
+     * re-scheduled to execute again at a given later time.
+     * 
+     * @param owner
+     *            - Owner of the task, a node for certain in this case.
+     *            Important for execution in simulation environments.
+     * @param due
+     *            Number of seconds to wait until the task executes.
+     */
+    public Task(TaskOwner owner, double due) {
+        this.owner = owner;
+        Scheduler.schedule(this, due);
+        if (owner != null)
+            owner.registerTask(this);
+    }
 
-	/**
-	 * Tells the time when the task is to due to execute.
-	 * 
-	 * @return The time when the task is due to execute.
-	 */
-	public double due() {
-		return due;
-	}
+    public Task(TaskOwner owner, double due, double period) {
+        this.owner = owner;
+        this.period = period;
 
-	/**
-	 * Cancels the tasks, preventing it from being executed again.
-	 */
-	public void cancel() {
-		isCancelled = true;
-		wasReScheduled = false;
-	}
+        Scheduler.schedule(this, due);
+        if (owner != null)
+            owner.registerTask(this);
+    }
 
-	/**
-	 * Asks the task to be scheduled again to execute after the given delay. The
-	 * period is maintained.
-	 * 
-	 * @param t
-	 *            The new deadline for next execution of this task.
-	 */
-	public void reSchedule(double t) {
-		Scheduler.reSchedule(this, t);
-		wasReScheduled = true;
-	}
+    /*
+     * (non-Javadoc)
+     * 
+     * This method should be overriden in all concrete subtypes of this base
+     * class.
+     * 
+     * @see java.lang.Runnable#run()
+     */
+    public void run() {
+        System.err.println("Unexpected execution of Task.run() method.");
+        System.err.println("Override public void run() in parent class...");
+    }
 
-	/**
-	 * Tells if the task is scheduled for execution.
-	 * 
-	 * @return true if the task is scheduled for execution or false otherwise.
-	 */
-	public boolean isScheduled() {
-		return isQueued;
-	}
+    /**
+     * Tells the time when the task is to due to execute.
+     * 
+     * @return The time when the task is due to execute.
+     */
+    public double due() {
+        return due;
+    }
 
-	/**
-	 * Tells if the task was reScheduled for execution at a different time...
-	 * 
-	 * @return true if the task was reScheduled or false otherwise.
-	 */
-	public boolean wasReScheduled() {
-		return wasReScheduled;
-	}
+    /**
+     * Cancels the tasks, preventing it from being executed again.
+     */
+    public void cancel() {
+        isCancelled = true;
+        wasReScheduled = false;
+    }
 
-	protected void reSchedule() {
-	}
+    /**
+     * Asks the task to be scheduled again to execute after the given delay. The
+     * period is maintained.
+     * 
+     * @param t
+     *            The new deadline for next execution of this task.
+     */
+    public void reSchedule(double t) {
+        Scheduler.reSchedule(this, t);
+        wasReScheduled = true;
+    }
 
-	protected void reset() {
-		// isQueued = false ;
-		wasReScheduled = false;
-	}
+    /**
+     * Tells if the task is scheduled for execution.
+     * 
+     * @return true if the task is scheduled for execution or false otherwise.
+     */
+    public boolean isScheduled() {
+        return isQueued;
+    }
 
-	@Override
-	public int hashCode() {
-		return seqN;
-	}
+    /**
+     * Tells if the task was reScheduled for execution at a different time...
+     * 
+     * @return true if the task was reScheduled or false otherwise.
+     */
+    public boolean wasReScheduled() {
+        return wasReScheduled;
+    }
 
-	@Override
-	public boolean equals(Object o) {
-		Task other = (Task) o;
-		return other != null && seqN == other.seqN;
-	}
+    protected void reSchedule() {
+    }
 
-	@Override
-	public int compareTo(Task other) {
-		assert other != null;
-		if (due == other.due)
-			return (seqN - other.seqN);
-		else
-			return due < other.due ? -1 : 1;
-	}
+    protected void reset() {
+        // isQueued = false ;
+        wasReScheduled = false;
+    }
 
-	protected void release() {
-		if (token != null)
-			token.unblock();
-	}
+    @Override
+    public int hashCode() {
+        return seqN;
+    }
 
-	public void block() {
-		token = Scheduler.newToken();
-		token.block();
-	}
+    @Override
+    public boolean equals(Object o) {
+        Task other = (Task) o;
+        return other != null && seqN == other.seqN;
+    }
 
-	@Override
-	public String toString() {
-		return String.format("%d / %f / %s / %s [%s, %s]", seqN, due, (owner == null ? "" : "" + owner.toString()), getClass(), isQueued, wasReScheduled);
-	}
+    @Override
+    public int compareTo(Task other) {
+        assert other != null;
+        if (due == other.due)
+            return (seqN - other.seqN);
+        else
+            return due < other.due ? -1 : 1;
+    }
 
-	private Token token = null;
+    protected void release() {
+        if (token != null)
+            token.unblock();
+    }
+
+    public void block() {
+        token = Scheduler.newToken();
+        token.block();
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%d / %f / %s / %s [%s, %s]", seqN, due, (owner == null ? "" : "" + owner.toString()),
+                getClass(), isQueued, wasReScheduled);
+    }
+
+    private Token token = null;
 }

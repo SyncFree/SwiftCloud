@@ -36,24 +36,24 @@
  */
 package swift.application.filesystem.fuse;
 
-import fuse.FuseOpenSetter;
 import swift.application.filesystem.IFile;
+import fuse.FuseOpenSetter;
 
 /**
- *
+ * 
  * @author Stephane Martin <stephane.martin@loria.fr>
  */
-public class FuseOpeenSetterMock implements FuseOpenSetter{
+public class FuseOpeenSetterMock implements FuseOpenSetter {
     IFile file;
+
     @Override
     public void setFh(Object o) {
-        file=(IFile)o;
+        file = (IFile) o;
     }
 
     public IFile getFile() {
         return file;
     }
-    
 
     @Override
     public boolean isDirectIO() {
@@ -74,5 +74,5 @@ public class FuseOpeenSetterMock implements FuseOpenSetter{
     public void setKeepCache(boolean bln) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
-    
+
 }

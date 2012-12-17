@@ -24,7 +24,8 @@ import swift.crdt.interfaces.TxnGetterSetter;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.operations.RegisterUpdate;
 
-public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> implements TxnGetterSetter<V> {
+public class RegisterTxnLocal<V extends Copyable> extends BaseCRDTTxnLocal<RegisterVersioned<V>> implements
+        TxnGetterSetter<V> {
     private V val;
     private long nextLamportClock;
 

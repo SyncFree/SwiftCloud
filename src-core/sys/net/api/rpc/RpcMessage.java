@@ -25,6 +25,6 @@ package sys.net.api.rpc;
  */
 public interface RpcMessage {
 
-	void deliverTo(final RpcHandle handle, final RpcHandler handler);
+    void deliverTo(final RpcHandle handle, final RpcHandler handler);
 
 }

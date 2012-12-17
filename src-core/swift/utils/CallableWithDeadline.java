@@ -29,59 +29,60 @@ import sys.utils.Threading;
  */
 public abstract class CallableWithDeadline<V> implements Callable<V> {
 
-	private long startTime = sys.Sys.Sys.timeMillis(), rtt = -1L;
+    private long startTime = sys.Sys.Sys.timeMillis(), rtt = -1L;
     private final long deadlineTime;
-    
+
     final private V defaultResult;
     private AtomicReference<V> result = new AtomicReference<V>();
-    
+
     /**
      * Sets the result of the call, holding the first non-null result.
      */
-    protected void setResult( V res ) {
-    	if( result.get() == null )
-    		result.set( res ) ;
-    	
-    	if( rtt < 0 ) {
-    		rtt = sys.Sys.Sys.timeMillis() - startTime;
-    	}
-    	Threading.synchronizedNotifyAllOn(this);
+    protected void setResult(V res) {
+        if (result.get() == null)
+            result.set(res);
+
+        if (rtt < 0) {
+            rtt = sys.Sys.Sys.timeMillis() - startTime;
+        }
+        Threading.synchronizedNotifyAllOn(this);
     }
-    
+
     /*
      * Return the current result for the call. Null if there is no result.
      */
     protected V getResult() {
-    	V res = result.get() ;
-    	return res == null ? defaultResult : res ;
+        V res = result.get();
+        return res == null ? defaultResult : res;
     }
-    
+
     /**
      * Creates callable task without deadline.
      */
     public CallableWithDeadline(V defaultResult) {
-    	this.defaultResult = defaultResult;
+        this.defaultResult = defaultResult;
         this.deadlineTime = Long.MAX_VALUE;
     }
 
-//    /**
-//     * Creates callable task with provided deadline in milliseconds.
-//     */
-//    public CallableWithDeadline(long deadlineMillis) {
-//        this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
-//        this.defaultResult = null;
-//        Thread.dumpStack();
-//    }
+    // /**
+    // * Creates callable task with provided deadline in milliseconds.
+    // */
+    // public CallableWithDeadline(long deadlineMillis) {
+    // this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
+    // this.defaultResult = null;
+    // Thread.dumpStack();
+    // }
 
     /**
      * Creates callable task with provided deadline in milliseconds.
      */
     public CallableWithDeadline(V defaultResult, long deadlineMillis) {
-    	this.defaultResult = defaultResult;
+        this.defaultResult = defaultResult;
         this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
     }
 
-    int tries = 0 ;
+    int tries = 0;
+
     /**
      * Executes (or retries) a task. Throws an exception if task needs to be
      * retried.
@@ -90,11 +91,11 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
      */
     @Override
     public V call() throws Exception {
-    	V res = result.get();
-    	if( res == null )
-    		res = callOrFailWithNull() ;
+        V res = result.get();
+        if (res == null)
+            res = callOrFailWithNull();
 
-    	if (res == null && result.get() == null) {
+        if (res == null && result.get() == null) {
             throw new Exception("Task needs a retry");
         }
         return getResult();

@@ -21,12 +21,11 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
 
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.exceptions.IncompatibleTypeException;
 
 /**
  * Class to represent common version vectors.
- *
+ * 
  * @author nmp
  */
 // TODO: provide custom serializer or Kryo-lize the class
@@ -46,8 +45,9 @@ public class VersionVector implements CausalityClock {
     /**
      * Records the given event. Assume the timestamp can be recorded in the
      * given version vector.
-     *
-     * @param ec Event clock.
+     * 
+     * @param ec
+     *            Event clock.
      * @return Returns false if the object was already recorded.
      */
     public boolean record(Timestamp cc) {
@@ -66,8 +66,9 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Returns the most recent event for a given site. <br>
-     *
-     * @param siteid Site identifier.
+     * 
+     * @param siteid
+     *            Site identifier.
      * @return Returns an event clock.
      */
     public Timestamp getLatest(String siteid) {
@@ -81,8 +82,9 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Returns the most recent event for a given site. <br>
-     *
-     * @param siteid Site identifier.
+     * 
+     * @param siteid
+     *            Site identifier.
      * @return Returns an event clock.
      */
     public long getLatestCounter(String siteid) {
@@ -101,14 +103,18 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Compares the elements in the version vector.
-     *
-     * @param c Clock to compare to
-     * @return Returns one of the following:<br> CMP_EQUALS : if clocks are
-     * equal; <br> CMP_DOMINATES : if this clock dominates the given c clock;
-     * <br> CMP_ISDOMINATED : if this clock is dominated by the given c clock;
-     * <br> CMP_CONCUREENT : if this clock and the given c clock are concurrent;
-     * <br>
-     * @throws IncompatibleTypeException Case comparison cannot be made
+     * 
+     * @param c
+     *            Clock to compare to
+     * @return Returns one of the following:<br>
+     *         CMP_EQUALS : if clocks are equal; <br>
+     *         CMP_DOMINATES : if this clock dominates the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock is dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock are
+     *         concurrent; <br>
+     * @throws IncompatibleTypeException
+     *             Case comparison cannot be made
      */
     protected CMP_CLOCK compareToVV(VersionVector cc) {
         Iterator<Entry<String, Long>> itThis = vv.entrySet().iterator();
@@ -146,14 +152,18 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Compares two causality clock.
-     *
-     * @param c Clock to compare to
-     * @return Returns one of the following:<br> CMP_EQUALS : if clocks are
-     * equal; <br> CMP_DOMINATES : if this clock dominates the given c clock;
-     * <br> CMP_ISDOMINATED : if this clock is dominated by the given c clock;
-     * <br> CMP_CONCUREENT : if this clock and the given c clock are concurrent;
-     * <br>
-     * @throws IncompatibleTypeException Case comparison cannot be made
+     * 
+     * @param c
+     *            Clock to compare to
+     * @return Returns one of the following:<br>
+     *         CMP_EQUALS : if clocks are equal; <br>
+     *         CMP_DOMINATES : if this clock dominates the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock is dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock are
+     *         concurrent; <br>
+     * @throws IncompatibleTypeException
+     *             Case comparison cannot be made
      */
     public CMP_CLOCK compareTo(CausalityClock cc) {
         if (VersionVector.class.equals(cc.getClass())) {
@@ -174,10 +184,11 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Checks if a given event clock is reflected in this clock
-     *
-     * @param c Event clock.
+     * 
+     * @param c
+     *            Event clock.
      * @return Returns true if the given event clock is included in this
-     * causality clock.
+     *         causality clock.
      * @throws IncompatibleTypeException
      */
     @Override
@@ -188,13 +199,17 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Merge this clock with the given c clock. TODO: This is inefficient.
-     *
-     * @param c Clock to merge to
+     * 
+     * @param c
+     *            Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
-     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
-     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
-     * clock and the given c clock were concurrent; <br>
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
      */
     public CMP_CLOCK mergeVV(VersionVector cc) {
         boolean lessThan = false;
@@ -241,14 +256,19 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Merge this clock with the given c clock.
-     *
-     * @param c Clock to merge to
+     * 
+     * @param c
+     *            Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
-     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
-     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
-     * clock and the given c clock were concurrent; <br>
-     * @throws IncompatibleTypeException Case comparison cannot be made
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
+     * @throws IncompatibleTypeException
+     *             Case comparison cannot be made
      */
     public CMP_CLOCK merge(CausalityClock cc) {
         // if ( ! VersionVector.class.equals(cc.getClass())) {
@@ -259,13 +279,17 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Intersect this clock with the given c clock.
-     *
-     * @param c Clock to merge to
+     * 
+     * @param c
+     *            Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
-     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
-     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
-     * clock and the given c clock were concurrent; <br>
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
      */
     public CMP_CLOCK intersectVV(VersionVector cc) {
         CMP_CLOCK cmp = this.compareTo(cc);
@@ -284,14 +308,19 @@ public class VersionVector implements CausalityClock {
 
     /**
      * Intersect this clock with the given c clock.
-     *
-     * @param c Clock to merge to
+     * 
+     * @param c
+     *            Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
-     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
-     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
-     * clock and the given c clock were concurrent; <br>
-     * @throws IncompatibleTypeException Case comparison cannot be made
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
+     * @throws IncompatibleTypeException
+     *             Case comparison cannot be made
      */
     @Override
     public CMP_CLOCK intersect(CausalityClock cc) {
@@ -300,7 +329,7 @@ public class VersionVector implements CausalityClock {
         // }
         return intersectVV((VersionVector) cc);
     }
-    
+
     /**
      * Trim this clock so that all events recorded are consecutive.
      */

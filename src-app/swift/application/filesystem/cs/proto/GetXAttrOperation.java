@@ -28,44 +28,44 @@ public class GetXAttrOperation extends FuseRemoteOperation {
 
     String path;
     String name;
-    int dstCapacity; 
+    int dstCapacity;
     int position;
-    
-    GetXAttrOperation() {        
+
+    GetXAttrOperation() {
     }
-    
+
     public GetXAttrOperation(String path, String name, ByteBuffer dst, int position) {
         this.path = path;
         this.name = name;
         this.dstCapacity = dst.remaining();
         this.position = position;
     }
-    
+
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         try {
-            ByteBuffer tmp = ByteBuffer.allocate( dstCapacity );
-            int res = ((RemoteFuseOperationHandler)handler).getxattr(path, name, tmp, position);
-            handle.reply( new GetXAttrOperationResult( res, tmp ) ) ;
+            ByteBuffer tmp = ByteBuffer.allocate(dstCapacity);
+            int res = ((RemoteFuseOperationHandler) handler).getxattr(path, name, tmp, position);
+            handle.reply(new GetXAttrOperationResult(res, tmp));
         } catch (FuseException e) {
-            handle.reply( new FuseOperationResult() );
+            handle.reply(new FuseOperationResult());
         }
     }
-    
+
     static class GetXAttrOperationResult extends FuseOperationResult {
-        
+
         byte[] data;
-        
-        GetXAttrOperationResult() {            
+
+        GetXAttrOperationResult() {
         }
-        
-        public GetXAttrOperationResult( int ret, ByteBuffer data ) {
-            super( ret ) ;
-            this.data = Arrays.copyOf( data.array(), data.position() ) ;
+
+        public GetXAttrOperationResult(int ret, ByteBuffer data) {
+            super(ret);
+            this.data = Arrays.copyOf(data.array(), data.position());
         }
-        
-        public void applyTo( ByteBuffer dst ) {
-            dst.put( data ) ;
+
+        public void applyTo(ByteBuffer dst) {
+            dst.put(data);
         }
     }
 }

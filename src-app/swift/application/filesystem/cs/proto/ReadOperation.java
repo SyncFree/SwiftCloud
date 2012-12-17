@@ -17,15 +17,13 @@
  *****************************************************************************/
 package swift.application.filesystem.cs.proto;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
 import java.util.Arrays;
 
-import fuse.FuseException;
 import swift.application.filesystem.cs.SwiftFuseServer;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import fuse.FuseException;
 
 public class ReadOperation extends FuseRemoteOperation {
 
@@ -50,7 +48,7 @@ public class ReadOperation extends FuseRemoteOperation {
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         try {
             ByteBuffer tmp = ByteBuffer.allocate(capacity);
-            int res = ((RemoteFuseOperationHandler) handler).read(path, SwiftFuseServer.c2s_fh( fh), tmp, offset);
+            int res = ((RemoteFuseOperationHandler) handler).read(path, SwiftFuseServer.c2s_fh(fh), tmp, offset);
             handle.reply(new Result(res, tmp));
         } catch (FuseException e) {
             handle.reply(new FuseOperationResult());
@@ -71,7 +69,7 @@ public class ReadOperation extends FuseRemoteOperation {
         }
 
         public void applyTo(ByteBuffer dst) {
-            dst.put( data ) ;
+            dst.put(data);
         }
     }
 }

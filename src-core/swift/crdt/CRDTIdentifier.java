@@ -25,7 +25,7 @@ import java.io.Serializable;
  * @author annettebieniusa
  * 
  */
-// TODO: Add type (w/generics) as part of id? 
+// TODO: Add type (w/generics) as part of id?
 public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTIdentifier> {
     private static final long serialVersionUID = 1L;
     private String table;

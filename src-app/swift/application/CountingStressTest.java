@@ -60,7 +60,8 @@ public class CountingStressTest {
             final int id = i;
             Thread clientThread = new Thread("client" + i) {
                 public void run() {
-                    SwiftSession client = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+                    SwiftSession client = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost",
+                            DCConstants.SURROGATE_PORT));
                     runTransactions(client, id);
                     client.stopScout(true);
                 }
@@ -77,7 +78,8 @@ public class CountingStressTest {
         }
 
         // Check result
-        SwiftSession client = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost", DCConstants.SURROGATE_PORT));
+        SwiftSession client = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost",
+                DCConstants.SURROGATE_PORT));
         TxnHandle txn = client.beginTxn(level, CachePolicy.STRICTLY_MOST_RECENT, false);
         IntegerTxnLocal i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerVersioned.class,
                 TxnHandle.UPDATES_SUBSCRIBER);

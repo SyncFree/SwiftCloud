@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.dc.proto;
 
-import swift.client.proto.GenerateTimestampReplyHandler;
 import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;

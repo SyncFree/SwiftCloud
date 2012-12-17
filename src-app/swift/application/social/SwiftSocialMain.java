@@ -107,7 +107,8 @@ public class SwiftSocialMain {
 
     private static void runClient(final String inputFileName, final String usersFileName) {
         Sys.init();
-        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                DCConstants.SURROGATE_PORT));
         SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
 
         if (usersFileName != null) {
@@ -179,7 +180,7 @@ public class SwiftSocialMain {
             List<String> userData = readInputFromFile(usersFileName);
             int total = userData.size(), counter = 0;
             for (String line : userData) {
-                System.out.printf("\rInitialization:%.1f%%", 100.0*counter++/total);
+                System.out.printf("\rInitialization:%.1f%%", 100.0 * counter++ / total);
                 // Divide into smaller transactions.
                 if (txnSize >= 100) {
                     txn.commit();

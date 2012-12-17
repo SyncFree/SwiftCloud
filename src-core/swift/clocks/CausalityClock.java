@@ -17,6 +17,7 @@
 package swift.clocks;
 
 import java.io.Serializable;
+
 import swift.crdt.interfaces.Copyable;
 import swift.exceptions.IncompatibleTypeException;
 
@@ -27,7 +28,7 @@ import swift.exceptions.IncompatibleTypeException;
  * @author nmp
  */
 // TODO: Create read-only (parent) interface or decorator.
-public interface CausalityClock extends Serializable,Copyable {
+public interface CausalityClock extends Serializable, Copyable {
     enum CMP_CLOCK {
         CMP_EQUALS, CMP_DOMINATES, CMP_ISDOMINATED, CMP_CONCURRENT;
 
@@ -66,7 +67,8 @@ public interface CausalityClock extends Serializable,Copyable {
      * E.g. recordAllUntil(siteId="abc", counter=3) causes events ("abc", 1),
      * ("abc", 2), ("abc", 3) to be recorded.
      * 
-     * @param timestamp the highest event timestamp to record for the source
+     * @param timestamp
+     *            the highest event timestamp to record for the source
      */
     void recordAllUntil(Timestamp timestamp);
 
@@ -163,20 +165,25 @@ public interface CausalityClock extends Serializable,Copyable {
 
     /**
      * Intersect this clock with the given c clock.
-     *
-     * @param c Clock to merge to
+     * 
+     * @param c
+     *            Clock to merge to
      * @return Returns one of the following, based on the initial value of
-     * clocks:<br> CMP_EQUALS : if clocks were equal; <br> CMP_DOMINATES : if
-     * this clock dominated the given c clock; <br> CMP_ISDOMINATED : if this
-     * clock was dominated by the given c clock; <br> CMP_CONCUREENT : if this
-     * clock and the given c clock were concurrent; <br>
-     * @throws IncompatibleTypeException Case comparison cannot be made
+     *         clocks:<br>
+     *         CMP_EQUALS : if clocks were equal; <br>
+     *         CMP_DOMINATES : if this clock dominated the given c clock; <br>
+     *         CMP_ISDOMINATED : if this clock was dominated by the given c
+     *         clock; <br>
+     *         CMP_CONCUREENT : if this clock and the given c clock were
+     *         concurrent; <br>
+     * @throws IncompatibleTypeException
+     *             Case comparison cannot be made
      */
     CMP_CLOCK intersect(CausalityClock cc);
-    
+
     /**
      * Trim this clock so that all events recorded are consecutive.
-     *
+     * 
      */
     void trim();
 

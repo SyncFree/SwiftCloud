@@ -16,8 +16,7 @@
  *****************************************************************************/
 package swift.dc.proto;
 
-import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
-import swift.dc.*;
+import swift.dc.ExecCRDTResult;
 import sys.dht.api.DHT;
 
 /**

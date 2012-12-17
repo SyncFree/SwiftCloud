@@ -89,7 +89,8 @@ public class FilesystemFuseTest {
         }
 
         Sys.init();
-        SwiftSession server = SwiftImpl.newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
+        SwiftSession server = SwiftImpl
+                .newSingleSessionInstance(new SwiftOptions(scoutName, DCConstants.SURROGATE_PORT));
 
         TxnHandle txn;
         // try {

@@ -16,10 +16,8 @@
  *****************************************************************************/
 package swift.crdt.operations;
 
-import swift.clocks.Timestamp;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.CRDTUpdate;
 
 public class IntegerUpdate extends BaseUpdate<IntegerVersioned> {
     private int val;

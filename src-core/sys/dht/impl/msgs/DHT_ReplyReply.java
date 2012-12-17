@@ -23,18 +23,18 @@ import sys.net.api.rpc.RpcMessage;
 
 public class DHT_ReplyReply implements RpcMessage {
 
-	public DHT.Reply payload;
+    public DHT.Reply payload;
 
-	DHT_ReplyReply() {
-	}
+    DHT_ReplyReply() {
+    }
 
-	public DHT_ReplyReply(DHT.Reply payload) {
-		this.payload = payload;
-	}
+    public DHT_ReplyReply(DHT.Reply payload) {
+        this.payload = payload;
+    }
 
-	@Override
-	public void deliverTo(RpcHandle handle, RpcHandler handler) {
-		((DHT_StubHandler) handler).onReceive(handle, this);
-	}
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((DHT_StubHandler) handler).onReceive(handle, this);
+    }
 
 }

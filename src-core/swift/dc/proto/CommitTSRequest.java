@@ -35,18 +35,18 @@ public class CommitTSRequest implements RpcMessage {
     protected Timestamp timestamp;
     protected Timestamp cltTimestamp;
     protected Timestamp prvCltTimestamp;
-    protected CausalityClock version;   // observed version
-    protected boolean commit;           // true if transaction was committed
+    protected CausalityClock version; // observed version
+    protected boolean commit; // true if transaction was committed
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
-    
+
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
     CommitTSRequest() {
     }
 
-    public CommitTSRequest(Timestamp timestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp, CausalityClock version, boolean commit,
-            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
+    public CommitTSRequest(Timestamp timestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp,
+            CausalityClock version, boolean commit, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
         this.timestamp = timestamp;
         this.cltTimestamp = cltTimestamp;
         this.prvCltTimestamp = prvCltTimestamp;
@@ -54,7 +54,6 @@ public class CommitTSRequest implements RpcMessage {
         this.commit = commit;
         this.objectUpdateGroups = objectUpdateGroups;
     }
-
 
     /**
      * @return the timestamp previously received from the server

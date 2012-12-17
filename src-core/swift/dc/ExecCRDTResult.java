@@ -18,12 +18,10 @@ package swift.dc;
 
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.crdt.CRDTIdentifier;
-import swift.dc.*;
-import swift.dc.proto.DHTExecCRDTReplyHandler;
-import sys.dht.api.DHT;
 
 /**
  * Result of an exec operation in a CRDT
+ * 
  * @author preguica
  * 
  */

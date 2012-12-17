@@ -48,10 +48,10 @@ import sys.utils.Args;
  * distributed among different instances by specifying sessions range.
  */
 public class SwiftSocialBenchmarkServer {
-	public static int PORT = 11111;
-	
-//    private static String dcName;
-	private static Endpoint dcEndpoint;
+    public static int PORT = 11111;
+
+    // private static String dcName;
+    private static Endpoint dcEndpoint;
     private static String fileName = "scripts/commands.txt";
     private static IsolationLevel isolationLevel;
     private static CachePolicy cachePolicy;
@@ -59,9 +59,9 @@ public class SwiftSocialBenchmarkServer {
     private static boolean asyncCommit;
     private static long cacheEvictionTimeMillis;
     private static long thinkTime;
-    
+
     static SwiftSession g_swiftClient;
-    
+
     public static void main(String[] args) {
         if (args.length < 3) {
             exitWithUsage();
@@ -69,48 +69,48 @@ public class SwiftSocialBenchmarkServer {
         final String command = args[0];
         String dcName = args[1];
         fileName = args[2];
-   
+
         int scoutPort = -1;
-        
+
         sys.Sys.init();
-        
-        dcEndpoint = Networking.resolve( dcName, DCConstants.SURROGATE_PORT);
-        
+
+        dcEndpoint = Networking.resolve(dcName, DCConstants.SURROGATE_PORT);
+
         if (command.equals("init") && args.length == 3) {
             System.out.println("Populating db with users...");
-            final SwiftSession swiftClient = SwiftImpl
-                    .newSingleSessionInstance(new SwiftOptions(dcEndpoint.getHost(), dcEndpoint.getPort()));
+            final SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcEndpoint.getHost(),
+                    dcEndpoint.getPort()));
             final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
                     CachePolicy.CACHED, false, false);
             SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
             swiftClient.stopScout(true);
             System.out.println("Finished populating db with users.");
-            System.exit(0);            
+            System.exit(0);
         } else if (command.equals("run") && args.length >= 10) {
             isolationLevel = IsolationLevel.valueOf(args[3]);
             cachePolicy = CachePolicy.valueOf(args[4]);
             cacheEvictionTimeMillis = Long.valueOf(args[5]);
             subscribeUpdates = Boolean.parseBoolean(args[6]);
             asyncCommit = Boolean.parseBoolean(args[7]);
-            thinkTime = Long.valueOf(args[8]);  
+            thinkTime = Long.valueOf(args[8]);
             scoutPort = Args.valueOf(args, "-port", PORT);
 
         }
-        
-        Networking.rpcBind(scoutPort, TransportProvider.DEFAULT).toService(0, new RequestHandler() {
-				
-				@Override
-				public void onReceive(final RpcHandle handle, final Request m) {
-					String sessionId = handle.remoteEndpoint().toString();
-					List<String> cmds = new ArrayList<String>();
-					cmds.add( m.payload );
-					execCommands(sessionId, cmds );
-					handle.reply( new Request("OK") );
-				}				
-			});
 
-//        System.err.println("SwiftSocial Server Ready...");
-     }
+        Networking.rpcBind(scoutPort, TransportProvider.DEFAULT).toService(0, new RequestHandler() {
+
+            @Override
+            public void onReceive(final RpcHandle handle, final Request m) {
+                String sessionId = handle.remoteEndpoint().toString();
+                List<String> cmds = new ArrayList<String>();
+                cmds.add(m.payload);
+                execCommands(sessionId, cmds);
+                handle.reply(new Request("OK"));
+            }
+        });
+
+        // System.err.println("SwiftSocial Server Ready...");
+    }
 
     private static void exitWithUsage() {
         System.out.println("Usage 1: init <surrogate addr> <users filename>");
@@ -124,9 +124,9 @@ public class SwiftSocialBenchmarkServer {
         System.exit(1);
     }
 
-    private static void execCommands( String sessionId, Collection<String> commands ) {
-    	SwiftSocial socialClient = getSession( sessionId ).swiftSocial;
-    	
+    private static void execCommands(String sessionId, Collection<String> commands) {
+        SwiftSocial socialClient = getSession(sessionId).swiftSocial;
+
         for (String cmdLine : commands) {
             String[] toks = cmdLine.split(";");
             final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
@@ -180,32 +180,30 @@ public class SwiftSocialBenchmarkServer {
             }
         }
     }
-    
-    static Session getSession( String sessionId ) {
-    	Session res = sessions.get( sessionId );
-    	if( res == null ) {
-    		sessions.put( sessionId, res = new Session() );
-    	}
-    	return res;
+
+    static Session getSession(String sessionId) {
+        Session res = sessions.get(sessionId);
+        if (res == null) {
+            sessions.put(sessionId, res = new Session());
+        }
+        return res;
     }
-    
+
     static Map<String, Session> sessions = new HashMap<String, Session>();
-    
-    
+
     static class Session {
-    	final SwiftSession swiftClient;
-    	final SwiftSocial swiftSocial;
-    	
-    	Session() {
+        final SwiftSession swiftClient;
+        final SwiftSocial swiftSocial;
+
+        Session() {
 
             final SwiftOptions options = new SwiftOptions(dcEndpoint.getHost(), dcEndpoint.getPort());
             options.setDisasterSafe(false);
             options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
             options.setCacheSize(Integer.MAX_VALUE);
             swiftClient = SwiftImpl.newSingleSessionInstance(options);
-    	    
-    		swiftSocial = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
-    	                asyncCommit);
-    	}
+
+            swiftSocial = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
+        }
     }
 }

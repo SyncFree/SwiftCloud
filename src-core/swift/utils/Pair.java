@@ -24,9 +24,10 @@ public class Pair<F, S> implements Serializable {
     private F first;
     private S second;
 
-    //required for kryo
+    // required for kryo
     public Pair() {
     }
+
     public Pair(Pair<F, S> op) {
         this.first = op.getFirst();
         this.second = op.getSecond();

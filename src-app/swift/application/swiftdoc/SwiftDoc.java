@@ -67,8 +67,10 @@ public class SwiftDoc {
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
-                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
-                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                        DCConstants.SURROGATE_PORT));
+                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                        DCConstants.SURROGATE_PORT));
                 runClient1(swift1, swift2);
             }
         }).start();
@@ -78,8 +80,10 @@ public class SwiftDoc {
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
-                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
-                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, DCConstants.SURROGATE_PORT));
+                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                        DCConstants.SURROGATE_PORT));
+                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                        DCConstants.SURROGATE_PORT));
                 runClient2(swift1, swift2);
             }
         }).start();
@@ -105,7 +109,7 @@ public class SwiftDoc {
                         for (int k = 0; !done.get(); k++) {
                             final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
                                     : CachePolicy.CACHED, true);
-                            
+
                             SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class,
                                     new AbstractObjectUpdatesListener() {
                                         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id,
@@ -116,7 +120,7 @@ public class SwiftDoc {
                                         }
                                     });
                             handle.commit();
-                            
+
                             for (TextLine i : doc.getValue()) {
                                 if (!samples.containsKey(i.serial())) {
                                     samples.put(i.serial(), i);
@@ -192,7 +196,7 @@ public class SwiftDoc {
         try {
             final Set<Long> serials = new HashSet<Long>();
             final Semaphore barrier = new Semaphore(0);
-            
+
             for (int k = 0;; k++) {
                 final TxnHandle handle = swift1.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
                         : CachePolicy.CACHED, true);

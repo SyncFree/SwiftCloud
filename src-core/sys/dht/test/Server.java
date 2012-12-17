@@ -47,45 +47,45 @@ import sys.utils.Threading;
  */
 public class Server {
 
-	public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws Exception {
 
-		sys.Sys.init();
+        sys.Sys.init();
 
-		// SeedDB.addSeedNode( Networking.resolve("10.0.0.1", 10001) ) ;
+        // SeedDB.addSeedNode( Networking.resolve("10.0.0.1", 10001) ) ;
 
-		Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(1));
+        Sys.setDatacenter("datacenter-" + new Random(1L).nextInt(1));
 
-		Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
-		DHT_Node.start();
-		
-		System.out.println("Ready...");
-		
-		DHT_Node.setHandler(new KVS.RequestHandler() {
+        Catadupa.setScopeAndDomain(Scope.DATACENTER, "SwiftDHT");
+        DHT_Node.start();
 
-			@Override
-			public void onReceive(DHT.Handle conn, DHT.Key key, StoreData request) {
-				System.out.printf("Got request for <%s, %s>\n", key, request.data);
-				conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
-			}
-		});
+        System.out.println("Ready...");
 
-		Threading.sleep(1000);
+        DHT_Node.setHandler(new KVS.RequestHandler() {
 
-		// int n = 0;
-		// DHT stub = Sys.getDHT_ClientStub();
-		//
-		// System.out.println(stub.localEndpoint());
-		//
-		// while (stub != null) {
-		// String key = "" + Sys.rg.nextInt(1000);
-		// stub.send(new StringKey(key), new StoreData("" + n++), new
-		// KVS.ReplyHandler() {
-		// @Override
-		// public void onReceive(StoreDataReply reply) {
-		// System.out.println(reply.msg);
-		// }
-		// });
-		// Threading.sleep(1000);
-		// }
-	}
+            @Override
+            public void onReceive(DHT.Handle conn, DHT.Key key, StoreData request) {
+                System.out.printf("Got request for <%s, %s>\n", key, request.data);
+                conn.reply(new StoreDataReply("OK " + request.data + "  " + Sys.getDatacenter()));
+            }
+        });
+
+        Threading.sleep(1000);
+
+        // int n = 0;
+        // DHT stub = Sys.getDHT_ClientStub();
+        //
+        // System.out.println(stub.localEndpoint());
+        //
+        // while (stub != null) {
+        // String key = "" + Sys.rg.nextInt(1000);
+        // stub.send(new StringKey(key), new StoreData("" + n++), new
+        // KVS.ReplyHandler() {
+        // @Override
+        // public void onReceive(StoreDataReply reply) {
+        // System.out.println(reply.msg);
+        // }
+        // });
+        // Threading.sleep(1000);
+        // }
+    }
 }

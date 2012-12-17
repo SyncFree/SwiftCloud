@@ -28,43 +28,43 @@ import java.security.NoSuchAlgorithmException;
  */
 public class StringKey implements DHT.Key {
 
-	private static MessageDigest digest;
+    private static MessageDigest digest;
 
-	String key;
+    String key;
 
-	public StringKey() {
-	}
+    public StringKey() {
+    }
 
-	public StringKey(final String key) {
-		this.key = key;
-	}
+    public StringKey(final String key) {
+        this.key = key;
+    }
 
-	public String value() {
-		return key;
-	}
+    public String value() {
+        return key;
+    }
 
-	public int hashCode() {
-		return key.hashCode();
-	}
-	
-	public boolean equals( Object other ) {
-		return other != null && key.equals( ((StringKey)other).key);
-	}
-	
-	@Override
-	public long longHashValue() {
-		synchronized (digest) {
-			digest.reset();
-			digest.update(key.getBytes());
-			return new BigInteger(1, digest.digest()).longValue() >>> 1;
-		}
-	}
+    public int hashCode() {
+        return key.hashCode();
+    }
 
-	static {
-		try {
-			digest = java.security.MessageDigest.getInstance("MD5");
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		}
-	}
+    public boolean equals(Object other) {
+        return other != null && key.equals(((StringKey) other).key);
+    }
+
+    @Override
+    public long longHashValue() {
+        synchronized (digest) {
+            digest.reset();
+            digest.update(key.getBytes());
+            return new BigInteger(1, digest.digest()).longValue() >>> 1;
+        }
+    }
+
+    static {
+        try {
+            digest = java.security.MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+    }
 }

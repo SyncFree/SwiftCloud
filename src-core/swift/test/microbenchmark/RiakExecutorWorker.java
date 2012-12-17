@@ -16,13 +16,13 @@
  *****************************************************************************/
 package swift.test.microbenchmark;
 
-import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
-import java.util.List;
 import java.util.Random;
 
-import org.apache.http.ReasonPhraseCatalog;
-import org.codehaus.jackson.Versioned;
+import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
+import swift.test.microbenchmark.interfaces.ResultHandler;
+import swift.test.microbenchmark.interfaces.WorkerManager;
+import sys.net.impl.KryoSerializer;
 
 import com.basho.riak.client.IRiakClient;
 import com.basho.riak.client.IRiakObject;
@@ -30,32 +30,6 @@ import com.basho.riak.client.RiakRetryFailedException;
 import com.basho.riak.client.cap.UnresolvedConflictException;
 import com.basho.riak.client.convert.ConversionException;
 import com.esotericsoftware.kryo.Kryo;
-
-import swift.application.social.User;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
-import swift.crdt.SetTxnLocalString;
-import swift.crdt.SetVersioned;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.exceptions.NetworkException;
-import swift.exceptions.NoSuchObjectException;
-import swift.exceptions.VersionNotFoundException;
-import swift.exceptions.WrongTypeException;
-import swift.test.microbenchmark.interfaces.MicroBenchmarkWorker;
-import swift.test.microbenchmark.interfaces.ResultHandler;
-import swift.test.microbenchmark.interfaces.WorkerManager;
-import swift.test.microbenchmark.objects.StringCopyable;
-import sys.Sys;
-import sys.dht.catadupa.crdts.ORSet;
-import sys.net.impl.KryoSerializer;
 
 public class RiakExecutorWorker implements MicroBenchmarkWorker {
 
@@ -73,7 +47,7 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
     protected int numExecutedTransactions, writeOps, readOps;
     private RawDataCollector rawData;
     private String outputDir;
-    
+
     public RiakExecutorWorker(WorkerManager manager, String workerID, Integer[] identifiers, double updateRatio,
             Random random, IRiakClient clientServer, int maxTxSize, int runCounter, String outputDir) {
         this.manager = manager;
@@ -110,18 +84,18 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                     int randomIndex = (int) Math.floor(random.nextDouble() * identifiers.length);
                     IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
                             .fetch("object" + randomIndex).execute();
-                    
-                    Integer objValue = serializer.readObject(riakObj.getValue() );
+
+                    Integer objValue = serializer.readObject(riakObj.getValue());
 
                     if (random.nextDouble() > 0.5) {
                         objValue += 10;
                     } else {
                         objValue -= 10;
                     }
-                    
-                    byte[] data = serializer.writeObject( objValue);
+
+                    byte[] data = serializer.writeObject(objValue);
                     riakObj.setValue(data);
-                    
+
                     clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute().store(riakObj);
                     long txEndTime = System.nanoTime();
                     rawData.registerOperation(txEndTime - txStartTime, 1, 1, txStartTime);
@@ -135,8 +109,8 @@ public class RiakExecutorWorker implements MicroBenchmarkWorker {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
                         IRiakObject riakObj = clientServer.fetchBucket(RiakMicroBenchmark.TABLE_NAME).execute()
                                 .fetch("object" + randomIndex).execute();
-                        
-                        Integer objValue = serializer.readObject( riakObj.getValue() );
+
+                        Integer objValue = serializer.readObject(riakObj.getValue());
                         readOps++;
                     }
                     long txEndTime = System.nanoTime();
@@ -240,9 +214,7 @@ class RiakOperationExecutorResultHandler implements ResultHandler {
         return workerID;
     }
 
-/*    @Override
-    public String getRawResults() {
-        return rawData.RawData();
-    }
-*/
+    /*
+     * @Override public String getRawResults() { return rawData.RawData(); }
+     */
 }

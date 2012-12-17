@@ -26,284 +26,285 @@ import java.util.TreeSet;
 
 public class LVV implements CausalityClock<LVV, LVV.TS> {
 
-	int maxCounter = -1;
-	Map<String, TsSet> data;
+    int maxCounter = -1;
+    Map<String, TsSet> data;
 
-	public LVV() {
-		data = new LinkedHashMap<String, TsSet>();
-	}
+    public LVV() {
+        data = new LinkedHashMap<String, TsSet>();
+    }
 
-	private LVV(LVV other) {
-		data = new LinkedHashMap<String, TsSet>();
-		for (Map.Entry<String, TsSet> i : other.data.entrySet()) {
-			data.put(i.getKey(), i.getValue().clone());
-		}
-	}
+    private LVV(LVV other) {
+        data = new LinkedHashMap<String, TsSet>();
+        for (Map.Entry<String, TsSet> i : other.data.entrySet()) {
+            data.put(i.getKey(), i.getValue().clone());
+        }
+    }
 
-	@Override
-	public TS recordNext(String siteId) {
-		TsSet s = getSet(siteId);
-		TS t = new TS(siteId, ++maxCounter, s.maxCounter());
-		s.add(t);
-		return t;
-	}
+    @Override
+    public TS recordNext(String siteId) {
+        TsSet s = getSet(siteId);
+        TS t = new TS(siteId, ++maxCounter, s.maxCounter());
+        s.add(t);
+        return t;
+    }
 
-	@Override
-	public void record(TS t) {
-		if (t.c_value > maxCounter)
-			maxCounter = t.c_value;
+    @Override
+    public void record(TS t) {
+        if (t.c_value > maxCounter)
+            maxCounter = t.c_value;
 
-		getSet(t.siteId).add(t);
-	}
+        getSet(t.siteId).add(t);
+    }
 
-	@Override
-	public boolean includes(TS t) {
-		TsSet s = data.get(t.siteId);
-		return s != null && s.contains(t);
-	}
+    @Override
+    public boolean includes(TS t) {
+        TsSet s = data.get(t.siteId);
+        return s != null && s.contains(t);
+    }
 
-	@Override
-	public CMP_CLOCK compareTo(LVV other) {
-		boolean lessThan = false; // this less than c
-		boolean greaterThan = false;
+    @Override
+    public CMP_CLOCK compareTo(LVV other) {
+        boolean lessThan = false; // this less than c
+        boolean greaterThan = false;
 
-		Iterator<Map.Entry<String, TsSet>> it;
+        Iterator<Map.Entry<String, TsSet>> it;
 
-		for (it = other.data.entrySet().iterator(); it.hasNext() && !lessThan;) {
-			Map.Entry<String, TsSet> e = it.next();
-			TsSet s = data.get(e.getKey());
-			lessThan |= s == null || !s.containsAll(e.getValue());
-		}
+        for (it = other.data.entrySet().iterator(); it.hasNext() && !lessThan;) {
+            Map.Entry<String, TsSet> e = it.next();
+            TsSet s = data.get(e.getKey());
+            lessThan |= s == null || !s.containsAll(e.getValue());
+        }
 
-		for (it = data.entrySet().iterator(); it.hasNext() && !greaterThan;) {
-			Map.Entry<String, TsSet> e = it.next();
-			TsSet s = other.data.get(e.getKey());
-			greaterThan |= s == null || (!s.containsAll(e.getValue()));
-		}
+        for (it = data.entrySet().iterator(); it.hasNext() && !greaterThan;) {
+            Map.Entry<String, TsSet> e = it.next();
+            TsSet s = other.data.get(e.getKey());
+            greaterThan |= s == null || (!s.containsAll(e.getValue()));
+        }
 
-		if (greaterThan && lessThan) {
-			return CMP_CLOCK.CMP_CONCURRENT;
-		}
-		if (greaterThan) {
-			return CMP_CLOCK.CMP_DOMINATES;
-		}
-		if (lessThan) {
-			return CMP_CLOCK.CMP_ISDOMINATED;
-		}
-		return CMP_CLOCK.CMP_EQUALS;
-	}
+        if (greaterThan && lessThan) {
+            return CMP_CLOCK.CMP_CONCURRENT;
+        }
+        if (greaterThan) {
+            return CMP_CLOCK.CMP_DOMINATES;
+        }
+        if (lessThan) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        return CMP_CLOCK.CMP_EQUALS;
+    }
 
-	@Override
-	public CMP_CLOCK merge(LVV other) {
-		boolean lessThan = false; // this less than c
-		boolean greaterThan = false;
+    @Override
+    public CMP_CLOCK merge(LVV other) {
+        boolean lessThan = false; // this less than c
+        boolean greaterThan = false;
 
-		for (Map.Entry<String, TsSet> i : other.data.entrySet()) {
-			lessThan |= getSet(i.getKey()).addAll(i.getValue());
-		}
+        for (Map.Entry<String, TsSet> i : other.data.entrySet()) {
+            lessThan |= getSet(i.getKey()).addAll(i.getValue());
+        }
 
-		for (Map.Entry<String, TsSet> i : data.entrySet()) {
-			TsSet s = other.data.get(i.getKey());
-			greaterThan |= s == null || (!s.containsAll(i.getValue()));
-		}
+        for (Map.Entry<String, TsSet> i : data.entrySet()) {
+            TsSet s = other.data.get(i.getKey());
+            greaterThan |= s == null || (!s.containsAll(i.getValue()));
+        }
 
-		if (greaterThan && lessThan) {
-			return CMP_CLOCK.CMP_CONCURRENT;
-		}
-		if (greaterThan) {
-			return CMP_CLOCK.CMP_DOMINATES;
-		}
-		if (lessThan) {
-			return CMP_CLOCK.CMP_ISDOMINATED;
-		}
-		return CMP_CLOCK.CMP_EQUALS;
-	}
+        if (greaterThan && lessThan) {
+            return CMP_CLOCK.CMP_CONCURRENT;
+        }
+        if (greaterThan) {
+            return CMP_CLOCK.CMP_DOMINATES;
+        }
+        if (lessThan) {
+            return CMP_CLOCK.CMP_ISDOMINATED;
+        }
+        return CMP_CLOCK.CMP_EQUALS;
+    }
 
-	@Override
-	public LVV clone() {
-		return new LVV(this);
-	}
+    @Override
+    public LVV clone() {
+        return new LVV(this);
+    }
 
-	private TsSet getSet(String site) {
-		TsSet res = data.get(site);
-		if (res == null)
-			data.put(site, res = new TsSet());
-		return res;
-	}
+    private TsSet getSet(String site) {
+        TsSet res = data.get(site);
+        if (res == null)
+            data.put(site, res = new TsSet());
+        return res;
+    }
 
-	@Override
-	public String toString() {
-		StringBuilder sb = new StringBuilder();
-		sb.append('{');
-		for (Map.Entry<String, TsSet> i : data.entrySet()) {
-			sb.append(String.format("<%s : %s>", i.getKey(), i.getValue())).append(", ");
-		}
-		if (data.size() > 0)
-			sb.delete(sb.length() - 2, sb.length());
-		sb.append('}');
-		return sb.toString();
-	}
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('{');
+        for (Map.Entry<String, TsSet> i : data.entrySet()) {
+            sb.append(String.format("<%s : %s>", i.getKey(), i.getValue())).append(", ");
+        }
+        if (data.size() > 0)
+            sb.delete(sb.length() - 2, sb.length());
+        sb.append('}');
+        return sb.toString();
+    }
 
-	public static class TS implements Timestamp {
+    public static class TS implements Timestamp {
 
-		String siteId;
-		public int c_value;
-		public int p_value;
+        String siteId;
+        public int c_value;
+        public int p_value;
 
-		public TS() {
-		}
+        public TS() {
+        }
 
-		TS(TS other) {
-			siteId = other.siteId;
-			c_value = other.c_value;
-			p_value = other.p_value;
-		}
+        TS(TS other) {
+            siteId = other.siteId;
+            c_value = other.c_value;
+            p_value = other.p_value;
+        }
 
-		TS(String siteId, int c_value, int p_value) {
-			this.siteId = siteId;
-			this.c_value = c_value;
-			this.p_value = p_value;
-		}
+        TS(String siteId, int c_value, int p_value) {
+            this.siteId = siteId;
+            this.c_value = c_value;
+            this.p_value = p_value;
+        }
 
-		@Override
-		public String siteId() {
-			return siteId;
-		}
+        @Override
+        public String siteId() {
+            return siteId;
+        }
 
-		@Override
-		public TS clone() {
-			return new TS(this);
-		}
+        @Override
+        public TS clone() {
+            return new TS(this);
+        }
 
-		@Override
-		public int size() {
-			return 2 * (Integer.SIZE / Byte.SIZE) + siteId.length();
-		}
+        @Override
+        public int size() {
+            return 2 * (Integer.SIZE / Byte.SIZE) + siteId.length();
+        }
 
-		public int compareTo(TS other) {
-			return (c_value != other.c_value) ? Integer.signum(c_value - other.c_value) : siteId.compareTo(other.siteId);
-		}
+        public int compareTo(TS other) {
+            return (c_value != other.c_value) ? Integer.signum(c_value - other.c_value) : siteId
+                    .compareTo(other.siteId);
+        }
 
-		@Override
-		public String toString() {
-			return String.format("%d (%d)", c_value, p_value);
-		}
+        @Override
+        public String toString() {
+            return String.format("%d (%d)", c_value, p_value);
+        }
 
-		@Override
-		public int compareTo(Timestamp other) {
-			return compareTo((TS) other);
-		}
+        @Override
+        public int compareTo(Timestamp other) {
+            return compareTo((TS) other);
+        }
 
-		@Override
-		public int hashCode() {
-			return c_value ^ p_value;
-		}
+        @Override
+        public int hashCode() {
+            return c_value ^ p_value;
+        }
 
-		public boolean equals(TS other) {
-			return c_value == other.c_value && siteId.equals(other.siteId);
-		}
+        public boolean equals(TS other) {
+            return c_value == other.c_value && siteId.equals(other.siteId);
+        }
 
-		@Override
-		public boolean equals(Object other) {
-			return equals((TS) other);
-		}
+        @Override
+        public boolean equals(Object other) {
+            return equals((TS) other);
+        }
 
-		@Override
-		public void recordIn(CausalityClock<?, ?> cc) {
-			((LVV) cc).record(this);
-		}
+        @Override
+        public void recordIn(CausalityClock<?, ?> cc) {
+            ((LVV) cc).record(this);
+        }
 
-		@Override
-		public boolean includedIn(CausalityClock<?, ?> cc) {
-			return ((LVV) cc).includes(this);
-		}
+        @Override
+        public boolean includedIn(CausalityClock<?, ?> cc) {
+            return ((LVV) cc).includes(this);
+        }
 
-		/**
+        /**
 		 * 
 		 */
-		private static final long serialVersionUID = 1L;
-	}
+        private static final long serialVersionUID = 1L;
+    }
 
-	public static class TsSet extends TreeSet<LVV.TS> {
+    public static class TsSet extends TreeSet<LVV.TS> {
 
-		public TsSet() {
-		}
+        public TsSet() {
+        }
 
-		TsSet(TsSet other) {
-			super(other);
-		}
+        TsSet(TsSet other) {
+            super(other);
+        }
 
-		int maxCounter() {
-			return isEmpty() ? -1 : last().c_value;
-		}
+        int maxCounter() {
+            return isEmpty() ? -1 : last().c_value;
+        }
 
-		@Override
-		public TsSet clone() {
-			return new TsSet(this);
-		}
+        @Override
+        public TsSet clone() {
+            return new TsSet(this);
+        }
 
-		TsSet trim(int cutoff) {
-			for (Iterator<LVV.TS> i = iterator(); i.hasNext();)
-				if (i.next().c_value <= cutoff)
-					i.remove();
-			return this;
-		}
+        TsSet trim(int cutoff) {
+            for (Iterator<LVV.TS> i = iterator(); i.hasNext();)
+                if (i.next().c_value <= cutoff)
+                    i.remove();
+            return this;
+        }
 
-		List<LVV.TS> trim() {
-			List<LVV.TS> res = new ArrayList<LVV.TS>();
+        List<LVV.TS> trim() {
+            List<LVV.TS> res = new ArrayList<LVV.TS>();
 
-			LVV.TS[] sa = super.toArray(new LVV.TS[size()]);
+            LVV.TS[] sa = super.toArray(new LVV.TS[size()]);
 
-			int i = 0;
-			for (; i < sa.length - 1 && sa[i + 1].p_value == sa[i].c_value; i++)
-				;
+            int i = 0;
+            for (; i < sa.length - 1 && sa[i + 1].p_value == sa[i].c_value; i++)
+                ;
 
-			for (; i < sa.length; i++)
-				res.add(sa[i]);
+            for (; i < sa.length; i++)
+                res.add(sa[i]);
 
-			return res;
-		}
+            return res;
+        }
 
-		public boolean contains(LVV.TS s, int cutoff) {
-			return s.c_value <= cutoff || super.contains(s);
-		}
+        public boolean contains(LVV.TS s, int cutoff) {
+            return s.c_value <= cutoff || super.contains(s);
+        }
 
-		// public boolean contains(Object other) {
-		// Thread.dumpStack(); // vai ser preciso por causa do cutoff
-		// return false;
-		// }
+        // public boolean contains(Object other) {
+        // Thread.dumpStack(); // vai ser preciso por causa do cutoff
+        // return false;
+        // }
 
-		public boolean containsAll(Collection<?> c, int cutoff) {
-			for (Object i : c)
-				if (((LVV.TS) i).c_value > cutoff && !super.contains(i))
-					return false;
+        public boolean containsAll(Collection<?> c, int cutoff) {
+            for (Object i : c)
+                if (((LVV.TS) i).c_value > cutoff && !super.contains(i))
+                    return false;
 
-			return true;
-		}
+            return true;
+        }
 
-		@Override
-		public String toString() {
-			return super.toString();
-		}
+        @Override
+        public String toString() {
+            return super.toString();
+        }
 
-		private static final long serialVersionUID = 1L;
-	}
+        private static final long serialVersionUID = 1L;
+    }
 
-	/**
+    /**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	@Override
-	public Collection<TS> delta(LVV other) {
-		Collection<TS> res = new ArrayList<TS>();
-		for (Iterator<Map.Entry<String, TsSet>> it = data.entrySet().iterator(); it.hasNext();) {
-			Map.Entry<String, TsSet> e = it.next();
-			TsSet otherSet = other.data.get(e.getKey());
-			for (TS t : e.getValue())
-				if (otherSet == null || !otherSet.contains(t))
-					res.add(t);
-		}
-		return res;
-	}
+    @Override
+    public Collection<TS> delta(LVV other) {
+        Collection<TS> res = new ArrayList<TS>();
+        for (Iterator<Map.Entry<String, TsSet>> it = data.entrySet().iterator(); it.hasNext();) {
+            Map.Entry<String, TsSet> e = it.next();
+            TsSet otherSet = other.data.get(e.getKey());
+            for (TS t : e.getValue())
+                if (otherSet == null || !otherSet.contains(t))
+                    res.add(t);
+        }
+        return res;
+    }
 }

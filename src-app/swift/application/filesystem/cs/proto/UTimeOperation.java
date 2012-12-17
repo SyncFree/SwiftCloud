@@ -17,9 +17,9 @@
  *****************************************************************************/
 package swift.application.filesystem.cs.proto;
 
-import fuse.FuseException;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import fuse.FuseException;
 
 public class UTimeOperation extends FuseRemoteOperation {
 
@@ -39,10 +39,10 @@ public class UTimeOperation extends FuseRemoteOperation {
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         try {
-            int res = ((RemoteFuseOperationHandler)handler).utime(path, atime, mtime);
-            handle.reply( new FuseOperationResult( res ) ) ;
+            int res = ((RemoteFuseOperationHandler) handler).utime(path, atime, mtime);
+            handle.reply(new FuseOperationResult(res));
         } catch (FuseException e) {
-            handle.reply( new FuseOperationResult() );
+            handle.reply(new FuseOperationResult());
         }
     }
 }

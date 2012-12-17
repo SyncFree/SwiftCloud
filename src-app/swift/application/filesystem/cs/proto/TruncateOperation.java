@@ -17,15 +17,14 @@
  *****************************************************************************/
 package swift.application.filesystem.cs.proto;
 
-import fuse.FuseException;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import fuse.FuseException;
 
 public class TruncateOperation extends FuseRemoteOperation {
 
     String path;
     long mode;
-
 
     TruncateOperation() {
     }
@@ -34,16 +33,15 @@ public class TruncateOperation extends FuseRemoteOperation {
         this.path = path;
         this.mode = mode;
     }
-    
+
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         try {
-            int res = ((RemoteFuseOperationHandler)handler).truncate(path, mode);
-            handle.reply( new FuseOperationResult( res ) ) ;
+            int res = ((RemoteFuseOperationHandler) handler).truncate(path, mode);
+            handle.reply(new FuseOperationResult(res));
         } catch (FuseException e) {
-            handle.reply( new FuseOperationResult() );
+            handle.reply(new FuseOperationResult());
         }
     }
-
 
 }

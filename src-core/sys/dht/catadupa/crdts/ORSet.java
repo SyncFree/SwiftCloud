@@ -16,7 +16,6 @@
  *****************************************************************************/
 package sys.dht.catadupa.crdts;
 
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -24,181 +23,181 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import sys.dht.catadupa.crdts.time.Timestamp;
 
 public class ORSet<V> extends AbstractORSet<V> implements CvRDT<ORSet<V>> {
 
-	private static Logger Log = Logger.getLogger("sys.dht.catadupa");
-	
-	Set<Timestamp> tomb;
-	Map<V, Set<Timestamp>> e2t;
-	Map<Timestamp, V> t2v;
+    private static Logger Log = Logger.getLogger("sys.dht.catadupa");
 
-	public ORSet() {
-		e2t = new HashMap<V, Set<Timestamp>>();
-		t2v = new HashMap<Timestamp, V>();
-		tomb = new HashSet<Timestamp>();
-	}
+    Set<Timestamp> tomb;
+    Map<V, Set<Timestamp>> e2t;
+    Map<Timestamp, V> t2v;
 
-	@Override
-	public boolean isEmpty() {
-		return e2t.isEmpty();
-	}
+    public ORSet() {
+        e2t = new HashMap<V, Set<Timestamp>>();
+        t2v = new HashMap<Timestamp, V>();
+        tomb = new HashSet<Timestamp>();
+    }
 
-	@Override
-	public boolean contains(Object o) {
-		return e2t.containsKey(o);
-	}
+    @Override
+    public boolean isEmpty() {
+        return e2t.isEmpty();
+    }
 
-	@Override
-	public int size() {
-		return e2t.size();
-	}
+    @Override
+    public boolean contains(Object o) {
+        return e2t.containsKey(o);
+    }
 
-	@Override
-	public boolean add(V v) {
-		return add(v, rt.recordUpdate(this));
-	}
+    @Override
+    public int size() {
+        return e2t.size();
+    }
 
-	@Override
-	public boolean add(V v, Timestamp t) {
-		t2v.put( t, v );
-		return get(v).add(t);
-	}
+    @Override
+    public boolean add(V v) {
+        return add(v, rt.recordUpdate(this));
+    }
 
-	@Override
-	public boolean remove(Object o) {
-		Set<Timestamp> s = e2t.remove(o);
-		if (s != null) {
-			tomb.addAll(s);
-			t2v.keySet().removeAll(s);
-		}
-		return false;
-	}
+    @Override
+    public boolean add(V v, Timestamp t) {
+        t2v.put(t, v);
+        return get(v).add(t);
+    }
 
-	@Override
-	public boolean retainAll(Collection<?> c) {
-		Set<V> deletes = new HashSet<V>(e2t.keySet());
-		deletes.removeAll(c);
-		for (V i : deletes)
-			remove(i);
+    @Override
+    public boolean remove(Object o) {
+        Set<Timestamp> s = e2t.remove(o);
+        if (s != null) {
+            tomb.addAll(s);
+            t2v.keySet().removeAll(s);
+        }
+        return false;
+    }
 
-		return deletes.size() > 0;
-	}
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        Set<V> deletes = new HashSet<V>(e2t.keySet());
+        deletes.removeAll(c);
+        for (V i : deletes)
+            remove(i);
 
-	@Override
-	public synchronized void clear() {
-		for (Entry<V, Set<Timestamp>> i : e2t.entrySet()) {
-			tomb.addAll(i.getValue());
-		}
-		e2t.clear();
-		t2v.clear();
-	}
+        return deletes.size() > 0;
+    }
 
-	@Override
-	public Iterator<V> iterator() {
-		return new _OrSetIterator();
-	}
+    @Override
+    public synchronized void clear() {
+        for (Entry<V, Set<Timestamp>> i : e2t.entrySet()) {
+            tomb.addAll(i.getValue());
+        }
+        e2t.clear();
+        t2v.clear();
+    }
 
-	@Override
-	public <Q> Q[] toArray(Q[] a) {
-		return e2t.keySet().toArray(a);
-	}
+    @Override
+    public Iterator<V> iterator() {
+        return new _OrSetIterator();
+    }
 
-	@Override
-	public void merge(ORSet<V> other) {
-		merge(other, new ArrayList<V>(), new ArrayList<V>());
-	}
+    @Override
+    public <Q> Q[] toArray(Q[] a) {
+        return e2t.keySet().toArray(a);
+    }
 
-	public synchronized void merge(ORSet<V> other, Collection<V> added, Collection<V> removed) {
+    @Override
+    public void merge(ORSet<V> other) {
+        merge(other, new ArrayList<V>(), new ArrayList<V>());
+    }
 
-		List<Timestamp> newTombs = new ArrayList<Timestamp>();
-		for (Timestamp t : other.tomb)
-			if (tomb.add(t))
-				newTombs.add(t);
+    public synchronized void merge(ORSet<V> other, Collection<V> added, Collection<V> removed) {
 
-		for (Map.Entry<V, Set<Timestamp>> e : other.e2t.entrySet()) {
+        List<Timestamp> newTombs = new ArrayList<Timestamp>();
+        for (Timestamp t : other.tomb)
+            if (tomb.add(t))
+                newTombs.add(t);
 
-			V v = e.getKey();
-			for (Timestamp t : e.getValue())
-				if (!tomb.contains(t)) {
-					if( get(v).add(t) )
-						added.add(v);
-					t2v.put( t, v);
-				}
-		}
+        for (Map.Entry<V, Set<Timestamp>> e : other.e2t.entrySet()) {
 
-		for (Timestamp t : newTombs) {
-			V v = t2v.remove(t);
-			if( v != null )
-				removed.add(v);
-		}
-		
-		Log.finest("Added:" + added + " " + "Removed:" + removed);
-	}
+            V v = e.getKey();
+            for (Timestamp t : e.getValue())
+                if (!tomb.contains(t)) {
+                    if (get(v).add(t))
+                        added.add(v);
+                    t2v.put(t, v);
+                }
+        }
 
-	public Map<V, Timestamp> subSet(Collection<? extends Timestamp> timestamps) {
-		Map<V, Timestamp> res = new HashMap<V, Timestamp>();
-		for (Timestamp t : timestamps) {
-			V v = t2v.get(t);
-			if( v != null )
-				res.put( v, t);
-		}
-		return res;
-	}
+        for (Timestamp t : newTombs) {
+            V v = t2v.remove(t);
+            if (v != null)
+                removed.add(v);
+        }
 
-	private Set<Timestamp> get(V v) {
-		Set<Timestamp> s = e2t.get(v);
-		if (s == null)
-			e2t.put(v, s = new HashSet<Timestamp>());
-		return s;
-	}
+        Log.finest("Added:" + added + " " + "Removed:" + removed);
+    }
 
-//	private Set<V> get(Timestamp t) {
-//		Set<V> s = t2e.get(t);
-//		if (s == null)
-//			t2e.put(t, s = new HashSet<V>());
-//		return s;
-//	}
+    public Map<V, Timestamp> subSet(Collection<? extends Timestamp> timestamps) {
+        Map<V, Timestamp> res = new HashMap<V, Timestamp>();
+        for (Timestamp t : timestamps) {
+            V v = t2v.get(t);
+            if (v != null)
+                res.put(v, t);
+        }
+        return res;
+    }
 
-	@Override
-	public String toString() {
-		return e2t.keySet().toString();
-	}
+    private Set<Timestamp> get(V v) {
+        Set<Timestamp> s = e2t.get(v);
+        if (s == null)
+            e2t.put(v, s = new HashSet<Timestamp>());
+        return s;
+    }
 
-	class _OrSetIterator implements Iterator<V> {
+    // private Set<V> get(Timestamp t) {
+    // Set<V> s = t2e.get(t);
+    // if (s == null)
+    // t2e.put(t, s = new HashSet<V>());
+    // return s;
+    // }
 
-		Map.Entry<V, Set<Timestamp>> curr;
-		Iterator<Map.Entry<V, Set<Timestamp>>> it;
+    @Override
+    public String toString() {
+        return e2t.keySet().toString();
+    }
 
-		_OrSetIterator() {
-			it = e2t.entrySet().iterator();
-		}
+    class _OrSetIterator implements Iterator<V> {
 
-		@Override
-		public boolean hasNext() {
-			return it.hasNext();
-		}
+        Map.Entry<V, Set<Timestamp>> curr;
+        Iterator<Map.Entry<V, Set<Timestamp>>> it;
 
-		@Override
-		public V next() {
-			return (curr = it.next()).getKey();
-		}
+        _OrSetIterator() {
+            it = e2t.entrySet().iterator();
+        }
 
-		@Override
-		public void remove() {
-			tomb.addAll(curr.getValue());
-			t2v.entrySet().remove(curr.getValue());
-			it.remove();
-		}
-	}
+        @Override
+        public boolean hasNext() {
+            return it.hasNext();
+        }
 
-	/**
+        @Override
+        public V next() {
+            return (curr = it.next()).getKey();
+        }
+
+        @Override
+        public void remove() {
+            tomb.addAll(curr.getValue());
+            t2v.entrySet().remove(curr.getValue());
+            it.remove();
+        }
+    }
+
+    /**
 	 * 
 	 */
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 }

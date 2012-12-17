@@ -38,7 +38,7 @@ public abstract class GenericStatisticsOverTime<V extends SlicedStatistics<V>> {
     }
 
     protected synchronized V getCurrentSlice() {
-        long currentTimeMillis = System.currentTimeMillis()- T0;
+        long currentTimeMillis = System.currentTimeMillis() - T0;
         // System.out.println("T"+currentTimeMillis);
         Pair<Long, V> lastSlice = statisticsOverTime.get(statisticsOverTime.size() - 1);
         long lastTimeInterval = lastSlice.getFirst();

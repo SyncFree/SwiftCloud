@@ -22,9 +22,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.io.Writer;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 
 public class CompleteRawDataCollector {
@@ -76,20 +74,16 @@ public class CompleteRawDataCollector {
         }
     }
 
-/*    public String RawData() {
-        StringBuffer string = new StringBuffer();
-        string.append("StartTime\tTxType\tOpCount\tTimeToExecute(nano)");
-        string.append(workerName+"\n");
-        for (int buf = 1; buf <= bufferList.size(); buf++) {
-            long[][] ops = bufferList.get(buf - 1);
-            int length = (buf != bufferList.size()) ? ops.length : bufferPosition;
-            for (int i = 0; i < length; i++)
-                string.append(ops[i][3] + "\t" + ((ops[i][1] == 0) ? "R" : "W") + "\t" + ops[i][2] + "\t" + ops[i][0]
-                        + "\n");
-        }
-        return string.toString();
-    }
-*/
+    /*
+     * public String RawData() { StringBuffer string = new StringBuffer();
+     * string.append("StartTime\tTxType\tOpCount\tTimeToExecute(nano)");
+     * string.append(workerName+"\n"); for (int buf = 1; buf <=
+     * bufferList.size(); buf++) { long[][] ops = bufferList.get(buf - 1); int
+     * length = (buf != bufferList.size()) ? ops.length : bufferPosition; for
+     * (int i = 0; i < length; i++) string.append(ops[i][3] + "\t" + ((ops[i][1]
+     * == 0) ? "R" : "W") + "\t" + ops[i][2] + "\t" + ops[i][0] + "\n"); }
+     * return string.toString(); }
+     */
     public int getRunCount() {
         return runCount;
     }
@@ -104,13 +98,13 @@ public class CompleteRawDataCollector {
             file.mkdir();
         }
         String filename = "" + workerName + "_" + runCount;
-        File outputFile = new File(outputDir+"/" + filename);
+        File outputFile = new File(outputDir + "/" + filename);
         FileOutputStream fos;
         try {
             fos = new FileOutputStream(outputFile);
-            PrintWriter pw = new PrintWriter( new OutputStreamWriter( fos));
+            PrintWriter pw = new PrintWriter(new OutputStreamWriter(fos));
             pw.println("StartTime\tTxType\tOpCount\tTimeToExecute(nano)");
-            pw.println(workerName+"\n");
+            pw.println(workerName + "\n");
             for (int buf = 1; buf <= bufferList.size(); buf++) {
                 long[][] ops = bufferList.get(buf - 1);
                 int length = (buf != bufferList.size()) ? ops.length : bufferPosition;

@@ -38,21 +38,21 @@ import sys.net.impl.KryoLib;
  */
 public class KryoCatadupa {
 
-	public static void init() {
-		KryoLib.register(Node.class, 0x30);
-		KryoLib.register(Node[].class, 0x31);
-		KryoLib.register(LVV.class, 0x32);
-		KryoLib.register(LVV.TS.class, 0x33);
-		KryoLib.register(LVV.TsSet.class, 0x34);
-		KryoLib.register(Range.class, 0x35);
-		KryoLib.register(JoinRequest.class, 0x36);
-		KryoLib.register(JoinRequestAccept.class, 0x37);
-		KryoLib.register(CatadupaCast.class, 0x38);
-		KryoLib.register(CatadupaCastPayload.class, 0x39);
-		KryoLib.register(DbMergeReply.class, 0x3A);
-		KryoLib.register(DbMergeRequest.class, 0x3B);
-		KryoLib.register(MembershipUpdate.class, 0x3C);
-		KryoLib.register(ORSet.class, 0x3D);
-		KryoLib.register(JoinRequest.class, 0x3E);
-	}
+    public static void init() {
+        KryoLib.register(Node.class, 0x30);
+        KryoLib.register(Node[].class, 0x31);
+        KryoLib.register(LVV.class, 0x32);
+        KryoLib.register(LVV.TS.class, 0x33);
+        KryoLib.register(LVV.TsSet.class, 0x34);
+        KryoLib.register(Range.class, 0x35);
+        KryoLib.register(JoinRequest.class, 0x36);
+        KryoLib.register(JoinRequestAccept.class, 0x37);
+        KryoLib.register(CatadupaCast.class, 0x38);
+        KryoLib.register(CatadupaCastPayload.class, 0x39);
+        KryoLib.register(DbMergeReply.class, 0x3A);
+        KryoLib.register(DbMergeRequest.class, 0x3B);
+        KryoLib.register(MembershipUpdate.class, 0x3C);
+        KryoLib.register(ORSet.class, 0x3D);
+        KryoLib.register(JoinRequest.class, 0x3E);
+    }
 }

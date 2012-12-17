@@ -21,7 +21,6 @@ import static sys.net.api.Networking.Networking;
 import java.util.ArrayList;
 import java.util.List;
 
-import swift.application.swiftdoc.SwiftDocLineNumberGenerator;
 import swift.application.swiftdoc.SwiftDocOps;
 import swift.application.swiftdoc.SwiftDocPatchReplay;
 import swift.application.swiftdoc.TextLine;

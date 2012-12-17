@@ -39,7 +39,8 @@ import swift.utils.PrettyPrint;
  * 
  * @param <V>
  */
-public abstract class AbstractSortedSetVersioned<V extends Comparable<V>, T extends AbstractSortedSetVersioned<V, T>> extends BaseCRDT<T> {
+public abstract class AbstractSortedSetVersioned<V extends Comparable<V>, T extends AbstractSortedSetVersioned<V, T>>
+        extends BaseCRDT<T> {
 
     private static final long serialVersionUID = 1L;
     private SortedMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>> elems;

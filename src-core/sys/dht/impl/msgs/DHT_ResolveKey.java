@@ -23,22 +23,22 @@ import sys.net.api.rpc.RpcMessage;
 
 public class DHT_ResolveKey implements RpcMessage {
 
-	public DHT.Key key;
+    public DHT.Key key;
 
-	DHT_ResolveKey() {
-	}
+    DHT_ResolveKey() {
+    }
 
-	public DHT_ResolveKey(DHT.Key key) {
-		this.key = key;
-	}
+    public DHT_ResolveKey(DHT.Key key) {
+        this.key = key;
+    }
 
-	@Override
-	public void deliverTo(RpcHandle conn, RpcHandler handler) {
-		((DHT_StubHandler) handler).onReceive(conn, this);
-	}
+    @Override
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((DHT_StubHandler) handler).onReceive(conn, this);
+    }
 
-	public String toString() {
-		return super.toString() + "  " + key ;
-	}
-	
+    public String toString() {
+        return super.toString() + "  " + key;
+    }
+
 }

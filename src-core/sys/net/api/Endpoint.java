@@ -92,7 +92,7 @@ public interface Endpoint {
      */
     int getPort();
 
-    public AtomicLong getIncomingBytesCounter() ;
+    public AtomicLong getIncomingBytesCounter();
 
-    public AtomicLong getOutgoingBytesCounter() ;
+    public AtomicLong getOutgoingBytesCounter();
 }

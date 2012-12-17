@@ -22,12 +22,12 @@ import sys.net.api.rpc.RpcMessage;
 
 public class GrazingRequest implements RpcMessage {
 
-    public GrazingRequest(){        
+    public GrazingRequest() {
     }
-    
+
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-       ((ShepardProtoHandler)handler).onReceive(handle, this);
+        ((ShepardProtoHandler) handler).onReceive(handle, this);
     }
 
 }

@@ -16,6 +16,8 @@
  *****************************************************************************/
 package sys.net.impl.providers.netty.tcp;
 
+import static sys.Sys.Sys;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ExecutorService;
@@ -49,230 +51,228 @@ import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.NetworkingConstants.NIO_ReadBufferDispatchPolicy;
 import sys.net.impl.NetworkingConstants.NIO_ReadBufferPoolPolicy;
 import sys.net.impl.NetworkingConstants.NIO_WriteBufferPoolPolicy;
-import sys.net.impl.providers.KryoInputBuffer;
 import sys.net.impl.providers.BufferPool;
 import sys.net.impl.providers.InitiatorInfo;
+import sys.net.impl.providers.KryoInputBuffer;
 import sys.net.impl.providers.KryoOutputBuffer;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
-import static sys.Sys.Sys;
-
 public class TcpEndpoint extends AbstractLocalEndpoint {
 
-	private static Logger Log = Logger.getLogger( TcpEndpoint.class.getName() );
+    private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
+    ExecutorService bossExecutors, workerExecutors;
+    final BufferPool<KryoOutputBuffer> writePool;
 
-	
-	ExecutorService bossExecutors, workerExecutors;
-	final BufferPool<KryoOutputBuffer> writePool;
+    public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
+        this.localEndpoint = local;
+        this.gid = Sys.rg.nextLong() >>> 1;
 
-	public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
-		this.localEndpoint = local;
-		this.gid = Sys.rg.nextLong() >>> 1;
+        bossExecutors = Executors.newCachedThreadPool();
+        workerExecutors = Executors.newFixedThreadPool(32);
 
-		bossExecutors = Executors.newCachedThreadPool();
-		workerExecutors = Executors.newFixedThreadPool(32);
+        if (tcpPort >= 0) {
+            ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors,
+                    workerExecutors));
 
-		if (tcpPort >= 0) {
-			ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors, workerExecutors));
+            // Set up the pipeline factory.
+            bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
+                public ChannelPipeline getPipeline() throws Exception {
+                    return Channels.pipeline(new MessageFrameDecoder(), new IncomingConnectionHandler());
+                }
+            });
+            bootstrap.setOption("child.tcpNoDelay", true);
+            bootstrap.setOption("child.keepAlive", true);
+            Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
+            super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
+            Log.finest("Bound to: " + this);
+            writePool = new BufferPool<KryoOutputBuffer>(64);
 
-			// Set up the pipeline factory.
-			bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-				public ChannelPipeline getPipeline() throws Exception {
-					return Channels.pipeline(new MessageFrameDecoder(), new IncomingConnectionHandler());
-				}
-			});
-			bootstrap.setOption("child.tcpNoDelay", true);
-			bootstrap.setOption("child.keepAlive", true);
-			Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
-			super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
-			Log.finest("Bound to: " + this);
-			writePool = new BufferPool<KryoOutputBuffer>(64);
+        } else {
+            super.setSocketAddress(0);
+            writePool = new BufferPool<KryoOutputBuffer>(4);
+        }
+    }
 
-		} else {
-			super.setSocketAddress(0);
-			writePool = new BufferPool<KryoOutputBuffer>(4);
-		}
-	}
+    public void start() throws IOException {
+        handler = localEndpoint.getHandler();
 
-	public void start() throws IOException {
-		handler = localEndpoint.getHandler();
+        while (this.writePool.remainingCapacity() > 0)
+            this.writePool.offer(new KryoOutputBuffer());
 
-		while (this.writePool.remainingCapacity() > 0)
-			this.writePool.offer(new KryoOutputBuffer());
+    }
 
-	}
+    public TransportConnection connect(Endpoint remote) {
+        final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
+        ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors,
+                workerExecutors));
+        bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
+            public ChannelPipeline getPipeline() throws Exception {
+                return Channels.pipeline(new MessageFrameDecoder(), res);
+            }
+        });
+        ChannelFuture future = bootstrap.connect(((AbstractEndpoint) remote).sockAddress());
+        Threading.synchronizedWaitOn(res, 5000);
+        if (!future.isSuccess()) {
+            Log.severe("Bad connection to:" + remote);
+            return null;
+        } else
+            return res;
+    }
 
-	public TransportConnection connect(Endpoint remote) {
-		final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
-		ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors, workerExecutors));
-		bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
-			public ChannelPipeline getPipeline() throws Exception {
-				return Channels.pipeline(new MessageFrameDecoder(), res);
-			}
-		});
-		ChannelFuture future = bootstrap.connect(((AbstractEndpoint) remote).sockAddress());
-		Threading.synchronizedWaitOn(res, 5000);
-		if (!future.isSuccess()) {
-			Log.severe("Bad connection to:" + remote);
-			return null;
-		} else
-			return res;
-	}
+    class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection, RemoteEndpointUpdater {
 
-	class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection, RemoteEndpointUpdater {
+        Channel channel;
+        boolean failed;
+        Endpoint remote;
+        Throwable cause;
+        NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
+        NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
+        NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
 
-		Channel channel;
-		boolean failed;
-		Endpoint remote;
-		Throwable cause;
-		NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
-		NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
-		NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
+        final BufferPool<KryoInputBuffer> readPool;
 
-		final BufferPool<KryoInputBuffer> readPool;
+        AbstractConnection() {
+            readPool = new BufferPool<KryoInputBuffer>();
+            while (this.readPool.remainingCapacity() > 0)
+                this.readPool.offer(new KryoInputBuffer());
+        }
 
-		AbstractConnection() {
-			readPool = new BufferPool<KryoInputBuffer>();
-			while (this.readPool.remainingCapacity() > 0)
-				this.readPool.offer(new KryoInputBuffer());
-		}
+        @Override
+        public boolean failed() {
+            return failed;
+        }
 
-		@Override
-		public boolean failed() {
-			return failed;
-		}
+        public boolean send(final Message msg) {
+            KryoOutputBuffer outBuf = null;
+            try {
+                if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
+                    outBuf = writePool.take();
+                else {
+                    outBuf = writePool.poll();
+                    if (outBuf == null)
+                        outBuf = new KryoOutputBuffer();
+                }
+                outBuf.writeClassAndObjectFrame(msg);
+                ChannelFuture fut = channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
+                fut.awaitUninterruptibly();
+                return true;
+            } catch (Throwable t) {
+                t.printStackTrace();
+            } finally {
+                if (outBuf != null)
+                    writePool.offer(outBuf);
+            }
+            return false;
+        }
 
-		public boolean send(final Message msg) {
-			KryoOutputBuffer outBuf = null;
-			try {
-				if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
-					outBuf = writePool.take();
-				else {
-					outBuf = writePool.poll();
-					if (outBuf == null)
-						outBuf = new KryoOutputBuffer();
-				}
-				outBuf.writeClassAndObjectFrame(msg);
-				ChannelFuture fut = channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
-				fut.awaitUninterruptibly();
-				return true;
-			} catch (Throwable t) {
-				t.printStackTrace();
-			} finally {
-				if (outBuf != null)
-					writePool.offer(outBuf);
-			}
-			return false;
-		}
+        @Override
+        public <T extends Message> T receive() {
+            Thread.dumpStack();
+            return null;
+        }
 
-		@Override
-		public <T extends Message> T receive() {
-			Thread.dumpStack();
-			return null;
-		}
+        @Override
+        public Endpoint localEndpoint() {
+            return localEndpoint;
+        }
 
-		@Override
-		public Endpoint localEndpoint() {
-			return localEndpoint;
-		}
+        @Override
+        public Endpoint remoteEndpoint() {
+            return remote;
+        }
 
-		@Override
-		public Endpoint remoteEndpoint() {
-			return remote;
-		}
+        @Override
+        public void dispose() {
+            channel.close();
+            handler.onClose(this);
+        }
 
-		@Override
-		public void dispose() {
-			channel.close();
-			handler.onClose(this);
-		}
+        public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e) {
 
-		public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e) {
+            workerExecutors.execute(new Runnable() {
+                public void run() {
+                    KryoInputBuffer inBuf = null;
+                    try {
+                        if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
+                            inBuf = readPool.take();
+                        else {
+                            inBuf = readPool.take();
+                            if (inBuf == null)
+                                inBuf = new KryoInputBuffer();
+                        }
 
-			workerExecutors.execute(new Runnable() {
-				public void run() {
-					KryoInputBuffer inBuf = null;
-					try {
-						if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
-							inBuf = readPool.take();
-						else {
-							inBuf = readPool.take();
-							if (inBuf == null)
-								inBuf = new KryoInputBuffer();
-						}
+                        Message msg = inBuf.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
+                        msg.deliverTo(AbstractConnection.this, handler);
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                    } finally {
+                        if (inBuf != null)
+                            readPool.offer(inBuf);
+                    }
+                }
+            });
+        }
 
-						Message msg = inBuf.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
-						msg.deliverTo(AbstractConnection.this, handler);
-					} catch (Throwable t) {
-						t.printStackTrace();
-					} finally {
-						if (inBuf != null)
-							readPool.offer(inBuf);
-					}
-				}
-			});
-		}
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
+            failed = true;
+            cause = e.getCause();
+            e.getChannel().close();
+            handler.onFailure(this);
+        }
 
-		@Override
-		public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) {
-			failed = true;
-			cause = e.getCause();
-			e.getChannel().close();
-			handler.onFailure(this);
-		}
+        @Override
+        public Throwable causeOfFailure() {
+            return cause;
+        }
 
-		@Override
-		public Throwable causeOfFailure() {
-			return cause;
-		}
+        public void setRemoteEndpoint(Endpoint remote) {
+            this.remote = remote;
+        }
 
-		public void setRemoteEndpoint(Endpoint remote) {
-			this.remote = remote;
-		}
+        @Override
+        public boolean sendNow(Message m) {
+            throw new NetworkingException("Not Implemented...");
+        }
 
-		@Override
-		public boolean sendNow(Message m) {
-			throw new NetworkingException("Not Implemented...");
-		}
+        @Override
+        public void setOption(String op, Object value) {
+        }
+    }
 
-		@Override
-		public void setOption(String op, Object value) {
-		}
-	}
+    class IncomingConnectionHandler extends AbstractConnection {
 
-	class IncomingConnectionHandler extends AbstractConnection {
+        synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+            channel = e.getChannel();
+        }
+    }
 
-		synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-			channel = e.getChannel();
-		}
-	}
+    class OutgoingConnectionHandler extends AbstractConnection {
+        public OutgoingConnectionHandler(Endpoint remote) {
+            super.remote = remote;
+        }
 
-	class OutgoingConnectionHandler extends AbstractConnection {
-		public OutgoingConnectionHandler(Endpoint remote) {
-			super.remote = remote;
-		}
+        synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
+            channel = e.getChannel();
+            workerExecutors.execute(new Runnable() {
+                public void run() {
+                    send(new InitiatorInfo(localEndpoint));
+                }
+            });
+            Threading.synchronizedNotifyAllOn(this);
+            handler.onConnect(this);
+        }
 
-		synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-			channel = e.getChannel();
-			workerExecutors.execute(new Runnable() {
-				public void run() {
-					send(new InitiatorInfo(localEndpoint));
-				}
-			});
-			Threading.synchronizedNotifyAllOn(this);
-			handler.onConnect(this);
-		}
+        public String toString() {
+            return "" + localEndpoint + " -> " + remote + ": " + channel.getLocalAddress();
+        }
+    }
 
-		public String toString() {
-			return "" + localEndpoint + " -> " + remote + ": " + channel.getLocalAddress();
-		}
-	}
-
-	class MessageFrameDecoder extends LengthFieldBasedFrameDecoder {
-		public MessageFrameDecoder() {
-			super(Integer.MAX_VALUE, 0, 4, 0, 4, false);
-		}
-	}
+    class MessageFrameDecoder extends LengthFieldBasedFrameDecoder {
+        public MessageFrameDecoder() {
+            super(Integer.MAX_VALUE, 0, 4, 0, 4, false);
+        }
+    }
 }

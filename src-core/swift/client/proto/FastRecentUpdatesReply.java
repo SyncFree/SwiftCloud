@@ -139,9 +139,9 @@ public class FastRecentUpdatesReply implements RpcMessage {
             return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, null, dirty);
         }
 
-        public ObjectSubscriptionInfo clone( Timestamp t) {
+        public ObjectSubscriptionInfo clone(Timestamp t) {
             CausalityClock newC = newClock.clone();
-            if( t!= null)
+            if (t != null)
                 newC.recordAllUntil(t);
             return new ObjectSubscriptionInfo(id, oldClock, newC, pruneClock, updates, dirty);
         }

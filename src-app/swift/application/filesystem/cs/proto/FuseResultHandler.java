@@ -40,5 +40,5 @@ public abstract class FuseResultHandler implements RpcHandler {
     @Override
     public void onFailure(RpcHandle handle) {
         Thread.dumpStack();
-    }    
+    }
 }

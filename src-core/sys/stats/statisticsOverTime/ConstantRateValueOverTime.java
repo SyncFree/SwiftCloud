@@ -31,7 +31,7 @@ public class ConstantRateValueOverTime extends GenericStatisticsOverTime<ValueIm
 
     @Override
     public synchronized void setValue(double value) {
-        long currTime = System.currentTimeMillis()-T0;
+        long currTime = System.currentTimeMillis() - T0;
         List<Pair<Long, ValueImpl>> allSlices = getAllSlices();
         if (allSlices.get(allSlices.size() - 1).getFirst() - currTime == 0)
             allSlices.get(allSlices.size() - 1).getSecond().setValue(value);

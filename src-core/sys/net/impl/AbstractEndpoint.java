@@ -18,17 +18,16 @@ package sys.net.impl;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicLong;
 
+import sys.net.api.Endpoint;
+import sys.net.api.MessageHandler;
+
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-
-import sys.net.api.Endpoint;
-import sys.net.api.MessageHandler;
 
 abstract public class AbstractEndpoint implements Endpoint {
 
@@ -178,7 +177,7 @@ abstract public class AbstractEndpoint implements Endpoint {
     public int getConnectionRetryDelay() {
         return 0;
     }
-    
+
     public AtomicLong getOutgoingBytesCounter() {
         if (outgoingBytesCounter == null)
             return (outgoingBytesCounter = new AtomicLong(0));

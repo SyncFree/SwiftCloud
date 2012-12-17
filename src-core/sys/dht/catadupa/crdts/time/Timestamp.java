@@ -24,14 +24,14 @@ import java.io.Serializable;
  */
 public interface Timestamp extends Serializable, Comparable<Timestamp> {
 
-	public String siteId();
+    public String siteId();
 
-	public Timestamp clone();
+    public Timestamp clone();
 
-	public int size();
+    public int size();
 
-	public void recordIn(CausalityClock<?, ?> clock);
+    public void recordIn(CausalityClock<?, ?> clock);
 
-	public boolean includedIn(CausalityClock<?, ?> clock);
+    public boolean includedIn(CausalityClock<?, ?> clock);
 
 }

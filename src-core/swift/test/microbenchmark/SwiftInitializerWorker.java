@@ -42,7 +42,8 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
 
     protected long startTime, endTime;
 
-    public SwiftInitializerWorker(WorkerManager manager, CRDTIdentifier[] identifiers, Random random, SwiftSession clientServer) {
+    public SwiftInitializerWorker(WorkerManager manager, CRDTIdentifier[] identifiers, Random random,
+            SwiftSession clientServer) {
         this.manager = manager;
         this.identifiers = identifiers;
         this.random = random;
@@ -56,12 +57,12 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
         try {
             for (int i = 0; i < identifiers.length;) {
 
-                TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
-                        false);
-                for( int j = 0; j < 50 && i < identifiers.length; j++, i++) {
-                IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
-                integer.add(0);
-                //System.out.println(integer.getValue());
+                TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
+                        CachePolicy.STRICTLY_MOST_RECENT, false);
+                for (int j = 0; j < 50 && i < identifiers.length; j++, i++) {
+                    IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
+                    integer.add(0);
+                    // System.out.println(integer.getValue());
                 }
                 txh.commit();
 
@@ -148,9 +149,7 @@ class DBInitializerResultHandler implements ResultHandler {
         return null;
     }
 
-/*    @Override
-    public String getRawResults() {
-        return "Initializer";
-    }
-*/
+    /*
+     * @Override public String getRawResults() { return "Initializer"; }
+     */
 }

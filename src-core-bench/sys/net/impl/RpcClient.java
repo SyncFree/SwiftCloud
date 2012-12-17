@@ -16,6 +16,7 @@
  *****************************************************************************/
 package sys.net.impl;
 
+import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
 import java.net.UnknownHostException;
@@ -30,66 +31,69 @@ import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
 
-import static sys.Sys.*;
-
 public class RpcClient {
-    public static Logger Log = Logger.getLogger( RpcClient.class.getName() );
-    
-	static double sumRTT = 0, totRTT = 0;
+    public static Logger Log = Logger.getLogger(RpcClient.class.getName());
 
-	public void doIt(String serverAddr) {
+    static double sumRTT = 0, totRTT = 0;
 
-		RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
+    public void doIt(String serverAddr) {
 
-		final Endpoint server = Networking.resolve(serverAddr, RpcServer.PORT);
+        RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
-		double T0 = Sys.currentTime();
+        final Endpoint server = Networking.resolve(serverAddr, RpcServer.PORT);
 
-		final SortedSet<Integer> values = new TreeSet<Integer>();
+        double T0 = Sys.currentTime();
 
-		for (int n = 0;; n++) {
-			synchronized (values) {
-				values.add(n);
-			}
+        final SortedSet<Integer> values = new TreeSet<Integer>();
 
-			RpcHandle h = endpoint.send(server, new Request(n), new Handler() {
+        for (int n = 0;; n++) {
+            synchronized (values) {
+                values.add(n);
+            }
 
-				@Override
-				public void onFailure(RpcHandle handle) {
-					System.out.println("Send failed...");
-				}
+            RpcHandle h = endpoint.send(server, new Request(n), new Handler() {
 
-				@Override
-				public void onReceive(Reply r) {
-					synchronized (values) {
-						values.remove(r.val);
-					}
-					sumRTT += r.rtt();
-					totRTT++;
-				}
+                @Override
+                public void onFailure(RpcHandle handle) {
+                    System.out.println("Send failed...");
+                }
 
-			}) ;
-			
-			h.getReply();
-			
-			int total = n;
-			if (total % 10000 == 0) {
-				synchronized (values) {
-					System.out.printf(endpoint + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total, +total / (Sys.currentTime() - T0), (values.isEmpty() ? 0 : (n - values.first())), sumRTT / totRTT);
-				}
-			}
-//			System.out.printf("\rBytes sent: %s, received: %s", server.getOutgoingBytesCounter(), server.getIncomingBytesCounter());
-			while (values.size() > 1000)
-				Threading.sleep(1);
-		}
-	}
-	public static void main(String[] args) throws UnknownHostException {
-		Log.setLevel(Level.ALL);
+                @Override
+                public void onReceive(Reply r) {
+                    synchronized (values) {
+                        values.remove(r.val);
+                    }
+                    sumRTT += r.rtt();
+                    totRTT++;
+                }
 
-		String serverAddr = args.length > 0 ? args[0] : "localhost";
+            });
 
-		sys.Sys.init();
+            h.getReply();
 
-		new RpcClient().doIt(serverAddr);
-	}
+            int total = n;
+            if (total % 10000 == 0) {
+                synchronized (values) {
+                    System.out.printf(endpoint + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total,
+                            +total / (Sys.currentTime() - T0), (values.isEmpty() ? 0 : (n - values.first())), sumRTT
+                                    / totRTT);
+                }
+            }
+            // System.out.printf("\rBytes sent: %s, received: %s",
+            // server.getOutgoingBytesCounter(),
+            // server.getIncomingBytesCounter());
+            while (values.size() > 1000)
+                Threading.sleep(1);
+        }
+    }
+
+    public static void main(String[] args) throws UnknownHostException {
+        Log.setLevel(Level.ALL);
+
+        String serverAddr = args.length > 0 ? args[0] : "localhost";
+
+        sys.Sys.init();
+
+        new RpcClient().doIt(serverAddr);
+    }
 }

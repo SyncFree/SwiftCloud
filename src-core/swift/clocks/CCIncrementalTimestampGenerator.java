@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.clocks;
 
-
 /**
  * Timestamp generator for a given site. Always generates the max from the
  * consecutive counter for the given site and a given causality clock.

@@ -20,15 +20,10 @@ package swift.application.filesystem.cs.proto;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.codehaus.jackson.map.introspect.BasicClassIntrospector.GetterMethodFilter;
-
-import fuse.FuseDirFiller;
-import fuse.FuseException;
-import fuse.FuseGetattrSetter;
-import swift.application.filesystem.cs.proto.GetDirOperation._FuseDirFiller;
-import swift.application.filesystem.cs.proto.GetDirOperation._FuseDirFillerItem;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import fuse.FuseException;
+import fuse.FuseGetattrSetter;
 
 public class GetAttrOperation extends FuseRemoteOperation {
 
@@ -52,7 +47,6 @@ public class GetAttrOperation extends FuseRemoteOperation {
         }
     }
 
-    
     public static class Result extends FuseOperationResult {
 
         _FuseGetattrSetter getter_ret;
@@ -69,7 +63,7 @@ public class GetAttrOperation extends FuseRemoteOperation {
             for (_GetAttrSetterItem i : getter_ret.items)
                 getter.set(i.inode, i.mode, i.nlink, i.uid, i.gid, i.rdev, i.size, i.blocks, i.atime, i.mtime, i.ctime);
         }
-        
+
         public String toString() {
             return String.format("%s (%s, %s)", getClass(), result, getter_ret.items);
         }
@@ -119,7 +113,8 @@ public class GetAttrOperation extends FuseRemoteOperation {
         }
 
         public String toString() {
-            return String.format("%s %s %s %s %s %s %s %s %s %s", inode, mode, nlink, uid, gid, rdev, size, blocks, atime, mtime, ctime);
+            return String.format("%s %s %s %s %s %s %s %s %s %s", inode, mode, nlink, uid, gid, rdev, size, blocks,
+                    atime, mtime, ctime);
         }
     }
 

@@ -69,9 +69,9 @@ public class SwiftFuseServer extends RemoteFuseOperationHandler {
                 // do nothing
             }
         } else {
-            dcServer = Args.valueOf(args, "-server", "localhost");            
+            dcServer = Args.valueOf(args, "-server", "localhost");
         }
-        
+
         Sys.init();
 
         log.info("setting up servers");

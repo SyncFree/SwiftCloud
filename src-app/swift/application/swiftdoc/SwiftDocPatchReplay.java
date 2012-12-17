@@ -50,7 +50,7 @@ public class SwiftDocPatchReplay<V> {
         if (seq != null)
             seq.begin();
 
-        //Populate initial doc with 
+        // Populate initial doc with
         List<Object> doc = new ArrayList<Object>();
         for (String i : fileToLines(initial)) {
             if (seq != null) {

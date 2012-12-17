@@ -26,7 +26,5 @@ import sys.net.api.rpc.RpcHandle;
  */
 public abstract class SeqCommitUpdatesReplyHandler extends AbstractRpcHandler {
     public abstract void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply);
-    
+
 }
-
-

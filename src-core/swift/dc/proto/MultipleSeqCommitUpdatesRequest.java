@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.dc.proto;
 
-
 import java.util.List;
 
 import swift.dc.DCSequencerServer;
@@ -33,18 +32,17 @@ import sys.net.api.rpc.RpcMessage;
  * @author preguica
  */
 public class MultipleSeqCommitUpdatesRequest implements RpcMessage {
-    
-	public List<SeqCommitUpdatesRequest> commitRecords;
-    
-    
+
+    public List<SeqCommitUpdatesRequest> commitRecords;
+
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
     MultipleSeqCommitUpdatesRequest() {
     }
 
-    public MultipleSeqCommitUpdatesRequest( List<SeqCommitUpdatesRequest> records ) {
-    	this.commitRecords = records;
+    public MultipleSeqCommitUpdatesRequest(List<SeqCommitUpdatesRequest> records) {
+        this.commitRecords = records;
     }
 
     @Override

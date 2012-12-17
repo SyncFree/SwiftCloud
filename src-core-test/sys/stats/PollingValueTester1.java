@@ -56,10 +56,8 @@ public class PollingValueTester1 {
             assertEquals(expected, v.getY().intValue());
             expected += increment;
         }
-       
-    }
 
-    
+    }
 
     class UpdatingFieldClass {
         private int theField;

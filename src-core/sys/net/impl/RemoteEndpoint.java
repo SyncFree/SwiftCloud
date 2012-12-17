@@ -17,15 +17,14 @@
 package sys.net.impl;
 
 import java.net.InetSocketAddress;
-import java.util.concurrent.atomic.AtomicLong;
-
-import com.esotericsoftware.kryo.KryoSerializable;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
 import sys.net.api.MessageHandler;
 import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
+
+import com.esotericsoftware.kryo.KryoSerializable;
 
 /**
  * 
@@ -39,41 +38,41 @@ public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable
 
     private int delay = 0;
     private long connectionAttempt = 0;
-    
-	public RemoteEndpoint() {	
-	}
-	
-	public RemoteEndpoint(final String host, final int tcpPort) {
-		super(new InetSocketAddress(host, tcpPort), 0);
-	}
 
-	public RemoteEndpoint(long locator, long gid) {
-		super(locator, gid);
-	}
+    public RemoteEndpoint() {
+    }
 
-	@Override
-	public <T extends Endpoint> T setHandler(MessageHandler handler) {
-		throw new NetworkingException("Not supported...[This is a remote endpoint...]");
-	}
+    public RemoteEndpoint(final String host, final int tcpPort) {
+        super(new InetSocketAddress(host, tcpPort), 0);
+    }
 
-	@Override
-	public TransportConnection send(final Endpoint dst, final Message m) {
-		throw new NetworkingException("Not supported...[This is a remote endpoint...]");
-	}
+    public RemoteEndpoint(long locator, long gid) {
+        super(locator, gid);
+    }
 
-	@Override
-	public TransportConnection connect(Endpoint dst) {
-		throw new NetworkingException("Not supported...[This is a remote endpoint...]");
-	}
-	
-	public int getConnectionRetryDelay() {
-	    return 10;
-//	    long elapsed = System.currentTimeMillis() - connectionAttempt;
-//	    if( elapsed > 2000) {
-//	        connectionAttempt += elapsed;
-//	        delay = 0;
-//	    }
-//	    delay += 2 * (delay + 1);
-//	    return delay;
-	}
+    @Override
+    public <T extends Endpoint> T setHandler(MessageHandler handler) {
+        throw new NetworkingException("Not supported...[This is a remote endpoint...]");
+    }
+
+    @Override
+    public TransportConnection send(final Endpoint dst, final Message m) {
+        throw new NetworkingException("Not supported...[This is a remote endpoint...]");
+    }
+
+    @Override
+    public TransportConnection connect(Endpoint dst) {
+        throw new NetworkingException("Not supported...[This is a remote endpoint...]");
+    }
+
+    public int getConnectionRetryDelay() {
+        return 10;
+        // long elapsed = System.currentTimeMillis() - connectionAttempt;
+        // if( elapsed > 2000) {
+        // connectionAttempt += elapsed;
+        // delay = 0;
+        // }
+        // delay += 2 * (delay + 1);
+        // return delay;
+    }
 }

@@ -36,12 +36,13 @@
 package swift.crdt.interfaces;
 
 /**
- *
+ * 
  * @author Stephane Martin <stephane.martin@loria.fr>
  * 
- * This is interface to link all txn with set and getValue.
+ *         This is interface to link all txn with set and getValue.
  */
-public interface TxnGetterSetter <V> {
+public interface TxnGetterSetter<V> {
     public void set(V v);
+
     public V getValue();
 }

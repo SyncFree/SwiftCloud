@@ -24,10 +24,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.client.SwiftImpl;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
@@ -104,9 +102,8 @@ public class SwiftMicroBenchmark implements WorkerManager {
                 serverLocation = "localhost";
                 startSequencer();
                 startDCServer();
-            }
-            else{
-                serverLocation = args[9]; 
+            } else {
+                serverLocation = args[9];
             }
             outputDir = args[10];
         }

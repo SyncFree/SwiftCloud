@@ -21,29 +21,29 @@ import sys.net.api.rpc.RpcHandle;
 
 abstract public class DHT_StubHandler extends AbstractRpcHandler {
 
-	@Override
-	public void onFailure(final RpcHandle handle) {
-		Thread.dumpStack();
-	}
+    @Override
+    public void onFailure(final RpcHandle handle) {
+        Thread.dumpStack();
+    }
 
-	public void onReceive(final RpcHandle conn, final DHT_ResolveKey req) {
-		Thread.dumpStack();
-	}
+    public void onReceive(final RpcHandle conn, final DHT_ResolveKey req) {
+        Thread.dumpStack();
+    }
 
-	public void onReceive(final RpcHandle conn, final DHT_ResolveKeyReply rep) {
-		Thread.dumpStack();
-	}
+    public void onReceive(final RpcHandle conn, final DHT_ResolveKeyReply rep) {
+        Thread.dumpStack();
+    }
 
-	public void onReceive(final RpcHandle conn, final DHT_Request req) {
-		Thread.dumpStack();
-	}
+    public void onReceive(final RpcHandle conn, final DHT_Request req) {
+        Thread.dumpStack();
+    }
 
-	public void onReceive(final RpcHandle conn, final DHT_RequestReply reply) {
-		Thread.dumpStack();
-	}
+    public void onReceive(final RpcHandle conn, final DHT_RequestReply reply) {
+        Thread.dumpStack();
+    }
 
-	public void onReceive(final RpcHandle conn, final DHT_ReplyReply reply) {
-		Thread.dumpStack();
-	}
+    public void onReceive(final RpcHandle conn, final DHT_ReplyReply reply) {
+        Thread.dumpStack();
+    }
 
 }

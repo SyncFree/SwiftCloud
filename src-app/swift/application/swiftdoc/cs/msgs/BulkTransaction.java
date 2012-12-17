@@ -26,15 +26,15 @@ public class BulkTransaction extends SwiftDocRpc {
 
     public List<SwiftDocRpc> ops;
 
-    BulkTransaction() {    
+    BulkTransaction() {
     }
-    
-    public BulkTransaction( List<SwiftDocRpc> ops ) {    
-        this.ops = new ArrayList<SwiftDocRpc>( ops );
+
+    public BulkTransaction(List<SwiftDocRpc> ops) {
+        this.ops = new ArrayList<SwiftDocRpc>(ops);
     }
-    
+
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
         ((AppRpcHandler) handler).onReceive(handle, this);
-    } 
+    }
 }

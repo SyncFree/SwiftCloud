@@ -17,7 +17,6 @@
 package swift.dc;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
 
@@ -39,30 +38,29 @@ public class CRDTObject<V extends CRDT<V>> {
     public CRDTObject() {
         // do nothing
     }
+
     public CRDTObject(CRDTData<V> data, CausalityClock version, String cltId, CausalityClock cltClock) {
-//      1) let int clientTxs =
-//      clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
-//      probably it could be done better, lock-free
-//      2)
-//      let crdtCopy = retrieve(oid).copy()
-//      crdtCopy.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
-//      3) clientTxClockService.unlock(clientId)
-//      4) return crdtCopy
-/*        if( DCDataServer.prune) {
-            CMP_CLOCK cmp = version.compareTo( data.pruneClock);
-            if( cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES)
-                this.crdt = data.prunedCrdt.copy();
-            else
-                this.crdt = data.crdt.copy();
-        } else;
-*/            this.crdt = data.crdt.copy();
+        // 1) let int clientTxs =
+        // clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
+        // probably it could be done better, lock-free
+        // 2)
+        // let crdtCopy = retrieve(oid).copy()
+        // crdtCopy.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
+        // 3) clientTxClockService.unlock(clientId)
+        // 4) return crdtCopy
+        /*
+         * if( DCDataServer.prune) { CMP_CLOCK cmp = version.compareTo(
+         * data.pruneClock); if( cmp == CMP_CLOCK.CMP_EQUALS || cmp ==
+         * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
+         * this.crdt = data.crdt.copy(); } else;
+         */this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
         Timestamp ts = null;
-        synchronized(cltClock) {
+        synchronized (cltClock) {
             ts = cltClock.getLatest(cltId);
         }
-        if( ts != null && ts.getCounter() > 0)
+        if (ts != null && ts.getCounter() > 0)
             this.clock.recordAllUntil(ts);
     }
 }

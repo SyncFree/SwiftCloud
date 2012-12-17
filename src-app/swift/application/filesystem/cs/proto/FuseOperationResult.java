@@ -28,25 +28,25 @@ public class FuseOperationResult extends FuseRemoteOperation {
     public int intResult() {
         return result;
     }
-    
-    FuseOperationResult() {        
+
+    FuseOperationResult() {
     }
-    
-    public FuseOperationResult( int result) {
+
+    public FuseOperationResult(int result) {
         this.result = result;
         this.exception = null;
     }
-    
-    public FuseOperationResult( Throwable t ) {
+
+    public FuseOperationResult(Throwable t) {
         this.result = -1;
         this.exception = t;
     }
-        
+
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        ((FuseResultHandler)handler).onReceive( this );
+        ((FuseResultHandler) handler).onReceive(this);
     }
-    
+
     public String toString() {
         return String.format("ret=%s", result);
     }

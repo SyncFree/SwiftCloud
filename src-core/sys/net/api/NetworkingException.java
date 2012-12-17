@@ -25,13 +25,13 @@ package sys.net.api;
  */
 public class NetworkingException extends RuntimeException {
 
-	private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1L;
 
-	public NetworkingException(final String cause) {
-		super(cause);
-	}
+    public NetworkingException(final String cause) {
+        super(cause);
+    }
 
-	public NetworkingException(final Throwable t) {
-		super(t);
-	}
+    public NetworkingException(final Throwable t) {
+        super(t);
+    }
 }

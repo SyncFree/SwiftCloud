@@ -29,68 +29,70 @@ import sys.scheduler.TaskScheduler;
 import sys.utils.IP;
 
 public class Sys {
-	public static Logger SysLog = Logger.getLogger( Sys.class.getName() );
+    public static Logger SysLog = Logger.getLogger(Sys.class.getName());
 
-	private static final double NANOSECOND = 1e-9;
+    private static final double NANOSECOND = 1e-9;
 
-	public Random rg;
-	public TaskScheduler scheduler;
+    public Random rg;
+    public TaskScheduler scheduler;
 
-	public AtomicLong uploadedBytes = new AtomicLong(1);
-	public AtomicLong downloadedBytes = new AtomicLong(1);
-	public String mainClass;
+    public AtomicLong uploadedBytes = new AtomicLong(1);
+    public AtomicLong downloadedBytes = new AtomicLong(1);
+    public String mainClass;
 
-	private String datacenter = "*";
+    private String datacenter = "*";
 
-	public double currentTime() {
-		return (System.nanoTime() - T0n) * NANOSECOND;
-	}
+    public double currentTime() {
+        return (System.nanoTime() - T0n) * NANOSECOND;
+    }
 
-	private double T0n = System.nanoTime();
+    private double T0n = System.nanoTime();
 
-	public long timeMillis() {
-		return System.currentTimeMillis() - T0m;
-	}
+    public long timeMillis() {
+        return System.currentTimeMillis() - T0m;
+    }
 
-	private long T0m = System.currentTimeMillis();
+    private long T0m = System.currentTimeMillis();
 
-	protected Sys() {
-		Sys = this;
-		
-		StackTraceElement[] sta = Thread.currentThread().getStackTrace();
-		mainClass = Thread.currentThread().getStackTrace()[sta.length-1].getClassName() + "@" + IP.localHostAddressString();
-		initInstance();
-	}
+    protected Sys() {
+        Sys = this;
 
-	protected void initInstance() {
-		
-		rg = new Random();
-		scheduler = new TaskScheduler();
-		scheduler.start();
-		KryoCatadupa.init();
-		KryoCRDTUtils.init();		
-		
-//		NetworkingImpl.Networking.setDefaultProvider( TransportProvider.NETTY_IO_TCP);
-		NetworkingImpl.init();
-	}
+        StackTraceElement[] sta = Thread.currentThread().getStackTrace();
+        mainClass = Thread.currentThread().getStackTrace()[sta.length - 1].getClassName() + "@"
+                + IP.localHostAddressString();
+        initInstance();
+    }
 
-	public void setDatacenter(String datacenter) {
-		this.datacenter = datacenter;
-	}
+    protected void initInstance() {
 
-	public String getDatacenter() {
-		return datacenter;
-	}
+        rg = new Random();
+        scheduler = new TaskScheduler();
+        scheduler.start();
+        KryoCatadupa.init();
+        KryoCRDTUtils.init();
 
-	public DHT getDHT_ClientStub() {
-		return DHT_Node.getStub();
-	}
+        // NetworkingImpl.Networking.setDefaultProvider(
+        // TransportProvider.NETTY_IO_TCP);
+        NetworkingImpl.init();
+    }
 
-	synchronized public static void init() {
-		if (Sys == null) {
-			new Sys();
-		}
-	}
+    public void setDatacenter(String datacenter) {
+        this.datacenter = datacenter;
+    }
 
-	public static Sys Sys;
+    public String getDatacenter() {
+        return datacenter;
+    }
+
+    public DHT getDHT_ClientStub() {
+        return DHT_Node.getStub();
+    }
+
+    synchronized public static void init() {
+        if (Sys == null) {
+            new Sys();
+        }
+    }
+
+    public static Sys Sys;
 }

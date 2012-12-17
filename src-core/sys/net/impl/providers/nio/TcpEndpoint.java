@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -193,7 +192,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
                 try {
                     msg.deliverTo(AbstractConnection.this, TcpEndpoint.this.handler);
                 } catch (Throwable t) {
-                    Log.log(Level.WARNING,"Dispatch Exception: " + t.getClass() + " caused by: " + msg.getClass()
+                    Log.log(Level.WARNING, "Dispatch Exception: " + t.getClass() + " caused by: " + msg.getClass()
                             + " received from: " + remoteEndpoint() + " with " + super.contentLength, t);
                 }
             }
@@ -213,7 +212,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
                 m.setSize(size);
                 return true;
             } catch (Throwable t) {
-                
+
                 if (t instanceof KryoException)
                     Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
                 else

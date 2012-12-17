@@ -23,13 +23,13 @@ import sys.net.api.rpc.RpcMessage;
 
 public class FuseRemoteOperation implements RpcMessage {
 
-    //for kryo
-    FuseRemoteOperation() {    
+    // for kryo
+    FuseRemoteOperation() {
     }
-    
+
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        ((RemoteFuseOperationHandler)handler).onReceive(handle, this);
+        ((RemoteFuseOperationHandler) handler).onReceive(handle, this);
     }
 
 }
