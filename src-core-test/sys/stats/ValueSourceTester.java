@@ -22,6 +22,7 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
+import sys.stats.common.PlaneValue;
 import sys.stats.overtime.ValueOverTime;
 import sys.stats.sources.ValueSignalSource.Stopper;
 
@@ -41,8 +42,8 @@ public class ValueSourceTester {
         stopper.stop();
         // Latency should be under 200ms.
         System.out.println(opsLatency.getPlotValues());
-        Iterator<PlaneValues<Long, Double>> it = opsLatency.getPlotValues().getPlotValuesIterator();
-        PlaneValues<Long, Double> value = it.next();
+        Iterator<PlaneValue<Long, Double>> it = opsLatency.getPlotValues().getPlotValuesIterator();
+        PlaneValue<Long, Double> value = it.next();
         assertEquals(0, (long) value.getX());
         value = it.next();
         assertEquals(200, (long) value.getX());
@@ -60,8 +61,8 @@ public class ValueSourceTester {
         }
         stopper.stop();
         System.out.println(opsLatency.getPlotValues());
-        Iterator<PlaneValues<Long, Double>> it = opsLatency.getPlotValues().getPlotValuesIterator();
-        PlaneValues<Long, Double> value = it.next();
+        Iterator<PlaneValue<Long, Double>> it = opsLatency.getPlotValues().getPlotValuesIterator();
+        PlaneValue<Long, Double> value = it.next();
         assertEquals(0, (long) value.getX());
         // Latency should be under 600ms and should not have any empty value
         // between 0 and 600

@@ -22,6 +22,7 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
+import sys.stats.common.PlaneValue;
 import sys.stats.common.PlotValues;
 import sys.stats.overtime.CounterOverTime;
 
@@ -61,9 +62,9 @@ public class CountingSourceTester {
         PlotValues<Long, Integer> values = counter.getPlotValues();
         int sum = 0;
 
-        Iterator<PlaneValues<Long, Integer>> it = values.getPlotValuesIterator();
+        Iterator<PlaneValue<Long, Integer>> it = values.getPlotValuesIterator();
         while (it.hasNext()) {
-            PlaneValues<Long, Integer> value = it.next();
+            PlaneValue<Long, Integer> value = it.next();
             if (value.getX() >= 1000l)
                 sum += value.getY().intValue();
         }

@@ -23,6 +23,7 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import sys.stats.common.PlaneValue;
 import sys.stats.common.PlotValues;
 import sys.stats.sources.PollingBasedValueProvider;
 
@@ -30,11 +31,11 @@ public class PollingValueTester1 {
 
     @Test
     public void testpolling() {
-        Stats.init(1000);
+        Stats stats = Stats.getInstance("teste");
 
         UpdatingFieldClass classWithField = new UpdatingFieldClass(1000);
 
-        Stats.registerPollingBasedValueProvider("poll", classWithField.getPoller());
+        stats.registerPollingBasedValueProvider("poll", classWithField.getPoller(), 1000);
 
         try {
             Thread.sleep(5500);
@@ -42,16 +43,16 @@ public class PollingValueTester1 {
             e.printStackTrace();
         }
 
-        Map<String, PlotValues<Long, Double>> pollingSummary = Stats.getPollingSummary();
+        Map<String, PlotValues<Long, Double>> pollingSummary = stats.getPollingSummary();
 
         System.out.println(pollingSummary);
 
         PlotValues<Long, Double> pollingValues = pollingSummary.get("poll");
         int increment = 1;
         int expected = 0;
-        Iterator<PlaneValues<Long, Double>> it = pollingValues.getPlotValuesIterator();
+        Iterator<PlaneValue<Long, Double>> it = pollingValues.getPlotValuesIterator();
         while (it.hasNext()) {
-            PlaneValues<Long, Double> v = it.next();
+            PlaneValue<Long, Double> v = it.next();
             assertEquals(expected, v.getY().intValue());
             expected += increment;
         }

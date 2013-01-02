@@ -29,6 +29,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import swift.utils.Pair;
+import sys.stats.common.PlotValues;
 import sys.stats.output.BufferedFileDumper;
 import sys.stats.overtime.CounterOverTime;
 import sys.stats.overtime.FixedRateValueOverTime;
@@ -48,14 +49,15 @@ import sys.stats.sources.ValueSignalSource;
  */
 public final class Stats {
 
-    public static final int SAMPLING_INTERVAL_MILLIS = 2000;
+    public static final int SAMPLING_INTERVAL_MILLIS = 1000;
 
     private static Map<String, Stats> statisticsByName = new HashMap<String, Stats>();
 
     private Map<String, CounterOverTime> countigSources;
     private Map<String, HistogramOverTime> valuesFrequencySource;
     private Map<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> pollingProviders;
-    private int currentSamplingInterval;
+    private Map<String, Pair<Integer, Long>> pollingUpdates;
+    private int maxSamplingInterval;
     private boolean terminate = true;
 
     private Thread pollWorker;
@@ -103,6 +105,7 @@ public final class Stats {
         Stats stats = statisticsByName.get(name);
         if (stats == null) {
             stats = new Stats(outputDir, overwriteDir, samplingInterval);
+            stats.init(samplingInterval);
             statisticsByName.put(name, stats);
         }
         return stats;
@@ -111,14 +114,11 @@ public final class Stats {
     private Stats(String outputDir, boolean overwriteDir) {
         this.outputDir = outputDir;
         this.overwriteDir = overwriteDir;
-        this.init();
     }
 
     private Stats(String outputDir, boolean overwriteDir, int samplingInterval) {
         this.outputDir = outputDir;
         this.overwriteDir = overwriteDir;
-        this.init(samplingInterval);
-
     }
 
     private void init() {
@@ -128,24 +128,41 @@ public final class Stats {
     private void init(int samplingInterval) {
 
         terminate = false;
-        currentSamplingInterval = samplingInterval;
+        maxSamplingInterval = samplingInterval;
         countigSources = new HashMap<String, CounterOverTime>();
         valuesFrequencySource = new HashMap<String, HistogramOverTime>();
         pollingProviders = new LinkedHashMap<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>>();
+        // First: Update interval; Second: Last update
+        pollingUpdates = new HashMap<String, Pair<Integer, Long>>();
 
         pollWorker = new Thread(new Runnable() {
 
             @Override
             public void run() {
                 while (!terminate) {
+                    long minDueTime = maxSamplingInterval;
                     try {
                         for (Entry<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> p : pollingProviders
                                 .entrySet()) {
                             Pair<FixedRateValueOverTime, PollingBasedValueProvider> pollStats = p.getValue();
-                            double value = pollStats.getSecond().poll();
-                            pollStats.getFirst().setValue(value);
+                            Pair<Integer, Long> pollUpdate = pollingUpdates.get(p.getKey());
+
+                            long currTime = System.currentTimeMillis();
+                            long lastUpdate = pollUpdate.getSecond();
+                            long frequency = pollUpdate.getFirst();
+
+                            if (currTime - lastUpdate >= frequency) {
+                                System.out.println("here");
+                                double value = pollStats.getSecond().poll();
+                                pollStats.getFirst().setValue(value);
+                                pollUpdate.setSecond(currTime);
+                            }
+                            long dueTime = frequency - (currTime - lastUpdate);
+                            if (dueTime > 0 && dueTime <= minDueTime)
+                                minDueTime = dueTime;
+
                         }
-                        Thread.sleep(currentSamplingInterval);
+                        Thread.sleep(minDueTime);
 
                     } catch (InterruptedException e) {
                         e.printStackTrace();
@@ -167,7 +184,7 @@ public final class Stats {
      */
     public void outputAndDispose() throws IOException {
         terminate = true;
-        dump(outputDir);
+        dump();
 
     }
 
@@ -184,7 +201,7 @@ public final class Stats {
         synchronized (countigSources) {
             cs = countigSources.get(statName);
             if (cs == null) {
-                cs = new CounterOverTime(currentSamplingInterval, statName);
+                cs = new CounterOverTime(maxSamplingInterval, statName);
                 countigSources.put(statName, cs);
             } else {
                 logger.log(Level.INFO, "CounterSignalSource " + statName + " already initialized");
@@ -229,14 +246,18 @@ public final class Stats {
      *            the name of the polling based value provider
      * @param provider
      *            the implementation of the provider
+     * @param frequency
      */
-    public void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider) {
+    public void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider, int frequency) {
         Pair<FixedRateValueOverTime, PollingBasedValueProvider> ps = null;
         synchronized (pollingProviders) {
             ps = pollingProviders.get(statName);
             if (ps == null) {
-                pollingProviders.put(statName, new Pair<FixedRateValueOverTime, PollingBasedValueProvider>(
-                        new FixedRateValueOverTime(currentSamplingInterval, statName), provider));
+
+                Pair<FixedRateValueOverTime, PollingBasedValueProvider> p = new Pair<FixedRateValueOverTime, PollingBasedValueProvider>(
+                        new FixedRateValueOverTime(maxSamplingInterval, statName), provider);
+                pollingProviders.put(statName, p);
+                pollingUpdates.put(statName, new Pair<Integer, Long>(frequency, System.currentTimeMillis()));
             } else {
                 logger.log(Level.INFO, "PollingBasedValueProvider " + statName + " already initialized");
 
@@ -244,7 +265,7 @@ public final class Stats {
         }
     }
 
-    private void dump(String outputDir) throws IOException {
+    private void dump() throws IOException {
         File dir;
         if (!overwriteDir) {
             AtomicInteger suffixCounter = new AtomicInteger();
@@ -313,5 +334,14 @@ public final class Stats {
         BufferedFileDumper statsOutput = new BufferedFileDumper(filename);
         statsOutput.init();
         return statsOutput;
+    }
+
+    public Map<String, PlotValues<Long, Double>> getPollingSummary() {
+        Map<String, PlotValues<Long, Double>> map = new HashMap<String, PlotValues<Long, Double>>();
+        for (Entry<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> p : pollingProviders.entrySet()) {
+            PlotValues<Long, Double> values = p.getValue().getFirst().getPlotValues();
+            map.put(p.getKey(), values);
+        }
+        return map;
     }
 }

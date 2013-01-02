@@ -319,7 +319,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                         }
                         return count;
                     }
-                });
+                }, Stats.SAMPLING_INTERVAL_MILLIS);
 
         this.stats.registerPollingBasedValueProvider("pending-txns", new PollingBasedValueProvider() {
 
@@ -329,7 +329,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     return pendingTxns.size();
                 }
             }
-        });
+        }, Stats.SAMPLING_INTERVAL_MILLIS);
 
         this.stats.registerPollingBasedValueProvider("locally-committed-txns-queue", new PollingBasedValueProvider() {
 
@@ -339,7 +339,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     return locallyCommittedTxnsOrderedQueue.size();
                 }
             }
-        });
+        }, Stats.SAMPLING_INTERVAL_MILLIS);
 
         this.stats.registerPollingBasedValueProvider("global-committed-unstable-txns-queue",
                 new PollingBasedValueProvider() {
@@ -350,7 +350,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                             return globallyCommittedUnstableTxns.size();
                         }
                     }
-                });
+                }, Stats.SAMPLING_INTERVAL_MILLIS);
 
         batchSizeOnCommitStats = this.stats.getValuesFrequencyOverTime("batch-size-on-commit",
                 StatsConstants.BATCH_SIZE);

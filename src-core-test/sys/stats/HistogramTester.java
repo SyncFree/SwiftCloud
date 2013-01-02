@@ -22,6 +22,7 @@ import java.util.Iterator;
 
 import org.junit.Test;
 
+import sys.stats.common.PlaneValue;
 import sys.stats.overtime.HistogramOverTime;
 import sys.stats.sliced.slices.histogram.Histogram;
 import sys.stats.sources.ValueSignalSource.Stopper;
@@ -30,9 +31,10 @@ public class HistogramTester {
 
     @Test
     public void testOpLatency1() {
-        Stats.init();
+        Stats stats = Stats.getInstance("test");
 
-        HistogramOverTime opsLatency = Stats.getValuesFrequencyOverTime("histogram", 200, 400, 1000);
+        HistogramOverTime opsLatency = (HistogramOverTime) stats
+                .getValuesFrequencyOverTime("histogram", 200, 400, 1000);
 
         Stopper stopper = opsLatency.createEventDurationSignal();
         try {
@@ -49,18 +51,19 @@ public class HistogramTester {
             e.printStackTrace();
         }
         stopper.stop();
+
         System.out.println(opsLatency.getPlotValues());
 
         // Latency should be under 600ms for successive operations.
-        Iterator<PlaneValues<Long, Histogram>> it = opsLatency.getPlotValues().getPlotValuesIterator();
+        Iterator<PlaneValue<Long, Histogram>> it = opsLatency.getPlotValues().getPlotValuesIterator();
         it.next();
         // The Histograms iterator
         while (it.hasNext()) {
-            PlaneValues<Long, Histogram> value = it.next();
-            Iterator<PlaneValues<Double, Integer>> histogram = value.getY().getHistogram().getPlotValuesIterator();
+            PlaneValue<Long, Histogram> value = it.next();
+            Iterator<PlaneValue<Double, Integer>> histogram = value.getY().getHistogram().getPlotValuesIterator();
             // The values of the histogram
             while (histogram.hasNext()) {
-                PlaneValues<Double, Integer> planeValues = histogram.next();
+                PlaneValue<Double, Integer> planeValues = histogram.next();
                 if (planeValues.getX() == 1000)
                     assertEquals(2, (int) planeValues.getY());
             }
@@ -74,7 +77,10 @@ public class HistogramTester {
     // @Test
     public void testOpLatency2() {
 
-        HistogramOverTime opsLatency = Stats.getValuesFrequencyOverTime("histogram", 200, 400, 1000);
+        Stats stats = Stats.getInstance("test2");
+
+        HistogramOverTime opsLatency = (HistogramOverTime) stats
+                .getValuesFrequencyOverTime("histogram", 200, 400, 1000);
 
         Stopper stopper = opsLatency.createEventDurationSignal();
         try {
@@ -101,15 +107,15 @@ public class HistogramTester {
         stopper.stop();
 
         // Latency should be under 600ms for successive operations.
-        Iterator<PlaneValues<Long, Histogram>> it = opsLatency.getPlotValues().getPlotValuesIterator();
+        Iterator<PlaneValue<Long, Histogram>> it = opsLatency.getPlotValues().getPlotValuesIterator();
         // The Histograms iterator
         while (it.hasNext()) {
-            PlaneValues<Long, Histogram> value = it.next();
-            Iterator<PlaneValues<Double, Integer>> histogram = value.getY().getHistogram().getPlotValuesIterator();
+            PlaneValue<Long, Histogram> value = it.next();
+            Iterator<PlaneValue<Double, Integer>> histogram = value.getY().getHistogram().getPlotValuesIterator();
             System.out.println(value);
             // The values of the histogram
             while (histogram.hasNext()) {
-                PlaneValues<Double, Integer> planeValues = histogram.next();
+                PlaneValue<Double, Integer> planeValues = histogram.next();
                 if (planeValues.getX() == 1300)
                     assertEquals(2, (int) planeValues.getY());
                 if (planeValues.getX() == 2600)
