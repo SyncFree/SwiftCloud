@@ -178,7 +178,7 @@ public class SwiftSocial {
 
         // Create registration event for user
         Message newEvt = new Message(fullName + " has registered!", loginName, date);
-        writeMessage(txn, newEvt, newUser.eventList);
+        writeMessage(txn, newEvt, newUser.eventList, null);
 
         return newUser;
     }
@@ -239,8 +239,8 @@ public class SwiftSocial {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             User receiver = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
-            writeMessage(txn, newMsg, receiver.msgList);
-            writeMessage(txn, newEvt, currentUser.eventList);
+            writeMessage(txn, newMsg, receiver.msgList, updatesSubscriber);
+            writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
@@ -258,8 +258,8 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
-            writeMessage(txn, newMsg, currentUser.msgList);
-            writeMessage(txn, newEvt, currentUser.eventList);
+            writeMessage(txn, newMsg, currentUser.msgList, updatesSubscriber);
+            writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
             // TODO Broadcast update to friends
         } catch (SwiftException e) {
@@ -390,9 +390,9 @@ public class SwiftSocial {
         return friends;
     }
 
-    private void writeMessage(TxnHandle txn, Message msg, CRDTIdentifier set) throws WrongTypeException,
-            NoSuchObjectException, VersionNotFoundException, NetworkException {
-        SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(set, false, SetMsg.class, updatesSubscriber);
+    private void writeMessage(TxnHandle txn, Message msg, CRDTIdentifier set, ObjectUpdatesListener listener)
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+        SetTxnLocalMsg messages = (SetTxnLocalMsg) txn.get(set, false, SetMsg.class, listener);
         messages.insert(msg);
     }
 

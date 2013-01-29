@@ -28,7 +28,6 @@ import java.util.Map;
 import swift.application.social.Commands;
 import swift.application.social.Message;
 import swift.application.social.SwiftSocial;
-import swift.application.social.SwiftSocialMain;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
@@ -76,17 +75,7 @@ public class SwiftSocialBenchmarkServer {
 
         dcEndpoint = Networking.resolve(dcName, DCConstants.SURROGATE_PORT);
 
-        if (command.equals("init") && args.length == 3) {
-            System.out.println("Populating db with users...");
-            final SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcEndpoint.getHost(),
-                    dcEndpoint.getPort()));
-            final SwiftSocial socialClient = new SwiftSocial(swiftClient, IsolationLevel.REPEATABLE_READS,
-                    CachePolicy.CACHED, false, false);
-            SwiftSocialMain.initUsers(swiftClient, socialClient, fileName);
-            swiftClient.stopScout(true);
-            System.out.println("Finished populating db with users.");
-            System.exit(0);
-        } else if (command.equals("run") && args.length >= 10) {
+        if (command.equals("run") && args.length >= 10) {
             isolationLevel = IsolationLevel.valueOf(args[3]);
             cachePolicy = CachePolicy.valueOf(args[4]);
             cacheEvictionTimeMillis = Long.valueOf(args[5]);

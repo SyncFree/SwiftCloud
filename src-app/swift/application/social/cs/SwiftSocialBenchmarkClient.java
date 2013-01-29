@@ -19,23 +19,20 @@ package swift.application.social.cs;
 import static sys.net.api.Networking.Networking;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.application.social.Commands;
-import swift.application.social.SwiftSocialMain;
+import swift.application.social.Workload;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.shepard.Shepard;
 import sys.utils.Args;
 import sys.utils.IP;
-import sys.utils.Threading;
+import sys.utils.Props;
 
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
@@ -46,8 +43,6 @@ import sys.utils.Threading;
  */
 public class SwiftSocialBenchmarkClient {
     private static PrintStream bufferedOutput;
-    private static String fileName = "scripts/commands.txt";
-    private static int concurrentSessions;
 
     static Endpoint socialServer;
 
@@ -58,9 +53,11 @@ public class SwiftSocialBenchmarkClient {
         if (args.length < 3) {
             exitWithUsage();
         }
+
         final String server = args[0];
-        fileName = args[1];
-        concurrentSessions = Integer.valueOf(args[2]);
+        int site = Integer.valueOf(args[1]);
+        int number_of_sites = Integer.valueOf(args[2]);
+        int concurrentSessions = Integer.valueOf(args[3]);
 
         final String shepardAddress = Args.valueOf(args, "-shepard", "");
 
@@ -71,8 +68,15 @@ public class SwiftSocialBenchmarkClient {
         bufferedOutput = new PrintStream(System.out, false);
         bufferedOutput.println("session_id,command,command_exec_time,time");
 
-        // Read all sessions from the file.
-        final List<List<String>> sessions = readSessionsCommands(fileName, 0, Integer.MAX_VALUE);
+        Props.parseFile("swiftsocial", bufferedOutput);
+
+        int numUsers = Props.intValue("swiftsocial.numUsers", 25000);
+        int userFriends = Props.intValue("swiftsocial.userFriends", 25);
+        int biasedOps = Props.intValue("swiftsocial.biasedOps", 9);
+        int randomOps = Props.intValue("swiftsocial.biasedOps", 1);
+        int opGroups = Props.intValue("swiftsocial.opGroups", 500);
+
+        Workload.populate(numUsers);
 
         // Kick off all sessions, throughput is limited by
         // concurrentSessions.
@@ -82,17 +86,14 @@ public class SwiftSocialBenchmarkClient {
             new Shepard().joinHerd(shepardAddress);
 
         System.err.println("Spawning session threads.");
-        for (int i = 0; i < sessions.size(); i++) {
+        for (int i = 0; i < concurrentSessions; i++) {
             final int sessionId = i;
-            final List<String> commands = sessions.get(i);
+            final Workload commands = Workload.doMixed(site, userFriends, biasedOps, randomOps, opGroups,
+                    number_of_sites);
             sessionsExecutor.execute(new Runnable() {
                 public void run() {
-
-                    if (shepardAddress.isEmpty())
-                        runClientSession(sessionId, commands);
-                    else
-                        for (;;)
-                            runClientSession(sessionId, commands);
+                    boolean loop4ever = !shepardAddress.isEmpty();
+                    runClientSession(sessionId, commands, loop4ever);
                 }
             });
         }
@@ -119,7 +120,7 @@ public class SwiftSocialBenchmarkClient {
         System.exit(1);
     }
 
-    private static void runClientSession(final int sessionId, final List<String> commands) {
+    private static void runClientSession(final int sessionId, final Workload commands, boolean loop4ever) {
 
         RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
@@ -128,59 +129,28 @@ public class SwiftSocialBenchmarkClient {
         final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
 
         bufferedOutput.println(initSessionLog);
-        for (String cmdLine : commands) {
-            String[] toks = cmdLine.split(";");
-            final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
-            final long txnStartTime = System.currentTimeMillis();
+        do
+            for (String cmdLine : commands) {
+                String[] toks = cmdLine.split(";");
+                final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+                final long txnStartTime = System.currentTimeMillis();
+                endpoint.send(socialServer, new Request(cmdLine), new RequestHandler() {
+                    public void onReceive(Request m) {
+                        final long now = System.currentTimeMillis();
+                        final long txnExecTime = now - txnStartTime;
+                        final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
+                        bufferedOutput.println(log);
+                        commandsDone.incrementAndGet();
+                    }
+                });
 
-            final AtomicBoolean done = new AtomicBoolean(false);
-            endpoint.send(socialServer, new Request(cmdLine), new RequestHandler() {
-                public void onReceive(Request m) {
-                    done.set(true);
-                    final long now = System.currentTimeMillis();
-                    final long txnExecTime = now - txnStartTime;
-                    final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
-                    bufferedOutput.println(log);
-                    commandsDone.incrementAndGet();
-                }
-            });
-            while (!done.get())
-                Threading.sleep(10);
-        }
+            }
+        while (loop4ever);
+
         final long now = System.currentTimeMillis();
         final long sessionExecTime = now - sessionStartTime;
         bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
         bufferedOutput.flush();
         System.err.println("> " + IP.localHostname() + " all sessions completed...");
-    }
-
-    /**
-     * Reads sessions [firstSession, firstSession + sessionsNumber) from the
-     * file. Indexing starts from 0.
-     */
-    private static List<List<String>> readSessionsCommands(final String fileName, final int firstSession,
-            final int sessionsNumber) {
-        final List<String> cmds = SwiftSocialMain.readInputFromFile(fileName);
-        final List<List<String>> sessionsCmds = new ArrayList<List<String>>();
-
-        List<String> sessionCmds = new ArrayList<String>();
-        for (int currentSession = 0, currentCmd = 0; currentSession < firstSession + sessionsNumber
-                && currentCmd < cmds.size(); currentCmd++) {
-            final String cmd = cmds.get(currentCmd);
-            if (currentSession >= firstSession) {
-                sessionCmds.add(cmd);
-            }
-
-            final String[] toks = cmd.split(";");
-            final Commands cmdType = Commands.valueOf(toks[0].toUpperCase());
-            if (cmdType == Commands.LOGOUT) {
-                if (currentSession >= firstSession && currentSession < firstSession + sessionsNumber) {
-                    sessionsCmds.add(sessionCmds);
-                }
-                sessionCmds = new ArrayList<String>();
-                currentSession++;
-            }
-        }
-        return sessionsCmds;
     }
 }
