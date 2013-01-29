@@ -19,46 +19,49 @@ package sys.net.impl;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 import sys.net.api.Serializer;
 import sys.net.api.SerializerException;
-import sys.net.impl.providers.KryoInputBuffer;
-import sys.net.impl.providers.KryoOutputBuffer;
+
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 public class KryoSerializer implements Serializer {
 
     private static Logger Log = Logger.getLogger(KryoSerializer.class.getName());
 
-    private KryoInputBuffer input;
-    private KryoOutputBuffer output;
-
     public KryoSerializer() {
-        input = new KryoInputBuffer();
-        output = new KryoOutputBuffer();
     }
 
     @Override
-    synchronized public byte[] writeObject(Object o) throws SerializerException {
+    public byte[] writeObject(Object obj) throws SerializerException {
         try {
-            output.writeClassAndObject(o);
-            return output.toByteArray();
-        } catch (IOException e) {
+            Output output = new Output(1 << 10, 1 << 22);
+            KryoLib.kryo().writeClassAndObject(output, obj);
+            output.close();
+            return output.toBytes();
+        } catch (Exception e) {
             throw new SerializerException(e.getMessage());
         }
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    synchronized public <T> T readObject(byte[] data) throws SerializerException {
-        return (T) input.readClassAndObject(ByteBuffer.wrap(data));
+    public <T> T readObject(byte[] data) throws SerializerException {
+        try {
+            return (T) KryoLib.kryo().readClassAndObject(new Input(data));
+        } catch (Exception e) {
+            throw new SerializerException(e.getMessage());
+        }
     }
 
     @Override
-    synchronized public void writeObject(DataOutputStream out, Object o) throws SerializerException {
+    public void writeObject(DataOutputStream out, Object obj) throws SerializerException {
         try {
-            output.writeClassAndObjectFrame(o, out);
+            byte[] bytes = writeObject(obj);
+            out.writeInt(bytes.length);
+            out.write(bytes);
         } catch (IOException e) {
             Log.fine(String.format("Kryo Serialization Exception: ", e.getMessage()));
             throw new SerializerException(e);
@@ -67,10 +70,10 @@ public class KryoSerializer implements Serializer {
 
     @SuppressWarnings("unchecked")
     @Override
-    synchronized public <T> T readObject(DataInputStream in) throws SerializerException {
+    public <T> T readObject(DataInputStream in) throws SerializerException {
         try {
-            input.readFrom(in);
-            return (T) input.readClassAndObject();
+            in.readInt();
+            return (T) KryoLib.kryo().readClassAndObject(new Input(in));
         } catch (IOException e) {
             Log.fine(String.format("Kryo Serialization Exception: ", e.getMessage()));
             throw new SerializerException(e);
