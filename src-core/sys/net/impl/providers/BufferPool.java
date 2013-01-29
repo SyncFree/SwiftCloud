@@ -1,6 +1,8 @@
 package sys.net.impl.providers;
 
 import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_CLT_MAXSIZE;
+import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_DELAY;
+import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_MAXUSES;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,7 +39,7 @@ final public class BufferPool {
             int v = totBufs.incrementAndGet();
             res = new KryoBuffer();
             if (v > maxSize)
-                Threading.sleep(100);
+                Threading.sleep(KRYOBUFFERPOOL_DELAY);
         }
         return res;
     }
@@ -46,7 +48,7 @@ final public class BufferPool {
         if (v == null)
             return;
 
-        if (totBufs.get() < maxSize && v.uses() < 4096)
+        if (totBufs.get() < maxSize && v.uses() < KRYOBUFFERPOOL_MAXUSES)
             queue.add(v);
         else {
             totBufs.decrementAndGet();
