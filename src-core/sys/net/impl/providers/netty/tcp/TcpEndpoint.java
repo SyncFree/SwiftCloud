@@ -168,12 +168,6 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
         }
 
         @Override
-        public <T extends Message> T receive() {
-            Thread.dumpStack();
-            return null;
-        }
-
-        @Override
         public Endpoint localEndpoint() {
             return localEndpoint;
         }

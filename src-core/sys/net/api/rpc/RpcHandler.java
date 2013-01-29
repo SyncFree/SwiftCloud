@@ -19,7 +19,7 @@ package sys.net.api.rpc;
 /**
  * 
  * 
- * @author smd
+ * @author smduarte
  * 
  */
 public interface RpcHandler {

@@ -204,11 +204,6 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
         }
 
         @Override
-        public <T extends Message> T receive() {
-            return null;
-        }
-
-        @Override
         public Endpoint localEndpoint() {
             return localEndpoint;
         }

@@ -35,6 +35,17 @@ public interface RpcEndpoint {
     Endpoint localEndpoint();
 
     /**
+     * Sends a request message to a destination endpoint, waiting for a reply.
+     * 
+     * @param dst
+     *            - the endpoint that will receive the message request
+     * @param m
+     *            - the message that defines the request.
+     * @return the reply to the request, null if a timeout ocurred.
+     */
+    <T extends RpcMessage> T request(final Endpoint dst, final RpcMessage m);
+
+    /**
      * 
      * Sends an invocation message to a (listening) destination endpoint
      * 
@@ -111,4 +122,12 @@ public interface RpcEndpoint {
      * @return the timeout in milliseconds.
      */
     int getDefaultTimeout();
+
+    /**
+     * Sets options ... TODO document this...
+     * 
+     * @param option
+     * @param val
+     */
+    void setOption(String option, Object val);
 }

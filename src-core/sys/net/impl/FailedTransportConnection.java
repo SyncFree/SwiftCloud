@@ -35,11 +35,6 @@ public class FailedTransportConnection extends AbstractTransport {
         return false;
     }
 
-    @Override
-    public <T extends Message> T receive() {
-        return null;
-    }
-
     public Throwable causeOfFailure() {
         return cause;
     }

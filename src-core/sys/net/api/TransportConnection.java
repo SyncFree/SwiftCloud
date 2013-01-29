@@ -58,13 +58,6 @@ public interface TransportConnection {
     boolean sendNow(final Message m);
 
     /**
-     * Blocks until a message is received from this connection
-     * 
-     * @return the message received
-     */
-    <T extends Message> T receive();
-
-    /**
      * Obtains the local endpoint for this connection
      * 
      * @return the local endpoint associated with this connection
@@ -87,7 +80,8 @@ public interface TransportConnection {
     Throwable causeOfFailure();
 
     /**
-	 * 
-	 */
+     * Allows low-level configuration of the connection socket implementation,
+     * such as the thread executor used for dispatching incoming messages
+     */
     void setOption(String op, Object value);
 }

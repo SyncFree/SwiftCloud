@@ -92,7 +92,17 @@ public interface Endpoint {
      */
     int getPort();
 
+    /**
+     * Collect current incoming traffic statistics for this endpoint.
+     * 
+     * @return the number of bytes received from this endpoint
+     */
     public AtomicLong getIncomingBytesCounter();
 
+    /**
+     * Collect current outgoing traffic statistics for this endpoint
+     * 
+     * @return the number of bytes sent to this endpoint
+     */
     public AtomicLong getOutgoingBytesCounter();
 }

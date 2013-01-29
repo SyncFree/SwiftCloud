@@ -157,9 +157,10 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
 
     public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
         // double t0 = Sys.timeMillis();
-        RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+        // RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
 
-        Log.info("RPC: " + pkt.payload.getClass() + " from: " + conn.remoteEndpoint());
+        // Log.info("RPC: " + pkt.payload.getClass() + " from: " +
+        // conn.remoteEndpoint());
         // System.err.println("RPC: " + pkt.payload.getClass() + " from: " +
         // conn.remoteEndpoint() );
 

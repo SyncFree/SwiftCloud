@@ -173,8 +173,8 @@ final public class RpcPacket extends AbstractRpcPacket {
     }
 
     @Override
-    public RpcHandle enableDeferredReplies(int timeout) {
-        deferredRepliesTimeout = timeout;
+    public RpcHandle enableDeferredReplies(long timeout) {
+        deferredRepliesTimeout = (int) timeout;
         synchronized (fac.handlers1) {
             fac.handlers0.put(replyHandlerId, this);
             fac.handlers1.remove(replyHandlerId);
@@ -200,4 +200,21 @@ final public class RpcPacket extends AbstractRpcPacket {
         return fac;
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
+        RpcHandle reply = send(dst, m, RpcHandler.NONE);
+        if (!reply.failed()) {
+            reply = reply.getReply();
+            if (reply != null)
+                return (T) reply.getPayload();
+        }
+        return null;
+    }
+
+    @Override
+    public void setOption(String op, Object val) {
+        // AbstractEndpoint ae = (AbstractEndpoint) localEndpoint();
+        // ae.setOption(op, val);
+    }
 }

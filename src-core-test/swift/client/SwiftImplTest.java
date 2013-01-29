@@ -278,5 +278,17 @@ public class SwiftImplTest extends EasyMockSupport {
             // TODO Auto-generated method stub
             return 0;
         }
+
+        @Override
+        public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
+            // TODO Auto-generated method stub
+            return null;
+        }
+
+        @Override
+        public void setOption(String option, Object val) {
+            // TODO Auto-generated method stub
+
+        }
     }
 }
