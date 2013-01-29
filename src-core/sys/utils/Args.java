@@ -16,6 +16,9 @@
  *****************************************************************************/
 package sys.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 
  * Convenience class for parsing main class arguments...
@@ -55,4 +58,16 @@ public class Args {
         return defaultValue;
     }
 
+    static public List<String> subList(String[] args, String flag) {
+        List<String> res = new ArrayList<String>();
+        for (int i = 0; i < args.length - 1; i++)
+            if (flag.equals(args[i])) {
+                for (int j = i + 1; j < args.length; j++)
+                    if (args[j].startsWith("-"))
+                        return res;
+                    else
+                        res.add(args[j]);
+            }
+        return res;
+    }
 }
