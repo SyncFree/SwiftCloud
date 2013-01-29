@@ -39,11 +39,6 @@ public class FailedTransportConnection extends AbstractTransport {
         return cause;
     }
 
-    @Override
-    public boolean sendNow(Message m) {
-        return false;
-    }
-
     public String toString() {
         return "Broken";
     }

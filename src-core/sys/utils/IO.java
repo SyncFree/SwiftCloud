@@ -19,6 +19,7 @@ package sys.utils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.Channel;
 
@@ -28,6 +29,14 @@ public class IO {
     };
 
     public static void close(Socket s) {
+        try {
+            s.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void close(ServerSocket s) {
         try {
             s.close();
         } catch (IOException e) {

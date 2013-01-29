@@ -1,71 +1,55 @@
-/*****************************************************************************
- * Copyright 2011-2012 INRIA
- * Copyright 2011-2012 Universidade Nova de Lisboa
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
 package sys.net.impl.providers;
 
-import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_SIZE;
-import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_TIMEOUT;
+import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_CLT_MAXSIZE;
 
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
-public class BufferPool<V> {
+import sys.utils.Threading;
 
-    final BlockingQueue<V> bufferPool;
+final public class BufferPool {
+
+    int maxSize;
+    AtomicInteger totBufs = new AtomicInteger(0);
+
+    static class Buffer {
+
+    }
+
+    static public interface BufferFactory<V> {
+        V newBuffer();
+    }
+
+    ConcurrentLinkedQueue<KryoBuffer> queue;
 
     public BufferPool() {
-        this(KRYOBUFFERPOOL_SIZE);
+        this(KRYOBUFFERPOOL_CLT_MAXSIZE);
     }
 
-    public BufferPool(int size) {
-        bufferPool = new ArrayBlockingQueue<V>(size);
+    public BufferPool(int maxSize) {
+        this.queue = new ConcurrentLinkedQueue<KryoBuffer>();
+        this.maxSize = maxSize;
     }
 
-    public V poll() {
-        try {
-            return bufferPool.poll(KRYOBUFFERPOOL_TIMEOUT, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    public KryoBuffer poll() {
+        KryoBuffer res = queue.poll();
+        if (res == null) {
+            int v = totBufs.incrementAndGet();
+            res = new KryoBuffer();
+            if (v > maxSize)
+                Threading.sleep(100);
         }
-        return null;
+        return res;
     }
 
-    public V take() {
-        try {
-            return bufferPool.take();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    public void offer(KryoBuffer v) {
+        if (v == null)
+            return;
+
+        if (totBufs.get() < maxSize && v.uses() < 4096)
+            queue.add(v);
+        else {
+            totBufs.decrementAndGet();
         }
-        return null;
-    }
-
-    public void offer(V buffer) {
-        bufferPool.offer(buffer);
-    }
-
-    public int size() {
-        return bufferPool.size();
-    }
-
-    public int remainingCapacity() {
-        return bufferPool.remainingCapacity();
-    }
-
-    public void release() {
-        bufferPool.clear();
     }
 }

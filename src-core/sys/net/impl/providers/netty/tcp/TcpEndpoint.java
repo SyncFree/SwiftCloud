@@ -17,16 +17,23 @@
 package sys.net.impl.providers.netty.tcp;
 
 import static sys.Sys.Sys;
+import static sys.net.impl.NetworkingConstants.NETTY_CORE_THREADS;
+import static sys.net.impl.NetworkingConstants.NETTY_MAX_MEMORY_PER_CHANNEL;
+import static sys.net.impl.NetworkingConstants.NETTY_MAX_TOTAL_MEMORY;
+import static sys.net.impl.NetworkingConstants.NETTY_WRITEBUFFER_DEFAULTSIZE;
+import static sys.net.impl.NetworkingConstants.TCP_CONNECTION_TIMEOUT;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.buffer.ChannelBuffer;
+import org.jboss.netty.buffer.ChannelBufferOutputStream;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
@@ -41,66 +48,76 @@ import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
 import org.jboss.netty.channel.socket.nio.NioClientSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
 import org.jboss.netty.handler.codec.frame.LengthFieldBasedFrameDecoder;
+import org.jboss.netty.handler.execution.ExecutionHandler;
+import org.jboss.netty.handler.execution.MemoryAwareThreadPoolExecutor;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
-import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.NetworkingConstants.NIO_ReadBufferDispatchPolicy;
-import sys.net.impl.NetworkingConstants.NIO_ReadBufferPoolPolicy;
-import sys.net.impl.NetworkingConstants.NIO_WriteBufferPoolPolicy;
-import sys.net.impl.providers.BufferPool;
+import sys.net.impl.FailedTransportConnection;
+import sys.net.impl.KryoLib;
 import sys.net.impl.providers.InitiatorInfo;
-import sys.net.impl.providers.KryoInputBuffer;
-import sys.net.impl.providers.KryoOutputBuffer;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
-public class TcpEndpoint extends AbstractLocalEndpoint {
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+final public class TcpEndpoint extends AbstractLocalEndpoint {
 
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-    ExecutorService bossExecutors, workerExecutors;
-    final BufferPool<KryoOutputBuffer> writePool;
+    final Executor bossExecutors, workerExecutors;
+    final ExecutionHandler executionHandler;
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
         this.gid = Sys.rg.nextLong() >>> 1;
 
         bossExecutors = Executors.newCachedThreadPool();
-        workerExecutors = Executors.newFixedThreadPool(32);
+        workerExecutors = Executors.newCachedThreadPool();
 
-        if (tcpPort >= 0) {
+        executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
+                NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
+
+        boolean isServer = tcpPort >= 0;
+        if (isServer) {
             ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors,
                     workerExecutors));
 
             // Set up the pipeline factory.
             bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
                 public ChannelPipeline getPipeline() throws Exception {
-                    return Channels.pipeline(new MessageFrameDecoder(), new IncomingConnectionHandler());
+                    ChannelPipeline res = Channels.pipeline();
+                    res.addLast("FrameDecoder", new MessageFrameDecoder());
+                    res.addLast("MessageHandler", new IncomingConnectionHandler());
+                    return res;
                 }
             });
+
             bootstrap.setOption("child.tcpNoDelay", true);
             bootstrap.setOption("child.keepAlive", true);
+            bootstrap.setOption("child.reuseAddress", true);
+            bootstrap.setOption("child.connectTimeoutMillis", TCP_CONNECTION_TIMEOUT);
+
             Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
             super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
-            Log.finest("Bound to: " + this);
-            writePool = new BufferPool<KryoOutputBuffer>(64);
-
+            Log.fine("Bound to: " + this);
         } else {
             super.setSocketAddress(0);
-            writePool = new BufferPool<KryoOutputBuffer>(4);
         }
+    }
+
+    public void setExecutor(Executor executor) {
+    }
+
+    public void setOption(String op, Object val) {
     }
 
     public void start() throws IOException {
         handler = localEndpoint.getHandler();
-
-        while (this.writePool.remainingCapacity() > 0)
-            this.writePool.offer(new KryoOutputBuffer());
-
     }
 
     public TransportConnection connect(Endpoint remote) {
@@ -113,12 +130,15 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
             }
         });
         ChannelFuture future = bootstrap.connect(((AbstractEndpoint) remote).sockAddress());
-        Threading.synchronizedWaitOn(res, 5000);
+        future.awaitUninterruptibly();
         if (!future.isSuccess()) {
             Log.severe("Bad connection to:" + remote);
-            return null;
-        } else
+            return new FailedTransportConnection(localEndpoint, remote, future.getCause());
+        } else {
+            res.channelConnected(future.getChannel());
+            res.send(new InitiatorInfo(res.localEndpoint()));
             return res;
+        }
     }
 
     class AbstractConnection extends SimpleChannelUpstreamHandler implements TransportConnection, RemoteEndpointUpdater {
@@ -127,16 +147,10 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
         boolean failed;
         Endpoint remote;
         Throwable cause;
-        NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
-        NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
-        NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
-
-        final BufferPool<KryoInputBuffer> readPool;
+        AtomicLong incomingBytesCounter = new AtomicLong();
+        AtomicLong outgoingBytesCounter = new AtomicLong();
 
         AbstractConnection() {
-            readPool = new BufferPool<KryoInputBuffer>();
-            while (this.readPool.remainingCapacity() > 0)
-                this.readPool.offer(new KryoInputBuffer());
         }
 
         @Override
@@ -145,24 +159,29 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
         }
 
         public boolean send(final Message msg) {
-            KryoOutputBuffer outBuf = null;
             try {
-                if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
-                    outBuf = writePool.take();
-                else {
-                    outBuf = writePool.poll();
-                    if (outBuf == null)
-                        outBuf = new KryoOutputBuffer();
-                }
-                outBuf.writeClassAndObjectFrame(msg);
-                ChannelFuture fut = channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
-                fut.awaitUninterruptibly();
-                return true;
+                while (!channel.isWritable())
+                    Threading.synchronizedWaitOn(this, 10);
+
+                ChannelBuffer buf = ChannelBuffers.dynamicBuffer(NETTY_WRITEBUFFER_DEFAULTSIZE);
+                buf.writeInt(0);
+                Output output = new Output(new ChannelBufferOutputStream(buf));
+
+                KryoLib.kryo().writeClassAndObject(output, msg);
+                output.close();
+
+                int uploadTotal = output.total();
+                buf.setInt(0, uploadTotal);
+
+                ChannelFuture fut = channel.write(buf);
+
+                Sys.uploadedBytes.getAndAdd(uploadTotal + 4);
+                outgoingBytesCounter.getAndAdd(uploadTotal + 4);
+
+                return fut.awaitUninterruptibly().isSuccess();
+
             } catch (Throwable t) {
                 t.printStackTrace();
-            } finally {
-                if (outBuf != null)
-                    writePool.offer(outBuf);
             }
             return false;
         }
@@ -183,30 +202,27 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
             handler.onClose(this);
         }
 
-        public void messageReceived(ChannelHandlerContext ctx, final MessageEvent e) {
+        public void channelInterestChanged(ChannelHandlerContext ctx, ChannelStateEvent e) {
+            if (channel.isWritable())
+                Threading.synchronizedNotifyAllOn(this);
+        }
 
-            workerExecutors.execute(new Runnable() {
-                public void run() {
-                    KryoInputBuffer inBuf = null;
-                    try {
-                        if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
-                            inBuf = readPool.take();
-                        else {
-                            inBuf = readPool.take();
-                            if (inBuf == null)
-                                inBuf = new KryoInputBuffer();
-                        }
+        public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) {
+            Message msg;
+            try {
+                Input in = new Input(((ChannelBuffer) e.getMessage()).array());
+                msg = (Message) KryoLib.kryo().readClassAndObject(in);
+                e = null;
 
-                        Message msg = inBuf.readClassAndObject(((ChannelBuffer) e.getMessage()).toByteBuffer());
-                        msg.deliverTo(AbstractConnection.this, handler);
-                    } catch (Throwable t) {
-                        t.printStackTrace();
-                    } finally {
-                        if (inBuf != null)
-                            readPool.offer(inBuf);
-                    }
-                }
-            });
+                int downloadTotal = in.position() + 4;
+
+                Sys.downloadedBytes.getAndAdd(downloadTotal);
+                incomingBytesCounter.addAndGet(downloadTotal);
+
+                msg.deliverTo(AbstractConnection.this, handler);
+            } catch (Exception x) {
+                x.printStackTrace();
+            }
         }
 
         @Override
@@ -224,11 +240,9 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
 
         public void setRemoteEndpoint(Endpoint remote) {
             this.remote = remote;
-        }
-
-        @Override
-        public boolean sendNow(Message m) {
-            throw new NetworkingException("Not Implemented...");
+            this.incomingBytesCounter = remote.getIncomingBytesCounter();
+            this.outgoingBytesCounter = remote.getOutgoingBytesCounter();
+            channel.getPipeline().addAfter("FrameDecoder", "Executor", executionHandler);
         }
 
         @Override
@@ -248,14 +262,8 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
             super.remote = remote;
         }
 
-        synchronized public void channelConnected(ChannelHandlerContext ctx, ChannelStateEvent e) throws Exception {
-            channel = e.getChannel();
-            workerExecutors.execute(new Runnable() {
-                public void run() {
-                    send(new InitiatorInfo(localEndpoint));
-                }
-            });
-            Threading.synchronizedNotifyAllOn(this);
+        public void channelConnected(Channel ch) {
+            channel = ch;
             handler.onConnect(this);
         }
 
@@ -264,7 +272,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
         }
     }
 
-    class MessageFrameDecoder extends LengthFieldBasedFrameDecoder {
+    static final class MessageFrameDecoder extends LengthFieldBasedFrameDecoder {
         public MessageFrameDecoder() {
             super(Integer.MAX_VALUE, 0, 4, 0, 4, false);
         }

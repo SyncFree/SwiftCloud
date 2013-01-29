@@ -27,7 +27,6 @@ import java.util.concurrent.Executors;
 
 import org.jboss.netty.bootstrap.ClientBootstrap;
 import org.jboss.netty.bootstrap.ServerBootstrap;
-import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.Channel;
 import org.jboss.netty.channel.ChannelFuture;
 import org.jboss.netty.channel.ChannelHandlerContext;
@@ -61,20 +60,15 @@ import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
-import sys.net.impl.NetworkingConstants.NIO_ReadBufferDispatchPolicy;
-import sys.net.impl.NetworkingConstants.NIO_ReadBufferPoolPolicy;
-import sys.net.impl.NetworkingConstants.NIO_WriteBufferPoolPolicy;
 import sys.net.impl.providers.BufferPool;
 import sys.net.impl.providers.InitiatorInfo;
-import sys.net.impl.providers.KryoInputBuffer;
-import sys.net.impl.providers.KryoOutputBuffer;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
 public class WebSocketEndpoint extends AbstractLocalEndpoint {
 
     ExecutorService bossExecutors, workerExecutors;
-    final BufferPool<KryoOutputBuffer> writePool;
+    final BufferPool bufferPool;
 
     public WebSocketEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
@@ -93,18 +87,15 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
             bootstrap.setOption("child.keepAlive", true);
             Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
             super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());
-            writePool = new BufferPool<KryoOutputBuffer>(64);
+            bufferPool = new BufferPool(1024);
         } else {
             super.setSocketAddress(0);
-            writePool = new BufferPool<KryoOutputBuffer>(4);
+            bufferPool = new BufferPool(32);
         }
     }
 
     public void start() throws IOException {
         handler = localEndpoint.getHandler();
-
-        while (this.writePool.remainingCapacity() > 0)
-            this.writePool.offer(new KryoOutputBuffer());
     }
 
     public TransportConnection connect(Endpoint remote) {
@@ -164,16 +155,8 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
         Channel channel;
         boolean failed;
         Endpoint remote;
-        NIO_ReadBufferPoolPolicy readPoolPolicy = NIO_ReadBufferPoolPolicy.POLLING;
-        NIO_WriteBufferPoolPolicy writePoolPolicy = NIO_WriteBufferPoolPolicy.POLLING;
-        NIO_ReadBufferDispatchPolicy execPolicy = NIO_ReadBufferDispatchPolicy.READER_EXECUTES;
-
-        final BufferPool<KryoInputBuffer> readPool;
 
         AbstractConnection() {
-            readPool = new BufferPool<KryoInputBuffer>();
-            while (this.readPool.remainingCapacity() > 0)
-                this.readPool.offer(new KryoInputBuffer());
         }
 
         @Override
@@ -182,24 +165,6 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
         }
 
         public boolean send(final Message msg) {
-            KryoOutputBuffer outBuf = null;
-            try {
-                if (writePoolPolicy == NIO_WriteBufferPoolPolicy.BLOCKING)
-                    outBuf = writePool.take();
-                else {
-                    outBuf = writePool.poll();
-                    if (outBuf == null)
-                        outBuf = new KryoOutputBuffer();
-                }
-                outBuf.writeClassAndObjectFrame(msg);
-                channel.write(ChannelBuffers.wrappedBuffer(outBuf.toByteBuffer()));
-                return true;
-            } catch (Throwable t) {
-                t.printStackTrace();
-            } finally {
-                if (outBuf != null)
-                    writePool.offer(outBuf);
-            }
             return false;
         }
 
@@ -222,23 +187,24 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
         protected void handleWebSocketFrame(final ChannelHandlerContext ctx, final WebSocketFrame frame) {
             workerExecutors.execute(new Runnable() {
                 public void run() {
-                    KryoInputBuffer inBuf = null;
-                    try {
-                        if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
-                            inBuf = readPool.take();
-                        else {
-                            inBuf = readPool.take();
-                            if (inBuf == null)
-                                inBuf = new KryoInputBuffer();
-                        }
-                        Message msg = inBuf.readClassAndObject(frame.getBinaryData().toByteBuffer());
-                        msg.deliverTo(AbstractConnection.this, handler);
-                    } catch (Throwable t) {
-                        t.printStackTrace();
-                    } finally {
-                        if (inBuf != null)
-                            readPool.offer(inBuf);
-                    }
+                    // KryoInputBuffer inBuf = null;
+                    // try {
+                    // if (readPoolPolicy == NIO_ReadBufferPoolPolicy.BLOCKING)
+                    // inBuf = readPool.take();
+                    // else {
+                    // inBuf = readPool.take();
+                    // if (inBuf == null)
+                    // inBuf = new KryoInputBuffer();
+                    // }
+                    // Message msg =
+                    // inBuf.readClassAndObject(frame.getBinaryData().toByteBuffer());
+                    // msg.deliverTo(AbstractConnection.this, handler);
+                    // } catch (Throwable t) {
+                    // t.printStackTrace();
+                    // } finally {
+                    // if (inBuf != null)
+                    // readPool.offer(inBuf);
+                    // }
                 }
             });
         }
@@ -265,11 +231,6 @@ public class WebSocketEndpoint extends AbstractLocalEndpoint {
 
         public void setRemoteEndpoint(Endpoint remote) {
             this.remote = remote;
-        }
-
-        @Override
-        public boolean sendNow(Message m) {
-            throw new NetworkingException("Not Implemented...");
         }
 
         @Override

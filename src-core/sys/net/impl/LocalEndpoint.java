@@ -71,6 +71,8 @@ public class LocalEndpoint extends AbstractEndpoint {
             return new sys.net.impl.providers.netty.tcp.TcpEndpoint(this, port);
         case NIO_TCP:
             return new sys.net.impl.providers.nio.TcpEndpoint(this, port);
+        case OIO_TCP:
+            return new sys.net.impl.providers.oio.TcpEndpoint(this, port);
         default:
             return getProvider(NetworkingImpl.defaultProvider, port);
         }

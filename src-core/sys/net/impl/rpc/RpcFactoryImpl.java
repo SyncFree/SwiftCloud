@@ -20,7 +20,6 @@ import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRIES;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
 import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
-import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 import static sys.stats.RpcStats.RpcStats;
 
@@ -191,16 +190,6 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
         Thread.dumpStack();
     }
 
-    // synchronized int _g_serial(Object o) {
-    // AtomicInteger x = g_serial.get(o);
-    // if (x == null)
-    // g_serial.put(o, x = new AtomicInteger(0));
-    //
-    // return x.getAndIncrement();
-    // }
-    // Map<Object, AtomicInteger> g_serial = new HashMap<Object,
-    // AtomicInteger>();
-
     RpcPacket getHandler(Long hid, boolean deferredRepliesEnabled) {
 
         RpcPacket res;
@@ -226,7 +215,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
     void initStaleHandlersGC_Task() {
         final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName() + ".gc");
 
-        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD / (RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY)) {
+        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
             public void run() {
                 double now = Sys.timeMillis();
                 synchronized (handlers0) {
