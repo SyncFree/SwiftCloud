@@ -17,6 +17,14 @@
 package swift.clocks;
 
 import java.io.Serializable;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoCopyable;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Common base class for timestamps using 1-2 dimensional site counters, with
@@ -26,7 +34,7 @@ import java.io.Serializable;
  * 
  * @see TripleTimestamp
  */
-public class Timestamp implements Serializable, Comparable<Timestamp> {
+final public class Timestamp implements Serializable, Comparable<Timestamp>, KryoSerializable, KryoCopyable<Timestamp> {
     /**
      * Minimum counter value (exclusive!?), never used by any timestamp.
      */
@@ -42,7 +50,7 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     public Timestamp() {
     }
 
-    Timestamp(String siteid, long counter) {
+    public Timestamp(String siteid, long counter) {
         this.siteid = siteid;
         this.counter = counter;
     }
@@ -116,4 +124,31 @@ public class Timestamp implements Serializable, Comparable<Timestamp> {
     public long getCounter() {
         return counter;
     }
+
+    /************ FOR KRYO ***************/
+    @Override
+    public void read(Kryo kryo, Input in) {
+        this.siteid = s2s(in.readString());
+        this.counter = in.readLong();
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        out.writeString(this.siteid);
+        out.writeLong(this.counter);
+    }
+
+    @Override
+    public Timestamp copy(Kryo kryo) {
+        return new Timestamp(this.siteid, this.counter);
+    }
+
+    String s2s(String s) {
+        String ref = s2s.get(s);
+        if (ref == null)
+            s2s.put(s, ref = s);
+        return ref;
+    }
+
+    private static Map<String, String> s2s = new HashMap<String, String>();
 }

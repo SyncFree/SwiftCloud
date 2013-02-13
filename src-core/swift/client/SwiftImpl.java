@@ -380,11 +380,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-            	 LatestKnownClockReply reply = localEndpoint.request(serverEndpoint,
-                         new LatestKnownClockRequest(scoutId));
-                 if (reply != null) {
-                     updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
-                 }
+                LatestKnownClockReply reply = localEndpoint.request(serverEndpoint,
+                        new LatestKnownClockRequest(scoutId));
+                if (reply != null) {
+                    updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
+                }
                 if (reply == null && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     throw new NetworkException("timed out to get transcation snapshot point");
                 }
@@ -667,7 +667,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         try {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
         } catch (IllegalStateException x) {
-        	// No appropriate version found in the object from the cache.
+            // No appropriate version found in the object from the cache.
             throw new VersionNotFoundException("Object not available in the cache in appropriate version: "
                     + x.getMessage());
         }
@@ -713,7 +713,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final AbstractTxnHandle txn,
             final FetchObjectVersionRequest fetchRequest, Class<V> classOfV, boolean create) throws NetworkException,
             NoSuchObjectException, WrongTypeException {
-    	
+
         synchronized (this) {
             fetchVersionsInProgress.add(fetchRequest.getVersion());
         }
@@ -749,7 +749,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             final FetchObjectVersionRequest request, final FetchObjectVersionReply fetchReply, Class<V> classOfV,
             boolean create) throws NoSuchObjectException, WrongTypeException {
         final V crdt;
-        
+
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
             if (!create) {
@@ -916,7 +916,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         final CRDT crdt = objectsCache.getWithoutTouch(id);
-        
+
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
             logger.info("cannot apply received updates on object " + id + " as it has been evicted from the cache");
@@ -946,7 +946,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
         if (logger.isLoggable(Level.INFO)) {
             // TODO: printf usage wouldn't hurt :-)
-            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size() + ";tx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp()) + ";clttx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + ";vv=" + outputClock
+            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size() + ";tx="
+                    + (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp())
+                    + ";clttx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestamps()[0]) + ";vv=" + outputClock
                     + ";dep=" + dependencyClock);
         }
 
@@ -1163,7 +1165,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
         if (requiresGlobalCommit(txn)) {
-        	
+
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
                 final CRDTIdentifier id = opsGroup.getTargetUID();

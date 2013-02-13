@@ -100,7 +100,7 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     /**
      * @return all timestamp assigned to this transaction
      */
-    public synchronized List<Timestamp> getTimestamps() {
+    public synchronized Timestamp[] getTimestamps() {
         return timestampMapping.getTimestamps();
     }
 

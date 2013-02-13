@@ -16,11 +16,15 @@
  *****************************************************************************/
 package swift.clocks;
 
-import java.util.Collections;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.Arrays;
 
 import swift.crdt.interfaces.Copyable;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoCopyable;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Timestamp information for a transaction, with a stable client timestamp and a
@@ -32,16 +36,16 @@ import swift.crdt.interfaces.Copyable;
  * 
  * @author mzawirski
  */
-public class TimestampMapping implements Copyable {
+final public class TimestampMapping implements Copyable, KryoSerializable, KryoCopyable<TimestampMapping> {
     /** Stable client-assigned timestamp */
     protected Timestamp clientTimestamp;
     /** Sorted client- and all system-assigned timestamps */
-    protected List<Timestamp> timestamps;
+    protected Timestamp[] timestamps;
 
     /**
-     * USED ONLY BY Kyro!
+     * USED by Kyro and copy
      */
-    public TimestampMapping() {
+    TimestampMapping() {
     }
 
     /**
@@ -52,8 +56,20 @@ public class TimestampMapping implements Copyable {
      */
     public TimestampMapping(Timestamp clientTimestamp) {
         this.clientTimestamp = clientTimestamp;
-        this.timestamps = new LinkedList<Timestamp>();
-        timestamps.add(clientTimestamp);
+        this.timestamps = new Timestamp[] { clientTimestamp };
+    }
+
+    /**
+     * Create new instance from the supplied data
+     * 
+     * @param clientTimestamp
+     *            stable client timestamp to use
+     * @param timestamps
+     *            stable system timestamps to use
+     */
+    public TimestampMapping(Timestamp clientTimestamp, Timestamp[] timestamps) {
+        this.clientTimestamp = clientTimestamp;
+        this.timestamps = Arrays.copyOf(timestamps, timestamps.length);
     }
 
     /**
@@ -66,8 +82,8 @@ public class TimestampMapping implements Copyable {
     /**
      * @return unmodifiable list of all timestamps assigned to the transaction
      */
-    public List<Timestamp> getTimestamps() {
-        return Collections.unmodifiableList(timestamps);
+    public Timestamp[] getTimestamps() {
+        return timestamps; // smd Arrays.copyOf(...) to ensure imutability????
     }
 
     /**
@@ -135,9 +151,15 @@ public class TimestampMapping implements Copyable {
      *            system timestamp to add
      */
     public void addSystemTimestamp(final Timestamp ts) {
-        final int idx = Collections.binarySearch(timestamps, ts);
+        final int idx = Arrays.binarySearch(timestamps, ts);
         if (idx < 0) {
-            timestamps.add((idx + 1) * -1, ts);
+            int j = (idx + 1) * -1;
+            Timestamp[] old = timestamps;
+            timestamps = Arrays.copyOf(old, old.length + 1);
+            timestamps[j] = ts;
+            if (j < old.length)
+                System.arraycopy(old, j, timestamps, j + 1, old.length - j);
+            ;
         }
     }
 
@@ -164,19 +186,41 @@ public class TimestampMapping implements Copyable {
      * @return true when there is at least 1 system timestamp defined
      */
     public boolean hasSystemTimestamp() {
-        return timestamps.size() > 1;
+        return timestamps.length > 1;
     }
 
     @Override
     public TimestampMapping copy() {
-        final TimestampMapping copy = new TimestampMapping(clientTimestamp);
-        copy.timestamps.clear();
-        copy.timestamps.addAll(timestamps);
-        return copy;
+        return new TimestampMapping(this.clientTimestamp, this.timestamps);
     }
 
     @Override
     public String toString() {
         return getTimestamps().toString();
+    }
+
+    @Override
+    public void read(Kryo kryo, Input in) {
+        this.clientTimestamp = new Timestamp();
+        this.clientTimestamp.read(kryo, in);
+        int n = in.readByte();
+        this.timestamps = new Timestamp[n];
+        for (int i = 0; i < n; i++) {
+            this.timestamps[i] = new Timestamp();
+            this.timestamps[i].read(kryo, in);
+        }
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        this.clientTimestamp.write(kryo, out);
+        out.writeByte(this.timestamps.length);
+        for (Timestamp i : timestamps)
+            i.write(kryo, out);
+    }
+
+    @Override
+    public TimestampMapping copy(Kryo kryo) {
+        return new TimestampMapping(this.clientTimestamp, this.timestamps);
     }
 }

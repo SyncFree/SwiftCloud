@@ -16,6 +16,12 @@
  *****************************************************************************/
 package swift.clocks;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoCopyable;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * A unique id for update on CRDT object with a stable identity and ordering.
  * Ids are logically partitioned in equivalence classes: all ids of updates
@@ -31,7 +37,8 @@ package swift.clocks;
  * @author mzawirski
  */
 // TODO: provide custom serializer or Kryo-lize the class
-public class TripleTimestamp implements Comparable<TripleTimestamp> {
+final public class TripleTimestamp implements Comparable<TripleTimestamp>, KryoSerializable,
+        KryoCopyable<TripleTimestamp> {
     private static final long serialVersionUID = 1L;
     protected long distinguishingCounter;
     protected TimestampMapping mapping;
@@ -130,5 +137,23 @@ public class TripleTimestamp implements Comparable<TripleTimestamp> {
      */
     public Timestamp getSelectedSystemTimestamp() {
         return mapping.getSelectedSystemTimestamp();
+    }
+
+    @Override
+    public void read(Kryo kryo, Input in) {
+        this.distinguishingCounter = in.readLong();
+        this.mapping = new TimestampMapping();
+        this.mapping.read(kryo, in);
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        out.writeLong(this.distinguishingCounter);
+        mapping.write(kryo, out);
+    }
+
+    @Override
+    public TripleTimestamp copy(Kryo kryo) {
+        return new TripleTimestamp(this.mapping, this.distinguishingCounter);
     }
 }
