@@ -29,6 +29,8 @@ public class DCConstants {
     public static final int SEQUENCER_PORT = 9998;
     public static final int SURROGATE_PORT = 9999;
 
+    public static final int SURROGATE_PORT_FOR_SEQUENCERS = 29996;
+
     public static final long INTERSEQ_RETRY = 5000; // period for retyring
                                                     // re-sending data between
                                                     // sequencers
@@ -64,4 +66,6 @@ public class DCConstants {
                                                                      // day
 
     public static final boolean DEFAULT_DB_NULL = true;
+
+    public static final int SURROGATE_NOTIFIER_THREAD_POOL_SIZE = 3;
 }

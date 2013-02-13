@@ -53,7 +53,8 @@ public class CRDTObject<V extends CRDT<V>> {
          * data.pruneClock); if( cmp == CMP_CLOCK.CMP_EQUALS || cmp ==
          * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
          * this.crdt = data.crdt.copy(); } else;
-         */this.crdt = data.crdt.copy();
+         */
+        this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
         Timestamp ts = null;

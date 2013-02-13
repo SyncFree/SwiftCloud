@@ -43,6 +43,8 @@ public class GenerateDCTimestampReply implements RpcMessage {
         INVALID_OPERATION
     }
 
+    public String siteId;
+
     protected GenerateStatus status;
     protected Timestamp timestamp;
     protected long cltClock;
@@ -51,10 +53,11 @@ public class GenerateDCTimestampReply implements RpcMessage {
     GenerateDCTimestampReply() {
     }
 
-    public GenerateDCTimestampReply(final Timestamp timestamp, final long cltClock) {
+    public GenerateDCTimestampReply(String siteId, final Timestamp timestamp, final long cltClock) {
         this.status = GenerateStatus.SUCCESSS;
         this.timestamp = timestamp;
         this.cltClock = cltClock;
+        this.siteId = siteId;
     }
 
     public GenerateDCTimestampReply(final long cltClock) {
@@ -71,8 +74,14 @@ public class GenerateDCTimestampReply implements RpcMessage {
     }
 
     @Override
-    public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((GenerateDCTimestampReplyHandler) handler).onReceive(conn, this);
+    public void deliverTo(RpcHandle conn, RpcHandler handler) { // If used as a
+                                                                // reply to
+                                                                // request()
+                                                                // call, no
+                                                                // extra
+                                                                // processing
+                                                                // required.
+        // ((GenerateDCTimestampReplyHandler) handler).onReceive(conn, this);
     }
 
     public GenerateStatus getStatus() {

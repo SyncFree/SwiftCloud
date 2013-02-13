@@ -18,6 +18,8 @@ package swift.dc;
 
 import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * 
@@ -36,5 +38,20 @@ abstract public class Handler extends AbstractRpcHandler {
 
     public void onReceive(final RpcHandle conn, final Reply r) {
         Thread.dumpStack();
+    }
+}
+
+class Reply implements RpcMessage {
+
+    Reply() {
+    }
+
+    @Override
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        if (conn.expectingReply()) {
+            ((Handler) handler).onReceive(conn, this);
+        } else {
+            ((Handler) handler).onReceive(this);
+        }
     }
 }

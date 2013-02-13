@@ -21,7 +21,8 @@ import static sys.net.api.Networking.Networking;
 import java.util.Properties;
 
 import sys.Sys;
-import sys.net.api.rpc.RpcFactory;
+import sys.net.api.Endpoint;
+import sys.net.api.rpc.RpcEndpoint;
 
 /**
  * Single server replying to client request. This class is used only to allow
@@ -33,19 +34,10 @@ import sys.net.api.rpc.RpcFactory;
 public class DCServer {
     DCSurrogate server;
     String sequencerHost;
-    int sequencerPort;
     Properties props;
-
-    RpcFactory rpcFactory;
 
     public DCServer(String sequencerHost, Properties props) {
         this.sequencerHost = sequencerHost;
-        int pos = sequencerHost.indexOf(":");
-        if (pos != -1) {
-            this.sequencerPort = Integer.parseInt(sequencerHost.substring(pos + 1));
-            this.sequencerHost = sequencerHost.substring(0, pos);
-        } else
-            this.sequencerPort = DCConstants.SEQUENCER_PORT;
         this.props = props;
         init();
     }
@@ -54,19 +46,16 @@ public class DCServer {
 
     }
 
-    public void startSurrogServer(int portSurrogate) {
+    public void startSurrogServer(int port4Clients, int port4Sequencers) {
         Sys.init();
 
-        // server = new
-        // DCSurrogate(Networking.rpcBind(portSurrogate).toDefaultService(),
-        // Networking.rpcConnect().toDefaultService(),
-        // Networking.resolve(sequencerHost, sequencerPort),
-        // props);
+        RpcEndpoint srvEP4Clients = Networking.rpcBind(port4Clients).toDefaultService();
+        RpcEndpoint srvEP4Sequencer = Networking.rpcBind(port4Sequencers).toDefaultService();
+        RpcEndpoint cltEP4Sequencer = Networking.rpcConnect().toDefaultService();
 
-        rpcFactory = Networking.rpcBind(portSurrogate);
+        Endpoint sequencer = Networking.resolve(sequencerHost, DCConstants.SEQUENCER_PORT);
 
-        server = new DCSurrogate(rpcFactory.toDefaultService(), rpcFactory.toDefaultService(), Networking.resolve(
-                sequencerHost, sequencerPort), props);
+        server = new DCSurrogate(srvEP4Clients, srvEP4Sequencer, cltEP4Sequencer, sequencer, props);
     }
 
     public static void main(String[] args) {
@@ -98,6 +87,6 @@ public class DCServer {
             }
         }
 
-        new DCServer(sequencerNode, props).startSurrogServer(portSurrogate);
+        new DCServer(sequencerNode, props).startSurrogServer(portSurrogate, DCConstants.SURROGATE_PORT_FOR_SEQUENCERS);
     }
 }

@@ -149,13 +149,14 @@ public class FastRecentUpdatesReply implements RpcMessage {
         public CausalityClock getPruneClock() {
             return pruneClock;
         }
-
     }
 
     protected SubscriptionStatus status;
     protected List<ObjectSubscriptionInfo> subscriptions;
     protected CausalityClock estimatedCommittedVersion;
     protected CausalityClock estimatedDistasterDurableCommittedVersion;
+
+    public int seqN;
 
     /**
      * No-args constructor for Kryo-serialization.
@@ -164,11 +165,14 @@ public class FastRecentUpdatesReply implements RpcMessage {
     }
 
     public FastRecentUpdatesReply(SubscriptionStatus status, List<ObjectSubscriptionInfo> subscriptions,
-            CausalityClock estimatedCommittedVersion, CausalityClock estimatedDistasterDurableCommittedVersion) {
+            CausalityClock estimatedCommittedVersion, CausalityClock estimatedDistasterDurableCommittedVersion, int seqN) {
         this.status = status;
         this.subscriptions = subscriptions;
         this.estimatedCommittedVersion = estimatedCommittedVersion;
         this.estimatedDistasterDurableCommittedVersion = estimatedDistasterDurableCommittedVersion;
+        this.estimatedDistasterDurableCommittedVersion.intersect(estimatedCommittedVersion);
+
+        this.seqN = seqN;
     }
 
     public SubscriptionStatus getStatus() {

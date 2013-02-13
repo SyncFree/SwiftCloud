@@ -61,7 +61,7 @@ public class CommitUpdatesReply implements RpcMessage {
      * 
      * @param systemTimestamps
      */
-    public CommitUpdatesReply(Timestamp... systemTimestamps) {
+    public CommitUpdatesReply(CausalityClock commitClock, Timestamp... systemTimestamps) {
         this.status = CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS;
         this.commitTimestamps = new LinkedList<Timestamp>(Arrays.asList(systemTimestamps));
     }

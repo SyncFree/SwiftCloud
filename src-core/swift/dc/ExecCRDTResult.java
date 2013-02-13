@@ -26,31 +26,32 @@ import swift.crdt.CRDTIdentifier;
  * 
  */
 public class ExecCRDTResult {
-    CRDTIdentifier id;
+
     boolean result;
+    CRDTIdentifier id;
     boolean hasNotification;
     boolean notificationOnly;
     ObjectSubscriptionInfo info;
 
     public ExecCRDTResult(boolean result) {
+        this.info = null;
         this.result = result;
         this.notificationOnly = true;
-        this.info = null;
-        hasNotification = false;
+        this.hasNotification = false;
     }
 
     public ExecCRDTResult(boolean result, CRDTIdentifier id, boolean notificationOnly, ObjectSubscriptionInfo info) {
-        this.result = result;
         this.id = id;
-        this.notificationOnly = notificationOnly;
         this.info = info;
-        hasNotification = true;
+        this.result = result;
+        this.hasNotification = true;
+        this.notificationOnly = notificationOnly;
     }
 
     /**
      * Needed for Kryo serialization
      */
-    public ExecCRDTResult() {
+    ExecCRDTResult() {
     }
 
     public boolean isResult() {
@@ -72,5 +73,4 @@ public class ExecCRDTResult {
     public CRDTIdentifier getId() {
         return id;
     }
-
 }

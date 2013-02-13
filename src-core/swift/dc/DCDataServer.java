@@ -70,8 +70,6 @@ class DCDataServer {
     DHT dhtClient;
     static public boolean prune;
 
-    // LinkedList<NotificationRecord> notifications;//to comment...
-
     Set<CRDTData<?>> modified;
 
     DCDataServer(DCSurrogate surrogate, Properties props) {
@@ -81,43 +79,10 @@ class DCDataServer {
         initStore();
         initData(props);
         initDHT();
-        // initNotifier();
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Data server ready...");
         }
     }
-
-    // /**
-    // * Start backgorund thread that dumps notifications
-    // */
-    // void initNotifier() {
-    //
-    //
-    // Threading.newThread( new Runnable() {
-    //
-    // @Override
-    // public void run() {
-    // for (;;) {
-    // NotificationRecord record = null;
-    // synchronized (notifications) {
-    // while (notifications.isEmpty())
-    // Threading.waitOn( notifications );
-    // record = notifications.removeFirst();
-    // }
-    // if (record != null) {
-    // if( record.notification) {
-    // ;//PubSub.publish(record.info.getId(), new
-    // DHTSendNotification(record.info.cloneNotification()));
-    // } else {
-    // ;//PubSub.publish(record.info.getId(), new
-    // DHTSendNotification(record.info));
-    // }
-    // }
-    // // record.to.sendNotification(record.info);
-    // }
-    // }
-    // }, true).start();
-    // }
 
     /**
      * Start backgorund thread that dumps to disk
@@ -182,6 +147,7 @@ class DCDataServer {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
                 }
+                Thread.dumpStack();
                 con.reply(new DHTExecCRDTReply(localExecCRDT(new RemoteObserver(request.getSurrogateId(), con),
                         request.getGrp(), request.getSnapshotVersion(), request.getTrxVersion(), request.getTxTs(),
                         request.getCltTs(), request.getPrvCltTs(), request.getCurDCVersion())));
@@ -385,7 +351,7 @@ class DCDataServer {
             @SuppressWarnings("unchecked")
             CRDTData<V> data = (CRDTData<V>) this.getDatabaseEntry(id);
             if (data.empty) {
-                data.initValue(crdt, clk, prune, cltClock);
+                data.initValue(crdt, clk, prune, cltClock, -1L);
             } else {
                 data.crdt.merge(crdt);
                 // if (DCDataServer.prune) {
@@ -416,7 +382,7 @@ class DCDataServer {
                 if (!grp.hasCreationState()) {
                     return new ExecCRDTResult(false);
                 }
-                CRDT crdt = grp.getCreationState().copy();
+                CRDT<?> crdt = grp.getCreationState().copy();
                 // TODO: check clocks
                 CausalityClock clk = grp.getDependency();
                 if (clk == null) {
@@ -447,6 +413,7 @@ class DCDataServer {
 
             if (prvCltTs != null)
                 data.crdt.augmentWithScoutClock(prvCltTs);
+
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
@@ -461,7 +428,8 @@ class DCDataServer {
              * data.prunedCrdt.prune(data.clock, false);
              * data.prunedCrdt.discardScoutClock(cltTs.getIdentifier());
              * data.pruneClock = data.clock; }
-             */data.crdt.discardScoutClock(cltTs.getIdentifier());
+             */
+            data.crdt.discardScoutClock(cltTs.getIdentifier());
             data.clock = data.crdt.getClock();
 
             setModifiedDatabaseEntry(data);
@@ -478,18 +446,8 @@ class DCDataServer {
                         + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
             }
 
-            ExecCRDTResult result = null;
-            if (data.observers.size() > 0 || data.notifiers.size() > 0) {
-                if (data.observers.size() > 0) {
-                    result = new ExecCRDTResult(true, grp.getTargetUID(), false, new ObjectSubscriptionInfo(id,
-                            oldClock, data.clock.clone(), data.pruneClock.clone(), grp));
-                } else {
-                    result = new ExecCRDTResult(true, grp.getTargetUID(), true, new ObjectSubscriptionInfo(id,
-                            oldClock, data.clock.clone(), data.pruneClock.clone(), null));
-                }
-            } else {
-                result = new ExecCRDTResult(true);
-            }
+            ExecCRDTResult result = new ExecCRDTResult(true, grp.getTargetUID(), false, new ObjectSubscriptionInfo(id,
+                    oldClock, data.clock.clone(), data.pruneClock.clone(), grp));
 
             return result;
         } finally {
@@ -514,6 +472,7 @@ class DCDataServer {
             CRDTData<?> data = localGetCRDT(observer, id, subscribe);
             if (data == null)
                 return null;
+
             return new CRDTObject(data, version, cltId, cltClock);
         } finally {
             unlock(id);
@@ -535,11 +494,11 @@ class DCDataServer {
             CRDTData<?> data = this.getDatabaseEntry(id);
             if (data.empty)
                 return null;
-            if (subscribe == SubscriptionType.UPDATES) {
-                data.addObserver(observer);
-            } else if (subscribe == SubscriptionType.NOTIFICATION) {
-                data.addNotifier(observer);
-            }
+            // if (subscribe == SubscriptionType.UPDATES) {
+            // data.addObserver(observer);
+            // } else if (subscribe == SubscriptionType.NOTIFICATION) {
+            // data.addNotifier(observer);
+            // }
             // if (observer instanceof RemoteObserver && subscribe !=
             // SubscriptionType.NONE) {
             // RemoteObserver observerR = (RemoteObserver)observer;
