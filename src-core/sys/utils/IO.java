@@ -16,9 +16,11 @@
  *****************************************************************************/
 package sys.utils;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.Channel;
@@ -28,17 +30,19 @@ public class IO {
     protected IO() {
     };
 
-    public static void close(Socket s) {
+    public static void close(ServerSocket s) {
         try {
-            s.close();
+            if (s != null)
+                s.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public static void close(ServerSocket s) {
+    public static void close(Socket s) {
         try {
-            s.close();
+            if (s != null)
+                s.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -46,7 +50,8 @@ public class IO {
 
     public static void close(InputStream in) {
         try {
-            in.close();
+            if (in != null)
+                in.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -54,7 +59,8 @@ public class IO {
 
     public static void close(OutputStream out) {
         try {
-            out.close();
+            if (out != null)
+                out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -62,9 +68,19 @@ public class IO {
 
     public static void close(Channel ch) {
         try {
-            ch.close();
+            if (ch != null)
+                ch.close();
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    public static void redirect(String stdout, String stderr) {
+        try {
+            System.setOut(new PrintStream(new FileOutputStream(stdout)));
+            System.setErr(new PrintStream(new FileOutputStream(stderr)));
+        } catch (IOException x) {
+            x.printStackTrace();
         }
     }
 }
