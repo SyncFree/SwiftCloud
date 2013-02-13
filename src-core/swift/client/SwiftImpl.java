@@ -380,28 +380,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                final Boolean reply = retryableTaskExecutor.execute(new CallableWithDeadline<Boolean>(false,
-                        deadlineMillis) {
-
-                    public String toString() {
-                        return "LatestKnownClockRequest";
-                    }
-
-                    @Override
-                    protected Boolean callOrFailWithNull() {
-                        localEndpoint.send(serverEndpoint, new LatestKnownClockRequest(scoutId),
-                                new LatestKnownClockReplyHandler() {
-                                    @Override
-                                    public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
-                                        updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
-                                        setResult(true);
-                                    }
-                                }, Math.min(timeoutMillis, getDeadlineLeft()));
-
-                        return super.getResult();
-                    }
-                });
-
+            	 LatestKnownClockReply reply = localEndpoint.request(serverEndpoint,
+                         new LatestKnownClockRequest(scoutId));
+                 if (reply != null) {
+                     updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
+                 }
                 if (reply == null && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     throw new NetworkException("timed out to get transcation snapshot point");
                 }
@@ -524,9 +507,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private synchronized CausalityClock getGlobalCommittedVersion(boolean copy) {
         CausalityClock result;
         if (disasterSafe) {
-            result = committedDisasterDurableVersion;
+            result = this.committedDisasterDurableVersion;
         } else {
-            result = committedVersion;
+            result = this.committedVersion;
         }
 
         if (copy) {
@@ -552,8 +535,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     // Ok, let's try to fetch then.
                 } catch (VersionNotFoundException x) {
                     cacheStats.addCacheMissBizarre(id);
-                    logger.warning("No self-consistent version found in cache: " + x);
-
+                    logger.info("No self-consistent version found in cache: " + x);
                 }
             }
         }
@@ -685,7 +667,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         try {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
         } catch (IllegalStateException x) {
-            // No appropriate version found in the object from the cache.
+        	// No appropriate version found in the object from the cache.
             throw new VersionNotFoundException("Object not available in the cache in appropriate version: "
                     + x.getMessage());
         }
@@ -714,22 +696,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             NetworkException {
         // TODO: When deltas are supported, uncomment this code.
 
-        // final V crdt;
-        // synchronized (this) {
-        // try {
-        // crdt = (V) objectsCache.getWithoutTouch(id);
-        // } catch (ClassCastException x) {
-        // throw new WrongTypeException(x.getMessage());
-        // }
-        // }
-        //
-        // if (crdt == null) {
         fetchObjectFromScratch(txn, id, create, classOfV, globalVersion, strictUnprunedVersion, subscribeUpdates);
-        // } else {
-        // fetchObjectByRefresh(txn, id, create, classOfV, crdt, globalVersion,
-        // strictUnprunedVersion,
-        // subscribeUpdates);
-        // }
     }
 
     @SuppressWarnings("unchecked")
@@ -743,33 +710,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
     }
 
-    // @SuppressWarnings("unchecked")
-    // private <V extends CRDT<V>> void fetchObjectByRefresh(AbstractTxnHandle
-    // txn, CRDTIdentifier id, boolean create,
-    // Class<V> classOfV, V cachedCrdt, CausalityClock version, boolean
-    // strictUnrpunedVersion,
-    // boolean subscribeUpdates) throws NoSuchObjectException,
-    // WrongTypeException, VersionNotFoundException,
-    // NetworkException {
-    // final CausalityClock oldCrdtClock;
-    // synchronized (this) {
-    // oldCrdtClock = cachedCrdt.getClock().clone();
-    // oldCrdtClock.drop(clientId);
-    // assertIsGlobalClock(oldCrdtClock);
-    // }
-    //
-    // // WISHME: we should replace it with deltas or operations list
-    // final SubscriptionType subscriptionType = subscribeUpdates ?
-    // SubscriptionType.UPDATES : SubscriptionType.NONE;
-    // final FetchObjectDeltaRequest fetchRequest = new
-    // FetchObjectDeltaRequest(clientId, id, oldCrdtClock, version,
-    // strictUnrpunedVersion, subscriptionType);
-    // doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
-    // }
-
     private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final AbstractTxnHandle txn,
             final FetchObjectVersionRequest fetchRequest, Class<V> classOfV, boolean create) throws NetworkException,
             NoSuchObjectException, WrongTypeException {
+    	
         synchronized (this) {
             fetchVersionsInProgress.add(fetchRequest.getVersion());
         }
@@ -783,24 +727,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     throw new NetworkException("Deadline exceeded to get appropriate answer from the store;"
                             + "note it may be caused by prior errors");
                 }
-                reply = retryableTaskExecutor.execute(new CallableWithDeadline<FetchObjectVersionReply>(null,
-                        requestDeadline) {
-
-                    public String toString() {
-                        return "FetchObjectVersionRequest";
-                    }
-
-                    @Override
-                    protected FetchObjectVersionReply callOrFailWithNull() {
-                        localEndpoint.send(serverEndpoint, fetchRequest, new FetchObjectVersionReplyHandler() {
-                            @Override
-                            public void onReceive(RpcHandle handle, FetchObjectVersionReply reply) {
-                                setResult(reply);
-                            }
-                        }, Math.min(timeoutMillis, getDeadlineLeft()));
-                        return getResult();
-                    }
-                });
+                reply = localEndpoint.request(serverEndpoint, fetchRequest);
                 if (reply == null) {
                     throw new NetworkException("Fetching object version exceeded the deadline");
                 }
@@ -822,6 +749,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             final FetchObjectVersionRequest request, final FetchObjectVersionReply fetchReply, Class<V> classOfV,
             boolean create) throws NoSuchObjectException, WrongTypeException {
         final V crdt;
+        
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
             if (!create) {
@@ -900,8 +828,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
-            logger.warning("requested object version (" + request.getVersion()
-                    + ") not found in the store, retrying fetch");
+            logger.warning("requested object version not found in the store, retrying fetch");
             return false;
         }
         return true;
@@ -989,6 +916,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         final CRDT crdt = objectsCache.getWithoutTouch(id);
+        
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
             logger.info("cannot apply received updates on object " + id + " as it has been evicted from the cache");
@@ -1018,9 +946,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
         if (logger.isLoggable(Level.INFO)) {
             // TODO: printf usage wouldn't hurt :-)
-            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size() + ";tx="
-                    + (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp())
-                    + ";clttx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + ";vv=" + outputClock
+            logger.info("applying received updates on object " + id + ";num.ops=" + ops.size() + ";tx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestampMapping().getSelectedSystemTimestamp()) + ";clttx=" + (ops.size() == 0 ? "-" : ops.get(0).getTimestamps().get(0)) + ";vv=" + outputClock
                     + ";dep=" + dependencyClock);
         }
 
@@ -1232,12 +1158,12 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     public synchronized void commitTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
         assertRunning();
-
         txn.markLocallyCommitted();
         if (logger.isLoggable(Level.INFO)) {
             logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
         }
         if (requiresGlobalCommit(txn)) {
+        	
             lastLocallyCommittedTxnClock.record(txn.getTimestampMapping().getClientTimestamp());
             for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
                 final CRDTIdentifier id = opsGroup.getTargetUID();
@@ -1307,25 +1233,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     .getUpdatesDependencyClock(), operationsGroups));
         }
 
-        // Commit at server.
-        final BatchCommitUpdatesReply batchReply = retryableTaskExecutor
-                .execute(new CallableWithDeadline<BatchCommitUpdatesReply>(null) {
-                    public String toString() {
-                        return "BatchCommitUpdatesRequest";
-                    }
-
-                    @Override
-                    protected BatchCommitUpdatesReply callOrFailWithNull() {
-                        localEndpoint.send(serverEndpoint, new BatchCommitUpdatesRequest(scoutId, requests),
-                                new BatchCommitUpdatesReplyHandler() {
-                                    @Override
-                                    public void onReceive(RpcHandle conn, BatchCommitUpdatesReply reply) {
-                                        setResult(reply);
-                                    }
-                                }, timeoutMillis);
-                        return super.getResult();
-                    }
-                });
+        BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint, new BatchCommitUpdatesRequest(
+                scoutId, requests));
 
         if (batchReply.getReplies().size() != requests.size()) {
             throw new IllegalStateException("Fatal error: server returned " + batchReply.getReplies().size() + " for "
