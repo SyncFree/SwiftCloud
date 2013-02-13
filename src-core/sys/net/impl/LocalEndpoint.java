@@ -64,17 +64,18 @@ public class LocalEndpoint extends AbstractEndpoint {
     }
 
     private AbstractLocalEndpoint getProvider(TransportProvider providerType, int port) throws IOException {
-        switch (providerType) {
-        case NETTY_IO_WS:
-            return new sys.net.impl.providers.netty.ws.WebSocketEndpoint(this, port);
-        case NETTY_IO_TCP:
-            return new sys.net.impl.providers.netty.tcp.TcpEndpoint(this, port);
-        case NIO_TCP:
-            return new sys.net.impl.providers.nio.TcpEndpoint(this, port);
-        case OIO_TCP:
-            return new sys.net.impl.providers.oio.TcpEndpoint(this, port);
-        default:
-            return getProvider(NetworkingImpl.defaultProvider, port);
-        }
+        // switch (providerType) {
+        // case NETTY_IO_WS:
+        // return new sys.net.impl.providers.netty.ws.WebSocketEndpoint(this,
+        // port);
+        // case NETTY_IO_TCP:
+        // return new sys.net.impl.providers.netty.tcp.TcpEndpoint(this, port);
+        // case NIO_TCP:
+        // return new sys.net.impl.providers.nio.TcpEndpoint(this, port);
+        // case OIO_TCP:
+        return new sys.net.impl.providers.oio.TcpEndpoint(this, port);
+        // default:
+        // return getProvider(NetworkingImpl.defaultProvider, port);
+        // }
     }
 }
