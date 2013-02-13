@@ -27,7 +27,7 @@ public class SwiftOptions {
     public static final int DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED = 50;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
-    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 8 * 1000;
+    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 18 * 1000;
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final int DEFAULT_CACHE_SIZE = 100000;
     public static final int DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE = 2;

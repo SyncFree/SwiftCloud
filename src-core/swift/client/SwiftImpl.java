@@ -19,6 +19,7 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +43,7 @@ import java.util.logging.Logger;
 
 import javax.xml.bind.DatatypeConverter;
 
+import swift.client.LRUObjectsCache.EvictionListener;
 import swift.client.proto.BatchCommitUpdatesReply;
 import swift.client.proto.BatchCommitUpdatesReplyHandler;
 import swift.client.proto.BatchCommitUpdatesRequest;
@@ -95,6 +97,9 @@ import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Implementation of Swift scout and transactions manager. Scout can either
@@ -147,7 +152,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
      */
     public static SwiftSession newSingleSessionInstance(final SwiftOptions options) {
         final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
-                options.getServerHostname(), options.getServerPort()), new TimeSizeBoundedObjectsCache(
+                options.getServerHostname(), options.getServerPort()), new LRUObjectsCache(
                 options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
         return sharedImpl.newSession("singleton-session");
     }
@@ -162,7 +167,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
      */
     public static SwiftScout newMultiSessionInstance(final SwiftOptions options) {
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
-                options.getServerHostname(), options.getServerPort()), new TimeSizeBoundedObjectsCache(
+                options.getServerHostname(), options.getServerPort()), new LRUObjectsCache(
                 options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
     }
 
@@ -183,7 +188,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // Cache of objects.
     // Invariant: if object is in the cache, it includes all updates of locally
     // and globally committed locally-originating transactions.
-    private final TimeSizeBoundedObjectsCache objectsCache;
+    private final LRUObjectsCache objectsCache;
 
     // CLOCKS: all clocks grow over time. Careful with references, use copies.
 
@@ -252,8 +257,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // Maximum number of transactions in a single commit request to the store.
     private final int maxCommitBatchSize;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint,
-            final TimeSizeBoundedObjectsCache objectsCache, final SwiftOptions options) {
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, final LRUObjectsCache objectsCache,
+            final SwiftOptions options) {
         this.scoutId = generateScoutId();
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
@@ -287,6 +292,12 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
+
+        this.objectsCache.setEvictionListener(new EvictionListener() {
+            public void onEviction(CRDTIdentifier id) {
+                // suPubSub.unsubscribe(id, null); WIP
+            }
+        });
 
         TransactionsLog log = new DummyLog();
         if (options.getLogFilename() != null) {
@@ -339,7 +350,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             logger.warning(e.getMessage());
         }
         logger.info("scout stopped");
-        cacheStats.printAndReset();
     }
 
     @Override
@@ -350,6 +360,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     @Override
     public void printAndResetCacheStats() {
         cacheStats.printAndReset();
+        try {
+            Output output = new Output(new FileOutputStream("/dev/null"));
+            KryoLib.kryo().writeObject(output, objectsCache);
+            output.close();
+            System.out.printf("CACHE SIZE: %s KB\n", output.total() >> 10);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public synchronized AbstractTxnHandle beginTxn(String sessionId, IsolationLevel isolationLevel,
@@ -851,7 +869,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 // If clock >= cacheCrdt.clock, it 1) does not make sense to
                 // merge, 2) received version may have different pruneClock,
                 // which could be either helpful or not depending on the case.
-                objectsCache.add(crdt);
+                objectsCache.add(crdt, txn == null ? -1L : txn.id);
                 cacheCRDT = crdt;
             } else {
                 cacheCRDT.merge(crdt);
@@ -1254,7 +1272,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             }
         }
         removePendingTxn(txn);
-        objectsCache.evictOutdated();
+        objectsCache.removeProtection(txn.id);
     }
 
     private void tryReuseTxnTimestamp(AbstractTxnHandle txn) {

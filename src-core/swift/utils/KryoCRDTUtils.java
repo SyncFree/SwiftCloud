@@ -23,14 +23,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import loria.swift.crdt.logoot.Component;
-import loria.swift.crdt.logoot.LogootDelete;
-import loria.swift.crdt.logoot.LogootDocument;
-import loria.swift.crdt.logoot.LogootDocumentWithTombstones;
-import loria.swift.crdt.logoot.LogootIdentifier;
-import loria.swift.crdt.logoot.LogootInsert;
-import loria.swift.crdt.logoot.LogootVersioned;
-import loria.swift.crdt.logoot.RangeList;
 import swift.client.proto.ClientRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
@@ -117,15 +109,17 @@ public class KryoCRDTUtils {
         registerable.register(SetMsg.class, 0x62);
         registerable.register(SetStrings.class, 0x63);
         registerable.register(SetVersioned.class, 0x64);
-        registerable.register(LogootVersioned.class, 0x65);
-        registerable.register(LogootDocument.class, 0x66);
-        registerable.register(LogootDocumentWithTombstones.class, 0x67);
-        registerable.register(Component.class, 0x68);
-        registerable.register(LogootIdentifier.class, 0x69);
-        registerable.register(RangeList.class, 0x6A);
-        registerable.register(LogootInsert.class, 0x6B);
-        registerable.register(LogootDelete.class, 0x6C);
         registerable.register(IntegerVersioned.class, 0x6D);
+
+        // This should be moved to the Logoot package
+        // registerable.register(LogootVersioned.class, 0x65);
+        // registerable.register(LogootDocument.class, 0x66);
+        // registerable.register(LogootDocumentWithTombstones.class, 0x67);
+        // registerable.register(Component.class, 0x68);
+        // registerable.register(LogootIdentifier.class, 0x69);
+        // registerable.register(RangeList.class, 0x6A);
+        // registerable.register(LogootInsert.class, 0x6B);
+        // registerable.register(LogootDelete.class, 0x6C);
 
         registerable.register(ClientRequest.class, 0x70);
         registerable.register(CommitUpdatesRequest.class, 0x71);

@@ -39,6 +39,7 @@ public interface SwiftScout {
      * @param waitForCommit
      *            when true, this call blocks until all locally committed
      *            transactions commit globally in the store
+     * 
      */
     void stop(boolean waitForCommit);
 
