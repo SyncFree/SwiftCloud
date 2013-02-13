@@ -67,5 +67,4 @@ public interface BaseServer extends RpcHandler {
      *            request to serve
      */
     void onReceive(RpcHandle conn, SeqCommitUpdatesRequest request);
-
 }

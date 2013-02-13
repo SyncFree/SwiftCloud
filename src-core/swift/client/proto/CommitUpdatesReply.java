@@ -64,6 +64,7 @@ public class CommitUpdatesReply implements RpcMessage {
     public CommitUpdatesReply(CausalityClock commitClock, Timestamp... systemTimestamps) {
         this.status = CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS;
         this.commitTimestamps = new LinkedList<Timestamp>(Arrays.asList(systemTimestamps));
+        this.commitClock = commitClock;
     }
 
     /**
@@ -113,5 +114,10 @@ public class CommitUpdatesReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((CommitUpdatesReplyHandler) handler).onReceive(conn, this);
+    }
+
+    // DEBUG smd
+    public String toString() {
+        return commitClock + "--->timestamps:" + commitTimestamps;
     }
 }

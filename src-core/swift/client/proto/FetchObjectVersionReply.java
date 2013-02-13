@@ -64,6 +64,7 @@ public class FetchObjectVersionReply implements RpcMessage {
         this.pruneClock = pruneClock;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
+        this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
     }
 
     /**
@@ -121,6 +122,6 @@ public class FetchObjectVersionReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((FetchObjectVersionReplyHandler) handler).onReceive(conn, this);
+        // ((FetchObjectVersionReplyHandler) handler).onReceive(conn, this);
     }
 }

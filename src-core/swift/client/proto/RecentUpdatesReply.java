@@ -105,6 +105,7 @@ public class RecentUpdatesReply implements RpcMessage {
         this.clock = clock;
         this.estimatedCommittedVersion = estimatedCommittedVersion;
         this.estimatedDistasterDurableCommittedVersion = estimatedDistasterDurableCommittedVersion;
+        this.estimatedDistasterDurableCommittedVersion.intersect(estimatedCommittedVersion);
     }
 
     /**

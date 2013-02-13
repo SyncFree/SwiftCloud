@@ -39,6 +39,7 @@ public class LatestKnownClockReply implements RpcMessage {
     public LatestKnownClockReply(final CausalityClock clock, final CausalityClock disasterDurableClock) {
         this.clock = clock;
         this.disasterDurableClock = disasterDurableClock;
+        this.disasterDurableClock.intersect(clock);
     }
 
     /**
@@ -60,6 +61,6 @@ public class LatestKnownClockReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((LatestKnownClockReplyHandler) handler).onReceive(conn, this);
+        // smd ((LatestKnownClockReplyHandler) handler).onReceive(conn, this);
     }
 }

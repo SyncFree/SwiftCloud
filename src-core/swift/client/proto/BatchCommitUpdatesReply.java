@@ -37,7 +37,7 @@ public class BatchCommitUpdatesReply implements RpcMessage {
     /**
      * FAKE CONSTRUCTOR ONLY FOR Kryo!
      */
-    public BatchCommitUpdatesReply() {
+    BatchCommitUpdatesReply() {
     }
 
     /**
@@ -59,6 +59,6 @@ public class BatchCommitUpdatesReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((BatchCommitUpdatesReplyHandler) handler).onReceive(conn, this);
+        // ((BatchCommitUpdatesReplyHandler) handler).onReceive(conn, this);
     }
 }
