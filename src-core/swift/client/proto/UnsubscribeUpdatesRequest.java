@@ -16,6 +16,9 @@
  *****************************************************************************/
 package swift.client.proto;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import swift.crdt.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
@@ -26,7 +29,7 @@ import sys.net.api.rpc.RpcHandler;
  * @author mzawirski
  */
 public class UnsubscribeUpdatesRequest extends ClientRequest {
-    protected CRDTIdentifier uid;
+    protected Set<CRDTIdentifier> uids;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -36,14 +39,20 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
 
     public UnsubscribeUpdatesRequest(String clientId, CRDTIdentifier uid) {
         super(clientId);
-        this.uid = uid;
+        this.uids = new HashSet<CRDTIdentifier>();
+        this.uids.add(uid);
+    }
+
+    public UnsubscribeUpdatesRequest(String clientId, Set<CRDTIdentifier> uids) {
+        super(clientId);
+        this.uids = uids;
     }
 
     /**
      * @return object id to unsubscribe
      */
-    public CRDTIdentifier getUid() {
-        return uid;
+    public Set<CRDTIdentifier> getUids() {
+        return uids;
     }
 
     @Override

@@ -37,7 +37,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -45,7 +45,6 @@ import javax.xml.bind.DatatypeConverter;
 
 import swift.client.LRUObjectsCache.EvictionListener;
 import swift.client.proto.BatchCommitUpdatesReply;
-import swift.client.proto.BatchCommitUpdatesReplyHandler;
 import swift.client.proto.BatchCommitUpdatesRequest;
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesRequest;
@@ -56,13 +55,12 @@ import swift.client.proto.FastRecentUpdatesReplyHandler;
 import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectVersionReply;
 import swift.client.proto.FetchObjectVersionReply.FetchStatus;
-import swift.client.proto.FetchObjectVersionReplyHandler;
 import swift.client.proto.FetchObjectVersionRequest;
 import swift.client.proto.LatestKnownClockReply;
-import swift.client.proto.LatestKnownClockReplyHandler;
 import swift.client.proto.LatestKnownClockRequest;
 import swift.client.proto.SubscriptionType;
 import swift.client.proto.UnsubscribeUpdatesRequest;
+import swift.client.pubsub.ScoutPubSubService;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
@@ -88,9 +86,7 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
-import swift.utils.CallableWithDeadline;
 import swift.utils.DummyLog;
-import swift.utils.ExponentialBackoffTaskExecutor;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
 import swift.utils.TransactionsLog;
@@ -98,6 +94,8 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.impl.KryoLib;
+import sys.utils.FifoQueue;
+import sys.utils.Threading;
 
 import com.esotericsoftware.kryo.io.Output;
 
@@ -233,7 +231,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
     private final ExecutorService notificationsSubscriberExecutor;
-    private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
     private final TransactionsLog durableLog;
     private final CacheStats cacheStats;
@@ -256,6 +253,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final int maxAsyncTransactionsQueued;
     // Maximum number of transactions in a single commit request to the store.
     private final int maxCommitBatchSize;
+
+    private final ScoutPubSubService suPubSub;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, final LRUObjectsCache objectsCache,
             final SwiftOptions options) {
@@ -280,22 +279,24 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
                 new IncrementalTimestampGenerator(scoutId));
-        this.retryableTaskExecutor = new ExponentialBackoffTaskExecutor("client->server request",
-                INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
+        
         this.pendingTxns = new HashSet<AbstractTxnHandle>();
         this.committerThread = new CommitterThread();
         this.fetchVersionsInProgress = new HashSet<CausalityClock>();
         this.committerThread.start();
         this.objectSessionsUpdateSubscriptions = new HashMap<CRDTIdentifier, Map<String, UpdateSubscriptionWithListener>>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
-        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
-        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize());
+        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize(),
+                Threading.factory("notifcatios"));
+        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize(),
+                Threading.factory("notifcatios"));
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
 
+        this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint);
         this.objectsCache.setEvictionListener(new EvictionListener() {
             public void onEviction(CRDTIdentifier id) {
-                // suPubSub.unsubscribe(id, null); WIP
+                suPubSub.unsubscribe(id, null);
             }
         });
 
@@ -454,7 +455,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // No changes.
             return;
         }
-
+        
         // Find and clean new stable local txns logs that we won't need anymore.
         int stableTxnsToDiscard = 0;
         int evaluatedTxns = 0;
@@ -659,6 +660,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
             // Check if such a recent version is available in the cache. If not,
             // take the intersection of the clocks.
+
             clock.intersect(crdt.getClock());
             // TODO: Discuss. This is a very aggressive caching mode.
         }
@@ -667,6 +669,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         try {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
         } catch (IllegalStateException x) {
+
             // No appropriate version found in the object from the cache.
             throw new VersionNotFoundException("Object not available in the cache in appropriate version: "
                     + x.getMessage());
@@ -852,52 +855,74 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     }
 
     private void fetchSubscribedNotifications() {
-        final AtomicReference<FastRecentUpdatesReply> replyRef = new AtomicReference<FastRecentUpdatesReply>();
-        localEndpoint.send(serverEndpoint,
-                new FastRecentUpdatesRequest(scoutId, Math.max(0, notificationTimeoutMillis - timeoutMillis)),
-                new FastRecentUpdatesReplyHandler() {
-                    @Override
-                    public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
-                        replyRef.set(reply);
-                    }
-                }, notificationTimeoutMillis);
-        final FastRecentUpdatesReply notifications = replyRef.get();
-        if (notifications == null) {
-            logger.warning("server did not reply with recent update notifications");
-            return;
-        }
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects" + ";vrs="
-                    + notifications.getEstimatedCommittedVersion() + ";stable="
-                    + notifications.getEstimatedDisasterDurableCommittedVersion());
-            if (notifications.getSubscriptions().size() > 0) {
-                ObjectSubscriptionInfo sub = notifications.getSubscriptions().get(0);
-                logger.info("notifications received in " + scoutId + " for " + sub.getId() + "; old clk: "
-                        + sub.getOldClock() + "; new clk " + sub.getNewClock());
-            }
-        }
 
-        updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
-                notifications.getEstimatedDisasterDurableCommittedVersion());
-        if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
-            // Process notifications.
-            for (final ObjectSubscriptionInfo subscriptionInfo : notifications.getSubscriptions()) {
-                if (subscriptionInfo.isDirty() && subscriptionInfo.getUpdates().isEmpty()) {
-                    logger.warning("unexpected server notification information without update");
+        final AtomicLong T0 = new AtomicLong(System.currentTimeMillis());
+
+        final FifoQueue<FastRecentUpdatesReply> notificationsQueue = new FifoQueue<FastRecentUpdatesReply>() {
+            public void process(FastRecentUpdatesReply notifications) {
+                // System.err.println(scoutId + "----------------->" +
+                // notifications.seqN + "/#"
+                // + notifications.getSubscriptions().size());
+
+                T0.set(System.currentTimeMillis());
+
+                if (logger.isLoggable(Level.INFO)) {
+                    // System.err.println(sys.Sys.Sys.mainClass +
+                    // " notifications received for " +
+                    // notifications.getSubscriptions().size() + " objects" +
+                    // ";vrs=" +
+                    // notifications.getEstimatedCommittedVersion() + ";stable="
+                    // +
+                    // notifications.getEstimatedDisasterDurableCommittedVersion());
+
+                    logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects"
+                            + ";vrs=" + notifications.getEstimatedCommittedVersion() + ";stable="
+                            + notifications.getEstimatedDisasterDurableCommittedVersion());
+
+                    if (notifications.getSubscriptions().size() > 0) {
+                        ObjectSubscriptionInfo sub = notifications.getSubscriptions().get(0);
+                        logger.info("notifications received in " + scoutId + " for " + sub.getId() + "; old clk: "
+                                + sub.getOldClock() + "; new clk " + sub.getNewClock());
+                    }
+                }
+
+                updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
+                        notifications.getEstimatedDisasterDurableCommittedVersion());
+
+                if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
+                    // Process notifications.
+                    for (final ObjectSubscriptionInfo subscriptionInfo : notifications.getSubscriptions()) {
+                        if (subscriptionInfo.isDirty() && subscriptionInfo.getUpdates().isEmpty()) {
+                            logger.warning("unexpected server notification information without update");
+                        } else {
+                            applyObjectUpdates(subscriptionInfo.getId(), subscriptionInfo.getOldClock(),
+                                    subscriptionInfo.getUpdates(), subscriptionInfo.getNewClock(),
+                                    subscriptionInfo.getPruneClock());
+                        }
+                    }
                 } else {
-                    applyObjectUpdates(subscriptionInfo.getId(), subscriptionInfo.getOldClock(),
-                            subscriptionInfo.getUpdates(), subscriptionInfo.getNewClock(),
-                            subscriptionInfo.getPruneClock());
+                    // Renew lost subscriptions.
+                    // synchronized (this) {
+                    // for (final CRDTIdentifier id :
+                    // objectSessionsUpdateSubscriptions.keySet()) {
+                    // asyncFetchAndSubscribeObjectUpdates(id);
+                    // }
+                    // }
                 }
             }
-        } else {
-            // Renew lost subscriptions.
-            synchronized (this) {
-                for (final CRDTIdentifier id : objectSessionsUpdateSubscriptions.keySet()) {
-                    asyncFetchAndSubscribeObjectUpdates(id);
-                }
+        };
+        RpcHandle handle = localEndpoint.send(serverEndpoint, new FastRecentUpdatesRequest(scoutId,
+                notificationTimeoutMillis / 2), new FastRecentUpdatesReplyHandler() {
+            @Override
+            public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
+                notificationsQueue.offer(reply.seqN, reply);
             }
-        }
+        }, 0);
+        handle.enableDeferredReplies(5 * notificationTimeoutMillis);
+        while (System.currentTimeMillis() - T0.get() < 5 * notificationTimeoutMillis)
+            Threading.sleep(100);
+
+        logger.warning(scoutId + "- server did not reply with recent update notifications");
     }
 
     /**
@@ -1418,7 +1443,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
     private class NotoficationsProcessorThread extends Thread {
         public NotoficationsProcessorThread() {
-            super("SwiftNotificationsProcessorThread");
+            super(Thread.currentThread().getName() + ".SwiftNotificationsProcessorThread");
             setDaemon(true);
         }
 
@@ -1474,4 +1499,5 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             };
         }
     }
+
 }

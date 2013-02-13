@@ -27,7 +27,7 @@ import sys.net.api.rpc.RpcFactory;
 import sys.net.api.rpc.RpcHandle;
 import sys.pubsub.PubSub;
 
-public class PubSubService<K, P> extends PubSub<K, P> {
+public class PubSubService<K, P> implements PubSub<K, P> {
 
     private int pubSubId;
     private RpcEndpoint svc;
@@ -55,9 +55,9 @@ public class PubSubService<K, P> extends PubSub<K, P> {
         svc = factory.toService(pubSubId, new PubSubRpcHandler<K, P>() {
             @Override
             public void onReceive(RpcHandle conn, PubSubNotification<K, P> m) {
-                conn.reply(new PubSubAck(localSubscribers(m.key, false).size()));
-                for (Handler<K, P> i : localSubscribers(m.key, true)) {
-                    i.notify(m.key, m.info);
+                conn.reply(new PubSubAck(localSubscribers(m.keys, false).size()));
+                for (Handler<K, P> i : localSubscribers(m.keys, true)) {
+                    i.notify(m.keys, m.info);
                 }
             }
         });
@@ -87,6 +87,27 @@ public class PubSubService<K, P> extends PubSub<K, P> {
         }
     }
 
+    public void publish(final Set<K> keys, final P info) {
+
+        for (Endpoint i : remoteSubscribers(keys, true)) {
+            svc.send(i, new PubSubNotification<K, P>(keys, info), new PubSubRpcHandler<K, P>() {
+                public void onFailure(RpcHandle handle) {
+                    removeRemoteSubscriber(keys, handle.remoteEndpoint());
+                }
+
+                public void onReceive(final RpcHandle handle, final PubSubAck ack) {
+                    if (ack.totalSubscribers() <= 0) {
+                        removeRemoteSubscriber(keys, handle.remoteEndpoint());
+                    }
+                }
+            }, 0);
+        }
+
+        for (Handler<K, P> i : localSubscribers(keys, true)) {
+            i.notify(keys, info);
+        }
+    }
+
     synchronized public void addRemoteSubscriber(K key, Endpoint subscriber) {
         // System.err.printf("Adding Remote :%s, %s\n", key, subscriber );
         remoteSubscribers(key, false).add(subscriber);
@@ -96,8 +117,12 @@ public class PubSubService<K, P> extends PubSub<K, P> {
         remoteSubscribers(key, false).remove(subscriber);
     }
 
+    synchronized void removeRemoteSubscriber(Set<K> keys, Endpoint subscriber) {
+        for (K i : keys)
+            remoteSubscribers(i, false).remove(subscriber);
+    }
+
     synchronized public void subscribe(K key, Handler<K, P> handler) {
-        // System.err.printf("Adding Local :%s, %s\n", key, handler );
         localSubscribers(key, false).add(handler);
     }
 
@@ -117,5 +142,21 @@ public class PubSubService<K, P> extends PubSub<K, P> {
         if (res == null)
             remoteSubscribers.put(key, res = new HashSet<Endpoint>());
         return clone ? new HashSet<Endpoint>(res) : res;
+    }
+
+    synchronized private Set<Handler<K, P>> localSubscribers(Set<K> keys, boolean clone) {
+        Set<Handler<K, P>> res = new HashSet<Handler<K, P>>();
+        for (K i : keys)
+            res.addAll(localSubscribers(i, clone));
+
+        return res;
+    }
+
+    synchronized private Set<Endpoint> remoteSubscribers(Set<K> keys, boolean clone) {
+        Set<Endpoint> res = new HashSet<Endpoint>();
+        for (K i : keys)
+            res.addAll(remoteSubscribers(i, clone));
+
+        return res;
     }
 }

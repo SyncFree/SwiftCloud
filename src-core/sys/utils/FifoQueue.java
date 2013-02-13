@@ -14,43 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.pubsub.impl;
+package sys.utils;
 
-import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
-/**
- * 
- * Convenience class to interface the pubsub system with the rpc system...
- * 
- * @author smduarte
- * 
- * @param <K>
- * @param <P>
- */
-public class PubSubRpcHandler<K, P> implements RpcHandler {
+public class FifoQueue<T> {
+    Long nextKey = -1L;
 
-    @Override
-    public void onReceive(RpcMessage m) {
-        Thread.dumpStack();
+    SortedMap<Long, T> queue = new TreeMap<Long, T>();
+
+    synchronized public void offer(long seqN, T val) {
+        if (nextKey < 0L)
+            nextKey = seqN;
+
+        queue.put(seqN, val);
+
+        Long headKey;
+        while (queue.size() > 0 && (headKey = queue.firstKey()).longValue() == nextKey) {
+            process(queue.remove(headKey));
+            nextKey++;
+        }
     }
 
-    @Override
-    public void onFailure(RpcHandle handle) {
-        Thread.dumpStack();
-    }
-
-    @Override
-    public void onReceive(RpcHandle conn, RpcMessage m) {
-        Thread.dumpStack();
-    }
-
-    public void onReceive(RpcHandle conn, PubSubAck m) {
-        Thread.dumpStack();
-    }
-
-    public void onReceive(RpcHandle conn, PubSubNotification<K, P> m) {
-        Thread.dumpStack();
+    public void process(T val) {
     }
 }

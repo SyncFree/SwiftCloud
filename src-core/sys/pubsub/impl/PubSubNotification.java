@@ -16,26 +16,35 @@
  *****************************************************************************/
 package sys.pubsub.impl;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
 public class PubSubNotification<K, P> implements RpcMessage {
 
-    K key;
+    Set<K> keys;
     P info;
 
     // for kryo
     PubSubNotification() {
     }
 
-    PubSubNotification(K key, P info) {
-        this.key = key;
+    PubSubNotification(Set<K> keys, P info) {
+        this.keys = keys;
         this.info = info;
     }
 
-    public K key() {
-        return key;
+    PubSubNotification(K key, P info) {
+        this.keys = new HashSet<K>();
+        this.info = info;
+        this.keys.add(key);
+    }
+
+    public Set<K> keys() {
+        return keys;
     }
 
     public P info() {
@@ -44,7 +53,6 @@ public class PubSubNotification<K, P> implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((PubSubRpcHandler) handler).onReceive(conn, this);
+        ((PubSubRpcHandler<?, ?>) handler).onReceive(conn, this);
     }
-
 }

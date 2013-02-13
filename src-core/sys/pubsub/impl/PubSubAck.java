@@ -37,7 +37,7 @@ public class PubSubAck implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((PubSubRpcHandler) handler).onReceive(conn, this);
+        ((PubSubRpcHandler<?, ?>) handler).onReceive(conn, this);
     }
 
 }
