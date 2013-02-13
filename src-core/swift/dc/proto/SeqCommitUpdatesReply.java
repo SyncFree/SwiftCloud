@@ -35,11 +35,12 @@ public class SeqCommitUpdatesReply implements RpcMessage {
     protected CausalityClock dcKnownClock; // known operations at given data
                                            // center
 
+    public long serial;
+
     /**
-     * Fake constructor for Kryo serialization. Do NOT use. REMARK: smd, however
-     * it is being used by the sequencer????
+     * Fake constructor for Kryo serialization. Do NOT use.
      */
-    public SeqCommitUpdatesReply() {
+    SeqCommitUpdatesReply() {
     }
 
     public SeqCommitUpdatesReply(String dcName, CausalityClock dcClock, CausalityClock stableClock,
@@ -48,6 +49,15 @@ public class SeqCommitUpdatesReply implements RpcMessage {
         this.dcClock = dcClock;
         this.dcStableClock = stableClock;
         this.dcKnownClock = knownClock;
+    }
+
+    public SeqCommitUpdatesReply(String dcName, CausalityClock dcClock, CausalityClock stableClock,
+            CausalityClock knownClock, long serial) {
+        this.dcName = dcName;
+        this.dcClock = dcClock;
+        this.dcStableClock = stableClock;
+        this.dcKnownClock = knownClock;
+        this.serial = serial;
     }
 
     /**

@@ -42,7 +42,7 @@ public class CommitTSReply implements RpcMessage {
     protected CausalityClock currVersion;
     protected CausalityClock stableVersion;
 
-    public CommitTSReply() {
+    CommitTSReply() {
     }
 
     public CommitTSReply(CommitTSStatus status, CausalityClock currVersion, CausalityClock stableVersion) {
@@ -75,6 +75,6 @@ public class CommitTSReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        ((CommitTSReplyHandler) handler).onReceive(conn, this);
+        // ((CommitTSReplyHandler) handler).onReceive(conn, this);
     }
 }

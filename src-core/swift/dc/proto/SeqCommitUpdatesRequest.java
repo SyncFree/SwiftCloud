@@ -46,6 +46,8 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
     CausalityClock dcNotUsed;
     public transient long lastSent;
 
+    public long serial; // smd debug
+
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
@@ -62,6 +64,20 @@ public class SeqCommitUpdatesRequest implements RpcMessage {
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
         this.dcReceived = dcReceived;
         this.dcNotUsed = dcNotUsed;
+    }
+
+    // smd debug
+    public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp,
+            final Timestamp prvCltTimestamp, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
+            CausalityClock dcReceived, CausalityClock dcNotUsed, long serial) {
+        this.dcName = dcName;
+        this.timestamp = timestamp;
+        this.cltTimestamp = cltTimestamp;
+        this.prvCltTimestamp = prvCltTimestamp;
+        this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
+        this.dcReceived = dcReceived;
+        this.dcNotUsed = dcNotUsed;
+        this.serial = serial;
     }
 
     /**
