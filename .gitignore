@@ -4,3 +4,5 @@ org.eclipse.jdt.internal.junit.runner.RemoteTestRunner@*stats.xml
 planetlab-key*
 swiftcloud.pub
 swiftcloud.pem
+/swiftsocial-test.props
+/stuff
