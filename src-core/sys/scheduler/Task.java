@@ -31,7 +31,7 @@ import static sys.scheduler.VT_Scheduler.Scheduler;
  * Tasks can be cancelled to prevent them from executing.
  * 
  * 
- * @author Sérgio Duarte (smd@fct.unl.pt)
+ * @author smduarte (smd@fct.unl.pt)
  * 
  */
 public class Task implements Comparable<Task> {

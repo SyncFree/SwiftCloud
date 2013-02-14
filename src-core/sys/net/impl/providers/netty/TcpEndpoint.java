@@ -14,14 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.net.impl.providers.netty.tcp;
+package sys.net.impl.providers.netty;
 
 import static sys.Sys.Sys;
+import static sys.net.impl.NetworkingConstants.NETTY_CONNECTION_TIMEOUT;
 import static sys.net.impl.NetworkingConstants.NETTY_CORE_THREADS;
 import static sys.net.impl.NetworkingConstants.NETTY_MAX_MEMORY_PER_CHANNEL;
 import static sys.net.impl.NetworkingConstants.NETTY_MAX_TOTAL_MEMORY;
 import static sys.net.impl.NetworkingConstants.NETTY_WRITEBUFFER_DEFAULTSIZE;
-import static sys.net.impl.NetworkingConstants.TCP_CONNECTION_TIMEOUT;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -100,7 +100,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
             bootstrap.setOption("child.tcpNoDelay", true);
             bootstrap.setOption("child.keepAlive", true);
             bootstrap.setOption("child.reuseAddress", true);
-            bootstrap.setOption("child.connectTimeoutMillis", TCP_CONNECTION_TIMEOUT);
+            bootstrap.setOption("child.connectTimeoutMillis", NETTY_CONNECTION_TIMEOUT);
 
             Channel ch = bootstrap.bind(new InetSocketAddress(tcpPort));
             super.setSocketAddress(((InetSocketAddress) ch.getLocalAddress()).getPort());

@@ -16,6 +16,9 @@
  *****************************************************************************/
 package swift.crdt.interfaces;
 
+import java.util.Map;
+import java.util.Set;
+
 import swift.client.CommitListener;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
@@ -193,4 +196,22 @@ public interface TxnHandle {
      *            initial empty state of an object
      */
     <V extends CRDT<V>> void registerObjectCreation(final CRDTIdentifier id, V creationState);
+
+    /**
+     * Performs a bulk get, by invoking get() concurrently for the given set of
+     * CRDTidentifers.
+     * 
+     * @param ids
+     *            The set of CRDTIdentifiers to obtain
+     * @param readOnly
+     *            read only flag for the objects being retrieved
+     * 
+     * @param timeout
+     *            maximum time allowed for the operation to return
+     * @param listener
+     *            An handler to monitor progress
+     * @return map containing the result. null entries denote failed retrievals;
+     */
+    Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(final Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
+            final BulkGetProgressListener listener);
 }

@@ -52,19 +52,31 @@ public class FetchObjectVersionReply implements RpcMessage {
     protected CausalityClock estimatedLatestKnownClock;
     protected CausalityClock estimatedDisasterDurableLatestKnownClock;
 
+    public long timestamp;
+    public int stableReadMissedUpdates;
+    public int stableReadLatency;
+    public long serverTimestamp = System.currentTimeMillis();
+
     // Fake constructor for Kryo serialization. Do NOT use.
     FetchObjectVersionReply() {
     }
 
     public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
-            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock) {
-        this.status = status;
+            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock, long ts,
+            int mu, int lat) {
+
         this.crdt = crdt;
+        this.status = status;
         this.version = version;
         this.pruneClock = pruneClock;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
+
+        // EVALUATION
+        this.timestamp = ts;
+        this.stableReadLatency = lat;
+        this.stableReadMissedUpdates = mu;
     }
 
     /**
@@ -102,6 +114,7 @@ public class FetchObjectVersionReply implements RpcMessage {
      */
     public CausalityClock getPruneClock() {
         return pruneClock;
+
     }
 
     /**
@@ -123,5 +136,9 @@ public class FetchObjectVersionReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         // ((FetchObjectVersionReplyHandler) handler).onReceive(conn, this);
+    }
+
+    public long rtt() {
+        return sys.Sys.Sys.timeMillis() - this.timestamp;
     }
 }

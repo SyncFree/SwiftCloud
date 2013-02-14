@@ -92,6 +92,7 @@ public class KryoCRDTUtils {
     }
 
     public static void registerCRDTClasses(Registerable registerable) {
+
         // FIXME: remove dependency from src-core to src-app!
 
         registerable.register(Timestamp.class, 0x50);
@@ -109,9 +110,6 @@ public class KryoCRDTUtils {
         registerable.register(SetMsg.class, 0x62);
         registerable.register(SetStrings.class, 0x63);
         registerable.register(SetVersioned.class, 0x64);
-        registerable.register(IntegerVersioned.class, 0x6D);
-
-        // This should be moved to the Logoot package
         // registerable.register(LogootVersioned.class, 0x65);
         // registerable.register(LogootDocument.class, 0x66);
         // registerable.register(LogootDocumentWithTombstones.class, 0x67);
@@ -120,6 +118,7 @@ public class KryoCRDTUtils {
         // registerable.register(RangeList.class, 0x6A);
         // registerable.register(LogootInsert.class, 0x6B);
         // registerable.register(LogootDelete.class, 0x6C);
+        registerable.register(IntegerVersioned.class, 0x6D);
 
         registerable.register(ClientRequest.class, 0x70);
         registerable.register(CommitUpdatesRequest.class, 0x71);

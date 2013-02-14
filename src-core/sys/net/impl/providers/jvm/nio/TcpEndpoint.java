@@ -14,15 +14,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.net.impl.providers.oio;
+package sys.net.impl.providers.jvm.nio;
 
 import static sys.Sys.Sys;
+import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_CLT_MAXSIZE;
+import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_SRV_MAXSIZE;
 import static sys.net.impl.NetworkingConstants.TCP_CONNECTION_TIMEOUT;
 
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -32,40 +34,42 @@ import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.FailedTransportConnection;
-import sys.net.impl.KryoLib;
 import sys.net.impl.providers.AbstractTransport;
-import sys.net.impl.providers.BufferPool;
 import sys.net.impl.providers.InitiatorInfo;
-import sys.net.impl.providers.KryoBuffer;
 import sys.net.impl.providers.RemoteEndpointUpdater;
+import sys.net.impl.providers.jvm.BufferPool;
+import sys.net.impl.providers.jvm.KryoBuffer;
 import sys.utils.IO;
 import sys.utils.Threading;
 
 import com.esotericsoftware.kryo.KryoException;
-import com.esotericsoftware.kryo.io.Input;
 
 final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable {
 
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-    ServerSocket ss;
-    BufferPool bufferPool = new BufferPool();
+    ServerSocketChannel ssc;
+    BufferPool bufferPool;
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
         this.gid = Sys.rg.nextLong() >>> 1;
 
         if (tcpPort >= 0) {
-            ss = new ServerSocket(tcpPort);
-        }
-        super.setSocketAddress(ss == null ? 0 : ss.getLocalPort());
+            ssc = ServerSocketChannel.open();
+            ssc.socket().bind(new InetSocketAddress(tcpPort));
+            bufferPool = new BufferPool(KRYOBUFFERPOOL_SRV_MAXSIZE);
+        } else
+            bufferPool = new BufferPool(KRYOBUFFERPOOL_CLT_MAXSIZE);
+
+        super.setSocketAddress(ssc == null ? 0 : ssc.socket().getLocalPort());
     }
 
     public void start() throws IOException {
 
         handler = localEndpoint.getHandler();
 
-        if (ss != null)
+        if (ssc != null)
             Threading.newThread("accept", true, this).start();
     }
 
@@ -88,22 +92,21 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         try {
             Log.finest("Bound to: " + this);
             for (;;) {
-                Socket cs = ss.accept();
-                configureChannel(cs);
-                new IncomingConnection(cs);
+                SocketChannel channel = ssc.accept();
+                configureChannel(channel);
+                new IncomingConnection(channel);
             }
         } catch (Exception x) {
             Log.log(Level.SEVERE, "Unexpected error in incoming endpoint: " + localEndpoint, x);
-        } finally {
-            IO.close(ss);
         }
+        IO.close(ssc);
     }
 
-    static void configureChannel(Socket cs) {
+    static void configureChannel(SocketChannel ch) {
         try {
-            cs.setTcpNoDelay(true);
-            cs.setReceiveBufferSize(1 << 20);
-            cs.setSendBufferSize(1500);
+            ch.socket().setTcpNoDelay(true);
+            ch.socket().setReceiveBufferSize(1 << 20);
+            ch.socket().setSendBufferSize(1500);
         } catch (Exception x) {
             x.printStackTrace();
         }
@@ -113,9 +116,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
         String type;
         Throwable cause;
-        Socket socket;
-        Input in;
-        OutputStream os;
+        SocketChannel channel;
 
         public AbstractConnection() throws IOException {
             super(localEndpoint, null);
@@ -123,34 +124,42 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
         @Override
         final public void run() {
+
+            KryoBuffer inBuf = null;
             try {
                 for (;;) {
-                    int size = in.readInt() + 4;
-                    Message msg = (Message) KryoLib.kryo().readClassAndObject(in);
-                    if (msg != null) {
-                        Sys.downloadedBytes.addAndGet(size);
-                        incomingBytesCounter.addAndGet(size);
-                        msg.deliverTo(this, TcpEndpoint.this.handler);
+                    try {
+                        inBuf = bufferPool.poll();
+
+                        Message msg = inBuf.readFrom(channel);
+
+                        if (msg != null) {
+                            Sys.downloadedBytes.addAndGet(msg.getSize());
+                            incomingBytesCounter.addAndGet(msg.getSize());
+                            msg.deliverTo(this, TcpEndpoint.this.handler);
+                        }
+                    } catch (Exception x) {
+                        x.printStackTrace();
+                    } finally {
+                        bufferPool.offer(inBuf);
                     }
                 }
             } catch (Throwable t) {
-
                 // t.printStackTrace();
                 Log.log(Level.FINEST, "Exception in connection to: " + remote, t);
                 cause = t;
                 handler.onFailure(this);
             }
             isBroken = true;
-            IO.close(socket);
+            IO.close(channel);
             Log.fine("Closed connection to: " + remote);
         }
 
         final public boolean send(final Message msg) {
-
             try {
                 KryoBuffer outBuf = bufferPool.poll();
                 try {
-                    int msgSize = outBuf.writeClassAndObject(msg, os);
+                    int msgSize = outBuf.writeClassAndObject(msg, channel);
                     Sys.uploadedBytes.getAndAdd(msgSize);
                     outgoingBytesCounter.getAndAdd(msgSize);
                     msg.setSize(msgSize);
@@ -168,7 +177,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
                 cause = t;
                 isBroken = true;
-                IO.close(socket);
+                IO.close(channel);
                 handler.onFailure(this);
             }
             return false;
@@ -180,7 +189,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         }
 
         public String toString() {
-            return String.format("%s (%s->%s)", type, socket.getLocalPort(), socket.getRemoteSocketAddress());
+            return String.format("%s (%s->%s)", type, channel.socket().getLocalPort(), channel.socket()
+                    .getRemoteSocketAddress());
         }
 
         public void setOption(String op, Object val) {
@@ -192,18 +202,16 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         }
     }
 
-    final class IncomingConnection extends AbstractConnection {
+    class IncomingConnection extends AbstractConnection {
 
-        public IncomingConnection(Socket socket) throws IOException {
-            super.socket = socket;
+        public IncomingConnection(SocketChannel channel) throws IOException {
+            super.channel = channel;
             super.type = "in";
-            os = socket.getOutputStream();
-            in = new Input(socket.getInputStream());
             Threading.newThread("incoming-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
         }
     }
 
-    final class OutgoingConnection extends AbstractConnection implements Runnable {
+    class OutgoingConnection extends AbstractConnection implements Runnable {
 
         public OutgoingConnection(Endpoint remote) throws IOException {
             super.setRemoteEndpoint(remote);
@@ -213,15 +221,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
         void init() throws IOException {
             try {
-                socket = new Socket();
-                socket.connect(((AbstractEndpoint) remote).sockAddress(), TCP_CONNECTION_TIMEOUT);
-                configureChannel(socket);
-                os = socket.getOutputStream();
-                in = new Input(socket.getInputStream());
+                channel = SocketChannel.open();
+                channel.socket().connect(((AbstractEndpoint) remote).sockAddress(), TCP_CONNECTION_TIMEOUT);
+                configureChannel(channel);
             } catch (IOException x) {
                 cause = x;
                 isBroken = true;
-                IO.close(socket);
+                IO.close(channel);
                 throw x;
             }
             this.send(new InitiatorInfo(localEndpoint));

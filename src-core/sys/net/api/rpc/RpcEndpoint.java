@@ -122,12 +122,4 @@ public interface RpcEndpoint {
      * @return the timeout in milliseconds.
      */
     int getDefaultTimeout();
-
-    /**
-     * Sets options ... TODO document this...
-     * 
-     * @param option
-     * @param val
-     */
-    void setOption(String option, Object val);
 }

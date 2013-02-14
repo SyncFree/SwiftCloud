@@ -58,6 +58,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
+import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -107,10 +108,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
         // For handling incoming requests from scouts and sequencers,
         // respectively.
         this.srvEndpoint4Clients = srvEndpoint4Clients.setHandler(this);
+
         this.srvEndpoint4Sequencer = srvEndpoint4Sequencers.setHandler(this);
 
         // For performing requests to sequencer. Avoid thread pool contention.
         this.cltEndpoint4Sequencer = cltEndpoint4Sequencer;
+
         this.sequencerServerEndpoint = sequencerEndpoint;
 
         initData(props);
@@ -144,6 +147,22 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
             return estimatedDCStableVersion.clone();
         }
     }
+
+    /********************************************************************************************
+     * Methods related with notifications from clients
+     *******************************************************************************************/
+
+    /*
+     * void notifyNewUpdates( ObjectSubscriptionInfo notification) {
+     * logger.info( "Notify new updates for:" + notification.getId()); }
+     */
+    // /**
+    // * Return null if CRDT does not exist
+    // */
+    // <V extends CRDT<V>> CRDTData<V> putCRDT(CRDTIdentifier id, CRDT<V> crdt,
+    // CausalityClock clk, CausalityClock prune) {
+    // return dataServer.putCRDT(id, crdt, clk, prune); // call DHT server
+    // }
 
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
@@ -224,16 +243,26 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                 logger.info("END FetchObjectVersionRequest not found:" + request.getUid());
             }
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
-                    versionClock, ClockFactory.newClock(), estimatedDCVersionCopy, estimatedDCStableVersionCopy);
+                    versionClock, ClockFactory.newClock(), estimatedDCVersionCopy, estimatedDCStableVersionCopy,
+                    request.timestamp, -1, -1);
         } else {
-            if (request.getSubscriptionType() != SubscriptionType.NONE) {
-                if (request.getSubscriptionType() == SubscriptionType.NOTIFICATION)
-                    session.addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(),
-                            crdt.pruneClock.clone());
-                else if (request.getSubscriptionType() == SubscriptionType.UPDATES)
-                    session.addToObserving(request.getUid(), true, crdt.crdt.getClock().clone(),
-                            crdt.pruneClock.clone());
-            }
+
+            CRDTObject<?> commitedCRDT = getCRDT(request.getUid(), request.getSubscriptionType(), request.getClock(),
+                    request.getClientId());
+
+            Set<TimestampMapping> updates = commitedCRDT.crdt.getUpdatesTimestampMappingsSince(request
+                    .getDistasterDurableClock());
+
+            int lat = 0;
+            int mu = updates.size();
+            long now = System.currentTimeMillis();
+
+            for (TimestampMapping i : updates)
+                lat = (int) Math.max(lat, now - i.getSelectedSystemTimestamp().time());
+
+            if (request.getSubscriptionType() != SubscriptionType.NONE)
+                session.addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), crdt.pruneClock.clone());
+
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
                 if (cltLastSeqNo != null)
@@ -244,7 +273,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                     logger.info("END FetchObjectVersionRequest clock = " + crdt.clock + "/" + request.getUid());
                 }
                 return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock,
-                        estimatedDCVersionCopy, estimatedDCStableVersionCopy);
+                        estimatedDCVersionCopy, estimatedDCStableVersionCopy, request.timestamp, mu, lat);
             }
         }
     }
@@ -373,10 +402,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
         CommitTSRequest req2 = new CommitTSRequest(txTs, cltTs, prvCltTs, estimatedDCVersionCopy, ok,
                 request.getObjectUpdateGroups());
+
         CommitTSReply reply = cltEndpoint4Sequencer.request(sequencerServerEndpoint, req2);
+        if (reply == null)
+            System.err.println("------------>REPLY FROM SEQUENCER NULL");
 
         if (reply != null) {
-
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("Commit: received CommitTSRequest:old vrs:" + estimatedDCVersionCopy + "; new vrs="
                         + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
@@ -396,30 +427,13 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
                 }
-                // for (int i = 0; i < results.length; i++) {
-                // ExecCRDTResult result = results[i];
-                // if (result == null)
-                // continue;
-                // if (result.hasNotification()) {
-                // if (results[i].isNotificationOnly()) {
-                // dcPubSub.publish(result.getId(), new
-                // DHTSendNotification(result.getInfo().cloneNotification(),
-                // estimatedDCVersionCopy, estimatedDCStableVersionCopy));
-                // } else {
-                // dcPubSub.publish(result.getId(), new
-                // DHTSendNotification(result.getInfo(), estimatedDCVersionCopy,
-                // estimatedDCStableVersionCopy));
-                // }
-                //
-                // }
-                // }
                 CommitUpdatesReply commitReply = new CommitUpdatesReply(reply.getCurrVersion(), txTs);
-
                 CommitNotification notification = new CommitNotification(results, commitReply);
                 dcPubSub.publish(notification.uids(), notification);
 
                 return commitReply;
             }
+            System.err.println("------------>CRDT EXEC FAILED...");
         }
         return new CommitUpdatesReply();
     }
@@ -602,8 +616,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                 CommitNotification notification = new CommitNotification(results, commitReply);
 
                 dcPubSub.publish(notification.uids(), notification);
-                Thread.dumpStack();
-
             }
         } else {
             Thread.dumpStack();
@@ -644,7 +656,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
                 if (clientHandle != null) {
                     long now = System.currentTimeMillis();
-                    // System.err.println("ллллллллл-------------------------------------------->"
+                    // System.err.println("?????????-------------------------------------------->"
                     // + notifications.size());
                     T0 = now;
 

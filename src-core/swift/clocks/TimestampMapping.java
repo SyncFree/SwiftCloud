@@ -196,7 +196,7 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
 
     @Override
     public String toString() {
-        return getTimestamps().toString();
+        return Arrays.asList(timestamps).toString();
     }
 
     @Override

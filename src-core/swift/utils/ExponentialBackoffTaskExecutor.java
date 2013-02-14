@@ -59,15 +59,12 @@ public class ExponentialBackoffTaskExecutor {
 
         int interRetryWaitTime = initialRetryWaitTimeMillis;
         long deadlineLeft = task.getDeadlineLeft();
-        while (deadlineLeft >= 0) {
+        while (deadlineLeft >= 0 && task.getResult() == null) {
             try {
                 totalTries.incrementAndGet();
                 return task.call();
             } catch (Exception x) {
                 interRetryWaitTime *= retryWaitTimeMultiplier;
-
-                // smd DEBUG
-                interRetryWaitTime = Math.min(5000, interRetryWaitTime);
 
                 reportRetry(interRetryWaitTime, task);
                 deadlineLeft = task.getDeadlineLeft();
@@ -78,7 +75,7 @@ public class ExponentialBackoffTaskExecutor {
                 }
             }
         }
-        return null;
+        return task.getResult();
     }
 
     private void reportRetry(final long retryWaitTimeMs) {

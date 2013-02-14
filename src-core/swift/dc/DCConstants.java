@@ -26,9 +26,9 @@ import java.util.logging.Logger;
  */
 public class DCConstants {
     public static final Logger DCLogger = Logger.getLogger("swift.dc");
-    public static final int SEQUENCER_PORT = 9998;
-    public static final int SURROGATE_PORT = 9999;
 
+    public static final int SEQUENCER_PORT = 29998;
+    public static final int SURROGATE_PORT = 29999;
     public static final int SURROGATE_PORT_FOR_SEQUENCERS = 29996;
 
     public static final long INTERSEQ_RETRY = 5000; // period for retyring
@@ -50,7 +50,7 @@ public class DCConstants {
                                                         // accessing Riak
     public static final String BERKELEYDB_DIR = "BERKELEY_DIR"; // directory for
                                                                 // storing
-                                                                // databses
+                                                                // databases
                                                                 // locally
 
     public static final String PRUNE_POLICY = "prune";

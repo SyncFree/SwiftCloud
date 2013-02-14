@@ -44,7 +44,11 @@ public interface DHT {
 
     void send(final DHT.Key key, final DHT.Message msg);
 
+    void send(final DHT.Key key, final DHT.Message msg, int timeout);
+
     void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler);
+
+    void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler, int timeout);
 
     interface Key {
 

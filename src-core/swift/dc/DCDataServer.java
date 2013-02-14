@@ -232,6 +232,7 @@ class DCDataServer {
     }
 
     void writeCRDTintoDB(CRDTData<?> data) {
+
         lock(data.id);
         try {
             dbServer.write(data.id, data);
@@ -380,6 +381,7 @@ class DCDataServer {
             CRDTData<?> data = localGetCRDT(observer, id, SubscriptionType.NONE);
             if (data == null) {
                 if (!grp.hasCreationState()) {
+                    System.err.println("CRAP!!!!!!!!!!!!!!!!");
                     return new ExecCRDTResult(false);
                 }
                 CRDT<?> crdt = grp.getCreationState().copy();
@@ -414,6 +416,9 @@ class DCDataServer {
             if (prvCltTs != null)
                 data.crdt.augmentWithScoutClock(prvCltTs);
 
+            long updateCounter = data.crdt.incrementUpdateCounter();
+            grp.updateCounter = updateCounter;
+
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
@@ -447,7 +452,7 @@ class DCDataServer {
             }
 
             ExecCRDTResult result = new ExecCRDTResult(true, grp.getTargetUID(), false, new ObjectSubscriptionInfo(id,
-                    oldClock, data.clock.clone(), data.pruneClock.clone(), grp));
+                    oldClock, data.clock.clone(), data.pruneClock.clone(), grp, updateCounter));
 
             return result;
         } finally {

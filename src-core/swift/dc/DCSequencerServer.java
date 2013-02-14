@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.dc;
 
-import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
@@ -55,10 +54,8 @@ import swift.dc.proto.SeqCommitUpdatesReplyHandler;
 import swift.dc.proto.SeqCommitUpdatesRequest;
 import swift.dc.proto.SequencerServer;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcMessage;
 import sys.utils.Threading;
 
 /**
@@ -73,7 +70,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
 
     DCSequencerServer thisServer = this;
 
-    RpcEndpoint endpoint;
+    RpcEndpoint srvEndpoint;
+    RpcEndpoint cltEndpoint;
+
     IncrementalTimestampGenerator clockGen;
     CausalityClock receivedMessages;
     CausalityClock currentState;
@@ -95,7 +94,6 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     int port;
     boolean isBackup;
     DCNodeDatabase dbServer;
-
     Map<String, LinkedList<CommitRecord>> ops;
     LinkedList<SeqCommitUpdatesRequest> pendingOps; // ops received from other
                                                     // sites that need to be
@@ -206,11 +204,12 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                     if (req != null) {
                         SeqCommitUpdatesRequest req1 = req;
                         if (serversEP.size() > 0) {
-                            endpoint.send(serversEP.get(Math.abs(req1.hashCode()) % servers.size()), req1);
+                            Endpoint surrogate = serversEP.get(Math.abs(req1.hashCode()) % servers.size());
+                            cltEndpoint.send(surrogate, req1);
                             req.lastSent = System.currentTimeMillis();
                         }
                     } else
-                        Threading.synchronizedWaitOn(pendingOps, 500);
+                        Threading.synchronizedWaitOn(pendingOps, 50);
                 }
             }
         }).start();
@@ -245,48 +244,27 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     public void start() {
-        Sys.init();
+        sys.Sys.init();
+
+        // Note: Networking.resolve() now accepts host[:port], the port
+        // parameter is used as default, if port is missing
         this.serversEP = new ArrayList<Endpoint>();
-        Iterator<String> it = servers.iterator();
-        while (it.hasNext()) {
-            String s = it.next();
-            int pos = s.indexOf(":");
-            if (pos != -1) {
-                int port = Integer.parseInt(s.substring(pos + 1));
-                s = s.substring(0, pos);
-                serversEP.add(Networking.resolve(s, port));
-            } else
-                serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT));
-        }
+        for (String s : servers)
+            serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT_FOR_SEQUENCERS));
+
         this.sequencersEP = new ArrayList<Endpoint>();
-        it = sequencers.iterator();
-        while (it.hasNext()) {
-            String s = it.next();
-            int pos = s.indexOf(":");
-            if (pos != -1) {
-                int port = Integer.parseInt(s.substring(pos + 1));
-                s = s.substring(0, pos);
-                sequencersEP.add(Networking.resolve(s, port));
-            } else
-                sequencersEP.add(Networking.resolve(s, DCConstants.SEQUENCER_PORT));
-        }
+        for (String s : sequencers)
+            sequencersEP.add(Networking.resolve(s, DCConstants.SEQUENCER_PORT));
 
-        this.endpoint = Networking.rpcBind(port).toDefaultService();
-        this.endpoint.setHandler(this);
+        this.cltEndpoint = Networking.rpcConnect().toDefaultService();
+        this.srvEndpoint = Networking.rpcBind(port).toDefaultService().setHandler(this);
 
-        if (sequencerShadow != null) {
-            String s = sequencerShadow;
-            int pos = s.indexOf(":");
-            if (pos != -1) {
-                int port = Integer.parseInt(s.substring(pos + 1));
-                s = s.substring(0, pos);
-                sequencerShadowEP = Networking.resolve(s, port);
-            } else
-                sequencerShadowEP = Networking.resolve(s, DCConstants.SEQUENCER_PORT);
-        }
+        if (sequencerShadow != null)
+            sequencerShadowEP = Networking.resolve(sequencerShadow, DCConstants.SEQUENCER_PORT);
+
         if (!isBackup) {
             synchronizer();
-            execPending(); // smd
+            execPending();
         }
         if (isBackup) {
             if (logger.isLoggable(Level.INFO)) {
@@ -333,7 +311,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                             Iterator<CommitRecord> it = s.iterator();
                             while (it.hasNext()) {
                                 CommitRecord c = it.next();
-                                if (c.acked.nextClearBit(0) == sequencers.size()) {
+                                if (c.acked.nextClearBit(0) == sequencersEP.size()) {
                                     it.remove();
                                     continue;
                                 }
@@ -349,14 +327,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                 logger.info("sequencer: synchronizer: num operations to propagate : " + s.size());
                             }
                             if (r == null) {
-                                try {
-                                    long waitime = lastEffectiveSendTime - System.currentTimeMillis()
-                                            + DCConstants.INTERSEQ_RETRY;
-                                    if (waitime > 0)
-                                        s.wait(Math.min(DCConstants.INTERSEQ_RETRY, waitime));
-                                } catch (InterruptedException e) {
-                                    // do nothing
-                                }
+                                long waitime = lastEffectiveSendTime - System.currentTimeMillis()
+                                        + DCConstants.INTERSEQ_RETRY;
+                                Threading.waitOn(s, Math.min(DCConstants.INTERSEQ_RETRY, waitime));
                             }
                         }
                         if (r != null) {
@@ -370,14 +343,16 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                         continue;
                                 }
                                 final int i0 = i;
-                                Endpoint ep = sequencersEP.get(i);
-                                endpoint.send(ep, req, new SeqCommitUpdatesReplyHandler() {
+                                Endpoint other = sequencersEP.get(i);
+                                long T0 = System.currentTimeMillis();
+                                srvEndpoint.send(other, req, new SeqCommitUpdatesReplyHandler() {
 
                                     @Override
                                     public void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply) {
                                         synchronized (r0) {
                                             r0.acked.set(i0);
                                         }
+
                                         synchronized (thisServer) {
                                             stableClock.record(req.getTimestamp());
                                         }
@@ -459,8 +434,20 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                 || ((!t.getIdentifier().equals(this.siteId)) && !currentState.includes(t));
         currentState.merge(clk); // nmp: not sure why is this here
         currentState.record(t);
-        if (sequencers.size() == 0)
+        if (sequencers.size() == 0 || !siteId.equals(t.getIdentifier())) // HACK:
+                                                                         // Stable
+                                                                         // is
+                                                                         // updated
+                                                                         // only
+                                                                         // when
+                                                                         // Op
+                                                                         // is
+                                                                         // recorded
+                                                                         // in
+                                                                         // local
+                                                                         // DC.
             stableClock.record(t);
+
         clientClock.record(cltTs);
         return hasTS;
     }
@@ -495,7 +482,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             }
         }
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
-        synchronized (currentState) {
+        synchronized (this) {// smd. sync on currentstate is not correct with
+                             // other exclusive uses...
             cmp = currentState.compareTo(request.getDependencyClk());
         }
         if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
@@ -588,22 +576,13 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(siteId, request.getTimestamp(),
                     request.getCltTimestamp(), request.getPrvCltTimestamp(), request.getObjectUpdateGroups(), clk,
                     nuClk);
-            endpoint.send(sequencerShadowEP, msg, new AbstractRpcHandler() {
-                @Override
-                public void onReceive(RpcMessage m) {
-                    // do nothing
-                }
 
-                @Override
-                public void onReceive(RpcHandle conn, RpcMessage m) {
-                    // do nothing
-                }
-
-            }, 0);
+            cltEndpoint.send(sequencerShadowEP, msg);
         }
 
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getTimestamp(),
                 request.getCltTimestamp(), request.getPrvCltTimestamp()));
+
         Threading.synchronizedNotifyAllOn(pendingOps);
         cleanPendingTSReq();
     }
@@ -639,8 +618,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         }
 
         conn.reply(new SeqCommitUpdatesReply(siteId, currentClockCopy(), stableClockCopy(), receivedMessagesCopy()));
+
         if (!isBackup && sequencerShadowEP != null) {
-            endpoint.send(sequencerShadowEP, request);
+            cltEndpoint.send(sequencerShadowEP, request);
         }
 
         addPending(request);

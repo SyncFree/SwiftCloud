@@ -29,6 +29,7 @@ import sys.utils.Threading;
  */
 public abstract class CallableWithDeadline<V> implements Callable<V> {
 
+    long readyTime = 0;
     private long startTime = sys.Sys.Sys.timeMillis(), rtt = -1L;
     private final long deadlineTime;
 
@@ -39,8 +40,10 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
      * Sets the result of the call, holding the first non-null result.
      */
     protected void setResult(V res) {
-        if (result.get() == null)
+        if (result.get() == null) {
             result.set(res);
+            readyTime = System.currentTimeMillis();
+        }
 
         if (rtt < 0) {
             rtt = sys.Sys.Sys.timeMillis() - startTime;
@@ -63,15 +66,6 @@ public abstract class CallableWithDeadline<V> implements Callable<V> {
         this.defaultResult = defaultResult;
         this.deadlineTime = Long.MAX_VALUE;
     }
-
-    // /**
-    // * Creates callable task with provided deadline in milliseconds.
-    // */
-    // public CallableWithDeadline(long deadlineMillis) {
-    // this.deadlineTime = System.currentTimeMillis() + deadlineMillis;
-    // this.defaultResult = null;
-    // Thread.dumpStack();
-    // }
 
     /**
      * Creates callable task with provided deadline in milliseconds.

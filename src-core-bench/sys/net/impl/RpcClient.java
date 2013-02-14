@@ -74,7 +74,8 @@ public class RpcClient {
             int total = n;
             if (total % 10000 == 0) {
                 synchronized (values) {
-                    System.out.printf(endpoint + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total,
+                    System.out.printf(endpoint.localEndpoint()
+                            + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total,
                             +total / (Sys.currentTime() - T0), (values.isEmpty() ? 0 : (n - values.first())), sumRTT
                                     / totRTT);
                 }

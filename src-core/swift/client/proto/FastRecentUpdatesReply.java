@@ -67,7 +67,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                CausalityClock pruneClock, CRDTObjectUpdatesGroup<?> update) {
+                CausalityClock pruneClock, CRDTObjectUpdatesGroup<?> update, long updateCounter) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
@@ -78,7 +78,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                CausalityClock pruneClock, List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty) {
+                CausalityClock pruneClock, List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty, long updateCounter) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
@@ -132,23 +132,27 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo clone() {
-            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, dirty);
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, dirty, -1);
         }
 
         public ObjectSubscriptionInfo cloneNotification() {
-            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, null, dirty);
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, null, dirty, -1);
         }
 
         public ObjectSubscriptionInfo clone(Timestamp t) {
             CausalityClock newC = newClock.clone();
             if (t != null)
                 newC.recordAllUntil(t);
-            return new ObjectSubscriptionInfo(id, oldClock, newC, pruneClock, updates, dirty);
+            return new ObjectSubscriptionInfo(id, oldClock, newC, pruneClock, updates, dirty, -1);
         }
 
         public CausalityClock getPruneClock() {
             return pruneClock;
         }
+
+        // public long getUpdateCounter() {
+        // return updateCounter;
+        // }
     }
 
     protected SubscriptionStatus status;

@@ -36,11 +36,11 @@ import com.esotericsoftware.kryo.io.Output;
 public class KryoLib {
     private static Logger Log = Logger.getLogger(RpcPacket.class.getName());
 
-    public static <T> T copy(T obj) {
+    synchronized public static <T> T copy(T obj) {
         return kryo().copy(obj);
     }
 
-    public static <T> T copyShallow(T obj) {
+    synchronized public static <T> T copyShallow(T obj) {
         return kryo().copyShallow(obj);
     }
 

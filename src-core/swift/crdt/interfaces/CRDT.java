@@ -226,4 +226,10 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      */
     public abstract void discardScoutClock(final String scoutId);
 
+    public abstract long getUpdateCounter();
+
+    public abstract void setUpdateCounter(long val);
+
+    public abstract long incrementUpdateCounter();
+
 }

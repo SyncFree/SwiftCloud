@@ -23,19 +23,21 @@ import java.util.Map;
 
 import sys.net.api.Endpoint;
 import sys.net.impl.rpc.RpcPacket;
-import sys.stats.common.BinnedTally;
+import sys.scheduler.PeriodicTask;
+import sys.utils.XmlExternalizable;
 
-public class RpcStats {
-    private static double STATS_BIN_SIZE = 60.0;
+public class RpcStats extends XmlExternalizable {
+    public static double STATS_BIN_SIZE = 30.0;
 
-    double T0 = Sys.currentTime();
+    public double T0 = Sys.currentTime();
 
-    Map<Endpoint, BinnedTally> rpcRTT = new HashMap<Endpoint, BinnedTally>();
-    Map<String, BinnedTally> inMsgTraffic = new HashMap<String, BinnedTally>();
-    Map<String, BinnedTally> outMsgTraffic = new HashMap<String, BinnedTally>();
-    Map<Class<?>, BinnedTally> rpcExecTime = new HashMap<Class<?>, BinnedTally>();
+    public Map<String, BinnedTally> rpcRTT = new HashMap<String, BinnedTally>();
+    public Map<String, BinnedTally> inMsgTraffic = new HashMap<String, BinnedTally>();
+    public Map<String, BinnedTally> outMsgTraffic = new HashMap<String, BinnedTally>();
+    public Map<String, BinnedTally> rpcExecTime = new HashMap<String, BinnedTally>();
 
-    protected RpcStats() {
+    public RpcStats() {
+        RpcStats = this;
     }
 
     synchronized public void logSentRpcPacket(RpcPacket pkt, Endpoint dst) {
@@ -49,11 +51,11 @@ public class RpcStats {
     }
 
     synchronized public void logRpcExecTime(Class<?> cl, double time) {
-        valueFor(rpcExecTime, cl, true).tally(Sys.currentTime(), time);
+        valueFor(rpcExecTime, cl.getName(), true).tally(Sys.currentTime(), time);
     }
 
     synchronized public void logRpcRTT(Endpoint dst, double rtt) {
-        valueFor(rpcRTT, dst, true).tally(Sys.currentTime(), rtt);
+        valueFor(rpcRTT, dst.toString(), true).tally(Sys.currentTime(), rtt);
     }
 
     private synchronized <K> BinnedTally valueFor(Map<K, BinnedTally> map, K key, boolean create) {
@@ -64,22 +66,36 @@ public class RpcStats {
         return res;
     }
 
+    static double PT = 0, DL = 0, UL = 0;
     static {
-        RpcStats = new RpcStats();
+        new RpcStats();
 
-        // new PeriodicTask(0, 30) {
-        // public void run() {
-        // synchronized (RpcStats) {
-        // try {
-        // //System.err.printf( "%s %.1fKB/s\n", Sys.mainClass,
-        // (Sys.downloadedBytes.get()/1024) / Sys.currentTime() );
-        // //RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
-        // } catch (Exception x) {
-        // x.printStackTrace();
-        // }
-        // }
-        // }
-        // };
+        new PeriodicTask(0, 3) {
+            public void run() {
+                synchronized (RpcStats) {
+                    try {
+
+                        Runtime rt = Runtime.getRuntime();
+                        int idx = sys.Sys.Sys.mainClass.indexOf("Server");
+                        if (idx >= 0) {
+                            double elapsed = Sys.currentTime() - PT;
+                            double dlrate = (Sys.downloadedBytes.get() - DL) / elapsed;
+                            double ulrate = (Sys.uploadedBytes.get() - UL) / elapsed;
+                            if (elapsed > 15) {
+                                PT += elapsed;
+                                DL = Sys.downloadedBytes.get();
+                                UL = Sys.uploadedBytes.get();
+                            }
+                            System.err.printf("%s  [Down:  %.1f KB/s, Up: %.1f KB/s Heap: %s/%sm]\n", Sys.mainClass,
+                                    dlrate / 1024, ulrate / 1024, rt.totalMemory() >> 20, rt.maxMemory() >> 20);
+                        }
+                        RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
+                    } catch (Exception x) {
+                        x.printStackTrace();
+                    }
+                }
+            }
+        };
     }
 
     public static RpcStats RpcStats;

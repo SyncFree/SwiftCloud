@@ -30,7 +30,7 @@ public class IO {
     protected IO() {
     };
 
-    public static void close(ServerSocket s) {
+    public static void close(Socket s) {
         try {
             if (s != null)
                 s.close();
@@ -39,10 +39,9 @@ public class IO {
         }
     }
 
-    public static void close(Socket s) {
+    public static void close(ServerSocket s) {
         try {
-            if (s != null)
-                s.close();
+            s.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

@@ -1,4 +1,4 @@
-package sys.net.impl.providers;
+package sys.net.impl.providers.jvm;
 
 import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_CLT_MAXSIZE;
 import static sys.net.impl.NetworkingConstants.KRYOBUFFERPOOL_DELAY;

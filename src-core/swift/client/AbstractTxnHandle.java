@@ -20,7 +20,13 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
@@ -30,6 +36,7 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.BulkGetProgressListener;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CachePolicy;
@@ -43,7 +50,9 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.DummyLog;
+import swift.utils.ReadSet;
 import swift.utils.TransactionsLog;
+import sys.utils.Threading;
 
 /**
  * Implementation of abstract SwiftCloud transaction with unspecified isolation
@@ -83,7 +92,13 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
     protected final TransactionsLog durableLog;
     protected final long id;
+    protected final long serial;
+
     protected final String sessionId;
+
+    protected ReadSet readSet;
+
+    protected static final AtomicLong serialGenerator = new AtomicLong();
 
     /**
      * Creates an update transaction.
@@ -114,6 +129,9 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+
+        this.readSet = new ReadSet();
+        this.serial = serialGenerator.getAndIncrement();
     }
 
     /**
@@ -141,6 +159,9 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+
+        this.serial = serialGenerator.getAndIncrement();
+        this.readSet = new ReadSet();
     }
 
     @Override
@@ -376,6 +397,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         return id;
     }
 
+    protected long getSerial() {
+        return serial;
+    }
+
     @Override
     public int compareTo(AbstractTxnHandle o) {
         return Long.signum(orderingScore() - o.orderingScore());
@@ -383,5 +408,45 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     private long orderingScore() {
         return getTimestampMapping() == null ? 0 : getTimestampMapping().getClientTimestamp().getCounter();
+    }
+
+    public void updateReadSet(CRDT<?> crdt) {
+        readSet.put(crdt.getUID(), crdt.getUpdateCounter());
+    }
+
+    public ReadSet getReadSet() {
+        return readSet;
+    }
+
+    @Override
+    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
+            BulkGetProgressListener listener) {
+        final ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>> res = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        final ExecutorService executor = Executors.newFixedThreadPool(32, Threading.factory("Client"));
+        for (final CRDTIdentifier i : ids)
+            executor.equals(new Runnable() {
+                @Override
+                public void run() {
+                    TxnLocalCRDT<?> val;
+                    try {
+                        val = get(i, readOnly, null);
+                        res.put(i, val);
+                    } catch (WrongTypeException e) {
+                        e.printStackTrace();
+                    } catch (NoSuchObjectException e) {
+                        e.printStackTrace();
+                    } catch (VersionNotFoundException e) {
+                        e.printStackTrace();
+                    } catch (NetworkException e) {
+                        e.printStackTrace();
+                    }
+                    res.put(i, null);
+                }
+            });
+        try {
+            executor.awaitTermination(timeout, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+        }
+        return res;
     }
 }

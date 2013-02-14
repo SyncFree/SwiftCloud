@@ -23,17 +23,20 @@ import sys.net.impl.AbstractMessage;
 
 public class InitiatorInfo extends AbstractMessage {
 
-    protected Endpoint src;
+    protected Endpoint local;
 
     public InitiatorInfo() {
     }
 
     public InitiatorInfo(Endpoint local) {
-        this.src = local;
+        this.local = local;
     }
 
-    public void deliverTo(TransportConnection conn, MessageHandler handler) {
-        ((RemoteEndpointUpdater) conn).setRemoteEndpoint(src);
+    public void deliverTo(final TransportConnection conn, final MessageHandler handler) {
+        System.out.println("got initiator-->>>" + counter++);
+        ((RemoteEndpointUpdater) conn).setRemoteEndpoint(local);
         handler.onAccept(conn);
     }
+
+    static volatile int counter = 1;
 }

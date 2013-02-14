@@ -24,7 +24,7 @@ import sys.net.api.Serializer;
 import sys.net.api.rpc.RpcFactory;
 import sys.net.impl.rpc.RpcFactoryImpl;
 
-final public class NetworkingImpl extends Networking {
+public class NetworkingImpl extends Networking {
 
     NetworkingImpl() {
     }
@@ -98,5 +98,5 @@ final public class NetworkingImpl extends Networking {
             throw new NetworkingException("Invalid argument...");
     }
 
-    static TransportProvider defaultProvider = TransportProvider.OIO_TCP;
+    static TransportProvider defaultProvider = TransportProvider.NETTY_IO_TCP;
 }

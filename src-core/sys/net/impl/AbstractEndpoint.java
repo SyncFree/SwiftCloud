@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 import sys.net.api.Endpoint;
@@ -78,7 +79,8 @@ abstract public class AbstractEndpoint implements Endpoint {
 
     @Override
     public int hashCode() {
-        return (int) (locator >>> 32 ^ locator & 0xFFFFFFFFL);
+        long tmp = locator ^ gid;
+        return (int) (tmp >>> 32 ^ tmp & 0xFFFFFFFFL);
     }
 
     final public boolean equals(AbstractEndpoint other) {

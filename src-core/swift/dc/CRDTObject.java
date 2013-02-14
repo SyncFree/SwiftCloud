@@ -35,6 +35,10 @@ public class CRDTObject<V extends CRDT<V>> {
      */
     CausalityClock pruneClock;
 
+    /**
+     * The total number of updates performed on the crdt object so far
+     */
+
     public CRDTObject() {
         // do nothing
     }

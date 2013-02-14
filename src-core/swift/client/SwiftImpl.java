@@ -99,6 +99,8 @@ import sys.utils.Threading;
 
 import com.esotericsoftware.kryo.io.Output;
 
+//import swift.utils.ExponentialBackoffTaskExecutor;
+
 /**
  * Implementation of Swift scout and transactions manager. Scout can either
  * support one or multiple client sessions.
@@ -133,10 +135,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // processing.
 
     // WISHME: subscribe updates of frequently accessed objects
-
-    // The two below yield the following sequence of wait times: 10, 20, 40...
-    public static final int RPC_RETRY_WAIT_TIME_MULTIPLIER = 2;
-    public static final int INIT_RPC_RETRY_WAIT_TIME_MILLIS = 10;
 
     private static Logger logger = Logger.getLogger(SwiftImpl.class.getName());
 
@@ -186,6 +184,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // Cache of objects.
     // Invariant: if object is in the cache, it includes all updates of locally
     // and globally committed locally-originating transactions.
+    // private final TimeSizeBoundedObjectsCache objectsCache;
+
     private final LRUObjectsCache objectsCache;
 
     // CLOCKS: all clocks grow over time. Careful with references, use copies.
@@ -206,6 +206,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
 
     // Set of versions for fetch requests in progress.
+    // private final Set<CausalityClock> fetchVersionsInProgress;
     private final Set<CausalityClock> fetchVersionsInProgress;
 
     private Set<AbstractTxnHandle> pendingTxns;
@@ -231,6 +232,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final NotoficationsProcessorThread notificationsThread;
     private final ExecutorService notificationsCallbacksExecutor;
     private final ExecutorService notificationsSubscriberExecutor;
+    // private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
     private final TransactionsLog durableLog;
     private final CacheStats cacheStats;
@@ -279,7 +281,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
                 new IncrementalTimestampGenerator(scoutId));
-        
+
+        // this.retryableTaskExecutor = new
+        // ExponentialBackoffTaskExecutor("client->server request",
+        // INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.pendingTxns = new HashSet<AbstractTxnHandle>();
         this.committerThread = new CommitterThread();
         this.fetchVersionsInProgress = new HashSet<CausalityClock>();
@@ -351,6 +356,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             logger.warning(e.getMessage());
         }
         logger.info("scout stopped");
+
     }
 
     @Override
@@ -381,16 +387,19 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+
                 LatestKnownClockReply reply = localEndpoint.request(serverEndpoint,
                         new LatestKnownClockRequest(scoutId));
                 if (reply != null) {
+                    reply.getDistasterDurableClock().intersect(reply.getClock());
                     updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
                 }
                 if (reply == null && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     throw new NetworkException("timed out to get transcation snapshot point");
                 }
             }
-            // Invariant: for SI snapshotClock of a new transaction dominates
+            // Invariant: for SI snapshotClock of a new transaction
+            // dominates
             // clock of all previous SI transaction (monotonic reads), since
             // commitedVersion only grows.
             final CausalityClock snapshotClock = getGlobalCommittedVersion(true);
@@ -442,6 +451,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
     private synchronized void updateCommittedVersions(final CausalityClock newCommittedVersion,
             final CausalityClock newCommittedDisasterDurableVersion) {
+
         if (newCommittedVersion == null || newCommittedDisasterDurableVersion == null) {
             logger.warning("server returned null clock");
             return;
@@ -455,7 +465,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // No changes.
             return;
         }
-        
         // Find and clean new stable local txns logs that we won't need anymore.
         int stableTxnsToDiscard = 0;
         int evaluatedTxns = 0;
@@ -604,7 +613,22 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             fetchObjectVersion(txn, id, create, classOfV, globalVersion, true, updatesListener != null);
 
             try {
-                return getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener, true);
+                return getCachedObjectForTxn(txn, id, globalVersion.clone(), classOfV, updatesListener, true);
+                // smduarte
+                // WITH SI, at least, CODE BELOW FAILS AFTER 10min running, as
+                // shown below...
+
+                // WARNING: Object not found in appropriate version, probably
+                // pruned: swift.exceptions.VersionNotFoundException: Object not
+                // available in the cache in appropriate version: provided clock
+                // ([OXcsOsX5RSurtRuQtdXdtQ==:[1-2],X0:[1-3884]]) is not less or
+                // equal to the object updates clock
+                // ([OXcsOsX5RSurtRuQtdXdtQ==:[1-1],X0:[1-3894]])
+                //
+                // HACK above drops the scout entry...IS THIS CORRECT???
+                //
+                // return getCachedObjectForTxn(txn, id, version.clone(),
+                // classOfV, updatesListener, true);
             } catch (NoSuchObjectException x) {
                 logger.warning("Object not found in the cache just after fetch (retrying): " + x);
             } catch (VersionNotFoundException x) {
@@ -668,6 +692,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         final TxnLocalCRDT<V> crdtView;
         try {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
+            txn.readSet.put(crdt.getUID(), crdt.getUpdateCounter());
         } catch (IllegalStateException x) {
 
             // No appropriate version found in the object from the cache.
@@ -707,9 +732,16 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             boolean create, Class<V> classOfV, CausalityClock version, boolean strictUnprunedVersion,
             boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
             NetworkException {
+
+        CausalityClock clock, disasterDurableClock;
+        synchronized (this) {
+            clock = committedVersion.clone();
+            disasterDurableClock = committedDisasterDurableVersion.clone();
+        }
+
         final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, id, version,
-                strictUnprunedVersion, subscriptionType);
+                strictUnprunedVersion, subscriptionType, clock, disasterDurableClock);
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
     }
 
@@ -753,6 +785,15 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             boolean create) throws NoSuchObjectException, WrongTypeException {
         final V crdt;
 
+        {
+            long rtt = fetchReply.rtt();
+            int stableReadLatency = fetchReply.stableReadLatency;
+            int stableReadMissedUpdates = fetchReply.stableReadMissedUpdates;
+            if (stableReadMissedUpdates >= 0 && false)
+                System.out.printf("SYS, GET, %s, %s, %s, %s, %s,%s\n", txn.getSerial(), rtt, request.getUid(),
+                        stableReadMissedUpdates, stableReadLatency, fetchReply.serverTimestamp);
+        }
+
         switch (fetchReply.getStatus()) {
         case OBJECT_NOT_FOUND:
             if (!create) {
@@ -774,6 +815,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 throw new WrongTypeException(e.getMessage());
             }
             crdt.init(request.getUid(), fetchReply.getVersion(), fetchReply.getPruneClock(), true);
+
             break;
         default:
             throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
@@ -831,6 +873,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
+            // System.err.println( sys.Sys.Sys.mainClass + "&&&&&&&&&&" +
+            // fetchReply.getEstimatedCommittedVersion() + "/" +
+            // fetchReply.getVersion() + "/wanted:" + request.getVersion() +
+            // "ownCLOCK:" + committedVersion );
+
             logger.warning("requested object version not found in the store, retrying fetch");
             return false;
         }
@@ -1257,7 +1304,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 operationsGroups.add(group.withDependencyClock(optimizedDependencyClock));
             }
             requests.add(new CommitUpdatesRequest(scoutId, txn.getTimestampMapping().getClientTimestamp(), txn
-                    .getUpdatesDependencyClock(), operationsGroups));
+                    .getUpdatesDependencyClock(), operationsGroups, txn.getReadSet()));
         }
 
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint, new BatchCommitUpdatesRequest(
@@ -1273,6 +1320,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 final CommitUpdatesReply reply = batchReply.getReplies().get(i);
                 final AbstractTxnHandle txn = transactionsToCommit.get(i);
                 txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
+
                 switch (reply.getStatus()) {
                 case COMMITTED_WITH_KNOWN_TIMESTAMPS:
                     for (final Timestamp ts : reply.getCommitTimestamps()) {
@@ -1447,17 +1495,17 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             setDaemon(true);
         }
 
-        @Override
-        public void run() {
-            while (true) {
-                synchronized (SwiftImpl.this) {
-                    if (stopFlag) {
-                        return;
-                    }
-                }
-                fetchSubscribedNotifications();
-            }
-        }
+        // @Override
+        // public void run() {
+        // while (true) {
+        // synchronized (SwiftImpl.this) {
+        // if (stopFlag) {
+        // return;
+        // }
+        // }
+        // fetchSubscribedNotifications();
+        // }
+        // }
     }
 
     /**

@@ -25,6 +25,7 @@ import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.catadupa.KryoCatadupa;
 import sys.net.impl.NetworkingImpl;
+import sys.scheduler.Task;
 import sys.scheduler.TaskScheduler;
 import sys.utils.IP;
 
@@ -91,6 +92,13 @@ public class Sys {
     synchronized public static void init() {
         if (Sys == null) {
             new Sys();
+
+            new Task(60 * 60) {
+                public void run() {// TODO. Make this an option...
+                    System.err.println("BOOOM. Self shutdown to avoid leaving processes running on PlanetLab.");
+                    System.exit(0);
+                }
+            };
         }
     }
 

@@ -19,6 +19,8 @@ package sys.net.impl.rpc;
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
@@ -28,16 +30,12 @@ import sys.net.api.rpc.RpcFactory;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
-import sys.utils.Threading;
 
 final public class RpcPacket extends AbstractRpcPacket {
 
     private static Logger Log = Logger.getLogger(RpcPacket.class.getName());
 
-    RpcFactoryImpl fac;
-    boolean isWaiting4Reply = false;
-
-    long rtt;
+    volatile SynchronousQueue<AbstractRpcPacket> queue;
 
     RpcPacket() {
     }
@@ -78,46 +76,53 @@ final public class RpcPacket extends AbstractRpcPacket {
 
     @Override
     public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
-        Log.finest("Sending: " + msg + " to " + remote);
-
         RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout);
-        if (timeout != 0)
-            synchronized (pkt) {
-                pkt.isWaiting4Reply = true;
-                if (pkt.sendRpcSuccess(null, this))
-                    pkt.waitForReply();
+        if (timeout != 0) {
+            pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
+            if (pkt.sendRpcPacket(null, this) == true) {
+                try {
+                    pkt.reply = pkt.queue.poll(timeout, TimeUnit.MILLISECONDS);
+                } catch (Exception x) {
+                }
+                if (pkt.reply != null)
+                    pkt.reply.payload.deliverTo(pkt.reply, pkt.handler);
             }
-        else {
+            return pkt;
+        } else {
             pkt.remote = remote;
-            pkt.sendRpcSuccess(null, this);
+            pkt.sendRpcPacket(null, this);
+            return pkt;
         }
-        return pkt;
     }
 
+    @Override
     public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
-        // Log.finest("Replying: " + msg + " to " + remote );
         RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout);
-        if (timeout != 0)
-            synchronized (pkt) {
-                // System.out.println("sync for:" + pkt.hashCode() );
-                pkt.isWaiting4Reply = true;
-                if (pkt.sendRpcSuccess(conn, this))
-                    pkt.waitForReply();
+        if (timeout != 0) {
+            pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
+            if (pkt.sendRpcPacket(conn, this) == true) {
+                try {
+                    pkt.reply = pkt.queue.poll(timeout, TimeUnit.MILLISECONDS);
+                } catch (Exception x) {
+                }
+                if (pkt.reply != null)
+                    pkt.reply.payload.deliverTo(pkt.reply, pkt.handler);
             }
-        else
-            pkt.sendRpcSuccess(conn, this);
-        return pkt;
+            return pkt;
+        } else {
+            pkt.sendRpcPacket(conn, this);
+            return pkt;
+        }
+
     }
 
     final void deliver(AbstractRpcPacket pkt) {
-        this.rtt = Sys.timeMillis() - timestamp;
-
-        if (isWaiting4Reply) {
-            synchronized (this) {
-                reply = pkt;
-                Threading.notifyAllOn(this);
+        if (queue != null)
+            try {
+                queue.put(pkt);
+            } catch (InterruptedException e) {
             }
-        } else {
+        else {
             if (this.handler != null)
                 pkt.payload.deliverTo(pkt, this.handler);
             else
@@ -126,29 +131,10 @@ final public class RpcPacket extends AbstractRpcPacket {
         }
     }
 
-    final private void waitForReply() {
-        while (reply == null && !timedOut())
-            ;
-
-        isWaiting4Reply = false;
-        if (reply != null)
-            reply.payload.deliverTo(reply, this.handler);
-
-    }
-
-    final private boolean timedOut() {
-        if (timeout < 0)
-            throw new RuntimeException("Default timeout...");
-
-        int ms = (int) (timeout - (Sys.timeMillis() - timestamp));
-        if (ms > 0)
-            Threading.waitOn(this, ms > 100 ? 100 : ms);
-        return ms <= 0;
-    }
-
-    private boolean sendRpcSuccess(TransportConnection conn, AbstractRpcPacket handle) {
+    private boolean sendRpcPacket(TransportConnection conn, AbstractRpcPacket handle) {
         try {
             if (conn != null && conn.send(this) || fac.conMgr.send(remote(), this)) {
+                // RpcStats.logSentRpcPacket(this, remote());
                 payload = null;
                 return true;
             } else {
@@ -165,7 +151,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 
             if (handler != null)
                 handler.onFailure(this);
-            else
+            else if (handle.handler != null)
                 handle.handler.onFailure(this);
 
             return false;
@@ -210,11 +196,5 @@ final public class RpcPacket extends AbstractRpcPacket {
                 return (T) reply.getPayload();
         }
         return null;
-    }
-
-    @Override
-    public void setOption(String op, Object val) {
-        // AbstractEndpoint ae = (AbstractEndpoint) localEndpoint();
-        // ae.setOption(op, val);
     }
 }

@@ -32,7 +32,7 @@ package sys.scheduler;
  * Periodic tasks can be cancelled to prevent them from executing any further.
  * 
  * 
- * @author Sérgio Duarte (smd@fct.unl.pt)
+ * @author smduarte (smd@fct.unl.pt)
  * 
  */
 public class PeriodicTask extends Task {

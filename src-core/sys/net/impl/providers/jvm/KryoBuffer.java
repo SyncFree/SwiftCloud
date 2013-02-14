@@ -1,4 +1,4 @@
-package sys.net.impl.providers;
+package sys.net.impl.providers.jvm;
 
 import static sys.net.impl.NetworkingConstants.KRYOBUFFER_INITIAL_CAPACITY;
 

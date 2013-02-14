@@ -60,8 +60,4 @@ public abstract class AbstractTransport implements TransportConnection {
     public void setOption(String op, Object val) {
     }
 
-    public void setRemoteEndpoint(Endpoint remote) {
-        this.remote = remote;
-    }
-
 }

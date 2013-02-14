@@ -66,7 +66,6 @@ public interface SwiftSession {
      * @param waitForCommit
      *            when true, this call blocks until all locally committed
      *            transactions commit globally in the store
-     * 
      */
     void stopScout(boolean waitForCommit);
 

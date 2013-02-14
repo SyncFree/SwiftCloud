@@ -147,7 +147,7 @@ public class RPCBenchmark {
         final long startTime = System.currentTimeMillis();
         for (int i = 0; i < rpcsNumber; i++) {
             clientEndpoint.send(clientToServerEndpoint, new FetchObjectVersionRequest("client", objectId,
-                    causalityClock1, true, SubscriptionType.NONE), countingReplyHandler);
+                    causalityClock1, true, SubscriptionType.NONE, -1), countingReplyHandler);
         }
         assertEquals(rpcsNumber, receivedAcks.get());
         final long duration = System.currentTimeMillis() - startTime;
@@ -159,7 +159,7 @@ public class RPCBenchmark {
         @Override
         public void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
             conn.reply(new FetchObjectVersionReply(FetchStatus.OK, integer, causalityClock1, emptyClock,
-                    causalityClock1, causalityClock1));
+                    causalityClock1, causalityClock1, -1, -1, -1));
         }
 
         @Override
