@@ -5,7 +5,7 @@ swift.IsolationLevel=REPEATABLE_READS
 swift.cacheEvictionTimeMillis=150000
 swift.BatchSize=10
 swift.AsyncQueue=50
-swift.CacheSize=1000
+swift.CacheSize=0
 
 swiftsocial.numUsers=1000
 swiftsocial.userFriends=25

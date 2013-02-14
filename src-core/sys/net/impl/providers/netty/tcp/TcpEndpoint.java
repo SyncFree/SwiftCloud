@@ -69,19 +69,19 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-    final Executor bossExecutors, workerExecutors;
-    final ExecutionHandler executionHandler;
+    volatile static Executor bossExecutors, workerExecutors;
+    volatile static ExecutionHandler executionHandler = null;
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
         this.gid = Sys.rg.nextLong() >>> 1;
 
-        bossExecutors = Executors.newCachedThreadPool();
-        workerExecutors = Executors.newCachedThreadPool();
-
-        executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
-                NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
-
+        if (executionHandler == null) {
+            bossExecutors = Executors.newCachedThreadPool();
+            workerExecutors = Executors.newCachedThreadPool();
+            executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
+                    NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
+        }
         boolean isServer = tcpPort >= 0;
         if (isServer) {
             ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors,
@@ -174,11 +174,12 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 buf.setInt(0, uploadTotal);
 
                 ChannelFuture fut = channel.write(buf);
+                fut.awaitUninterruptibly();
 
                 Sys.uploadedBytes.getAndAdd(uploadTotal + 4);
                 outgoingBytesCounter.getAndAdd(uploadTotal + 4);
 
-                return fut.awaitUninterruptibly().isSuccess();
+                return fut.isSuccess();
 
             } catch (Throwable t) {
                 t.printStackTrace();
@@ -242,7 +243,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
             this.remote = remote;
             this.incomingBytesCounter = remote.getIncomingBytesCounter();
             this.outgoingBytesCounter = remote.getOutgoingBytesCounter();
-            channel.getPipeline().addAfter("FrameDecoder", "Executor", executionHandler);
+            if (!channel.getPipeline().getNames().contains("Executor"))
+                channel.getPipeline().addAfter("FrameDecoder", "Executor", executionHandler);
         }
 
         @Override
