@@ -429,6 +429,11 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                 }
                 CommitUpdatesReply commitReply = new CommitUpdatesReply(reply.getCurrVersion(), txTs);
                 CommitNotification notification = new CommitNotification(results, commitReply);
+
+                notification.dependencies = request.getObjectUpdateGroups().get(0).getDependency();
+                notification.currVersion = reply.getCurrVersion();
+                notification.stableVersion = reply.getStableVersion();
+
                 dcPubSub.publish(notification.uids(), notification);
 
                 return commitReply;

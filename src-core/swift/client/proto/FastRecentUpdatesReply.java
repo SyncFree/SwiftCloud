@@ -67,7 +67,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                CausalityClock pruneClock, CRDTObjectUpdatesGroup<?> update, long updateCounter) {
+                CausalityClock pruneClock, CRDTObjectUpdatesGroup<?> update) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
@@ -78,7 +78,7 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo(CRDTIdentifier id, CausalityClock oldClock, CausalityClock newClock,
-                CausalityClock pruneClock, List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty, long updateCounter) {
+                CausalityClock pruneClock, List<CRDTObjectUpdatesGroup<?>> updates, boolean dirty) {
             this.id = id;
             this.oldClock = oldClock;
             this.newClock = newClock;
@@ -132,27 +132,23 @@ public class FastRecentUpdatesReply implements RpcMessage {
         }
 
         public ObjectSubscriptionInfo clone() {
-            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, dirty, -1);
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, updates, dirty);
         }
 
         public ObjectSubscriptionInfo cloneNotification() {
-            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, null, dirty, -1);
+            return new ObjectSubscriptionInfo(id, oldClock, newClock, pruneClock, null, dirty);
         }
 
         public ObjectSubscriptionInfo clone(Timestamp t) {
             CausalityClock newC = newClock.clone();
             if (t != null)
                 newC.recordAllUntil(t);
-            return new ObjectSubscriptionInfo(id, oldClock, newC, pruneClock, updates, dirty, -1);
+            return new ObjectSubscriptionInfo(id, oldClock, newC, pruneClock, updates, dirty);
         }
 
         public CausalityClock getPruneClock() {
             return pruneClock;
         }
-
-        // public long getUpdateCounter() {
-        // return updateCounter;
-        // }
     }
 
     protected SubscriptionStatus status;
@@ -160,7 +156,11 @@ public class FastRecentUpdatesReply implements RpcMessage {
     protected CausalityClock estimatedCommittedVersion;
     protected CausalityClock estimatedDistasterDurableCommittedVersion;
 
-    public int seqN;
+    protected int seqN;
+
+    public int getSeqN() {
+        return seqN;
+    }
 
     /**
      * No-args constructor for Kryo-serialization.

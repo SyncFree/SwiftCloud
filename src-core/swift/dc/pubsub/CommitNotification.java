@@ -24,6 +24,7 @@ import java.util.Set;
 
 import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
+import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.dc.ExecCRDTResult;
 
@@ -31,6 +32,7 @@ public class CommitNotification {
 
     List<ObjectSubscriptionInfo> info;
     public CommitUpdatesReply record;
+    public CausalityClock dependencies, currVersion, stableVersion;
 
     // For Kryo, do not use...
     CommitNotification() {

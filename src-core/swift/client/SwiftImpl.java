@@ -692,7 +692,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         final TxnLocalCRDT<V> crdtView;
         try {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
-            txn.readSet.put(crdt.getUID(), crdt.getUpdateCounter());
         } catch (IllegalStateException x) {
 
             // No appropriate version found in the object from the cache.
@@ -962,7 +961,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 notificationTimeoutMillis / 2), new FastRecentUpdatesReplyHandler() {
             @Override
             public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
-                notificationsQueue.offer(reply.seqN, reply);
+                notificationsQueue.offer(reply.getSeqN(), reply);
             }
         }, 0);
         handle.enableDeferredReplies(5 * notificationTimeoutMillis);
@@ -1304,7 +1303,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 operationsGroups.add(group.withDependencyClock(optimizedDependencyClock));
             }
             requests.add(new CommitUpdatesRequest(scoutId, txn.getTimestampMapping().getClientTimestamp(), txn
-                    .getUpdatesDependencyClock(), operationsGroups, txn.getReadSet()));
+                    .getUpdatesDependencyClock(), operationsGroups));
         }
 
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint, new BatchCommitUpdatesRequest(

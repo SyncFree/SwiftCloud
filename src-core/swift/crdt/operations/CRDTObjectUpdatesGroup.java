@@ -48,8 +48,6 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     protected List<CRDTUpdate<V>> operations;
     protected V creationState;
 
-    public long updateCounter;
-
     // public long timeInDC;
 
     /**
@@ -73,16 +71,6 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
         this.operations = new LinkedList<CRDTUpdate<V>>();
         this.creationState = creationState;
         this.dependencyClock = dependencyClock;
-    }
-
-    public CRDTObjectUpdatesGroup(CRDTIdentifier id, TimestampMapping timestampMapping, V creationState,
-            final CausalityClock dependencyClock, long updateCounter) {
-        this.id = id;
-        this.timestampMapping = timestampMapping;
-        this.operations = new LinkedList<CRDTUpdate<V>>();
-        this.creationState = creationState;
-        this.dependencyClock = dependencyClock;
-        this.updateCounter = updateCounter;
     }
 
     /**

@@ -352,7 +352,7 @@ class DCDataServer {
             @SuppressWarnings("unchecked")
             CRDTData<V> data = (CRDTData<V>) this.getDatabaseEntry(id);
             if (data.empty) {
-                data.initValue(crdt, clk, prune, cltClock, -1L);
+                data.initValue(crdt, clk, prune, cltClock);
             } else {
                 data.crdt.merge(crdt);
                 // if (DCDataServer.prune) {
@@ -416,9 +416,6 @@ class DCDataServer {
             if (prvCltTs != null)
                 data.crdt.augmentWithScoutClock(prvCltTs);
 
-            long updateCounter = data.crdt.incrementUpdateCounter();
-            grp.updateCounter = updateCounter;
-
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
@@ -452,7 +449,7 @@ class DCDataServer {
             }
 
             ExecCRDTResult result = new ExecCRDTResult(true, grp.getTargetUID(), false, new ObjectSubscriptionInfo(id,
-                    oldClock, data.clock.clone(), data.pruneClock.clone(), grp, updateCounter));
+                    oldClock, data.clock.clone(), data.pruneClock.clone(), grp));
 
             return result;
         } finally {

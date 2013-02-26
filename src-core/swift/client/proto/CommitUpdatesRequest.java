@@ -22,7 +22,6 @@ import java.util.List;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
-import swift.utils.ReadSet;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
@@ -40,8 +39,6 @@ public class CommitUpdatesRequest extends ClientRequest {
     protected Timestamp clientTimestamp;
     protected CausalityClock dependencyClock;
 
-    protected ReadSet readSet;
-
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
@@ -54,15 +51,6 @@ public class CommitUpdatesRequest extends ClientRequest {
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
         this.clientTimestamp = clientTimestamp;
         this.dependencyClock = dependencyClock;
-    }
-
-    public CommitUpdatesRequest(String clientId, final Timestamp clientTimestamp, final CausalityClock dependencyClock,
-            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups, ReadSet readSet) {
-        super(clientId);
-        this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
-        this.clientTimestamp = clientTimestamp;
-        this.dependencyClock = dependencyClock;
-        this.readSet = readSet;
     }
 
     /**
@@ -96,9 +84,5 @@ public class CommitUpdatesRequest extends ClientRequest {
                 this.dependencyClock.record(t);
             }
         }
-    }
-
-    public ReadSet getReadSet() {
-        return readSet;
     }
 }

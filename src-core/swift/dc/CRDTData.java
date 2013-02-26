@@ -79,8 +79,7 @@ public class CRDTData<V extends CRDT<V>> {
         this.empty = false;
     }
 
-    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock,
-            long updateCounter) {
+    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         lastPrunedTime = -1;
         this.crdt = crdt;
         // if( DCDataServer.prune)
@@ -122,8 +121,7 @@ public class CRDTData<V extends CRDT<V>> {
         this.empty = false;
     }
 
-    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock,
-            long updateCounter) {
+    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         this.crdt = crdt;
         // if( DCDataServer.prune)
         // this.prunedCrdt = crdt.copy();

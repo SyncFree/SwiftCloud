@@ -69,9 +69,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     // mapping from active client-assigned Timestamp to TripleTimestamp
     protected Map<Timestamp, List<TripleTimestamp>> clientTimestampsInUse;
 
-    // counts the number of updates performed on this crdt
-    protected long updateCounter = -1L;
-
     public BaseCRDT() {
         clientTimestampsInUse = new HashMap<Timestamp, List<TripleTimestamp>>();
     }
@@ -82,21 +79,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         this.updatesClock = clock;
         this.pruneClock = pruneClock;
         this.registeredInStore = registeredInStore;
-    }
-
-    @Override
-    public synchronized long incrementUpdateCounter() {
-        return ++updateCounter;
-    }
-
-    @Override
-    public void setUpdateCounter(long newVal) {
-        // this.updateCounter = newVal;
-    }
-
-    @Override
-    public long getUpdateCounter() {
-        return updateCounter;
     }
 
     @Override
@@ -307,7 +289,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
             updateTimestampUsageMapping(ops.getTimestampMapping());
         }
 
-        this.updateCounter = Math.max(updateCounter, ops.updateCounter);
         return newOperation;
     }
 
@@ -416,7 +397,6 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         // FIXME: unify copy() implementations and serialization - should this
         // clientTimestampsInUse be here or not (it is not transient)?
         object.clientTimestampsInUse = KryoLib.copy(clientTimestampsInUse);
-        object.updateCounter = this.updateCounter;
     }
 
 }

@@ -50,7 +50,6 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.DummyLog;
-import swift.utils.ReadSet;
 import swift.utils.TransactionsLog;
 import sys.utils.Threading;
 
@@ -95,9 +94,6 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final long serial;
 
     protected final String sessionId;
-
-    protected ReadSet readSet;
-
     protected static final AtomicLong serialGenerator = new AtomicLong();
 
     /**
@@ -130,7 +126,6 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
 
-        this.readSet = new ReadSet();
         this.serial = serialGenerator.getAndIncrement();
     }
 
@@ -161,7 +156,6 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
 
         this.serial = serialGenerator.getAndIncrement();
-        this.readSet = new ReadSet();
     }
 
     @Override
@@ -408,14 +402,6 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     private long orderingScore() {
         return getTimestampMapping() == null ? 0 : getTimestampMapping().getClientTimestamp().getCounter();
-    }
-
-    public void updateReadSet(CRDT<?> crdt) {
-        readSet.put(crdt.getUID(), crdt.getUpdateCounter());
-    }
-
-    public ReadSet getReadSet() {
-        return readSet;
     }
 
     @Override
