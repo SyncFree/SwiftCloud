@@ -69,8 +69,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-    volatile static Executor bossExecutors, workerExecutors;
-    volatile static ExecutionHandler executionHandler = null;
+    volatile Executor bossExecutors, workerExecutors;
+    volatile ExecutionHandler executionHandler = null;
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
@@ -166,7 +166,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 ChannelBuffer buf = ChannelBuffers.dynamicBuffer(NETTY_WRITEBUFFER_DEFAULTSIZE);
                 buf.writeInt(0);
                 Output output = new Output(new ChannelBufferOutputStream(buf));
-
                 KryoLib.kryo().writeClassAndObject(output, msg);
                 output.close();
 
@@ -216,7 +215,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 e = null;
 
                 int downloadTotal = in.position() + 4;
-
                 Sys.downloadedBytes.getAndAdd(downloadTotal);
                 incomingBytesCounter.addAndGet(downloadTotal);
 
