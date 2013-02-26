@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import swift.clocks.CausalityClock;
 import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
@@ -206,6 +207,13 @@ class LRUObjectsCache {
         final CRDTObjectUpdatesGroup dummyOp = new CRDTObjectUpdatesGroup(null, timestampMapping, null, null);
         for (final Entry entry : entries.values()) {
             entry.object.execute(dummyOp, CRDTOperationDependencyPolicy.IGNORE);
+        }
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    void augmentWithCausalClock(final CausalityClock causalClock) {
+        for (final Entry entry : entries.values()) {
+            entry.object.augmentWithDCClock(causalClock);
         }
     }
 

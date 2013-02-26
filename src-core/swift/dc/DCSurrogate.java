@@ -655,16 +655,10 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
             Thread.dumpStack();
         }
 
-        long T0 = System.currentTimeMillis();
         Task notifier = new Task(0) {
             public void run() {
 
                 if (clientHandle != null) {
-                    long now = System.currentTimeMillis();
-                    // System.err.println("?????????-------------------------------------------->"
-                    // + notifications.size());
-                    T0 = now;
-
                     final SubscriptionStatus status = subscriptions.size() == 0 ? SubscriptionStatus.LOST
                             : SubscriptionStatus.ACTIVE;
 
@@ -727,22 +721,9 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                     if (subscriptions.contains(i.getId()))
                         notifications.add(i);
 
-                // System.err.println("--------->>>>>>>>>>>>>>>>>>>>>>>>" +
-                // notifications.size() + "/" + keys + "/"
-                // + notifier.isScheduled());
                 if (notifications.size() > 0)
                     notifier.reSchedule(0.0);
             }
-
-            System.err.println(data.record.getCommitTimestamps() + "/" + data.dependencies + "/" + data.currVersion);
-            // boolean updated = false;
-            // for (ObjectSubscriptionInfo i : data.info())
-            // if (subscriptions.contains(i.getId())) {
-            // getCounter(i.getId()).set((int) i.getUpdateCounter());
-            // updated = true;
-            // }
-            // if (updated)
-            // System.err.println("------>" + counters);
         }
 
         synchronized SlidingIntSet getCounter(CRDTIdentifier id) {

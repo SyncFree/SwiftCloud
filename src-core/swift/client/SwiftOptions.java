@@ -21,7 +21,7 @@ package swift.client;
  * 
  * @author mzawirski
  */
-public class SwiftOptions {
+final public class SwiftOptions {
     public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
     public static final boolean DEFAULT_DISASTER_SAFE = false;
     public static final int DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED = 50;
@@ -50,6 +50,11 @@ public class SwiftOptions {
     private int maxCommitBatchSize;
     private String logFilename;
     private boolean logFlushOnCommit;
+    private boolean causalNotifications;
+
+    // for kryo...
+    SwiftOptions() {
+    }
 
     /**
      * Creates a new instance with default options and provided server endpoint
@@ -59,7 +64,9 @@ public class SwiftOptions {
      * @param serverPort
      *            TCP port of the store server
      */
+
     public SwiftOptions(String serverHostname, int serverPort) {
+        this.causalNotifications = true;
         this.serverHostname = serverHostname;
         this.serverPort = serverPort;
         this.disasterSafe = DEFAULT_DISASTER_SAFE;
@@ -113,6 +120,15 @@ public class SwiftOptions {
      */
     public boolean isDisasterSafe() {
         return disasterSafe;
+    }
+
+    /**
+     * @return true if the scout should assume notifications are delivered
+     *         atomically in causal order for the cache as a whole.
+     * 
+     */
+    public boolean assumeAtomicCausalNotifications() {
+        return causalNotifications;
     }
 
     /**
@@ -288,5 +304,15 @@ public class SwiftOptions {
      */
     public void setLogFlushOnCommit(boolean logFlushOnCommit) {
         this.logFlushOnCommit = logFlushOnCommit;
+    }
+
+    /**
+     * 
+     * @param flag
+     *            true if the scout should assume notifications are delivered
+     *            atomically and in causal order for the whole cache.
+     */
+    public void setCausalNotifications(boolean flag) {
+        this.causalNotifications = flag;
     }
 }

@@ -40,6 +40,7 @@ import swift.crdt.interfaces.BulkGetProgressListener;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -81,6 +82,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     protected final TxnManager manager;
     protected final boolean readOnly;
+    protected final IsolationLevel isolationLevel;
     protected CachePolicy cachePolicy;
     protected final TimestampMapping timestampMapping;
     protected final CausalityClock updatesDependencyClock;
@@ -112,12 +114,13 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            updates of this transaction
      */
     AbstractTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
-            final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
+            final IsolationLevel isolationLevel, final CachePolicy cachePolicy, final TimestampMapping timestampMapping) {
         this.manager = manager;
         this.readOnly = false;
         this.sessionId = sessionId;
         this.durableLog = durableLog;
         this.id = timestampMapping.getClientTimestamp().getCounter();
+        this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = timestampMapping;
         this.updatesDependencyClock = ClockFactory.newClock();
@@ -141,12 +144,14 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      * @param cachePolicy
      *            cache policy used by this transaction
      */
-    AbstractTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy) {
+    AbstractTxnHandle(final TxnManager manager, final String sessionId, final IsolationLevel isolationLevel,
+            final CachePolicy cachePolicy) {
         this.manager = manager;
         this.readOnly = true;
         this.sessionId = sessionId;
         this.durableLog = new DummyLog();
         this.id = -1;
+        this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = null;
         this.updatesDependencyClock = ClockFactory.newClock();
@@ -428,5 +433,9 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         } catch (InterruptedException e) {
         }
         return res;
+    }
+
+    public IsolationLevel getIsolationLevel() {
+        return isolationLevel;
     }
 }

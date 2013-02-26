@@ -94,6 +94,7 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.impl.KryoLib;
+import sys.scheduler.Task;
 import sys.utils.FifoQueue;
 import sys.utils.Threading;
 
@@ -174,7 +175,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         return DatatypeConverter.printBase64Binary(uuidBytes);
     }
 
-    private boolean stopFlag;
+    volatile private boolean stopFlag;
     private boolean stopGracefully;
 
     private final String scoutId;
@@ -189,6 +190,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final LRUObjectsCache objectsCache;
 
     // CLOCKS: all clocks grow over time. Careful with references, use copies.
+
+    // A clock that advances with atomic causal notifications received from the
+    // surrogate
+    private final CausalityClock causalNotificationsClock;
 
     // A clock known to be committed at the store.
     private final CausalityClock committedVersion;
@@ -258,8 +263,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
     private final ScoutPubSubService suPubSub;
 
+    private final SwiftOptions options;
+
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, final LRUObjectsCache objectsCache,
             final SwiftOptions options) {
+
+        this.options = KryoLib.copy(options);
+
         this.scoutId = generateScoutId();
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
@@ -278,13 +288,12 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedDisasterDurableVersion = ClockFactory.newClock();
+        this.causalNotificationsClock = ClockFactory.newClock();
+
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
                 new IncrementalTimestampGenerator(scoutId));
 
-        // this.retryableTaskExecutor = new
-        // ExponentialBackoffTaskExecutor("client->server request",
-        // INIT_RPC_RETRY_WAIT_TIME_MILLIS, RPC_RETRY_WAIT_TIME_MULTIPLIER);
         this.pendingTxns = new HashSet<AbstractTxnHandle>();
         this.committerThread = new CommitterThread();
         this.fetchVersionsInProgress = new HashSet<CausalityClock>();
@@ -319,6 +328,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             log = new NoFlushLogDecorator(log);
         }
         this.durableLog = log;
+
+        getDCClockEstimates();
     }
 
     public void stop(boolean waitForCommit) {
@@ -377,6 +388,16 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
     }
 
+    private boolean getDCClockEstimates() {
+        LatestKnownClockReply reply = localEndpoint.request(serverEndpoint, new LatestKnownClockRequest(scoutId));
+        if (reply != null) {
+            reply.getDistasterDurableClock().intersect(reply.getClock());
+            updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
+            return true;
+        } else
+            return false;
+    }
+
     public synchronized AbstractTxnHandle beginTxn(String sessionId, IsolationLevel isolationLevel,
             CachePolicy cachePolicy, boolean readOnly) throws NetworkException {
         if (!concurrentOpenTransactions && !pendingTxns.isEmpty()) {
@@ -386,24 +407,26 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
-            if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-
-                LatestKnownClockReply reply = localEndpoint.request(serverEndpoint,
-                        new LatestKnownClockRequest(scoutId));
-                if (reply != null) {
-                    reply.getDistasterDurableClock().intersect(reply.getClock());
-                    updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
+            final CausalityClock snapshotClock;
+            if (options.assumeAtomicCausalNotifications()) {
+                synchronized (SwiftImpl.this) {
+                    snapshotClock = getGlobalCommittedVersion(true);
+                    snapshotClock.merge(causalNotificationsClock);
                 }
-                if (reply == null && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                    throw new NetworkException("timed out to get transcation snapshot point");
+            } else {
+                if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                    if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                        throw new NetworkException("timed out to get transcation snapshot point");
+                    }
                 }
+                // Invariant: for SI snapshotClock of a new transaction
+                // dominates
+                // clock of all previous SI transaction (monotonic reads), since
+                // commitedVersion only grows.
+                snapshotClock = getGlobalCommittedVersion(true);
             }
-            // Invariant: for SI snapshotClock of a new transaction
-            // dominates
-            // clock of all previous SI transaction (monotonic reads), since
-            // commitedVersion only grows.
-            final CausalityClock snapshotClock = getGlobalCommittedVersion(true);
             snapshotClock.merge(lastLocallyCommittedTxnClock);
+
             final SnapshotIsolationTxnHandle siTxn;
             if (readOnly) {
                 siTxn = new SnapshotIsolationTxnHandle(this, sessionId, cachePolicy, snapshotClock);
@@ -689,6 +712,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // TODO: Discuss. This is a very aggressive caching mode.
         }
 
+        // if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION &&
+        // options.assumeAtomicCausalNotifications())
+        // clock.intersect(crdt.getClock());
+
         final TxnLocalCRDT<V> crdtView;
         try {
             crdtView = crdt.getTxnLocalCopy(clock, txn);
@@ -907,19 +934,12 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         final FifoQueue<FastRecentUpdatesReply> notificationsQueue = new FifoQueue<FastRecentUpdatesReply>() {
             public void process(FastRecentUpdatesReply notifications) {
                 // System.err.println(scoutId + "----------------->" +
-                // notifications.seqN + "/#"
+                // notifications.getSeqN() + "/#"
                 // + notifications.getSubscriptions().size());
 
                 T0.set(System.currentTimeMillis());
 
                 if (logger.isLoggable(Level.INFO)) {
-                    // System.err.println(sys.Sys.Sys.mainClass +
-                    // " notifications received for " +
-                    // notifications.getSubscriptions().size() + " objects" +
-                    // ";vrs=" +
-                    // notifications.getEstimatedCommittedVersion() + ";stable="
-                    // +
-                    // notifications.getEstimatedDisasterDurableCommittedVersion());
 
                     logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects"
                             + ";vrs=" + notifications.getEstimatedCommittedVersion() + ";stable="
@@ -931,9 +951,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                                 + sub.getOldClock() + "; new clk " + sub.getNewClock());
                     }
                 }
-
-                updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
-                        notifications.getEstimatedDisasterDurableCommittedVersion());
 
                 if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
                     // Process notifications.
@@ -955,13 +972,28 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     // }
                     // }
                 }
+
+                synchronized (causalNotificationsClock) {
+                    causalNotificationsClock.merge(notifications.getEstimatedCommittedVersion());
+                }
+
+                synchronized (SwiftImpl.this) {
+                    objectsCache.augmentWithCausalClock(causalNotificationsClock);
+                }
+                // updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
+                // notifications.getEstimatedDisasterDurableCommittedVersion());
+
             }
         };
         RpcHandle handle = localEndpoint.send(serverEndpoint, new FastRecentUpdatesRequest(scoutId,
                 notificationTimeoutMillis / 2), new FastRecentUpdatesReplyHandler() {
             @Override
-            public void onReceive(RpcHandle conn, FastRecentUpdatesReply reply) {
-                notificationsQueue.offer(reply.getSeqN(), reply);
+            public void onReceive(RpcHandle conn, final FastRecentUpdatesReply reply) {
+                new Task(0) {
+                    public void run() {
+                        notificationsQueue.offer(reply.getSeqN(), reply);
+                    }
+                };
             }
         }, 0);
         handle.enableDeferredReplies(5 * notificationTimeoutMillis);
@@ -1494,17 +1526,15 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             setDaemon(true);
         }
 
-        // @Override
-        // public void run() {
-        // while (true) {
-        // synchronized (SwiftImpl.this) {
-        // if (stopFlag) {
-        // return;
-        // }
-        // }
-        // fetchSubscribedNotifications();
-        // }
-        // }
+        @Override
+        public void run() {
+            while (true) {
+                if (stopFlag) {
+                    break;
+                }
+                fetchSubscribedNotifications();
+            }
+        }
     }
 
     /**
