@@ -33,10 +33,7 @@ public class InitiatorInfo extends AbstractMessage {
     }
 
     public void deliverTo(final TransportConnection conn, final MessageHandler handler) {
-        System.out.println("got initiator-->>>" + counter++);
         ((RemoteEndpointUpdater) conn).setRemoteEndpoint(local);
         handler.onAccept(conn);
     }
-
-    static volatile int counter = 1;
 }
