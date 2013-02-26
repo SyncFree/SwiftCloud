@@ -157,7 +157,7 @@ public class SwiftSocial {
         }
     }
 
-    User registerUser(final TxnHandle txn, final String loginName, final String passwd, final String fullName,
+    public User registerUser(final TxnHandle txn, final String loginName, final String passwd, final String fullName,
             final long birthday, final long date) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         // FIXME How do we guarantee unique login names?

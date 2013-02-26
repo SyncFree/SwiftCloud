@@ -27,7 +27,7 @@ public class ClosestDomain {
                 bestRTT = rtt;
                 res = i;
             }
-            return i; // HACK HACK TO USE FIRST DC
+            // return i; // HACK HACK TO USE FIRST DC
         }
         return res != null ? res : "localhost";
     }
