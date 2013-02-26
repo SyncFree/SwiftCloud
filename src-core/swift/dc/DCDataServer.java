@@ -381,7 +381,7 @@ class DCDataServer {
             CRDTData<?> data = localGetCRDT(observer, id, SubscriptionType.NONE);
             if (data == null) {
                 if (!grp.hasCreationState()) {
-                    System.err.println("CRAP!!!!!!!!!!!!!!!!");
+                    System.err.println("OUCH!!!!!!!!!!!!!!!!");
                     return new ExecCRDTResult(false);
                 }
                 CRDT<?> crdt = grp.getCreationState().copy();

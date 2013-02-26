@@ -734,6 +734,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                     notifier.reSchedule(0.0);
             }
 
+            System.err.println(data.record.getCommitTimestamps() + "/" + data.dependencies + "/" + data.currVersion);
             // boolean updated = false;
             // for (ObjectSubscriptionInfo i : data.info())
             // if (subscriptions.contains(i.getId())) {

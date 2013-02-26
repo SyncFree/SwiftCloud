@@ -41,8 +41,6 @@ public class DcPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNotifi
         final Set<Handler<CRDTIdentifier, CommitNotification>> targets = new HashSet<Handler<CRDTIdentifier, CommitNotification>>();
         for (CRDTIdentifier i : uids)
             targets.addAll(subscribers(i, false));
-        // System.err.println("TARGETS FOR: " + uids + "----->" +
-        // targets.size());
         executor.execute(new Runnable() {
             public void run() {
                 for (Handler<CRDTIdentifier, CommitNotification> i : targets)
