@@ -420,7 +420,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     @Override
     public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
-            BulkGetProgressListener listener) {
+            final BulkGetProgressListener listener) {
         final ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>> res = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         final ExecutorService executor = Executors.newFixedThreadPool(32, Threading.factory("Client"));
         for (final CRDTIdentifier i : ids)
@@ -431,16 +431,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
                     try {
                         val = get(i, readOnly, null);
                         res.put(i, val);
-                    } catch (WrongTypeException e) {
-                        e.printStackTrace();
-                    } catch (NoSuchObjectException e) {
-                        e.printStackTrace();
-                    } catch (VersionNotFoundException e) {
-                        e.printStackTrace();
-                    } catch (NetworkException e) {
-                        e.printStackTrace();
+                        listener.onGet(AbstractTxnHandle.this, i, val);
+                    } catch (Exception e) {
+                        res.put(i, null);
                     }
-                    res.put(i, null);
                 }
             });
         try {
