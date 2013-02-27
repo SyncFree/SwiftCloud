@@ -58,7 +58,7 @@ class LRUObjectsCache {
         }
     };
 
-    public void removeProtection(long id) {
+    synchronized public void removeProtection(long id) {
         evictionProtections.remove(id);
         evictExcess();
         evictOutdated();
@@ -107,7 +107,7 @@ class LRUObjectsCache {
      * @param object
      *            object to add
      */
-    public void add(final CRDT<?> object, long txnId) {
+    synchronized public void add(final CRDT<?> object, long txnId) {
         evictionProtections.add(txnId);
         Entry e = new Entry(object, txnId);
         entries.put(object.getUID(), e);
@@ -121,7 +121,7 @@ class LRUObjectsCache {
      *            object id
      * @return object or null if object is absent in the cache
      */
-    public CRDT<?> getAndTouch(final CRDTIdentifier id) {
+    synchronized public CRDT<?> getAndTouch(final CRDTIdentifier id) {
         final Entry entry = entries.get(id);
         if (entry == null) {
             return null;
@@ -138,7 +138,7 @@ class LRUObjectsCache {
      *            object id
      * @return object or null if object is absent in the cache
      */
-    public CRDT<?> getWithoutTouch(final CRDTIdentifier id) {
+    synchronized public CRDT<?> getWithoutTouch(final CRDTIdentifier id) {
         final Entry entry = entries.get(id);
         return entry == null ? null : entry.getObject();
     }
@@ -147,7 +147,7 @@ class LRUObjectsCache {
      * Evicts all objects that have not been accessed for over
      * evictionTimeMillis specified for this cache.
      */
-    public void evictExcess() {
+    private void evictExcess() {
         int evictedObjects = 0;
         int excess = entries.size() - maxElements;
         for (Iterator<Map.Entry<CRDTIdentifier, Entry>> it = entries.entrySet().iterator(); it.hasNext();) {
@@ -178,7 +178,7 @@ class LRUObjectsCache {
      * Evicts all objects that have not been accessed for over
      * evictionTimeMillis specified for this cache.
      */
-    public void evictOutdated() {
+    private void evictOutdated() {
         long now = System.currentTimeMillis();
         final long evictionThreashold = now - evictionTimeMillis;
 
@@ -203,7 +203,7 @@ class LRUObjectsCache {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    void recordOnAll(final TimestampMapping timestampMapping) {
+    synchronized void recordOnAll(final TimestampMapping timestampMapping) {
         final CRDTObjectUpdatesGroup dummyOp = new CRDTObjectUpdatesGroup(null, timestampMapping, null, null);
         for (final Entry entry : entries.values()) {
             entry.object.execute(dummyOp, CRDTOperationDependencyPolicy.IGNORE);
@@ -211,7 +211,7 @@ class LRUObjectsCache {
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    void augmentWithCausalClock(final CausalityClock causalClock) {
+    synchronized void augmentWithCausalClock(final CausalityClock causalClock) {
         for (final Entry entry : entries.values()) {
             entry.object.augmentWithDCClock(causalClock);
         }

@@ -94,7 +94,6 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.impl.KryoLib;
-import sys.scheduler.Task;
 import sys.utils.FifoQueue;
 import sys.utils.Threading;
 
@@ -239,6 +238,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final ExecutorService notificationsSubscriberExecutor;
     // private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
+    private final ExecutorService executorService;
+
     private final TransactionsLog durableLog;
     private final CacheStats cacheStats;
 
@@ -307,6 +308,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.notificationsThread = new NotoficationsProcessorThread();
         this.notificationsThread.start();
 
+        this.executorService = Executors.newFixedThreadPool(32, Threading.factory("Client"));
         this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint);
         this.objectsCache.setEvictionListener(new EvictionListener() {
             public void onEviction(CRDTIdentifier id) {
@@ -639,7 +641,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 return getCachedObjectForTxn(txn, id, globalVersion.clone(), classOfV, updatesListener, true);
                 // smduarte
                 // WITH SI, at least, CODE BELOW FAILS AFTER 10min running, as
-                // shown below...
+                // shown below...[pre causal notifications hack]
 
                 // WARNING: Object not found in appropriate version, probably
                 // pruned: swift.exceptions.VersionNotFoundException: Object not
@@ -989,11 +991,11 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 notificationTimeoutMillis / 2), new FastRecentUpdatesReplyHandler() {
             @Override
             public void onReceive(RpcHandle conn, final FastRecentUpdatesReply reply) {
-                new Task(0) {
+                execute(new Runnable() {
                     public void run() {
                         notificationsQueue.offer(reply.getSeqN(), reply);
                     }
-                };
+                });
             }
         }, 0);
         handle.enableDeferredReplies(5 * notificationTimeoutMillis);
@@ -1577,4 +1579,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
     }
 
+    public void execute(Runnable r) {
+        executorService.execute(r);
+    }
 }

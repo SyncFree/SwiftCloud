@@ -19,13 +19,11 @@ package swift.client;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import swift.clocks.CausalityClock;
@@ -164,17 +162,16 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     }
 
     @Override
-    public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         return get(id, create, classOfV, null);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
-            Class<V> classOfV, ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
+    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+            NetworkException {
         assertStatus(TxnStatus.PENDING);
         try {
             if (SwiftImpl.DEFAULT_LISTENER_FOR_GET && listener == null)
@@ -413,29 +410,45 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
             final BulkGetProgressListener listener) {
         final ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>> res = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
-        final ExecutorService executor = Executors.newFixedThreadPool(32, Threading.factory("Client"));
+
+        if (ids.isEmpty())
+            return res;
+
         for (final CRDTIdentifier i : ids)
-            executor.equals(new Runnable() {
+            execute(new Runnable() {
                 @Override
                 public void run() {
                     TxnLocalCRDT<?> val;
                     try {
                         val = get(i, readOnly, null);
                         res.put(i, val);
-                        listener.onGet(AbstractTxnHandle.this, i, val);
+                        if (listener != null)
+                            listener.onGet(AbstractTxnHandle.this, i, val);
                     } catch (Exception e) {
                         res.put(i, null);
+                        e.printStackTrace();
                     }
+                    Threading.synchronizedNotifyAllOn(res);
                 }
             });
-        try {
-            executor.awaitTermination(timeout, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
+
+        while (res.size() != ids.size()) {
+            Threading.synchronizedWaitOn(res, 100);
         }
         return res;
     }
 
+    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(CRDTIdentifier... crdtIdentifiers) {
+        long timeout = Long.MAX_VALUE;
+        Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>(Arrays.asList(crdtIdentifiers));
+        return this.bulkGet(ids, false, timeout, null);
+    }
+
     public IsolationLevel getIsolationLevel() {
         return isolationLevel;
+    }
+
+    private void execute(Runnable r) {
+        ((SwiftImpl) manager).execute(r);
     }
 }

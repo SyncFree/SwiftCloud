@@ -214,4 +214,6 @@ public interface TxnHandle {
      */
     Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(final Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
             final BulkGetProgressListener listener);
+
+    Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(final CRDTIdentifier... ids);
 }
