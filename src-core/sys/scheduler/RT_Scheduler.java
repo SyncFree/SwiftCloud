@@ -33,7 +33,7 @@ public class RT_Scheduler<T extends Task> extends VT_Scheduler<T> {
 
     private static Logger Log = Logger.getLogger(RT_Scheduler.class.getName());
 
-    static ExecutorService threadPool = Executors.newCachedThreadPool();
+    static ExecutorService threadPool = Executors.newFixedThreadPool(8);
 
     protected RT_Scheduler() {
         super();
