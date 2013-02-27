@@ -98,7 +98,7 @@ public class SwiftSocialMain {
 
         System.out.println("Waiting for 3 seconds...");
 
-        int concurrentSessions = Args.valueOf(args, "-sessions", 13);
+        int concurrentSessions = Args.valueOf(args, "-sessions", 2);
 
         Threading.sleep(3000);
         final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions,

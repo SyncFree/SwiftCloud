@@ -17,7 +17,9 @@
 package swift.application.social;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -28,11 +30,13 @@ import swift.crdt.SetIds;
 import swift.crdt.SetMsg;
 import swift.crdt.SetTxnLocalId;
 import swift.crdt.SetTxnLocalMsg;
+import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.SwiftSession;
 import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
@@ -191,7 +195,7 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
-            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) get(txn,
                     NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class, updatesSubscriber);
             reg.set(currentUser);
             commitTxn(txn);
@@ -211,11 +215,14 @@ public class SwiftSocial {
         User user = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, true);
-            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false,
+            RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(name), false,
                     RegisterVersioned.class);
             user = reg.getValue();
-            msgs.addAll(((SetTxnLocalMsg) txn.get(user.msgList, false, SetMsg.class, updatesSubscriber)).getValue());
-            evnts.addAll(((SetTxnLocalMsg) txn.get(user.eventList, false, SetMsg.class, updatesSubscriber)).getValue());
+
+            txn.bulkGet(user.msgList, user.eventList);
+
+            msgs.addAll(((SetTxnLocalMsg) get(txn, user.msgList, false, SetMsg.class, updatesSubscriber)).getValue());
+            evnts.addAll(((SetTxnLocalMsg) get(txn, user.eventList, false, SetMsg.class, updatesSubscriber)).getValue());
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
@@ -237,8 +244,11 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
-            User receiver = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
+            User receiver = ((RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
+
+            txn.bulkGet(receiver.msgList, currentUser.eventList);
+
             writeMessage(txn, newMsg, receiver.msgList, updatesSubscriber);
             writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
@@ -258,6 +268,9 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
+
+            txn.bulkGet(currentUser.msgList, currentUser.eventList);
+
             writeMessage(txn, newMsg, currentUser.msgList, updatesSubscriber);
             writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
@@ -277,23 +290,27 @@ public class SwiftSocial {
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain data of requesting user
-            User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(requester), false,
+            User other = ((RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(requester), false,
                     RegisterVersioned.class)).getValue();
 
+            txn.bulkGet(currentUser.inFriendReq, other.outFriendReq);
+
             // Remove information for request
-            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(currentUser.inFriendReq, false, SetIds.class,
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) get(txn, currentUser.inFriendReq, false, SetIds.class,
                     updatesSubscriber);
             inFriendReq.remove(NamingScheme.forUser(requester));
-            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(other.outFriendReq, false, SetIds.class,
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) get(txn, other.outFriendReq, false, SetIds.class,
                     updatesSubscriber);
             outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
 
             // Befriend if accepted
             if (accept) {
-                SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
+                txn.bulkGet(currentUser.friendList, other.friendList);
+
+                SetTxnLocalId friends = (SetTxnLocalId) get(txn, currentUser.friendList, false, SetIds.class,
                         updatesSubscriber);
                 friends.insert(NamingScheme.forUser(requester));
-                SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(other.friendList, false, SetIds.class,
+                SetTxnLocalId requesterFriends = (SetTxnLocalId) get(txn, other.friendList, false, SetIds.class,
                         updatesSubscriber);
                 requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             }
@@ -313,14 +330,16 @@ public class SwiftSocial {
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain data of friend
-            User other = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
+            User other = ((RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
 
+            txn.bulkGet(other.inFriendReq, currentUser.outFriendReq);
+
             // Add data for request
-            SetTxnLocalId inFriendReq = (SetTxnLocalId) txn.get(other.inFriendReq, false, SetIds.class,
+            SetTxnLocalId inFriendReq = (SetTxnLocalId) get(txn, other.inFriendReq, false, SetIds.class,
                     updatesSubscriber);
             inFriendReq.insert(NamingScheme.forUser(currentUser.loginName));
-            SetTxnLocalId outFriendReq = (SetTxnLocalId) txn.get(currentUser.outFriendReq, false, SetIds.class,
+            SetTxnLocalId outFriendReq = (SetTxnLocalId) get(txn, currentUser.outFriendReq, false, SetIds.class,
                     updatesSubscriber);
             outFriendReq.insert(NamingScheme.forUser(receiverName));
 
@@ -339,17 +358,20 @@ public class SwiftSocial {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
+
+            txn.bulkGet(NamingScheme.forUser(receiverName), currentUser.friendList);
+
             // Obtain new friend's data
-            User friend = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(receiverName), false,
+            User friend = ((RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(receiverName), false,
                     RegisterVersioned.class)).getValue();
 
             // Register him as my friend
-            SetTxnLocalId friends = (SetTxnLocalId) txn.get(currentUser.friendList, false, SetIds.class,
+            SetTxnLocalId friends = (SetTxnLocalId) get(txn, currentUser.friendList, false, SetIds.class,
                     updatesSubscriber);
             friends.insert(NamingScheme.forUser(receiverName));
 
             // Register me as his friend
-            SetTxnLocalId requesterFriends = (SetTxnLocalId) txn.get(friend.friendList, false, SetIds.class,
+            SetTxnLocalId requesterFriends = (SetTxnLocalId) get(txn, friend.friendList, false, SetIds.class,
                     updatesSubscriber);
             requesterFriends.insert(NamingScheme.forUser(this.currentUser.loginName));
             commitTxn(txn);
@@ -369,13 +391,17 @@ public class SwiftSocial {
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, true);
             // Obtain user data
-            User user = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class,
+
+            User user = ((RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(name), false, RegisterVersioned.class,
                     updatesSubscriber)).getValue();
 
-            Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) txn.get(user.friendList, false, SetIds.class,
+            Set<CRDTIdentifier> friendIds = ((SetTxnLocalId) get(txn, user.friendList, false, SetIds.class,
                     updatesSubscriber)).getValue();
+
+            txn.bulkGet(friendIds, false, Long.MAX_VALUE, null);
+
             for (CRDTIdentifier f : friendIds) {
-                User u = ((RegisterTxnLocal<User>) txn.get(NamingScheme.forUser(name), false, RegisterVersioned.class,
+                User u = ((RegisterTxnLocal<User>) get(txn, NamingScheme.forUser(name), false, RegisterVersioned.class,
                         updatesSubscriber)).getValue();
                 friends.add(new Friend(u.fullName, f));
             }
@@ -404,4 +430,29 @@ public class SwiftSocial {
         }
     }
 
+    Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkRes = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+
+    void bulkGet(TxnHandle txn, CRDTIdentifier... ids) {
+        bulkRes = txn.bulkGet(ids);
+    }
+
+    @SuppressWarnings("unchecked")
+    <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(TxnHandle txn, CRDTIdentifier id, boolean create,
+            Class<V> classOfT, final ObjectUpdatesListener updatesListener) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
+        T res = (T) bulkRes.get(id);
+        if (res == null)
+            res = (T) txn.get(id, create, classOfT, updatesListener);
+        return res;
+    }
+
+    @SuppressWarnings("unchecked")
+    <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(TxnHandle txn, CRDTIdentifier id, boolean create,
+            Class<V> classOfT) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+            NetworkException {
+        T res = (T) bulkRes.get(id);
+        if (res == null)
+            res = (T) txn.get(id, create, classOfT);
+        return res;
+    }
 }
