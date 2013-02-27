@@ -19,6 +19,7 @@ package swift.crdt;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import swift.client.CommitListener;
 import swift.clocks.CausalityClock;
@@ -29,6 +30,7 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.BulkGetProgressListener;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.interfaces.CRDTUpdate;
@@ -168,6 +170,19 @@ public class TxnTester implements TxnHandle {
     public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
         // NOP: This txn implementation does not apply updates to the underlying
         // CRDT objects
+    }
+
+    @Override
+    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, boolean readOnly, long timeout,
+            BulkGetProgressListener listener) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(CRDTIdentifier... ids) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

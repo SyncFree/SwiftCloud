@@ -25,20 +25,14 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Collections;
-
 import org.easymock.EasyMockSupport;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import swift.client.proto.CommitUpdatesReply;
 import swift.client.proto.CommitUpdatesReplyHandler;
 import swift.client.proto.CommitUpdatesRequest;
-import swift.client.proto.FastRecentUpdatesReply;
-import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
-import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
 import swift.client.proto.FastRecentUpdatesReplyHandler;
 import swift.client.proto.FastRecentUpdatesRequest;
 import swift.client.proto.FetchObjectVersionReply;
@@ -133,7 +127,7 @@ public class SwiftImplTest extends EasyMockSupport {
             @Override
             public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
                 final FetchObjectVersionReply fetchReply = new FetchObjectVersionReply(FetchStatus.OBJECT_NOT_FOUND,
-                        null, serverClock, ClockFactory.newClock(), serverClock, serverClock);
+                        null, serverClock, ClockFactory.newClock(), serverClock, serverClock, -1, -1, -1);
                 ((FetchObjectVersionReplyHandler) replyHandler).onReceive(null, fetchReply);
                 return null;
             }
@@ -167,8 +161,8 @@ public class SwiftImplTest extends EasyMockSupport {
                 assertEquals(request.getClientTimestamp(), request.getObjectUpdateGroups().get(0).getClientTimestamp());
 
                 // FIXME: adapt to 1PC
-                ((CommitUpdatesReplyHandler) replyHandler).onReceive(null,
-                        new CommitUpdatesReply(request.getClientTimestamp()));
+                // ((CommitUpdatesReplyHandler) replyHandler).onReceive(null,
+                // new CommitUpdatesReply(request.getClientTimestamp()));
                 return null;
             }
         });
@@ -183,10 +177,13 @@ public class SwiftImplTest extends EasyMockSupport {
                 assertTrue(request.getMaxBlockingTimeMillis() > 0
                         && request.getMaxBlockingTimeMillis() <= options.getNotificationTimeoutMillis());
 
-                ((FastRecentUpdatesReplyHandler) replyHandler).onReceive(
-                        null,
-                        new FastRecentUpdatesReply(SubscriptionStatus.ACTIVE, Collections
-                                .<ObjectSubscriptionInfo> emptyList(), ClockFactory.newClock(), ClockFactory.newClock()));
+                // ((FastRecentUpdatesReplyHandler) replyHandler).onReceive(
+                // null,
+                // new FastRecentUpdatesReply(SubscriptionStatus.ACTIVE,
+                // Collections
+                // .<ObjectSubscriptionInfo> emptyList(),
+                // ClockFactory.newClock(), ClockFactory.newClock()),
+                // );
                 return null;
             }
         }).anyTimes();
@@ -282,12 +279,6 @@ public class SwiftImplTest extends EasyMockSupport {
         public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
             // TODO Auto-generated method stub
             return null;
-        }
-
-        @Override
-        public void setOption(String option, Object val) {
-            // TODO Auto-generated method stub
-
         }
     }
 }
