@@ -27,7 +27,6 @@ import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.scheduler.PeriodicTask;
 import sys.scheduler.Task;
 import sys.shepard.proto.GrazingAccepted;
 import sys.shepard.proto.GrazingGranted;
@@ -69,12 +68,6 @@ public class Shepard extends ShepardProtoHandler {
         sys.Sys.init();
         int duration = Args.valueOf(args, "-duration", Integer.MAX_VALUE);
 
-        new PeriodicTask(0.0, 1.0) {
-            public void run() {
-                System.out.println("shepard...");
-            }
-        };
-
         new Shepard(duration);
     }
 
@@ -114,7 +107,6 @@ public class Shepard extends ShepardProtoHandler {
                 System.err.printf("SHEPARD: Releasing: %d sheep\n", waitingSheep.size());
                 if (releaseTime < 0) {
                     releaseTime = System.currentTimeMillis();
-                    System.out.println("RELEASED");
                 }
                 for (RpcHandle i : waitingSheep) {
                     long when = Math.max(0, 15000 - (System.currentTimeMillis() - releaseTime));
@@ -123,7 +115,6 @@ public class Shepard extends ShepardProtoHandler {
 
                 System.err.printf("SHEPARD: Released: %d sheep\n", waitingSheep.size());
                 waitingSheep.clear();
-
             }
         }
     };
