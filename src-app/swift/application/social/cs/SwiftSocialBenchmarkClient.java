@@ -18,13 +18,12 @@ package swift.application.social.cs;
 
 import static sys.net.api.Networking.Networking;
 
-import java.io.PrintStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.application.social.Commands;
+import swift.application.social.SwiftSocialBenchmark;
 import swift.application.social.Workload;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
@@ -32,7 +31,6 @@ import sys.net.api.rpc.RpcEndpoint;
 import sys.shepard.Shepard;
 import sys.utils.Args;
 import sys.utils.IP;
-import sys.utils.Props;
 
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
@@ -41,40 +39,33 @@ import sys.utils.Props;
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.
  */
-public class SwiftSocialBenchmarkClient {
-    private static PrintStream bufferedOutput;
+public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
 
     static Endpoint socialServer;
 
-    static AtomicInteger commandsDone = new AtomicInteger(0);
-    static AtomicInteger totalCommands = new AtomicInteger(0);
-
     public static void main(String[] args) {
         if (args.length < 3) {
-            exitWithUsage();
+            System.err.println("wrong number of parameters...i know not very helpful...");
         }
 
-        final String server = args[0];
-        int site = Integer.valueOf(args[1]);
-        int number_of_sites = Integer.valueOf(args[2]);
-        int concurrentSessions = Integer.valueOf(args[3]);
-
+        final String server = Args.valueOf(args, "-scout", "localhost");
         final String shepardAddress = Args.valueOf(args, "-shepard", "");
 
         sys.Sys.init();
 
-        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.PORT);
+        init();
 
-        bufferedOutput = new PrintStream(System.out, false);
-        bufferedOutput.println("session_id,command,command_exec_time,time");
+        int[] scouts;
+        int concurrentSessions = Args.valueOf(args, "-threads", 1);
+        try {
+            scouts = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
+        } catch (Exception x) {
+            scouts = parseScoutsFile(Args.valueOf(args, "-sites", "scouts.txt"));
+        }
+        int site = scouts[0];
+        int number_of_sites = scouts[1];
 
-        Props.parseFile("swiftsocial", bufferedOutput);
-
-        int numUsers = Props.intValue("swiftsocial.numUsers", 25000);
-        int userFriends = Props.intValue("swiftsocial.userFriends", 25);
-        int biasedOps = Props.intValue("swiftsocial.biasedOps", 9);
-        int randomOps = Props.intValue("swiftsocial.biasedOps", 1);
-        int opGroups = Props.intValue("swiftsocial.opGroups", 500);
+        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT);
 
         Workload.populate(numUsers);
 
@@ -106,18 +97,6 @@ public class SwiftSocialBenchmarkClient {
         }
         System.err.println("Session threads completed.");
         System.exit(0);
-    }
-
-    private static void exitWithUsage() {
-        System.out.println("Usage 1: init <surrogate addr> <users filename>");
-        System.out.println("With the last option being true, input is treated as list of users to populate db.");
-        System.out.println("Without the last options, input is treated as list of sessions with commands to run.");
-        System.out
-                .println("Usage 2: run <surrogate addr> <commands filename> <isolation level> <cache policy> <cache time eviction ms> <subscribe updates (true|false)> <async commit (true|false)>");
-        System.out.println("         <think time ms> <concurrent sessions>");
-        System.out.println("With the last option being true, input is treated as list of users to populate db.");
-        System.out.println("Without the last options, input is treated as list of sessions with commands to run.");
-        System.exit(1);
     }
 
     private static void runClientSession(final int sessionId, final Workload commands, boolean loop4ever) {

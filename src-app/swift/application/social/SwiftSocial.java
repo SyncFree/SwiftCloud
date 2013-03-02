@@ -67,6 +67,10 @@ public class SwiftSocial {
         this.asyncCommit = asyncCommit;
     }
 
+    public SwiftSession getSwift() {
+        return server;
+    }
+
     // FIXME Return type integer encoding error msg?
     public boolean login(String loginName, String passwd) {
         logger.info("Got login request from user " + loginName);

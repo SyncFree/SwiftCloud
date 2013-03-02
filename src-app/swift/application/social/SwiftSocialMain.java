@@ -49,27 +49,27 @@ import sys.utils.Threading;
  * [Sovran et al. SOSP 2011].
  */
 public class SwiftSocialMain {
-    static String dcName;
-    static IsolationLevel isolationLevel;
-    static CachePolicy cachePolicy;
-    static boolean subscribeUpdates;
-    static boolean asyncCommit;
-    static int asyncQueueSize;
-    static int batchSize;
-    static int cacheSize;
-    static int cacheEvictionTimeMillis;
+    protected static String dcName;
+    protected static IsolationLevel isolationLevel;
+    protected static CachePolicy cachePolicy;
+    protected static boolean subscribeUpdates;
+    protected static boolean asyncCommit;
+    protected static int asyncQueueSize;
+    protected static int batchSize;
+    protected static int cacheSize;
+    protected static int cacheEvictionTimeMillis;
 
-    static int thinkTime;
-    static int numUsers;
-    static int userFriends;
-    static int biasedOps;
-    static int randomOps;
-    static int opGroups;
+    protected static int thinkTime;
+    protected static int numUsers;
+    protected static int userFriends;
+    protected static int biasedOps;
+    protected static int randomOps;
+    protected static int opGroups;
 
-    private static PrintStream bufferedOutput;
+    protected static PrintStream bufferedOutput;
 
-    static AtomicInteger commandsDone = new AtomicInteger(0);
-    static AtomicInteger totalCommands = new AtomicInteger(0);
+    protected static AtomicInteger commandsDone = new AtomicInteger(0);
+    protected static AtomicInteger totalCommands = new AtomicInteger(0);
 
     public static void main(String[] args) {
         sys.Sys.init();
@@ -120,7 +120,8 @@ public class SwiftSocialMain {
 
     }
 
-    static void init() {
+    public static void init() {
+
         bufferedOutput = new PrintStream(System.out, false);
 
         Props.parseFile("swiftsocial", bufferedOutput);
@@ -142,17 +143,21 @@ public class SwiftSocialMain {
 
     }
 
-    static void runClientSession(final int sessionId, final Workload commands, boolean loop4Ever) {
+    public static SwiftSocial getSwiftSocial() {
         final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
         options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
         options.setCacheSize(cacheSize);
         options.setMaxAsyncTransactionsQueued(asyncQueueSize);
         options.setMaxCommitBatchSize(batchSize);
         options.setDisasterSafe(false);
-
         SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
         SwiftSocial socialClient = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
+        return socialClient;
+    }
+
+    static void runClientSession(final int sessionId, final Workload commands, boolean loop4Ever) {
+        final SwiftSocial socialClient = getSwiftSocial();
 
         totalCommands.addAndGet(commands.size());
         final long sessionStartTime = System.currentTimeMillis();
@@ -161,66 +166,71 @@ public class SwiftSocialMain {
 
         do
             for (String cmdLine : commands) {
-                final long txnStartTime = System.currentTimeMillis();
-                String[] toks = cmdLine.split(";");
-                final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
-                switch (cmd) {
-                case LOGIN:
-                    if (toks.length == 3) {
-                        socialClient.login(toks[1], toks[2]);
-                        break;
-                    }
-                case LOGOUT:
-                    if (toks.length == 2) {
-                        socialClient.logout(toks[1]);
-                        break;
-                    }
-                case READ:
-                    if (toks.length == 2) {
-                        socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
-                        break;
-                    }
-                case SEE_FRIENDS:
-                    if (toks.length == 2) {
-                        socialClient.readFriendList(toks[1]);
-                        break;
-                    }
-                case FRIEND:
-                    if (toks.length == 2) {
-                        socialClient.befriend(toks[1]);
-                        break;
-                    }
-                case STATUS:
-                    if (toks.length == 2) {
-                        socialClient.updateStatus(toks[1], System.currentTimeMillis());
-                        break;
-                    }
-                case POST:
-                    if (toks.length == 3) {
-                        socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
-                        break;
-                    }
-                default:
-                    System.err.println("Can't parse command line :" + cmdLine);
-                    System.err.println("Exiting...");
-                    System.exit(1);
-                }
-                final long now = System.currentTimeMillis();
-                final long txnExecTime = now - txnStartTime;
-                final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
+                long txnStartTime = System.currentTimeMillis();
+                Commands cmd = runCommandLine(socialClient, cmdLine);
+                long txnEndTime = System.currentTimeMillis();
+                final long txnExecTime = txnEndTime - txnStartTime;
+                final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, txnEndTime);
                 bufferedOutput.println(log);
-                // System.err.println(sys.Sys.Sys.mainClass + "   " + log);
-                // TODO: Do not wait constant time, use a random distribution.
+
                 Threading.sleep(thinkTime);
                 commandsDone.incrementAndGet();
             }
         while (loop4Ever);
 
-        swiftClient.stopScout(true);
+        socialClient.getSwift().stopScout(true);
+
         final long now = System.currentTimeMillis();
         final long sessionExecTime = now - sessionStartTime;
         bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
         bufferedOutput.flush();
+    }
+
+    public static Commands runCommandLine(SwiftSocial socialClient, String cmdLine) {
+        String[] toks = cmdLine.split(";");
+        final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+        switch (cmd) {
+        case LOGIN:
+            if (toks.length == 3) {
+                socialClient.login(toks[1], toks[2]);
+                break;
+            }
+        case LOGOUT:
+            if (toks.length == 2) {
+                socialClient.logout(toks[1]);
+                break;
+            }
+        case READ:
+            if (toks.length == 2) {
+                socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
+                break;
+            }
+        case SEE_FRIENDS:
+            if (toks.length == 2) {
+                socialClient.readFriendList(toks[1]);
+                break;
+            }
+        case FRIEND:
+            if (toks.length == 2) {
+                socialClient.befriend(toks[1]);
+                break;
+            }
+        case STATUS:
+            if (toks.length == 2) {
+                socialClient.updateStatus(toks[1], System.currentTimeMillis());
+                break;
+            }
+        case POST:
+            if (toks.length == 3) {
+                socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
+                break;
+            }
+        default:
+            System.err.println("Can't parse command line :" + cmdLine);
+            System.err.println("Exiting...");
+            System.exit(1);
+        }
+        return cmd;
     }
 
     public static void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {

@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.application.social;
 
-import static swift.application.social.SwiftSocialMain.dcName;
 import static sys.Sys.Sys;
 
 import java.io.BufferedReader;
@@ -46,11 +45,8 @@ import sys.utils.Threading;
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.
  */
-public class SwiftSocialBenchmark {
+public class SwiftSocialBenchmark extends SwiftSocialMain {
     private static String shepard;
-
-    static AtomicInteger commandsDone = new AtomicInteger(0);
-    static AtomicInteger totalCommands = new AtomicInteger(0);
 
     public static void main(String[] args) {
 
@@ -74,6 +70,7 @@ public class SwiftSocialBenchmark {
 
             final int numUsers = Props.intValue("swiftsocial.numUsers", 1000);
             List<String> users = Workload.populate(numUsers);
+
             final int PARTITION_SIZE = 1000;
             int partitions = users.size() / PARTITION_SIZE + (users.size() % PARTITION_SIZE > 0 ? 1 : 0);
             ExecutorService pool = Executors.newFixedThreadPool(4);
@@ -95,7 +92,7 @@ public class SwiftSocialBenchmark {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            System.out.println("Finished populating db with users.");
+            System.out.println("\nFinished populating db with users.");
         }
         if ((command.equals("run") && args.length >= 3) || command.equals("both")) {
 
@@ -128,11 +125,13 @@ public class SwiftSocialBenchmark {
                     Threading.factory("App"));
 
             System.err.println("Spawning session threads.");
-
             for (int i = 0; i < concurrentSessions; i++) {
                 final int sessionId = i;
                 final Workload commands = Workload.doMixed(site, SwiftSocialMain.userFriends,
                         SwiftSocialMain.biasedOps, SwiftSocialMain.randomOps, SwiftSocialMain.opGroups, numberOfSites);
+
+                totalCommands.addAndGet(commands.size());
+
                 sessionsExecutor.execute(new Runnable() {
                     public void run() {
                         // Randomize startup to avoid clients running all at the
@@ -144,10 +143,15 @@ public class SwiftSocialBenchmark {
             }
 
             // smd - report client progress every 10 seconds...
-            new PeriodicTask(0.0, 10.0) {
+            new PeriodicTask(0.0, 1.0) {
+                String prev = "";
+
                 public void run() {
-                    int p = commandsDone.get();
-                    System.err.printf("\r------------>Done:%.1f", 100.0 * (p == 0 ? 0 : p) / totalCommands.get());
+                    String curr = String.format("--->DONE: %.1f%%\n", 100.0 * commandsDone.get() / totalCommands.get());
+                    if (!curr.equals(prev)) {
+                        System.err.println(curr);
+                        prev = curr;
+                    }
                 }
             };
 
@@ -163,13 +167,13 @@ public class SwiftSocialBenchmark {
         System.exit(0);
     }
 
-    private static void exitWithUsage() {
+    protected static void exitWithUsage() {
         System.err.println("Usage 1: init <number_of_users>");
         System.err.println("Usage 2: run <surrogate addr> <concurrent_sessions>");
         System.exit(1);
     }
 
-    static private int[] parseScoutsFile(String scouts) {
+    static protected int[] parseScoutsFile(String scouts) {
         int[] res = new int[] { -1, 0 };
         try {
 
@@ -194,7 +198,7 @@ public class SwiftSocialBenchmark {
         return res;
     }
 
-    static String domainName(String hostname) {
+    static protected String domainName(String hostname) {
         int i = hostname.indexOf('.');
         return i < 0 ? hostname : hostname.substring(i + 1);
     }
