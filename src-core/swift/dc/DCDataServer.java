@@ -147,7 +147,6 @@ class DCDataServer {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
                 }
-                Thread.dumpStack();
                 con.reply(new DHTExecCRDTReply(localExecCRDT(new RemoteObserver(request.getSurrogateId(), con),
                         request.getGrp(), request.getSnapshotVersion(), request.getTrxVersion(), request.getTxTs(),
                         request.getCltTs(), request.getPrvCltTs(), request.getCurDCVersion())));

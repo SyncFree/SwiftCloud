@@ -982,6 +982,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 synchronized (SwiftImpl.this) {
                     objectsCache.augmentWithCausalClock(causalNotificationsClock);
                 }
+
                 // updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
                 // notifications.getEstimatedDisasterDurableCommittedVersion());
 

@@ -42,6 +42,7 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.Channels;
+import org.jboss.netty.channel.DefaultChannelFuture;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
@@ -71,6 +72,10 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
     volatile Executor bossExecutors, workerExecutors;
     volatile ExecutionHandler executionHandler = null;
+
+    static {
+        DefaultChannelFuture.setUseDeadLockChecker(false);
+    }
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;

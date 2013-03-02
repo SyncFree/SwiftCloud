@@ -58,7 +58,6 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
-import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
@@ -247,21 +246,24 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                     request.timestamp, -1, -1);
         } else {
 
-            CRDTObject<?> commitedCRDT = getCRDT(request.getUid(), request.getSubscriptionType(), request.getClock(),
-                    request.getClientId());
-
-            Set<TimestampMapping> updates = commitedCRDT.crdt.getUpdatesTimestampMappingsSince(request
-                    .getDistasterDurableClock());
-
-            int lat = 0;
-            int mu = updates.size();
-            long now = System.currentTimeMillis();
-
-            for (TimestampMapping i : updates)
-                lat = (int) Math.max(lat, now - i.getSelectedSystemTimestamp().time());
+            // CRDTObject<?> commitedCRDT = getCRDT(request.getUid(),
+            // request.getSubscriptionType(), request.getClock(),
+            // request.getClientId());
+            //
+            // Set<TimestampMapping> updates =
+            // commitedCRDT.crdt.getUpdatesTimestampMappingsSince(request
+            // .getDistasterDurableClock());
+            //
+            // int lat = 0;
+            // int mu = updates.size();
+            // long now = System.currentTimeMillis();
+            //
+            // for (TimestampMapping i : updates)
+            // lat = (int) Math.max(lat, now -
+            // i.getSelectedSystemTimestamp().time());
 
             if (request.getSubscriptionType() != SubscriptionType.NONE)
-                session.addToObserving(request.getUid(), false, crdt.crdt.getClock().clone(), crdt.pruneClock.clone());
+                session.addToObserving(request.getUid());
 
             synchronized (crdt) {
                 crdt.clock.merge(estimatedDCVersionCopy);
@@ -273,7 +275,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                     logger.info("END FetchObjectVersionRequest clock = " + crdt.clock + "/" + request.getUid());
                 }
                 return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock,
-                        estimatedDCVersionCopy, estimatedDCStableVersionCopy, request.timestamp, mu, lat);
+                        estimatedDCVersionCopy, estimatedDCStableVersionCopy, request.timestamp, 0, 0);
             }
         }
     }
@@ -694,8 +696,7 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
          *            fi true, client wants to receive updated; otherwise,
          *            notifications
          */
-        synchronized void addToObserving(CRDTIdentifier id, boolean observing, CausalityClock clk,
-                CausalityClock pruneClk) {
+        synchronized void addToObserving(CRDTIdentifier id) {
             subscriptions.add(id);
             dcPubSub.subscribe(id, this);
         }
