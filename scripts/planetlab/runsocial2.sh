@@ -12,29 +12,38 @@ trap controlC SIGINT SIGTERM
 
 . ./scripts/planetlab/pl-common.sh
 
+export DATACENTER_SEQUENCERS=(
+"peeramide.irisa.fr"
+)
 
 export DATACENTER_SERVERS=(
-peeramide.irisa.fr
+"peeramide.irisa.fr"
 )
 
 
 export SCOUT_NODES=(
+planetlab-1.iscte.pt
+planet1.servers.ua.pt
+planet2.servers.ua.pt
+planetlab1.fct.ualg.pt
+planetlab2.fct.ualg.pt
 planetlab1.di.fct.unl.pt
 planetlab2.di.fct.unl.pt
-planetlab-1.iscte.pt
-planetlab-3.iscte.pt
-planetlab-4.iscte.pt
+planetlab-um00.di.uminho.pt
+planetlab-um10.di.uminho.pt
+planetlab-1.tagus.ist.utl.pt
+planetlab-2.tagus.ist.utl.pt
 )
 
 
 # TOPOLOGY
 DCS=("${DATACENTER_SERVERS[@]}")
-DCSEQ=("${DATACENTER_SERVERS[@]}")
+DCSEQ=("${DATACENTER_SEQUENCERS[@]}")
 
 SCOUTS=("${SCOUT_NODES[@]}")
 ENDCLIENTS=("${SCOUT_NODES[@]}")
 
-MACHINES="${DCS[*]} ${ENDCLIENTS[*]}"
+MACHINES="${DCS[*]} ${ENDCLIENTS[*]} ${DCSEQ[*]}"
 
 rm -f /tmp/nodes.txt
 rm -f /tmp/nodes2.txt
@@ -69,7 +78,6 @@ SCOUT_JAVACMD="java -Xincgc -Xms512m -Xmx512m -Djava.util.logging.config.file=al
 SCOUT_CMD="$SCOUT_JAVACMD run $SHEPARD $SESSIONS_PER_SCOUT scouts.txt -servers "${DATACENTER_SERVERS[*]}" > stdout.txt 2> stderr.txt < /dev/null &"
 
 echo "DCS: " $DC_NUMBER "CLIENTS: " $CLIENTS_NUMBER
-
 
 echo "==== KILLING EXISTING SERVERS AND CLIENTS ===="
 parallel-nuke -v -l fctple_SwiftCloud -h /tmp/nodes.txt java
@@ -123,7 +131,7 @@ swift_app_cmd_nostdout sys.shepard.Shepard -duration $DURATION
 run_cmd_bg $SHEPARD $CMD
 
 . scripts/planetlab/pl-start-servers-ds-seq.sh
-echo "==== STARTING SEQUENCERS" $DCSEQ "AND DC SERVERS ====" $DCS
+echo "==== STARTING SEQUENCERS" ${DCSEQ[@]} "AND DC SERVERS ====" ${DCS[@]}
 servers_start DCS DCSEQ
 
 echo "==== WAITING A BIT BEFORE INITIALIZING DATABASE ===="

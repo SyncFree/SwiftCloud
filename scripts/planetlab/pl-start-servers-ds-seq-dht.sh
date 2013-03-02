@@ -3,14 +3,14 @@
 . scripts/planetlab/pl-common.sh
 
 
-DEBUG_SEQ ="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=6666 -Djava.rmi.server.hostname=$seq"
+#DEBUG_SEQ="-Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=6666 -Djava.rmi.server.hostname=$seq"
 
-DEBUG_SRV="swift_app_cmd -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=6666 -Djava.rmi.server.hostname=$seq"
+#DEBUG_SRV="swift_app_cmd -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=6666 -Djava.rmi.server.hostname=$seq"
 
 
 
 servers_start() {
-    local SERVERS=$1
+    local SERVERS=$1/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/scripts/planetlab/pl-start-servers-ds-seq-dht.sh
     local SEQUENCERS=$2
 
     local sequencer_list="${SEQUENCERS[*]}"
