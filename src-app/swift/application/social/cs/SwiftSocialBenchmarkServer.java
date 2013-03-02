@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import swift.application.social.SwiftSocial;
+import swift.application.social.SwiftSocialBenchmark;
 import swift.application.social.SwiftSocialMain;
 import sys.ec2.ClosestDomain;
 import sys.net.api.Networking.TransportProvider;
@@ -37,17 +38,23 @@ import sys.utils.IP;
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.
  */
-public class SwiftSocialBenchmarkServer extends SwiftSocialMain {
+public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
     public static int SCOUT_PORT = 26667;
 
     public static void main(String[] args) {
         sys.Sys.init();
 
+        int[] partitions = parsePartitionsFile(Args.valueOf(args, "-partitions", "partitions.txt"));
+
         List<String> servers = Args.subList(args, "-servers");
-        dcName = ClosestDomain.closest2Domain(servers);
+        dcName = ClosestDomain.closest2Domain(servers, partitions[0]);
         System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
+        // Override SwiftSocial.props cache size with cmd line option...
+        int cache = Args.valueOf(args, "-cache", -1);
         SwiftSocialMain.init();
+        if (cache > 0)
+            SwiftSocialMain.cacheSize = cache;
 
         Networking.rpcBind(SCOUT_PORT, TransportProvider.DEFAULT).toService(0, new RequestHandler() {
 
@@ -65,11 +72,6 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialMain {
         });
 
         System.err.println("SwiftSocial Server Ready...");
-    }
-
-    private static void exitWithUsage() {
-        System.err.println("Usage: not implemented...");
-        System.exit(1);
     }
 
     static SwiftSocial getSession(String sessionId) {

@@ -3,7 +3,7 @@ package sys.ec2;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
-import java.util.Collection;
+import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
@@ -17,10 +17,10 @@ import java.util.TreeMap;
 
 public class ClosestDomain {
 
-    public static String closest2Domain(Collection<String> candidates) {
-        System.err.println(candidates);
+    public static String closest2Domain(List<String> candidates, int site) {
+        System.err.println("Choosing server from: " + candidates);
         String res = null;
-        double bestRTT = Double.MAX_VALUE;
+        double bestRTT = Double.MAX_VALUE / 2;
         for (String i : candidates) {
             double rtt = getDomainRTT(i);
             if (rtt < bestRTT) {
@@ -29,13 +29,16 @@ public class ClosestDomain {
             }
             // return i; // HACK HACK TO USE FIRST DC
         }
-        return res != null ? res : "localhost";
+        if (res == null && site >= 0)
+            res = candidates.get(site % candidates.size());
+
+        return res == null ? "localhost" : res;
     }
 
     static double getDomainRTT(String host) {
         String domain = host.substring(host.indexOf('.') + 1);
         Double rtt = rtts.get(domain);
-        return rtt != null ? rtt : Double.MAX_VALUE / 2;
+        return rtt != null ? rtt : Double.MAX_VALUE;
     }
 
     static SortedMap<String, Double> rtts = new TreeMap<String, Double>();

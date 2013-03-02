@@ -74,7 +74,7 @@ public class Shepard extends ShepardProtoHandler {
     public void joinHerd(String shepardAddress) {
         Endpoint shepard = Networking.resolve(shepardAddress, PORT);
         RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
-        System.err.println("Contacting shepard at:" + shepardAddress);
+        System.err.println("Contacting shepard at: " + shepardAddress);
 
         final Semaphore barrier = new Semaphore(0);
         endpoint.send(shepard, new GrazingRequest(), new ShepardProtoHandler() {

@@ -99,18 +99,19 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             // IO.redirect("stdout.txt", "stderr.txt");
             System.err.println(IP.localHostname() + "/ starting...");
 
-            int[] scouts;
+            int[] partitions;
             int concurrentSessions = Integer.valueOf(args[2]);
             try {
-                scouts = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
+                partitions = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
             } catch (Exception x) {
-                scouts = parseScoutsFile(args[3]);
+                partitions = parsePartitionsFile(Args.valueOf(args, "-partitions", "partitions.txt"));
             }
-            int site = scouts[0];
-            int numberOfSites = scouts[1];
+            int site = partitions[0];
+            int numberOfSites = partitions[1];
 
             List<String> servers = Args.subList(args, "-servers");
-            dcName = ClosestDomain.closest2Domain(servers);
+            dcName = ClosestDomain.closest2Domain(servers, site);
+
             System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
             SwiftSocialMain.init();
@@ -173,14 +174,13 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
         System.exit(1);
     }
 
-    static protected int[] parseScoutsFile(String scouts) {
+    static protected int[] parsePartitionsFile(String partitions) {
         int[] res = new int[] { -1, 0 };
         try {
-
             String line;
             String hostname = IP.localHostname(), address = IP.localHostAddressString();
             String domain = domainName(hostname);
-            BufferedReader br = new BufferedReader(new FileReader(scouts));
+            BufferedReader br = new BufferedReader(new FileReader(partitions));
             while ((line = br.readLine()) != null) {
                 if (res[0] < 0)
                     if (hostname.equals(line))
@@ -194,7 +194,7 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        System.err.printf(IP.localHostname() + " scout #%s, total #%s\n", res[0], res[1]);
+        System.err.printf(IP.localHostname() + " partitions #%s, total #%s\n", res[0], res[1]);
         return res;
     }
 

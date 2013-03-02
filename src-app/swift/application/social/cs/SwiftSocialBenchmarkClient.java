@@ -18,6 +18,7 @@ package swift.application.social.cs;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import swift.application.social.Commands;
 import swift.application.social.SwiftSocialBenchmark;
 import swift.application.social.Workload;
+import sys.ec2.ClosestDomain;
 import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
@@ -47,23 +49,24 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         if (args.length < 3) {
             System.err.println("wrong number of parameters...i know not very helpful...");
         }
-
-        final String server = Args.valueOf(args, "-scout", "localhost");
-        final String shepardAddress = Args.valueOf(args, "-shepard", "");
-
         sys.Sys.init();
 
-        init();
-
-        int[] scouts;
+        final String shepardAddress = Args.valueOf(args, "-shepard", "");
         int concurrentSessions = Args.valueOf(args, "-threads", 1);
+
+        int[] partitions;
         try {
-            scouts = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
+            partitions = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
         } catch (Exception x) {
-            scouts = parseScoutsFile(Args.valueOf(args, "-sites", "scouts.txt"));
+            partitions = parsePartitionsFile(Args.valueOf(args, "-partitions", "partitions.txt"));
         }
-        int site = scouts[0];
-        int number_of_sites = scouts[1];
+        int site = partitions[0];
+        int number_of_sites = partitions[1];
+
+        List<String> servers = Args.subList(args, "-servers");
+        String server = ClosestDomain.closest2Domain(servers, site);
+
+        init();
 
         socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT);
 
