@@ -1,28 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry excluding="swift/client/TimeSizeBoundedObjectsCache.java" kind="src" path="src-core"/>
-	<classpathentry excluding="swift/application/swiftdoc/|swift/application/swiftset/" kind="src" path="src-app"/>
-	<classpathentry kind="src" path="src-core-bench"/>
-	<classpathentry kind="src" path="src-app-test"/>
-	<classpathentry kind="src" path="src-contrib"/>
-	<classpathentry kind="src" path="src-contrib-test"/>
-	<classpathentry kind="src" path="src-core-test"/>
+	<classpathentry excluding="swift/application/swiftdoc/|swift/application/swiftset/|swift/application/filesystem/" kind="src" path="src-app"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="lib/core/db.jar"/>
-	<classpathentry kind="lib" path="lib/core/kryo-2.20-all.jar"/>
 	<classpathentry kind="lib" path="lib/core/riak-client-1.0.3-jar-with-dependencies.jar"/>
 	<classpathentry kind="lib" path="lib/core/ssj.jar"/>
 	<classpathentry kind="lib" path="lib/core/xmlpull-1.1.3.1.jar"/>
 	<classpathentry kind="lib" path="lib/core/xpp3_min-1.1.4c.jar"/>
 	<classpathentry kind="lib" path="lib/core/xstream-1.4.3.jar"/>
-	<classpathentry kind="lib" path="lib/extras/junit-4.4.jar"/>
 	<classpathentry kind="lib" path="lib/core/netty-3.6.2.Final.jar"/>
-	<classpathentry kind="lib" path="lib/extras/activemq-protobuf-1.0.jar"/>
-	<classpathentry kind="lib" path="lib/extras/aws-java-sdk-1.3.22.jar"/>
-	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
-	<classpathentry kind="lib" path="lib/extras/easymock-3.1.jar"/>
-	<classpathentry kind="lib" path="lib/extras/fuse4j-core-2.4.0.0-SNAPSHOT.jar"/>
-	<classpathentry kind="lib" path="lib/extras/org.eclipse.jgit-2.1.0.201209190230-r.jar"/>
+	<classpathentry kind="lib" path="lib/core/kryo-2.21-all.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
