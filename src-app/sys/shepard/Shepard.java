@@ -27,6 +27,7 @@ import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.scheduler.PeriodicTask;
 import sys.scheduler.Task;
 import sys.shepard.proto.GrazingAccepted;
 import sys.shepard.proto.GrazingGranted;
@@ -67,6 +68,13 @@ public class Shepard extends ShepardProtoHandler {
     public static void main(String[] args) {
         sys.Sys.init();
         int duration = Args.valueOf(args, "-duration", Integer.MAX_VALUE);
+
+        new PeriodicTask(0.0, 1.0) {
+            public void run() {
+                System.out.println("shepard...");
+            }
+        };
+
         new Shepard(duration);
     }
 
@@ -103,17 +111,19 @@ public class Shepard extends ShepardProtoHandler {
     Task releaseTask = new Task(Double.MAX_VALUE) {
         public void run() {
             synchronized (Shepard.this) {
-                System.err.printf("Releasing: %d sheep", waitingSheep.size());
-                if (releaseTime < 0)
+                System.err.printf("SHEPARD: Releasing: %d sheep\n", waitingSheep.size());
+                if (releaseTime < 0) {
                     releaseTime = System.currentTimeMillis();
-
+                    System.out.println("RELEASED");
+                }
                 for (RpcHandle i : waitingSheep) {
                     long when = Math.max(0, 15000 - (System.currentTimeMillis() - releaseTime));
                     i.reply(new GrazingGranted(grazingDuration, (int) when));
                 }
 
-                System.err.printf("Released: %d sheep", waitingSheep.size());
+                System.err.printf("SHEPARD: Released: %d sheep\n", waitingSheep.size());
                 waitingSheep.clear();
+
             }
         }
     };
@@ -124,7 +134,8 @@ public class Shepard extends ShepardProtoHandler {
         sheep.reply(new GrazingAccepted());
         waitingSheep.add(sheep);
         releaseTask.reSchedule(releaseTime < 0 ? 20.0 : 0);
-        System.err.printf("Added one more sheep: %s, total: %d sheep\n", sheep.remoteEndpoint(), waitingSheep.size());
+        System.err.printf("SHEPARD: Added one more sheep: %s, total: %d sheep\n", sheep.remoteEndpoint(),
+                waitingSheep.size());
 
     }
 }
