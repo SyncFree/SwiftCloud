@@ -12,7 +12,7 @@ Surrogates = [
 "peeramide.irisa.fr"
 ]
 
-Scouts = [
+EndClients = [
 	"planetlab1.di.fct.unl.pt",
 	"planetlab2.di.fct.unl.pt",
     "planetlab1.fct.ualg.pt",
@@ -25,8 +25,9 @@ def Threads = 3
 def Duration = 120
 def SwiftSocial_Props = "swiftsocial-test.props"
 
+def Scouts = Surrogates
 
-AllMachines = (Surrogates + Scouts + Shepard).unique()
+AllMachines = (Surrogates + EndClients + Shepard).unique()
 
 pnuke(AllMachines, "java").waitFor()
 
@@ -40,7 +41,7 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar").waitFor()
 deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties").waitFor()
 deployTo(AllMachines, SwiftSocial_Props).waitFor()
-deployTo(AllMachines, writeToFile(Scouts), "partitions.txt").waitFor()
+deployTo(AllMachines, writeToFile(EndClients), "partitions.txt").waitFor()
 
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
@@ -58,11 +59,16 @@ def INIT_DB_CLIENT = Surrogates.get(0)
 SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 
-println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
+println "==== WAITING A BIT BEFORE STARTING SERVER SCOUTS ===="
 Sleep(10)
 
+SwiftSocial.runCS_ServerScouts( Scouts, ["localhost"], SwiftSocial_Props, "-cache 0")
 
-SwiftSocial.runStandaloneScouts( Scouts, Surrogates, SwiftSocial_Props, Shepard, Threads )
+println "==== WAITING A BIT BEFORE STARTING ENDCLIENTS ===="
+Sleep(10)
+
+SwiftSocial.runCS_EndClients( EndClients, Scouts, SwiftSocial_Props, Shepard, Threads )
+
 
 println "==== WAITING FOR SHEPARD TO INITIATE COUNTDOWN ===="
 shep.take()
@@ -76,9 +82,10 @@ def dstFile = String.format("1pc-results-swiftsocial-DC-%s-SC-%s-TH-%s.log", Sur
 def prefix = dstDir + "/" + dstFile
 
 new File( dstDir).mkdirs()
-pslurp( Scouts, HOMEDIR + "stdout.txt", dstFile, prefix).waitFor()
+pslurp( EndClients, HOMEDIR + "client-stdout.txt", dstFile, prefix).waitFor()
 
 sh("ls -lR " + dstDir).waitFor();
+
 
 System.exit(0)
 

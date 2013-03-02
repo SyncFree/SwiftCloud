@@ -1,7 +1,7 @@
 
 import static Tools.*
 
-class SwiftApps {
+class SwiftSocial {
 
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.shepard.Shepard"
     
@@ -12,6 +12,9 @@ class SwiftApps {
     
     
     static String SCOUT_CMD = "-cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.SwiftSocialBenchmark"
+
+    static String CS_SCOUT_CMD = "-cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkServer"
+    static String CS_ENDCLIENT_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkClient"
     
     
     static String swift_app_cmd( String heap, String exec ) {
@@ -92,5 +95,19 @@ class SwiftApps {
     }
     
     
+    static void runCS_ServerScouts( List scouts, List servers, String config, String cache) {
+        def cmd = "nohup java -Xmx512m -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " " + cache + " -servers "
+        servers.each { cmd += it + " "}     
+        cmd += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+//        Debug(0, cmd)
+        pssh( scouts, cmd).waitFor()
+    }
     
+    static void runCS_EndClients( List clients, List scouts, String config, String shepard, int threads) {
+        def cmd = "nohup java -Xmx128m -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -servers "  
+        scouts.each { cmd += it + " "}     
+        cmd += "> client-stdout.txt 2> client-stderr.txt < /dev/null &"
+        Debug(0, cmd)
+        pssh( clients, cmd).waitFor()
+    }
 }
