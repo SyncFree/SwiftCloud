@@ -487,8 +487,19 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             cmp = currentState.compareTo(request.getDependencyClk());
         }
         if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
+
             conn.reply(new GenerateDCTimestampReply(siteId, generateNewId(), clientClock.getLatestCounter(request
                     .getClientId())));
+
+            // HACK to use client based version vectors...
+            // Timestamp ts = new Timestamp("SEQ" +
+            // request.getCltTimestamp().getIdentifier(),
+            // request.getCltTimestamp()
+            // .getCounter());
+            //
+            // conn.reply(new GenerateDCTimestampReply(siteId, ts,
+            // clientClock.getLatestCounter(request.getClientId())));
+
             return true;
         } else {
             addPendingTimestampReq(new BlockedTimestampRequest(conn, request));
