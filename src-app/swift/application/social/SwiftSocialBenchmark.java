@@ -18,8 +18,6 @@ package swift.application.social;
 
 import static sys.Sys.Sys;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -99,15 +97,10 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             // IO.redirect("stdout.txt", "stderr.txt");
             System.err.println(IP.localHostname() + "/ starting...");
 
-            int[] partitions;
             int concurrentSessions = Integer.valueOf(args[2]);
-            try {
-                partitions = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
-            } catch (Exception x) {
-                partitions = parsePartitionsFile(Args.valueOf(args, "-partitions", "partitions.txt"));
-            }
-            int site = partitions[0];
-            int numberOfSites = partitions[1];
+            String partitions = Args.valueOf(args, "-partition", "0/1");
+            int site = Integer.valueOf(partitions.split("/")[0]);
+            int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
             List<String> servers = Args.subList(args, "-servers");
             dcName = ClosestDomain.closest2Domain(servers, site);
@@ -172,34 +165,5 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
         System.err.println("Usage 1: init <number_of_users>");
         System.err.println("Usage 2: run <surrogate addr> <concurrent_sessions>");
         System.exit(1);
-    }
-
-    static protected int[] parsePartitionsFile(String partitions) {
-        int[] res = new int[] { -1, 0 };
-        try {
-            String line;
-            String hostname = IP.localHostname(), address = IP.localHostAddressString();
-            String domain = domainName(hostname);
-            BufferedReader br = new BufferedReader(new FileReader(partitions));
-            while ((line = br.readLine()) != null) {
-                if (res[0] < 0)
-                    if (hostname.equals(line))
-                        res[0] = res[1];
-                    else if (line.endsWith(domain) && address.equals(IP.addressString(line)))
-                        res[0] = res[1];
-
-                res[1]++;
-            }
-            br.close();
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        System.err.printf(IP.localHostname() + " partitions #%s, total #%s\n", res[0], res[1]);
-        return res;
-    }
-
-    static protected String domainName(String hostname) {
-        int i = hostname.indexOf('.');
-        return i < 0 ? hostname : hostname.substring(i + 1);
     }
 }

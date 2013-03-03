@@ -44,10 +44,11 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
     public static void main(String[] args) {
         sys.Sys.init();
 
-        int[] partitions = parsePartitionsFile(Args.valueOf(args, "-partitions", "partitions.txt"));
+        String partitions = Args.valueOf(args, "-partitions", "1/1");
+        int site = Integer.valueOf(partitions.split("/")[0]);
 
         List<String> servers = Args.subList(args, "-servers");
-        dcName = ClosestDomain.closest2Domain(servers, partitions[0]);
+        dcName = ClosestDomain.closest2Domain(servers, site);
         System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
         // Override SwiftSocial.props cache size with cmd line option...

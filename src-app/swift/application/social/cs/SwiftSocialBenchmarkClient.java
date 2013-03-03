@@ -54,14 +54,9 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         final String shepardAddress = Args.valueOf(args, "-shepard", "");
         int concurrentSessions = Args.valueOf(args, "-threads", 1);
 
-        int[] partitions;
-        try {
-            partitions = new int[] { Integer.valueOf(args[3]), Integer.valueOf(args[4]) };
-        } catch (Exception x) {
-            partitions = parsePartitionsFile(Args.valueOf(args, "-partitions", "partitions.txt"));
-        }
-        int site = partitions[0];
-        int number_of_sites = partitions[1];
+        String partitions = Args.valueOf(args, "-partition", "0/1");
+        int site = Integer.valueOf(partitions.split("/")[0]);
+        int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
         List<String> servers = Args.subList(args, "-servers");
         String server = ClosestDomain.closest2Domain(servers, site);
@@ -82,8 +77,8 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         System.err.println("Spawning session threads.");
         for (int i = 0; i < concurrentSessions; i++) {
             final int sessionId = i;
-            final Workload commands = Workload.doMixed(site, userFriends, biasedOps, randomOps, opGroups,
-                    number_of_sites);
+            final Workload commands = Workload
+                    .doMixed(site, userFriends, biasedOps, randomOps, opGroups, numberOfSites);
             sessionsExecutor.execute(new Runnable() {
                 public void run() {
                     boolean loop4ever = !shepardAddress.isEmpty();
