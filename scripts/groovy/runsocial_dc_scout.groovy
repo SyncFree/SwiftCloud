@@ -41,7 +41,6 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar").waitFor()
 deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties").waitFor()
 deployTo(AllMachines, SwiftSocial_Props).waitFor()
-deployTo(AllMachines, writeToFile(EndClients), "partitions.txt").waitFor()
 
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )

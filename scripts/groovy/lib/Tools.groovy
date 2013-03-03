@@ -1,6 +1,7 @@
 import java.util.concurrent.SynchronousQueue;
 
-class Tools {
+class Tools {        
+
     static int DEBUG = 0;
     
     static String USERNAME = "fctple_SwiftCloud"
@@ -12,9 +13,15 @@ class Tools {
     }
     
     static def onControlC = { Closure cloj ->
-        sun.misc.Signal.handle( new sun.misc.Signal("INT"), [ handle:{ sig ->
-          println "\nCaught CONTROL-C"
-          cloj.call();
+        boolean invoked = false        
+        sun.misc.Signal.handle( new sun.misc.Signal("INT"), [ 
+          handle:{ sig ->
+          println "\nCaught CONTROL-C "
+          if( ! invoked ){
+               invoked = true
+               cloj.call()
+          }
+          else System.exit(0)
         } ] as sun.misc.SignalHandler );
      }
         
@@ -87,9 +94,15 @@ class Tools {
         return parallel( ["pssh"], ["-i", "-v"], hosts, [remote_cmd] ) ;
     }
     
+
+        
+    
     static Process pnuke( List hosts, String pattern) {
         println "KILLALL " + pattern
-        return parallel( ["pnuke"], [], hosts, [pattern] ) ;
+        
+        def proc = parallel( ["pnuke"], [], hosts, [pattern] )
+        proc.waitFor()
+        return proc
     }
     
     static Process pslurp( List hosts, String src, String dst, String prefix) {

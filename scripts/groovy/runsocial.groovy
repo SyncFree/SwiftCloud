@@ -3,7 +3,7 @@
 import static Tools.*
 
 def __ = onControlC({
-    pnuke(AllMachines, "java").waitFor()
+    pnuke(AllMachines, "java")
     System.exit(0);
 })
 
@@ -28,8 +28,7 @@ def SwiftSocial_Props = "swiftsocial-test.props"
 
 AllMachines = (Surrogates + Scouts + Shepard).unique()
 
-pnuke(AllMachines, "java").waitFor()
-
+pnuke(AllMachines, "java")
 
 
 println "==== BUILDING JAR..."
@@ -40,7 +39,6 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar").waitFor()
 deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties").waitFor()
 deployTo(AllMachines, SwiftSocial_Props).waitFor()
-deployTo(AllMachines, writeToFile(Scouts), "partitions.txt").waitFor()
 
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
@@ -69,14 +67,14 @@ shep.take()
 
 Countdown( "Remaining: ", Duration + 30)
 
-pnuke(AllMachines, "java").waitFor()
+pnuke(AllMachines, "java")
 
 def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') + System.currentTimeMillis()
 def dstFile = String.format("1pc-results-swiftsocial-DC-%s-SC-%s-TH-%s.log", Surrogates.size(), Scouts.size(), Threads)
 def prefix = dstDir + "/" + dstFile
 
 new File( dstDir).mkdirs()
-pslurp( Scouts, HOMEDIR + "stdout.txt", dstFile, prefix).waitFor()
+pslurp( Scouts, HOMEDIR + "scout-stdout.txt", dstFile, prefix).waitFor()
 
 sh("ls -lR " + dstDir).waitFor();
 

@@ -1,6 +1,8 @@
 
 import static Tools.*
 
+import java.util.List;
+
 class SwiftSocial {
 
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.shepard.Shepard"
@@ -88,14 +90,18 @@ class SwiftSocial {
     
     
     static void runStandaloneScouts( List scouts, List servers, String config, String shepard, int threads ) {        
-        def cmd = "nohup java -Xmx512m -Dswiftsocial=" + config + " " + SCOUT_CMD + " run " + shepard + " " + threads + " scouts.txt -servers "
-        servers.each { cmd += it + " "}     
-        cmd += "> stdout.txt 2> stderr.txt < /dev/null &"
-        pssh( scouts, cmd).waitFor()
-    }
-    
-    
-    static void runCS_ServerScouts( List scouts, List servers, String config, String cache) {
+        def cmd = { host -> 
+            String partition = scouts.indexOf( host ) + "/" + scouts.size()
+            def res = "nohup java -Xmx512m -Dswiftsocial=" + config + " " + SCOUT_CMD + " run " + shepard + " " + threads + " -partition " + partition + " -servers "
+            servers.each { res += it + " "}     
+            res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+            return res;
+        }
+        
+        RemoteExecution.rsh( scouts, cmd, true, 500000)    
+    } 
+
+        static void runCS_ServerScouts( List scouts, List servers, String config, String cache) {
         def cmd = "nohup java -Xmx512m -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " " + cache + " -servers "
         servers.each { cmd += it + " "}     
         cmd += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
@@ -104,10 +110,13 @@ class SwiftSocial {
     }
     
     static void runCS_EndClients( List clients, List scouts, String config, String shepard, int threads) {
-        def cmd = "nohup java -Xmx128m -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -servers "  
-        scouts.each { cmd += it + " "}     
-        cmd += "> client-stdout.txt 2> client-stderr.txt < /dev/null &"
-        Debug(0, cmd)
-        pssh( clients, cmd).waitFor()
-    }
+        def cmd = { host -> 
+                String partition = clients.indexOf( host ) + "/" + clients.size()
+                def res = "nohup java -Xmx128m -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "  
+                scouts.each { res += it + " "}     
+                res += "> client-stdout.txt 2> client-stderr.txt < /dev/null &"
+                return res
+        }
+        //Debug(0, cmd)        
+        RemoteExecution.rsh( clients, cmd, true, 500000)    }
 }
