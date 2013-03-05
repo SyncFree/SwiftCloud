@@ -28,6 +28,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.jboss.netty.bootstrap.ClientBootstrap;
@@ -63,6 +64,7 @@ import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
+import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
@@ -101,7 +103,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                     return res;
                 }
             });
-
+            bootstrap.setOption("tcpNoDelay", true);
             bootstrap.setOption("child.tcpNoDelay", true);
             bootstrap.setOption("child.keepAlive", true);
             bootstrap.setOption("child.reuseAddress", true);
@@ -129,6 +131,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
         final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
         ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors,
                 workerExecutors));
+
+        bootstrap.setOption("tcpNoDelay", true);
+        bootstrap.setOption("child.tcpNoDelay", true);
+        bootstrap.setOption("child.keepAlive", true);
+        bootstrap.setOption("child.reuseAddress", true);
+        bootstrap.setOption("child.connectTimeoutMillis", NETTY_CONNECTION_TIMEOUT);
+
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
             public ChannelPipeline getPipeline() throws Exception {
                 return Channels.pipeline(new MessageFrameDecoder(), res);
@@ -186,7 +195,14 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 return fut.isSuccess();
 
             } catch (Throwable t) {
-                t.printStackTrace();
+                if (t instanceof KryoException)
+                    Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
+                else
+                    Log.log(Level.INFO, "Exception in connection to: " + remote, t);
+
+                cause = t;
+                failed = true;
+                handler.onFailure(this);
             }
             return false;
         }

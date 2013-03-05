@@ -159,7 +159,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 if (t instanceof KryoException)
                     Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
                 else
-                    Log.log(Level.WARNING, "Exception in connection to: " + remote, t);
+                    Log.log(Level.INFO, "Exception in connection to: " + remote, t);
 
                 cause = t;
                 isBroken = true;
