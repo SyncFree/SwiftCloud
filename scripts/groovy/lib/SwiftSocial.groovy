@@ -1,7 +1,9 @@
 
 import static Tools.*
 
-import java.util.List;
+import java.util.List
+import java.util.concurrent.atomic.AtomicInteger
+
 
 class SwiftSocial {
 
@@ -19,12 +21,12 @@ class SwiftSocial {
     static String CS_ENDCLIENT_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkClient"
     
     
-    static String swift_app_cmd( String heap, String exec ) {
-        return "java " + heap + " " + exec + "2> >(tee stderr.txt 1>&2) > >(tee stdout.txt)"
+    static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
+        return "java " + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
     }
     
-    static String swift_app_cmd_nostdout( String heap, String exec )  {
-        return "java " + heap + " " + exec +  "2> >(tee stderr.txt 1>&2) > stdout.txt"
+    static String swift_app_cmd_nostdout( String heap, String exec, String stdout, String stderr )  {
+        return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
     }
                 
     static String sequencerCmd( String name, List servers, List otherSequencers) {
@@ -45,7 +47,7 @@ class SwiftSocial {
         println "==== STARTING SHEPARD @ " + host + " DURATION: " + duration
         
         def cmd = SHEPARD_CMD + " -duration " + (int)duration + " "        
-        Process proc = rsh( host, swift_app_cmd("-Xmx64m", cmd) ); 
+        Process proc = rsh( host, swift_app_cmd("-Xmx64m", cmd, "shep-stdout.txt", "shep-stderr.txt") ); 
         Thread.start {
             proc.errorStream.withReader {
                 String line;
@@ -72,51 +74,69 @@ class SwiftSocial {
             def sequencer = srv
             def other_sequencers = datacentres.clone() - srv
             def name = "X" + i
-            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers) ))
-            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ) ))            
+            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "sur-stdout.txt", "sur-stdout.txt" ))
+            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "seq-stdout.txt", "seq-stderr.txt" ))            
             i++;
         }
         println "\nOK"
     }
     
     
-    static void initDB( String client, String server, String config ) {
+    static void initDB( String client, String server, String config, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
         
         def cmd = "-Dswiftsocial=" + config + " " + INITDB_CMD + " init " + server + " "      
-        rshC( client, swift_app_cmd("-Xmx128m", cmd)).waitFor();
+        rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "initdb-stdout.txt", "initdb-stderr.txt")).waitFor();
         println "OK.\n"
     }  
     
     
-    static void runStandaloneScouts( List scouts, List servers, String config, String shepard, int threads ) {        
+    static void runStandaloneScouts( List scouts, List servers, String config, String shepard, int threads, String heap ="512m" ) {        
         def cmd = { host -> 
             String partition = scouts.indexOf( host ) + "/" + scouts.size()
-            def res = "nohup java -Xmx512m -Dswiftsocial=" + config + " " + SCOUT_CMD + " run " + shepard + " " + threads + " -partition " + partition + " -servers "
+            def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run " + shepard + " " + threads + " -partition " + partition + " -servers "
             servers.each { res += it + " "}     
             res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
             return res;
         }
-        
-        RemoteExecution.rsh( scouts, cmd, true, 500000)    
+
+        AtomicInteger n = new AtomicInteger();
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + scouts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.rsh( scouts, cmd, resHandler, true, 500000)    
     } 
 
-        static void runCS_ServerScouts( List scouts, List servers, String config, String cache) {
-        def cmd = "nohup java -Xmx512m -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " " + cache + " -servers "
-        servers.each { cmd += it + " "}     
-        cmd += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
-//        Debug(0, cmd)
-        pssh( scouts, cmd).waitFor()
+        static void runCS_ServerScouts( List scouts, List servers, String config, String cache, String heap="512m") {
+        def cmd = { _ ->
+            def str = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " " + cache + " -servers "
+            servers.each { str += it + " "}     
+            str += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+        }
+
+        AtomicInteger n = new AtomicInteger();
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + scouts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.rsh( scouts, cmd, resHandler, true, 500000)         
     }
     
-    static void runCS_EndClients( List clients, List scouts, String config, String shepard, int threads) {
+    static void runCS_EndClients( List clients, List scouts, String config, String shepard, int threads, String heap = "128m") {
         def cmd = { host -> 
                 String partition = clients.indexOf( host ) + "/" + clients.size()
-                def res = "nohup java -Xmx128m -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "  
+                def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "  
                 scouts.each { res += it + " "}     
                 res += "> client-stdout.txt 2> client-stderr.txt < /dev/null &"
                 return res
         }
-        //Debug(0, cmd)        
-        RemoteExecution.rsh( clients, cmd, true, 500000)    }
+
+        AtomicInteger n = new AtomicInteger();
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + clients.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.rsh( clients, cmd, resHandler, true, 500000) 
+    }
 }

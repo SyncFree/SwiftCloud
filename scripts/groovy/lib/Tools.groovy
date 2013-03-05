@@ -1,4 +1,5 @@
 import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class Tools {        
 
@@ -57,10 +58,14 @@ class Tools {
     static Process parallel( List command, List flags, List hosts, List remote_cmd) {
         File f = File.createTempFile( "parallel-", ".txt")
         dumpTo( hosts, f )
-        def _cmd = (command + ["-l", USERNAME, "-h", f.absolutePath] + flags) + remote_cmd
-        def _proc = _cmd.execute()
-        Debug(3, _cmd)
-        _proc.consumeProcessOutput(System.out, System.err);
+        def _cmd = (command + ["-v", "-l", USERNAME, "-h", f.absolutePath] + flags) + remote_cmd
+        String str = ""
+        _cmd.each { str += it + " "}
+        println str
+        def cmd2 = ["/bin/sh", "-c", str, "1>&2" ]
+        
+        Process _proc = new ProcessBuilder( cmd2 ).start()   
+        _proc.consumeProcessOutput(System.out, System.out)
         return _proc
     }
 
@@ -95,33 +100,56 @@ class Tools {
     }
     
 
-        
-    
-    static Process pnuke( List hosts, String pattern) {
+    static void pnuke( List hosts, String pattern, int timeout) {
         println "KILLALL " + pattern
-        
-        def proc = parallel( ["pnuke"], [], hosts, [pattern] )
-        proc.waitFor()
-        return proc
+        AtomicInteger n = new AtomicInteger();
+        def cmd = {
+            "killall -9 " + pattern
+        }
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + hosts.size() + (res == 0 ? " [ OK ]" : (res == 1 ? " [NOTHING TO KILL]" : " [FAILED]")) + " : " + host 
+            println str
+        }
+        Parallel.rsh( hosts, cmd, resHandler, true, timeout)
     }
     
-    static Process pslurp( List hosts, String src, String dst, String prefix) {
-        println "SLURP: " + src + " TO " + dst
-        new File(prefix).mkdirs()
-        return parallel( ["pslurp"], ["-L", prefix, src, dst], hosts, [] ) ;
+
+    static void prsync( List hosts, String src, String dst, int timeout, boolean verbose = false ) {
+        println "RSYNC: " + src + " TO " + dst       
+        def cmd = { host ->
+            ["rsync", src, String.format("%s@%s:%s", USERNAME, host, dst)]
+        }
+        AtomicInteger n = new AtomicInteger();
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + hosts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.exec( hosts, cmd, resHandler, verbose, timeout)
     }
 
-    static Process prsync( List hosts, String src, String dst) {
-        println "RSYNC: " + src + " TO " + dst       
-        return parallel( ["prsync"], ["-p", "10", src, dst], hosts, [] ) ;
+    static void pslurp( List hosts, String src, String dstDirPath, String dst, int timeout, boolean verbose = false) {
+        println "SLURP: " + src + " TO " + dstDirPath + "/" + dst
+        def cmd = { host ->
+            File f = new File(dstDirPath + "/" + host + "/");
+            f.mkdirs()           
+            ["scp", String.format("%s@%s:%s", USERNAME, host, src), f.absolutePath + "/" + dst]
+        }
+
+        AtomicInteger n = new AtomicInteger();
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + hosts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.exec( hosts, cmd, resHandler, ! verbose, timeout)
+    }
+
+    
+    static Process deployTo( List hosts, String filename, boolean verbose = false) {
+        return prsync( hosts, filename, filename, 300, ! verbose )
     }
     
-    static Process deployTo( List hosts, String filename) {
-        return prsync( hosts, filename, HOMEDIR + filename )
-    }
-    
-    static Process deployTo( List hosts, String src, String dst) {
-        return prsync( hosts, src, HOMEDIR + dst )
+    static Process deployTo( List hosts, String src, String dst, boolean verbose = false) {
+        return prsync( hosts, src, dst, 300, ! verbose )
     }
     
     static Sleep( int seconds ) {
