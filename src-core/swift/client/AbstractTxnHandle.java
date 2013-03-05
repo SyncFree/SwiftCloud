@@ -18,11 +18,11 @@ package swift.client;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -409,7 +409,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     @Override
     public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
             final BulkGetProgressListener listener) {
-        final ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>> res = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        final Map<CRDTIdentifier, TxnLocalCRDT<?>> res = Collections
+                .synchronizedMap(new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>());
 
         if (ids.isEmpty())
             return res;
@@ -425,8 +426,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
                         if (listener != null)
                             listener.onGet(AbstractTxnHandle.this, i, val);
                     } catch (Exception e) {
-                        res.put(i, null);
                         e.printStackTrace();
+                        res.put(i, null);
                     }
                     Threading.synchronizedNotifyAllOn(res);
                 }
