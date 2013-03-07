@@ -66,9 +66,8 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         List<String> servers = Args.subList(args, "-servers");
         String server = ClosestDomain.closest2Domain(servers, site);
 
-        int instances = Math.max(1, numberOfSites / 16);
-        int deltaPort = site % instances;
-        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT + deltaPort);
+        int instances = Args.valueOf(args, "-instances", 1);
+        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT + (site % instances));
 
         bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
         bufferedOutput.printf(";\tsite=%s\n", site);
