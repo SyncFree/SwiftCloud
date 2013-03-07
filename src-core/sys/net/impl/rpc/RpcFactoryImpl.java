@@ -136,7 +136,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
         RpcStats.logRpcRTT(conn.remoteEndpoint(), pong.rtt());
     }
 
-    static boolean isServer = sys.Sys.Sys.mainClass.indexOf("Server") >= 0;
+    static boolean isServer = Sys.mainClass.indexOf("Server") >= 0;
     static double T0 = Sys.currentTime();
     static AtomicInteger totRPCs = new AtomicInteger(0);
     static {
@@ -144,7 +144,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
             public void run() {
                 if (isServer) {
                     double elapsed = Sys.currentTime() - T0;
-                    System.err.printf("RPC/s:%.1f\n", totRPCs.get() / elapsed);
+                    System.err.printf("%s RPC/s:%.1f\n", Sys.mainClass, totRPCs.get() / elapsed);
                     if (elapsed > 10.0) {
                         T0 = Sys.currentTime();
                         totRPCs.set(0);

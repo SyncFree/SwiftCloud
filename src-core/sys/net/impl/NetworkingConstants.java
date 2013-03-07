@@ -20,7 +20,7 @@ public interface NetworkingConstants {
 
     static final int TCP_CONNECTION_TIMEOUT = 10000;
 
-    static final int NETTY_CORE_THREADS = 128;
+    static final int NETTY_CORE_THREADS = 8;
     static final int NETTY_WRITEBUFFER_DEFAULTSIZE = 2048;
     static final int NETTY_MAX_TOTAL_MEMORY = 128 * (1 << 20);
     static final int NETTY_MAX_MEMORY_PER_CHANNEL = 1 * (1 << 20);

@@ -72,11 +72,20 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-    volatile Executor bossExecutors, workerExecutors;
-    volatile ExecutionHandler executionHandler = null;
+    static Executor bossExecutors, workerExecutors;
+    static ExecutionHandler executionHandler = null;
+    static NioClientSocketChannelFactory nioCltFac;
+    static NioServerSocketChannelFactory nioSrvFac;
 
     static {
         DefaultChannelFuture.setUseDeadLockChecker(false);
+        bossExecutors = Executors.newCachedThreadPool();
+        workerExecutors = Executors.newCachedThreadPool();
+        executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
+                NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
+
+        nioCltFac = new NioClientSocketChannelFactory(bossExecutors, workerExecutors);
+        nioSrvFac = new NioServerSocketChannelFactory(bossExecutors, workerExecutors);
     }
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
@@ -84,17 +93,12 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
         this.gid = Sys.rg.nextLong() >>> 1;
 
         if (executionHandler == null) {
-            bossExecutors = Executors.newCachedThreadPool();
-            workerExecutors = Executors.newCachedThreadPool();
-            executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
-                    NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
         }
+
         boolean isServer = tcpPort >= 0;
         if (isServer) {
-            ServerBootstrap bootstrap = new ServerBootstrap(new NioServerSocketChannelFactory(bossExecutors,
-                    workerExecutors));
+            ServerBootstrap bootstrap = new ServerBootstrap(nioSrvFac);
 
-            // Set up the pipeline factory.
             bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
                 public ChannelPipeline getPipeline() throws Exception {
                     ChannelPipeline res = Channels.pipeline();
@@ -128,9 +132,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
     }
 
     public TransportConnection connect(Endpoint remote) {
-        final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
-        ClientBootstrap bootstrap = new ClientBootstrap(new NioClientSocketChannelFactory(bossExecutors,
-                workerExecutors));
+
+        ClientBootstrap bootstrap = new ClientBootstrap(nioCltFac);
 
         bootstrap.setOption("tcpNoDelay", true);
         bootstrap.setOption("child.tcpNoDelay", true);
@@ -138,6 +141,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
         bootstrap.setOption("child.reuseAddress", true);
         bootstrap.setOption("child.connectTimeoutMillis", NETTY_CONNECTION_TIMEOUT);
 
+        final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
             public ChannelPipeline getPipeline() throws Exception {
                 return Channels.pipeline(new MessageFrameDecoder(), res);
