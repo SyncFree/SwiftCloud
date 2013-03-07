@@ -85,7 +85,7 @@ class SwiftSocial {
     static void initDB( String client, String server, String config, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
         
-        def cmd = "-Dswiftsocial=" + config + " " + INITDB_CMD + " init " + server + " "      
+        def cmd = "-Dswiftsocial=" + config + " " + INITDB_CMD + " init -servers " + server + " "      
         rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "initdb-stdout.txt", "initdb-stderr.txt")).waitFor();
         println "OK.\n"
     }  
@@ -94,7 +94,7 @@ class SwiftSocial {
     static void runStandaloneScouts( List scouts, List servers, String config, String shepard, int threads, String heap ="512m" ) {        
         def cmd = { host -> 
             String partition = scouts.indexOf( host ) + "/" + scouts.size()
-            def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run " + shepard + " " + threads + " -partition " + partition + " -servers "
+            def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "
             servers.each { res += it + " "}     
             res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
             return res;
