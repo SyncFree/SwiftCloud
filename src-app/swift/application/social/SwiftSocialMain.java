@@ -192,7 +192,8 @@ public class SwiftSocialMain {
         switch (cmd) {
         case LOGIN:
             if (toks.length == 3) {
-                socialClient.login(toks[1], toks[2]);
+                while (!socialClient.login(toks[1], toks[2]))
+                    Threading.sleep(1000);
                 break;
             }
         case LOGOUT:
@@ -233,6 +234,8 @@ public class SwiftSocialMain {
         return cmd;
     }
 
+    static String progressMsg = "";
+
     public static void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {
         try {
             SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(swiftOptions);
@@ -244,7 +247,12 @@ public class SwiftSocialMain {
             // Initialize user data
             List<String> userData = users;
             for (String line : userData) {
-                System.out.printf("\rInitialization:%.1f%%", 100.0 * counter.incrementAndGet() / total);
+
+                String msg = String.format("Initialization:%.0f%%", 100.0 * counter.incrementAndGet() / total);
+                if (!msg.equals(progressMsg)) {
+                    progressMsg = msg;
+                    System.out.println(progressMsg);
+                }
                 // Divide into smaller transactions.
                 if (txnSize >= 100) {
                     txn.commit();

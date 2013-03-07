@@ -18,6 +18,7 @@ package swift.application.social.cs;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 
 import swift.application.social.Commands;
 import swift.application.social.SwiftSocialBenchmark;
+import swift.application.social.SwiftSocialMain;
 import swift.application.social.Workload;
 import sys.ec2.ClosestDomain;
 import sys.net.api.Endpoint;
@@ -33,6 +35,7 @@ import sys.net.api.rpc.RpcEndpoint;
 import sys.shepard.Shepard;
 import sys.utils.Args;
 import sys.utils.IP;
+import sys.utils.Threading;
 
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
@@ -51,6 +54,8 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         }
         sys.Sys.init();
 
+        init();
+
         final String shepardAddress = Args.valueOf(args, "-shepard", "");
         int concurrentSessions = Args.valueOf(args, "-threads", 1);
 
@@ -61,26 +66,34 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         List<String> servers = Args.subList(args, "-servers");
         String server = ClosestDomain.closest2Domain(servers, site);
 
-        init();
+        int instances = Math.max(1, numberOfSites / 16);
+        int deltaPort = site % instances;
+        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT + deltaPort);
 
-        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT);
+        bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
+        bufferedOutput.printf(";\tsite=%s\n", site);
+        bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
+        bufferedOutput.printf(";\tSurrogate=%s\n", server);
+        bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
         Workload.populate(numUsers);
-
-        // Kick off all sessions, throughput is limited by
-        // concurrentSessions.
-        final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions);
 
         if (!shepardAddress.isEmpty())
             new Shepard().joinHerd(shepardAddress);
 
+        // Kick off all sessions, throughput is limited by
+        // concurrentSessions.
+
+        final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions);
         System.err.println("Spawning session threads.");
         for (int i = 0; i < concurrentSessions; i++) {
             final int sessionId = i;
             final Workload commands = Workload
                     .doMixed(site, userFriends, biasedOps, randomOps, opGroups, numberOfSites);
+
             sessionsExecutor.execute(new Runnable() {
                 public void run() {
+                    Threading.sleep(new java.util.Random().nextInt(10000));
                     boolean loop4ever = !shepardAddress.isEmpty();
                     runClientSession(sessionId, commands, loop4ever);
                 }
@@ -115,12 +128,17 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
                     public void onReceive(Request m) {
                         final long now = System.currentTimeMillis();
                         final long txnExecTime = now - txnStartTime;
-                        final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
+                        String log;
+                        if (m.payload.equals("OK")) {
+                            log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
+                        } else {
+                            log = String.format("%d,%s,%d,%d", sessionId, "ERROR", txnExecTime, now);
+                        }
                         bufferedOutput.println(log);
                         commandsDone.incrementAndGet();
                     }
                 });
-
+                Threading.sleep(SwiftSocialMain.thinkTime);
             }
         while (loop4ever);
 

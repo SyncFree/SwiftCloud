@@ -18,9 +18,9 @@ package swift.application.social.cs;
 
 import static sys.net.api.Networking.Networking;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import swift.application.social.SwiftSocial;
 import swift.application.social.SwiftSocialBenchmark;
@@ -51,24 +51,28 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
         dcName = ClosestDomain.closest2Domain(servers, site);
         System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
-        // Override SwiftSocial.props cache size with cmd line option...
-        int cache = Args.valueOf(args, "-cache", -1);
         SwiftSocialMain.init();
-        if (cache > 0)
-            SwiftSocialMain.cacheSize = cache;
 
-        Networking.rpcBind(SCOUT_PORT, TransportProvider.DEFAULT).toService(0, new RequestHandler() {
+        // // Override SwiftSocial.props cache size with cmd line option...
+        // int cache = Args.valueOf(args, "-cache", -1);
+        // if (cache > 0)
+        // SwiftSocialMain.cacheSize = cache;
+
+        int instance = Args.valueOf(args, "-instance", 0);
+        Networking.rpcBind(SCOUT_PORT + instance, TransportProvider.DEFAULT).toService(0, new RequestHandler() {
 
             @Override
             public void onReceive(final RpcHandle handle, final Request m) {
                 String cmdLine = m.payload;
                 String sessionId = handle.remoteEndpoint().toString();
-
                 SwiftSocial socialClient = getSession(sessionId);
-
-                SwiftSocialMain.runCommandLine(socialClient, cmdLine);
-
-                handle.reply(new Request("OK"));
+                try {
+                    SwiftSocialMain.runCommandLine(socialClient, cmdLine);
+                    handle.reply(new Request("OK"));
+                } catch (Exception x) {
+                    handle.reply(new Request("ERROR"));
+                    x.printStackTrace();
+                }
             }
         });
 
@@ -83,5 +87,5 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
         return res;
     }
 
-    static Map<String, SwiftSocial> sessions = new HashMap<String, SwiftSocial>();
+    static Map<String, SwiftSocial> sessions = new ConcurrentHashMap<String, SwiftSocial>();
 }
