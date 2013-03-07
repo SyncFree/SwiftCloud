@@ -18,6 +18,7 @@ package swift.application.social;
 
 import static sys.Sys.Sys;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -49,16 +50,16 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
     public static void main(String[] args) {
 
         final String command = args[0];
-        dcName = shepard = args[1];
         sys.Sys.init();
 
-        if (dcName.equals("@")) {
-            dcName = "localhost";
-            DCServer.main(new String[] { dcName });
-            DCSequencerServer.main(new String[] { "-name", dcName });
-        }
+        if (command.equals("init")) {
 
-        if ((command.equals("init") && args.length == 2) || command.equals("both")) {
+            dcName = Args.valueOf(args, "-servers", "localhost");
+            if (dcName.equals("@")) {
+                dcName = "localhost";
+                DCServer.main(new String[] { dcName });
+                DCSequencerServer.main(new String[] { "-name", dcName });
+            }
 
             Props.parseFile("swiftsocial", System.out);
             final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
@@ -92,26 +93,35 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             }
             System.out.println("\nFinished populating db with users.");
         }
-        if ((command.equals("run") && args.length >= 3) || command.equals("both")) {
+        if (command.equals("run")) {
 
             // IO.redirect("stdout.txt", "stderr.txt");
             System.err.println(IP.localHostname() + "/ starting...");
 
-            int concurrentSessions = Integer.valueOf(args[2]);
+            int concurrentSessions = Args.valueOf(args, "-threads", 1);
             String partitions = Args.valueOf(args, "-partition", "0/1");
             int site = Integer.valueOf(partitions.split("/")[0]);
             int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
 
             List<String> servers = Args.subList(args, "-servers");
             dcName = ClosestDomain.closest2Domain(servers, site);
+            shepard = Args.valueOf(args, "-shepard", dcName);
 
             System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
             SwiftSocialMain.init();
 
+            bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
+            bufferedOutput.printf(";\tsite=%s\n", site);
+            bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
+            bufferedOutput.printf(";\tSurrogate=%s\n", dcName);
+            bufferedOutput.printf(";\tShepard=%s\n", shepard);
+            bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
+
             Workload.populate(SwiftSocialMain.numUsers);
 
-            new Shepard().joinHerd(shepard);
+            if (!shepard.isEmpty())
+                new Shepard().joinHerd(shepard);
 
             // Kick off all sessions, throughput is limited by
             // concurrentSessions.

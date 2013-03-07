@@ -73,6 +73,7 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         bufferedOutput.printf(";\tsite=%s\n", site);
         bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
         bufferedOutput.printf(";\tSurrogate=%s\n", server);
+        bufferedOutput.printf(";\tShepard=%s\n", shepardAddress);
         bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
         Workload.populate(numUsers);
