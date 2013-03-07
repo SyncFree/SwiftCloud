@@ -557,6 +557,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     public <V extends CRDT<V>> TxnLocalCRDT<V> getObjectLatestVersionTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
             CachePolicy cachePolicy, boolean create, Class<V> classOfV, final ObjectUpdatesListener updatesListener)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+
         synchronized (this) {
             assertPendingTransaction(txn);
 
@@ -576,6 +577,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
 
         while (true) {
+
             final CausalityClock fetchClock;
             final boolean fetchStrictlyRequired;
             synchronized (this) {
@@ -682,6 +684,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private synchronized <V extends CRDT<V>> TxnLocalCRDT<V> getCachedObjectForTxn(final AbstractTxnHandle txn,
             CRDTIdentifier id, CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener,
             boolean justFetched) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
+
         V crdt;
         try {
             crdt = (V) objectsCache.getAndTouch(id);
@@ -935,9 +938,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
         final FifoQueue<FastRecentUpdatesReply> notificationsQueue = new FifoQueue<FastRecentUpdatesReply>() {
             public void process(FastRecentUpdatesReply notifications) {
-                // System.err.println(scoutId + "----------------->" +
-                // notifications.getSeqN() + "/#"
-                // + notifications.getSubscriptions().size());
+                System.err.println(scoutId + "----------------->" + notifications.getSeqN() + "/#"
+                        + notifications.getSubscriptions().size());
 
                 T0.set(System.currentTimeMillis());
 
@@ -1532,10 +1534,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         @Override
         public void run() {
             while (true) {
-                if (stopFlag) {
-                    break;
-                }
-                fetchSubscribedNotifications();
+                // if (stopFlag) {
+                // break;
+                // }
+                // fetchSubscribedNotifications();
             }
         }
     }

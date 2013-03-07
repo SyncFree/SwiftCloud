@@ -44,7 +44,7 @@ public class FetchObjectVersionRequest extends ClientRequest {
     }
 
     public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            final boolean strictUnprunedVersion, SubscriptionType subscribeUpdates, int foo) {
+            final boolean strictUnprunedVersion, SubscriptionType subscribeUpdates) {
         super(clientId);
         this.uid = uid;
         this.version = version;

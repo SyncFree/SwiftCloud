@@ -104,6 +104,8 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
             Endpoint sequencerEndpoint, Properties props) {
         this.surrogateId = "s" + System.nanoTime();
 
+        initData(props);
+
         // For handling incoming requests from scouts and sequencers,
         // respectively.
         this.srvEndpoint4Clients = srvEndpoint4Clients.setHandler(this);
@@ -115,7 +117,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
         this.sequencerServerEndpoint = sequencerEndpoint;
 
-        initData(props);
         notificationsExecutor = Executors.newFixedThreadPool(DCConstants.SURROGATE_NOTIFIER_THREAD_POOL_SIZE);
 
         if (logger.isLoggable(Level.INFO)) {
@@ -183,7 +184,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
     @Override
     public void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
-        long t0 = System.currentTimeMillis();
         if (logger.isLoggable(Level.INFO)) {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId());
         }
@@ -332,7 +332,6 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
     }
 
     Tally t = new Tally();
-    Tally divergence = new Tally();
 
     private CommitUpdatesReply doProcessOneCommit(final ScoutSession session, final CommitUpdatesRequest request) {
         // 0) updates.addSystemTimestamp(timestampService.allocateTimestamp())
@@ -432,9 +431,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
                 CommitUpdatesReply commitReply = new CommitUpdatesReply(reply.getCurrVersion(), txTs);
                 CommitNotification notification = new CommitNotification(results, commitReply);
 
-                notification.dependencies = request.getObjectUpdateGroups().get(0).getDependency();
-                notification.currVersion = reply.getCurrVersion();
-                notification.stableVersion = reply.getStableVersion();
+                try {
+                    notification.dependencies = snapshotClock;
+                    notification.currVersion = reply.getCurrVersion();
+                    notification.stableVersion = reply.getStableVersion();
+                } catch (Exception x) {
+                }
 
                 dcPubSub.publish(notification.uids(), notification);
 
@@ -685,16 +687,12 @@ class DCSurrogate extends Handler implements swift.client.proto.SwiftServer {
 
             conn.enableDeferredReplies(request.getMaxBlockingTimeMillis() * 10);
 
-            if (notifications.size() > 0)
-                notifier.reSchedule(0.0);
+            notifier.reSchedule(notifications.size() > 0 ? 0.0 : replyTime * 0.001);
         }
 
         /**
          * Add client to start observing changes on CRDT id
          * 
-         * @param observing
-         *            fi true, client wants to receive updated; otherwise,
-         *            notifications
          */
         synchronized void addToObserving(CRDTIdentifier id) {
             subscriptions.add(id);
