@@ -107,7 +107,7 @@ class Tools {
             "killall -9 " + pattern
         }
         def resHandler = { host, res ->
-            def str = n.incrementAndGet() + "/" + hosts.size() + (res == 0 ? " [ OK ]" : (res == 1 ? " [NOTHING TO KILL]" : " [FAILED]")) + " : " + host 
+            def str = n.incrementAndGet() + "/" + hosts.size() + (res == 0 ? " [ OK ]" : (res == 1 ? " [NO KILL]" : " [FAILED]")) + " : " + host 
             println str
         }
         Parallel.rsh( hosts, cmd, resHandler, true, timeout)

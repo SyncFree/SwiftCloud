@@ -74,8 +74,8 @@ class SwiftSocial {
             def sequencer = srv
             def other_sequencers = datacentres.clone() - srv
             def name = "X" + i
-            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "sur-stdout.txt", "sur-stdout.txt" ))
-            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "seq-stdout.txt", "seq-stderr.txt" ))            
+            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "seq-stdout.txt", "seq-stdout.txt" ))
+            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "sur-stdout.txt", "sur-stderr.txt" ))            
             i++;
         }
         println "\nOK"
@@ -108,25 +108,28 @@ class SwiftSocial {
         Parallel.rsh( scouts, cmd, resHandler, true, 500000)    
     } 
 
-        static void runCS_ServerScouts( List scouts, List servers, String config, String cache, String heap="512m") {
-        def cmd = { _ ->
-            def str = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " " + cache + " -servers "
-            servers.each { str += it + " "}     
-            str += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
-        }
-
+        static void runCS_ServerScouts( int instances, List scouts, List servers, String config, String heap="512m") {
+        
         AtomicInteger n = new AtomicInteger();
         def resHandler = { host, res ->
             def str = n.incrementAndGet() + "/" + scouts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
             println str
         }
-        Parallel.rsh( scouts, cmd, resHandler, true, 500000)         
+        
+        instances.times{ instance ->
+            def cmd = { _ ->
+                def str = "nohup nice -n 10 java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " -instance " + instance + " -servers "
+                servers.each { str += it + " "}
+                str += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+            }
+            Parallel.rsh( scouts, cmd, resHandler, true, 500000)         
+        }
     }
     
-    static void runCS_EndClients( List clients, List scouts, String config, String shepard, int threads, String heap = "128m") {
+    static void runCS_EndClients( int instances, List clients, List scouts, String config, String shepard, int threads, String heap = "128m") {
         def cmd = { host -> 
                 String partition = clients.indexOf( host ) + "/" + clients.size()
-                def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "  
+                def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_ENDCLIENT_CMD + " -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -instances " + instances + " -servers "  
                 scouts.each { res += it + " "}     
                 res += "> client-stdout.txt 2> client-stderr.txt < /dev/null &"
                 return res
