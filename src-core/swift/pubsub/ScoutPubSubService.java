@@ -66,7 +66,7 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
         this.replyHandler = new SwiftProtocolHandler() {
             protected void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {
                 bound2dc = true;
-                System.err.println(ack.getId());
+                // System.err.println(ack.getId());
             }
 
             protected void onReceive(RpcHandle conn, UpdatesNotification request) {
