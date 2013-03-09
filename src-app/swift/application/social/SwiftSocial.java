@@ -438,11 +438,11 @@ public class SwiftSocial {
     Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkRes = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
 
     void bulkGet(TxnHandle txn, CRDTIdentifier... ids) {
-        // bulkRes = txn.bulkGet(ids);
+        bulkRes = txn.bulkGet(ids);
     }
 
     void bulkGet(TxnHandle txn, Set<CRDTIdentifier> ids) {
-        // bulkRes = txn.bulkGet(ids.toArray(new CRDTIdentifier[ids.size()]));
+        bulkRes = txn.bulkGet(ids.toArray(new CRDTIdentifier[ids.size()]));
     }
 
     @SuppressWarnings("unchecked")
@@ -450,17 +450,10 @@ public class SwiftSocial {
             Class<V> classOfT, final ObjectUpdatesListener updatesListener) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
 
-        // long T0 = System.currentTimeMillis();
         T res = (T) bulkRes.get(id);
         if (res == null)
             res = (T) txn.get(id, create, classOfT, updatesListener);
 
-        // long T1 = System.currentTimeMillis();
-        // getLatency.add(T1 - T0);
-
-        // if (getLatency.numberObs() > 2)
-        // System.out.println("GET:" + id + ":" + (T1 - T0) + "/" +
-        // getLatency.average());
         return res;
     }
 
@@ -470,16 +463,10 @@ public class SwiftSocial {
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(TxnHandle txn, CRDTIdentifier id, boolean create,
             Class<V> classOfT) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
-        // long T0 = System.currentTimeMillis();
         T res = (T) bulkRes.get(id);
         if (res == null)
             res = (T) txn.get(id, create, classOfT);
 
-        // long T1 = System.currentTimeMillis();
-        // getLatency.add(T1 - T0);
-        //
-        // if (getLatency.numberObs() > 2)
-        // System.out.println("GET:" + id + ":" + getLatency.average());
         return res;
     }
 }
