@@ -16,6 +16,8 @@
  *****************************************************************************/
 package swift.dc;
 
+import static sys.net.api.Networking.Networking;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -90,20 +92,18 @@ class DCSurrogate extends SwiftProtocolHandler {
 
     DcPubSubService dcPubSub;
 
-    DCSurrogate(RpcEndpoint srvEndpoint4Clients, RpcEndpoint srvEndpoint4Sequencers, RpcEndpoint cltEndpoint4Sequencer,
-            Endpoint sequencerEndpoint, Properties props) {
+    DCSurrogate(int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
         this.surrogateId = "s" + System.nanoTime();
 
         initData(props);
 
-        // For handling incoming requests from scouts and sequencers,
-        // respectively.
-        this.srvEndpoint4Clients = srvEndpoint4Clients.setHandler(this);
-        this.srvEndpoint4Sequencer = srvEndpoint4Sequencers.setHandler(this);
-
-        // For performing requests to sequencer. Avoid thread pool contention.
-        this.cltEndpoint4Sequencer = cltEndpoint4Sequencer;
         this.sequencerServerEndpoint = sequencerEndpoint;
+        this.cltEndpoint4Sequencer = Networking.rpcConnect().toDefaultService();
+        this.srvEndpoint4Clients = Networking.rpcBind(port4Clients).toDefaultService();
+        this.srvEndpoint4Sequencer = Networking.rpcBind(port4Sequencers).toDefaultService();
+
+        srvEndpoint4Clients.setHandler(this);
+        srvEndpoint4Sequencer.setHandler(this);
 
         notificationsExecutor = Executors.newFixedThreadPool(DCConstants.SURROGATE_NOTIFIER_THREAD_POOL_SIZE);
 

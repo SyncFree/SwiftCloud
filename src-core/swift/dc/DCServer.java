@@ -22,7 +22,6 @@ import java.util.Properties;
 
 import sys.Sys;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.RpcEndpoint;
 
 /**
  * Single server replying to client request. This class is used only to allow
@@ -49,13 +48,9 @@ public class DCServer {
     public void startSurrogServer(int port4Clients, int port4Sequencers) {
         Sys.init();
 
-        RpcEndpoint srvEP4Clients = Networking.rpcBind(port4Clients).toDefaultService();
-        RpcEndpoint srvEP4Sequencer = Networking.rpcBind(port4Sequencers).toDefaultService();
-        RpcEndpoint cltEP4Sequencer = Networking.rpcConnect().toDefaultService();
-
         Endpoint sequencer = Networking.resolve(sequencerHost, DCConstants.SEQUENCER_PORT);
 
-        server = new DCSurrogate(srvEP4Clients, srvEP4Sequencer, cltEP4Sequencer, sequencer, props);
+        server = new DCSurrogate(port4Clients, port4Sequencers, sequencer, props);
     }
 
     public static void main(String[] args) {
