@@ -22,6 +22,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -35,32 +36,13 @@ import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.xml.bind.DatatypeConverter;
 
 import swift.client.LRUObjectsCache.EvictionListener;
-import swift.client.proto.BatchCommitUpdatesReply;
-import swift.client.proto.BatchCommitUpdatesRequest;
-import swift.client.proto.CommitUpdatesReply;
-import swift.client.proto.CommitUpdatesRequest;
-import swift.client.proto.FastRecentUpdatesReply;
-import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
-import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
-import swift.client.proto.FastRecentUpdatesReplyHandler;
-import swift.client.proto.FastRecentUpdatesRequest;
-import swift.client.proto.FetchObjectVersionReply;
-import swift.client.proto.FetchObjectVersionReply.FetchStatus;
-import swift.client.proto.FetchObjectVersionRequest;
-import swift.client.proto.LatestKnownClockReply;
-import swift.client.proto.LatestKnownClockRequest;
-import swift.client.proto.SubscriptionType;
-import swift.client.proto.UnsubscribeUpdatesRequest;
-import swift.client.pubsub.ScoutPubSubService;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
@@ -86,20 +68,28 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.proto.BatchCommitUpdatesReply;
+import swift.proto.BatchCommitUpdatesRequest;
+import swift.proto.CommitUpdatesReply;
+import swift.proto.CommitUpdatesRequest;
+import swift.proto.FetchObjectVersionReply;
+import swift.proto.FetchObjectVersionReply.FetchStatus;
+import swift.proto.FetchObjectVersionRequest;
+import swift.proto.LatestKnownClockReply;
+import swift.proto.LatestKnownClockRequest;
+import swift.proto.ObjectUpdatesInfo;
+import swift.pubsub.CommitNotification;
+import swift.pubsub.ScoutPubSubService;
 import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
 import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.api.rpc.RpcHandle;
 import sys.net.impl.KryoLib;
-import sys.utils.FifoQueue;
 import sys.utils.Threading;
 
 import com.esotericsoftware.kryo.io.Output;
-
-//import swift.utils.ExponentialBackoffTaskExecutor;
 
 /**
  * Implementation of Swift scout and transactions manager. Scout can either
@@ -233,10 +223,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     // map from timestamp mapping of an uncommitted update to objects that may
     // await notification with this mapping
     private final Map<TimestampMapping, Set<CRDTIdentifier>> uncommittedUpdatesObjectsToNotify;
-    private final NotoficationsProcessorThread notificationsThread;
-    private final ExecutorService notificationsCallbacksExecutor;
-    private final ExecutorService notificationsSubscriberExecutor;
-    // private final ExponentialBackoffTaskExecutor retryableTaskExecutor;
 
     private final ExecutorService executorService;
 
@@ -301,15 +287,15 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.committerThread.start();
         this.objectSessionsUpdateSubscriptions = new HashMap<CRDTIdentifier, Map<String, UpdateSubscriptionWithListener>>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
-        this.notificationsCallbacksExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize(),
-                Threading.factory("notifcatios"));
-        this.notificationsSubscriberExecutor = Executors.newFixedThreadPool(options.getNotificationThreadPoolsSize(),
-                Threading.factory("notifcatios"));
-        this.notificationsThread = new NotoficationsProcessorThread();
-        this.notificationsThread.start();
 
         this.executorService = Executors.newFixedThreadPool(32, Threading.factory("Client"));
-        this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint);
+
+        this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint) {
+            synchronized public void notify(Set<CRDTIdentifier> ids, CommitNotification info) {
+                processDcNotification(ids, info);
+            }
+        };
+
         this.objectsCache.setEvictionListener(new EvictionListener() {
             public void onEviction(CRDTIdentifier id) {
                 suPubSub.unsubscribe(id, null);
@@ -355,16 +341,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             for (final CRDTIdentifier id : new ArrayList<CRDTIdentifier>(objectSessionsUpdateSubscriptions.keySet())) {
                 removeUpdateSubscriptionAsyncUnsubscribe(id);
             }
-            notificationsSubscriberExecutor.shutdown();
-            notificationsCallbacksExecutor.shutdown();
-            notificationsSubscriberExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-            notificationsCallbacksExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
             durableLog.close();
-            // Do not wait for notifications thread, as it is hard to interrupt
-            // pending notification reply.
-            // if (stopGracefully) {
-            // notificationsThread.join();
-            // }
         } catch (InterruptedException e) {
             logger.warning(e.getMessage());
         }
@@ -465,6 +442,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
     }
 
+    void execute(Runnable r) {
+        executorService.execute(r);
+    }
+
     private TimestampMapping generateNextTimestampMapping() {
         return new TimestampMapping(clientTimestampGenerator.generateNew());
     }
@@ -530,8 +511,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                             .get(id);
                     if (subscriptions != null) {
                         for (UpdateSubscriptionWithListener subscription : subscriptions.values()) {
-                            notificationsCallbacksExecutor.execute(subscription
-                                    .generateNotificationAndDiscard(this, id));
+                            executorService.execute(subscription.generateNotificationAndDiscard(this, id));
                         }
                     }
                 }
@@ -770,9 +750,14 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             disasterDurableClock = committedDisasterDurableVersion.clone();
         }
 
-        final SubscriptionType subscriptionType = subscribeUpdates ? SubscriptionType.UPDATES : SubscriptionType.NONE;
+        if (subscribeUpdates)
+            suPubSub.subscribe(id, null);
+        else
+            subscribeUpdates = suPubSub.isSubscribed(id);
+
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, id, version,
-                strictUnprunedVersion, subscriptionType, clock, disasterDurableClock);
+                strictUnprunedVersion, clock, disasterDurableClock, subscribeUpdates);
+
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create);
     }
 
@@ -889,11 +874,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
             Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(request
                     .getUid());
-            if (request.getSubscriptionType() != SubscriptionType.NONE && sessionsSubs == null) {
-                // Add temporary subscription entry without specifying full
-                // information on what value has been read.
-                addUpdateSubscriptionNoListener(crdt, false);
-            }
+
+            // if (request.getSubscriptionType() != SubscriptionType.NONE &&
+            // sessionsSubs == null) {
+            // // Add temporary subscription entry without specifying full
+            // // information on what value has been read.
+            // addUpdateSubscriptionNoListener(crdt, false);
+            // }
 
             // See if anybody is interested in new updates on this object.
             if (sessionsSubs != null) {
@@ -930,82 +917,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // TODO: during failover, it may be unsafe to IGNORE.
             cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
         }
-    }
-
-    private void fetchSubscribedNotifications() {
-
-        final AtomicLong T0 = new AtomicLong(System.currentTimeMillis());
-
-        final FifoQueue<FastRecentUpdatesReply> notificationsQueue = new FifoQueue<FastRecentUpdatesReply>() {
-            public void process(FastRecentUpdatesReply notifications) {
-                System.err.println(scoutId + "----------------->" + notifications.getSeqN() + "/#"
-                        + notifications.getSubscriptions().size());
-
-                T0.set(System.currentTimeMillis());
-
-                if (logger.isLoggable(Level.INFO)) {
-
-                    logger.info("notifications received for " + notifications.getSubscriptions().size() + " objects"
-                            + ";vrs=" + notifications.getEstimatedCommittedVersion() + ";stable="
-                            + notifications.getEstimatedDisasterDurableCommittedVersion());
-
-                    if (notifications.getSubscriptions().size() > 0) {
-                        ObjectSubscriptionInfo sub = notifications.getSubscriptions().get(0);
-                        logger.info("notifications received in " + scoutId + " for " + sub.getId() + "; old clk: "
-                                + sub.getOldClock() + "; new clk " + sub.getNewClock());
-                    }
-                }
-
-                if (notifications.getStatus() == SubscriptionStatus.ACTIVE) {
-                    // Process notifications.
-                    for (final ObjectSubscriptionInfo subscriptionInfo : notifications.getSubscriptions()) {
-                        if (subscriptionInfo.isDirty() && subscriptionInfo.getUpdates().isEmpty()) {
-                            logger.warning("unexpected server notification information without update");
-                        } else {
-                            applyObjectUpdates(subscriptionInfo.getId(), subscriptionInfo.getOldClock(),
-                                    subscriptionInfo.getUpdates(), subscriptionInfo.getNewClock(),
-                                    subscriptionInfo.getPruneClock());
-                        }
-                    }
-                } else {
-                    // Renew lost subscriptions.
-                    // synchronized (this) {
-                    // for (final CRDTIdentifier id :
-                    // objectSessionsUpdateSubscriptions.keySet()) {
-                    // asyncFetchAndSubscribeObjectUpdates(id);
-                    // }
-                    // }
-                }
-
-                synchronized (causalNotificationsClock) {
-                    causalNotificationsClock.merge(notifications.getEstimatedCommittedVersion());
-                }
-
-                synchronized (SwiftImpl.this) {
-                    objectsCache.augmentWithCausalClock(causalNotificationsClock);
-                }
-
-                // updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
-                // notifications.getEstimatedDisasterDurableCommittedVersion());
-
-            }
-        };
-        RpcHandle handle = localEndpoint.send(serverEndpoint, new FastRecentUpdatesRequest(scoutId,
-                notificationTimeoutMillis / 2), new FastRecentUpdatesReplyHandler() {
-            @Override
-            public void onReceive(RpcHandle conn, final FastRecentUpdatesReply reply) {
-                execute(new Runnable() {
-                    public void run() {
-                        notificationsQueue.offer(reply.getSeqN(), reply);
-                    }
-                });
-            }
-        }, 0);
-        handle.enableDeferredReplies(5 * notificationTimeoutMillis);
-        while (System.currentTimeMillis() - T0.get() < 5 * notificationTimeoutMillis)
-            Threading.sleep(100);
-
-        logger.warning(scoutId + "- server did not reply with recent update notifications");
     }
 
     /**
@@ -1096,7 +1007,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             if (!tm.anyTimestampIncluded(subscription.readVersion)) {
                 if (tm.anyTimestampIncluded(getGlobalCommittedVersion(false))
                         || tm.anyTimestampIncluded(lastLocallyCommittedTxnClock)) {
-                    notificationsCallbacksExecutor.execute(subscription.generateNotificationAndDiscard(this, id));
+                    executorService.execute(subscription.generateNotificationAndDiscard(this, id));
                     return;
                 }
                 uncommittedUpdates.put(tm, id);
@@ -1145,7 +1056,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 return;
             }
             if (!newView.getValue().equals(subscription.crdtView.getValue())) {
-                notificationsCallbacksExecutor.execute(subscription.generateNotificationAndDiscard(this, id));
+                executorService.execute(subscription.generateNotificationAndDiscard(this, id));
             }
             return;
         }
@@ -1193,12 +1104,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     }
 
     private void asyncFetchAndSubscribeObjectUpdates(final CRDTIdentifier id) {
+
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
 
-        notificationsSubscriberExecutor.execute(new Runnable() {
+        executorService.execute(new Runnable() {
             @Override
             public void run() {
                 final CausalityClock version;
@@ -1222,17 +1134,19 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
     private synchronized void removeUpdateSubscriptionAsyncUnsubscribe(final CRDTIdentifier id) {
         objectSessionsUpdateSubscriptions.remove(id);
-        notificationsSubscriberExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                if (objectSessionsUpdateSubscriptions.containsKey(id)) {
-                    return;
-                }
-                if (localEndpoint.send(serverEndpoint, new UnsubscribeUpdatesRequest(scoutId, id)).failed()) {
-                    logger.info("failed to unsuscribe object updates");
-                }
-            }
-        });
+
+        // notificationsSubscriberExecutor.execute(new Runnable() {
+        // @Override
+        // public void run() {
+        // if (objectSessionsUpdateSubscriptions.containsKey(id)) {
+        // return;
+        // }
+        // if (localEndpoint.send(serverEndpoint, new
+        // PubSubSubscriptionsUpdate(scoutId, id)).failed()) {
+        // logger.info("failed to unsuscribe object updates");
+        // }
+        // }
+        // });
     }
 
     @Override
@@ -1525,23 +1439,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
     }
 
-    private class NotoficationsProcessorThread extends Thread {
-        public NotoficationsProcessorThread() {
-            super(Thread.currentThread().getName() + ".SwiftNotificationsProcessorThread");
-            setDaemon(true);
-        }
-
-        @Override
-        public void run() {
-            while (true) {
-                // if (stopFlag) {
-                // break;
-                // }
-                // fetchSubscribedNotifications();
-            }
-        }
-    }
-
     /**
      * Scout representation of updates subscription with listener for a session.
      * The listener is awaiting for notification on update that occurred after
@@ -1574,7 +1471,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     }
                     logger.info("Notifying on update on object " + id);
                     listener.onObjectUpdate(txn, id, crdtView);
-                    // Mummy (well, daddy) tells you: clean up after yourself.
+                    // Mommy (well, daddy) tells you: clean up after yourself.
                     scout.removeUpdateSubscriptionWithListener(id, txn.getSessionId(),
                             UpdateSubscriptionWithListener.this);
                 }
@@ -1582,7 +1479,35 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         }
     }
 
-    public void execute(Runnable r) {
-        executorService.execute(r);
+    private void processDcNotification(Set<CRDTIdentifier> ids, CommitNotification notification) {
+
+        Collection<ObjectUpdatesInfo> updates = notification.info();
+
+        if (logger.isLoggable(Level.INFO)) {
+
+            logger.info("notifications received for " + ids.size() + " objects" + ";vrs=" + notification.currVersion
+                    + ";stable=" + notification.stableVersion);
+
+            // if (info.size() > 0) {
+            // ObjectSubscriptionInfo sub =
+            // notifications.getSubscriptions().get(0);
+            // logger.info("notifications received in " + scoutId + " for " +
+            // sub.getId() + "; old clk: "
+            // + sub.getOldClock() + "; new clk " + sub.getNewClock());
+            // }
+        }
+        for (final ObjectUpdatesInfo i : updates)
+            applyObjectUpdates(i.getId(), i.getOldClock(), i.getUpdates(), i.getNewClock(), i.getPruneClock());
+
+        synchronized (causalNotificationsClock) {
+            causalNotificationsClock.merge(notification.currVersion);
+        }
+
+        synchronized (SwiftImpl.this) {
+            objectsCache.augmentWithCausalClock(causalNotificationsClock);
+        }
+
+        // updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
+        // notifications.getEstimatedDisasterDurableCommittedVersion());
     }
 }

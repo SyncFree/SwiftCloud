@@ -30,13 +30,6 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.client.proto.GenerateTimestampReply;
-import swift.client.proto.GenerateTimestampRequest;
-import swift.client.proto.KeepaliveReply;
-import swift.client.proto.KeepaliveRequest;
-import swift.client.proto.LatestKnownClockReply;
-import swift.client.proto.LatestKnownClockReplyHandler;
-import swift.client.proto.LatestKnownClockRequest;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
@@ -44,15 +37,15 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
-import swift.dc.proto.CommitTSReply;
-import swift.dc.proto.CommitTSReplyHandler;
-import swift.dc.proto.CommitTSRequest;
-import swift.dc.proto.GenerateDCTimestampReply;
-import swift.dc.proto.GenerateDCTimestampRequest;
-import swift.dc.proto.SeqCommitUpdatesReply;
-import swift.dc.proto.SeqCommitUpdatesReplyHandler;
-import swift.dc.proto.SeqCommitUpdatesRequest;
-import swift.dc.proto.SequencerServer;
+import swift.proto.CommitTSReply;
+import swift.proto.CommitTSRequest;
+import swift.proto.GenerateDCTimestampReply;
+import swift.proto.GenerateDCTimestampRequest;
+import swift.proto.LatestKnownClockReply;
+import swift.proto.LatestKnownClockRequest;
+import swift.proto.SeqCommitUpdatesReply;
+import swift.proto.SeqCommitUpdatesRequest;
+import swift.proto.SwiftProtocolHandler;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -65,7 +58,7 @@ import sys.utils.Threading;
  * @author nmp
  * 
  */
-public class DCSequencerServer extends Handler implements SequencerServer {
+public class DCSequencerServer extends SwiftProtocolHandler {
     private static Logger logger = Logger.getLogger(DCSequencerServer.class.getName());
 
     DCSequencerServer thisServer = this;
@@ -344,8 +337,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                 }
                                 final int i0 = i;
                                 Endpoint other = sequencersEP.get(i);
-                                long T0 = System.currentTimeMillis();
-                                srvEndpoint.send(other, req, new SeqCommitUpdatesReplyHandler() {
+                                srvEndpoint.send(other, req, new SwiftProtocolHandler() {
 
                                     @Override
                                     public void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply) {
@@ -422,12 +414,12 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         return t;
     }
 
-    private synchronized boolean refreshId(Timestamp t) {
-        boolean hasTS = pendingTS.containsKey(t);
-        if (hasTS)
-            pendingTS.put(t, System.currentTimeMillis());
-        return hasTS;
-    }
+    // private synchronized boolean refreshId(Timestamp t) {
+    // boolean hasTS = pendingTS.containsKey(t);
+    // if (hasTS)
+    // pendingTS.put(t, System.currentTimeMillis());
+    // return hasTS;
+    // }
 
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, Timestamp cltTs, boolean commit) {
         boolean hasTS = pendingTS.remove(t) != null
@@ -462,18 +454,6 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         return c;
     }
 
-    @Override
-    public void onReceive(RpcHandle conn, GenerateTimestampRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("sequencer: generatetimestamprequest");
-        }
-        if (isBackup && !upgradeToPrimary()) {
-            return;
-        }
-        conn.reply(new GenerateTimestampReply(generateNewId(), DCConstants.DEFAULT_TRXIDTIME));
-        cleanPendingTS();
-    }
-
     private boolean processGenerateDCTimestampRequest(RpcHandle conn, GenerateDCTimestampRequest request) {
         synchronized (clientClock) {
             if (clientClock.includes(request.getCltTimestamp())) {
@@ -488,8 +468,8 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         }
         if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
 
-            conn.reply(new GenerateDCTimestampReply(siteId, generateNewId(), clientClock.getLatestCounter(request
-                    .getClientId())));
+            conn.reply(new GenerateDCTimestampReply(generateNewId(),
+                    clientClock.getLatestCounter(request.getClientId())));
 
             // HACK to use client based version vectors...
             // Timestamp ts = new Timestamp("SEQ" +
@@ -520,17 +500,18 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         cleanPendingTS();
     }
 
-    @Override
-    public void onReceive(RpcHandle conn, KeepaliveRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("sequencer: keepaliverequest");
-        }
-        if (isBackup && !upgradeToPrimary())
-            return;
-        boolean success = refreshId(request.getTimestamp());
-        conn.reply(new KeepaliveReply(success, success, DCConstants.DEFAULT_TRXIDTIME));
-        cleanPendingTS();
-    }
+    // @Override
+    // public void onReceive(RpcHandle conn, KeepaliveRequest request) {
+    // if (logger.isLoggable(Level.INFO)) {
+    // logger.info("sequencer: keepaliverequest");
+    // }
+    // if (isBackup && !upgradeToPrimary())
+    // return;
+    // boolean success = refreshId(request.getTimestamp());
+    // conn.reply(new KeepaliveReply(success, success,
+    // DCConstants.DEFAULT_TRXIDTIME));
+    // cleanPendingTS();
+    // }
 
     /**
      * @param conn

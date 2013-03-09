@@ -18,8 +18,6 @@ package sys.pubsub;
 
 import java.util.Set;
 
-import sys.net.api.Endpoint;
-
 public interface PubSub<K, P> {
 
     interface Handler<K, P> {
@@ -34,7 +32,9 @@ public interface PubSub<K, P> {
 
     void subscribe(K key, Handler<K, P> handler);
 
+    void subscribe(Set<K> key, Handler<K, P> handler);
+
     void unsubscribe(K key, Handler<K, P> handler);
 
-    void addRemoteSubscriber(K key, Endpoint subscriber);
+    void unsubscribe(Set<K> keys, Handler<K, P> handler);
 }

@@ -14,49 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
-import swift.crdt.CRDTIdentifier;
-import swift.proto.ObjectUpdatesInfo;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
-/**
- * Result of an exec operation in a CRDT
- * 
- * @author preguica
- * 
- */
-public class ExecCRDTResult {
+public class UnsubscribeUpdatesReply implements RpcMessage {
 
-    boolean result;
-    CRDTIdentifier id;
-    ObjectUpdatesInfo info;
+    protected long id;
 
-    public ExecCRDTResult(boolean result) {
-        this.info = null;
-        this.result = result;
+    UnsubscribeUpdatesReply() {
     }
 
-    public ExecCRDTResult(boolean result, CRDTIdentifier id, ObjectUpdatesInfo info) {
+    public UnsubscribeUpdatesReply(long id) {
         this.id = id;
-        this.info = info;
-        this.result = result;
     }
 
-    /**
-     * Needed for Kryo serialization
-     */
-    ExecCRDTResult() {
-    }
-
-    public boolean isResult() {
-        return result;
-    }
-
-    public ObjectUpdatesInfo getInfo() {
-        return info;
-    }
-
-    public CRDTIdentifier getId() {
+    public long getId() {
         return id;
+    }
+
+    @Override
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 }

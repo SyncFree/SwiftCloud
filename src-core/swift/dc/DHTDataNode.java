@@ -16,11 +16,10 @@
  *****************************************************************************/
 package swift.dc;
 
-import swift.dc.proto.DHTExecCRDT;
-import swift.dc.proto.DHTExecCRDTReply;
-import swift.dc.proto.DHTGetCRDT;
-import swift.dc.proto.DHTGetCRDTReply;
-import swift.dc.proto.DHTSendNotification;
+import swift.proto.DHTExecCRDT;
+import swift.proto.DHTExecCRDTReply;
+import swift.proto.DHTGetCRDT;
+import swift.proto.DHTGetCRDTReply;
 import sys.dht.api.DHT;
 
 /**
@@ -41,7 +40,7 @@ public interface DHTDataNode {
     public abstract class RequestHandler extends DHT.AbstractMessageHandler {
         abstract public void onReceive(DHT.Handle con, DHT.Key key, DHTGetCRDT request);
 
-        abstract public void onReceive(DHT.Handle con, DHT.Key key, DHTExecCRDT<?> request);
+        abstract public void onReceive(DHT.Handle con, DHT.Key key, DHTExecCRDT request);
     }
 
     /**
@@ -55,7 +54,5 @@ public interface DHTDataNode {
         abstract public void onReceive(DHTGetCRDTReply reply);
 
         abstract public void onReceive(DHTExecCRDTReply reply);
-
-        abstract public void onReceive(DHTSendNotification notification);
     }
 }

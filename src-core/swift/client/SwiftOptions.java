@@ -31,7 +31,6 @@ final public class SwiftOptions {
 
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final int DEFAULT_CACHE_SIZE = 100000;
-    public static final int DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE = 2;
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
@@ -46,7 +45,6 @@ final public class SwiftOptions {
     private long cacheEvictionTimeMillis;
     private int cacheSize;
     private int notificationTimeoutMillis;
-    private int notificationThreadPoolsSize;
     private int maxCommitBatchSize;
     private String logFilename;
     private boolean logFlushOnCommit;
@@ -77,7 +75,6 @@ final public class SwiftOptions {
         this.cacheEvictionTimeMillis = DEFAULT_CACHE_EVICTION_MILLIS;
         this.cacheSize = DEFAULT_CACHE_SIZE;
         this.notificationTimeoutMillis = DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
-        this.notificationThreadPoolsSize = DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE;
         this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
         this.logFilename = DEFAULT_LOG_FILENAME;
         this.setLogFlushOnCommit(DEFAULT_LOG_FLUSH_ON_COMMIT);
@@ -243,21 +240,6 @@ final public class SwiftOptions {
      */
     public void setNotificationTimeoutMillis(final int notificationTimeoutMillis) {
         this.notificationTimeoutMillis = notificationTimeoutMillis;
-    }
-
-    /**
-     * @return size of each thread pool processing object notifications
-     */
-    public int getNotificationThreadPoolsSize() {
-        return notificationThreadPoolsSize;
-    }
-
-    /**
-     * @param notificationThreadPoolsSize
-     *            size of each thread pool processing object notifications
-     */
-    public void setNotificationThreadPoolsSize(final int notificationThreadPoolsSize) {
-        this.notificationThreadPoolsSize = notificationThreadPoolsSize;
     }
 
     /**

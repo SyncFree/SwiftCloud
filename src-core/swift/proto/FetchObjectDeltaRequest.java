@@ -14,44 +14,43 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
-import sys.net.api.rpc.AbstractRpcHandler;
+import swift.clocks.CausalityClock;
+import swift.crdt.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
+ * Client request to get a delta between a known version and a specified version
+ * of an object.
  * 
- * @author smd
- * 
+ * @author mzawirski
  */
-abstract public class Handler extends AbstractRpcHandler {
+public class FetchObjectDeltaRequest extends FetchObjectVersionRequest {
+    protected CausalityClock knownVersion;
 
-    public void onReceive(final Reply r) {
-        Thread.dumpStack();
+    /**
+     * Fake constructor for Kryo serialization. Do NOT use.
+     */
+    FetchObjectDeltaRequest() {
     }
 
-    public void onReceive(final RpcHandle conn, final Request r) {
-        Thread.dumpStack();
+    public FetchObjectDeltaRequest(String clientId, CRDTIdentifier id, CausalityClock knownVersion,
+            CausalityClock version, boolean strictAvailableVersion) {
+        super(clientId, id, version, strictAvailableVersion, false);
+        this.knownVersion = knownVersion;
     }
 
-    public void onReceive(final RpcHandle conn, final Reply r) {
-        Thread.dumpStack();
-    }
-}
-
-class Reply implements RpcMessage {
-
-    Reply() {
+    /**
+     * @return the latest version known by the client
+     */
+    public CausalityClock getKnownVersion() {
+        return knownVersion;
     }
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        if (conn.expectingReply()) {
-            ((Handler) handler).onReceive(conn, this);
-        } else {
-            ((Handler) handler).onReceive(this);
-        }
+        ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 }

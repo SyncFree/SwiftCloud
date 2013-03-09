@@ -14,49 +14,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
-import swift.crdt.CRDTIdentifier;
-import swift.proto.ObjectUpdatesInfo;
+import sys.net.api.rpc.RpcMessage;
 
 /**
- * Result of an exec operation in a CRDT
+ * Abstract client to server request, identifying a client by its unique id.
  * 
- * @author preguica
- * 
+ * @author mzawirski
  */
-public class ExecCRDTResult {
+public abstract class ClientRequest implements RpcMessage {
+    protected String clientId;
 
-    boolean result;
-    CRDTIdentifier id;
-    ObjectUpdatesInfo info;
-
-    public ExecCRDTResult(boolean result) {
-        this.info = null;
-        this.result = result;
+    // Fake constructor for Kryo serialization. Do NOT use.
+    public ClientRequest() {
     }
 
-    public ExecCRDTResult(boolean result, CRDTIdentifier id, ObjectUpdatesInfo info) {
-        this.id = id;
-        this.info = info;
-        this.result = result;
+    public ClientRequest(final String clientId) {
+        this.clientId = clientId;
     }
 
     /**
-     * Needed for Kryo serialization
+     * @return unique client id of originator of this request
      */
-    ExecCRDTResult() {
-    }
-
-    public boolean isResult() {
-        return result;
-    }
-
-    public ObjectUpdatesInfo getInfo() {
-        return info;
-    }
-
-    public CRDTIdentifier getId() {
-        return id;
+    public String getClientId() {
+        return clientId;
     }
 }

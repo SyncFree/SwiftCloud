@@ -18,44 +18,48 @@ package sys.pubsub.impl;
 
 import java.util.Set;
 
-import sys.net.api.Endpoint;
 import sys.pubsub.PubSub;
 
-public class AbstractPubSub<K, P> implements PubSub<K, P>, PubSub.Handler<K, P> {
+public abstract class AbstractPubSub<K, P> implements PubSub<K, P>, PubSub.Handler<K, P> {
 
     @Override
     public void publish(K key, P info) {
-        Thread.dumpStack();
+        throw new RuntimeException();
     }
 
     @Override
     public void publish(Set<K> key, P info) {
-        Thread.dumpStack();
+        throw new RuntimeException();
     }
 
     @Override
     public void subscribe(K key, sys.pubsub.PubSub.Handler<K, P> handler) {
-        Thread.dumpStack();
+        throw new RuntimeException();
+    }
+
+    @Override
+    public void subscribe(Set<K> key, sys.pubsub.PubSub.Handler<K, P> handler) {
+        throw new RuntimeException();
     }
 
     @Override
     public void unsubscribe(K key, sys.pubsub.PubSub.Handler<K, P> handler) {
-        Thread.dumpStack();
+        throw new RuntimeException();
     }
 
     @Override
-    public void addRemoteSubscriber(K key, Endpoint subscriber) {
-        Thread.dumpStack();
+    public void unsubscribe(Set<K> key, sys.pubsub.PubSub.Handler<K, P> handler) {
+        throw new RuntimeException();
     }
 
     @Override
     public void notify(K key, P info) {
-        Thread.dumpStack();
+        throw new RuntimeException();
     }
 
     @Override
     public void notify(Set<K> key, P info) {
-        Thread.dumpStack();
+        throw new RuntimeException();
     }
 
 }

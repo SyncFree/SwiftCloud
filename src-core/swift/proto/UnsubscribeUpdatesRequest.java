@@ -14,44 +14,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
-import sys.net.api.rpc.AbstractRpcHandler;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
+import swift.crdt.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
+ * Scout request to update its subscriptions.
  * 
- * @author smd
- * 
+ * @author smduarte
  */
-abstract public class Handler extends AbstractRpcHandler {
+public class UnsubscribeUpdatesRequest extends ClientRequest {
 
-    public void onReceive(final Reply r) {
-        Thread.dumpStack();
+    protected long id;
+    protected Collection<CRDTIdentifier> removals;
+
+    /**
+     * For Kryo, do NOT use.
+     */
+    UnsubscribeUpdatesRequest() {
     }
 
-    public void onReceive(final RpcHandle conn, final Request r) {
-        Thread.dumpStack();
+    public UnsubscribeUpdatesRequest(long id, String clientId, Set<CRDTIdentifier> removals) {
+        super(clientId);
+        this.id = id;
+        this.removals = new ArrayList<CRDTIdentifier>(removals);
     }
 
-    public void onReceive(final RpcHandle conn, final Reply r) {
-        Thread.dumpStack();
+    public long getId() {
+        return id;
     }
-}
 
-class Reply implements RpcMessage {
-
-    Reply() {
+    public Set<CRDTIdentifier> getUnSubscriptions() {
+        return new HashSet<CRDTIdentifier>(removals);
     }
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        if (conn.expectingReply()) {
-            ((Handler) handler).onReceive(conn, this);
-        } else {
-            ((Handler) handler).onReceive(this);
-        }
+        ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 }

@@ -14,49 +14,39 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
-import swift.crdt.CRDTIdentifier;
-import swift.proto.ObjectUpdatesInfo;
+import swift.dc.ExecCRDTResult;
+import sys.dht.api.DHT;
 
 /**
- * Result of an exec operation in a CRDT
  * 
  * @author preguica
  * 
  */
-public class ExecCRDTResult {
+public class DHTExecCRDTReply implements DHT.Reply {
+    ExecCRDTResult result;
 
-    boolean result;
-    CRDTIdentifier id;
-    ObjectUpdatesInfo info;
-
-    public ExecCRDTResult(boolean result) {
-        this.info = null;
-        this.result = result;
-    }
-
-    public ExecCRDTResult(boolean result, CRDTIdentifier id, ObjectUpdatesInfo info) {
-        this.id = id;
-        this.info = info;
+    public DHTExecCRDTReply(ExecCRDTResult result) {
         this.result = result;
     }
 
     /**
      * Needed for Kryo serialization
      */
-    ExecCRDTResult() {
+    DHTExecCRDTReply() {
     }
 
-    public boolean isResult() {
+    @Override
+    public void deliverTo(DHT.Handle conn, DHT.ReplyHandler handler) {
+        if (conn.expectingReply())
+            ((SwiftProtocolHandler) handler).onReceive(conn, this);
+        else
+            ((SwiftProtocolHandler) handler).onReceive(this);
+    }
+
+    public ExecCRDTResult getResult() {
         return result;
     }
 
-    public ObjectUpdatesInfo getInfo() {
-        return info;
-    }
-
-    public CRDTIdentifier getId() {
-        return id;
-    }
 }

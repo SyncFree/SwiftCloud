@@ -14,49 +14,31 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
-import swift.crdt.CRDTIdentifier;
-import swift.proto.ObjectUpdatesInfo;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
 
 /**
- * Result of an exec operation in a CRDT
+ * Client request to get the latest known committed versions at the server.
  * 
- * @author preguica
  * 
+ * @author mzawirski
  */
-public class ExecCRDTResult {
-
-    boolean result;
-    CRDTIdentifier id;
-    ObjectUpdatesInfo info;
-
-    public ExecCRDTResult(boolean result) {
-        this.info = null;
-        this.result = result;
-    }
-
-    public ExecCRDTResult(boolean result, CRDTIdentifier id, ObjectUpdatesInfo info) {
-        this.id = id;
-        this.info = info;
-        this.result = result;
-    }
+public class LatestKnownClockRequest extends ClientRequest {
 
     /**
-     * Needed for Kryo serialization
+     * Constructor for Kryo serialization.
      */
-    ExecCRDTResult() {
+    LatestKnownClockRequest() {
     }
 
-    public boolean isResult() {
-        return result;
+    public LatestKnownClockRequest(String clientId) {
+        super(clientId);
     }
 
-    public ObjectUpdatesInfo getInfo() {
-        return info;
-    }
-
-    public CRDTIdentifier getId() {
-        return id;
+    @Override
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 }

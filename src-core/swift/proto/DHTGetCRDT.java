@@ -14,49 +14,51 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.dc;
+package swift.proto;
 
+import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
-import swift.proto.ObjectUpdatesInfo;
+import swift.dc.DHTDataNode;
+import sys.dht.api.DHT;
 
 /**
- * Result of an exec operation in a CRDT
+ * Object for getting a crdt
  * 
  * @author preguica
- * 
  */
-public class ExecCRDTResult {
+public class DHTGetCRDT implements DHT.Message {
 
-    boolean result;
+    String cltId;
     CRDTIdentifier id;
-    ObjectUpdatesInfo info;
-
-    public ExecCRDTResult(boolean result) {
-        this.info = null;
-        this.result = result;
-    }
-
-    public ExecCRDTResult(boolean result, CRDTIdentifier id, ObjectUpdatesInfo info) {
-        this.id = id;
-        this.info = info;
-        this.result = result;
-    }
+    CausalityClock version;
 
     /**
      * Needed for Kryo serialization
      */
-    ExecCRDTResult() {
+    DHTGetCRDT() {
     }
 
-    public boolean isResult() {
-        return result;
-    }
-
-    public ObjectUpdatesInfo getInfo() {
-        return info;
+    public DHTGetCRDT(String cltId, CRDTIdentifier id, CausalityClock version) {
+        super();
+        this.id = id;
+        this.cltId = cltId;
+        this.version = version;
     }
 
     public CRDTIdentifier getId() {
         return id;
+    }
+
+    public CausalityClock getVersion() {
+        return version;
+    }
+
+    public String getCltId() {
+        return cltId;
+    }
+
+    @Override
+    public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler handler) {
+        ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
     }
 }

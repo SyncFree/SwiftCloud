@@ -20,11 +20,11 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
 
-public class CRDTObject<V extends CRDT<V>> {
+public class CRDTObject {
     /**
      * crdt object
      */
-    CRDT<V> crdt;
+    CRDT<?> crdt;
     /**
      * current clock reflects all updates and their causal past
      */
@@ -43,7 +43,7 @@ public class CRDTObject<V extends CRDT<V>> {
         // do nothing
     }
 
-    public CRDTObject(CRDTData<V> data, CausalityClock version, String cltId, CausalityClock cltClock) {
+    public CRDTObject(CRDTData<?> data, CausalityClock version, String cltId, CausalityClock cltClock) {
         // 1) let int clientTxs =
         // clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
         // probably it could be done better, lock-free
