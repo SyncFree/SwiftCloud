@@ -8,7 +8,7 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "peeramide.irisa.fr"
+    "peeramide.irisa.fr",
 ]
 
 PlanetLab_PT = [
@@ -20,9 +20,9 @@ PlanetLab_PT = [
 
 Scouts = (PlanetLab_PT).unique()
 
-Shepard = Surrogates.get(0);
+Shepard = "planetlab-2.tagus.ist.utl.pt"
 
-def Threads = 2
+def Threads = 3
 def Duration = 300
 def SwiftSocial_Props = "swiftsocial-test.props"
 
@@ -46,7 +46,7 @@ deployTo(AllMachines, SwiftSocial_Props)
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
 
-SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "3096m")
+SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "512m")
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
 Sleep(10)
