@@ -67,7 +67,9 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
                 String sessionId = handle.remoteEndpoint().toString();
                 SwiftSocial socialClient = getSession(sessionId);
                 try {
+                    System.out.println(cmdLine);
                     SwiftSocialMain.runCommandLine(socialClient, cmdLine);
+                    System.out.println("OK");
                     handle.reply(new Request("OK"));
                 } catch (Exception x) {
                     handle.reply(new Request("ERROR"));

@@ -3,9 +3,12 @@ package sys.ec2;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.net.InetAddress;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import sys.utils.Args;
 
 /**
  * Utility class to select the closest node from a list of candidates, based on
@@ -71,7 +74,9 @@ public class ClosestDomain {
         }
     }
 
-    public static void main(String[] args) {
-        System.out.println("Run baby run...");
+    public static void main(String[] args) throws Exception {
+        String host = InetAddress.getLocalHost().getHostName();
+        List<String> servers = Args.subList(args, "-servers");
+        System.out.println(host + "--->" + closest2Domain(servers, 0));
     }
 }
