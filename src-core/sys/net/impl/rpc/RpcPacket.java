@@ -126,8 +126,8 @@ final public class RpcPacket extends AbstractRpcPacket {
             if (this.handler != null)
                 pkt.payload.deliverTo(pkt, this.handler);
             else
-                Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null",
-                        pkt.getClass(), pkt.remote()));
+                Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null", pkt
+                        .getPayload().getClass(), pkt.remote()));
         }
     }
 

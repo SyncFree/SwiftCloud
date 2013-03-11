@@ -64,7 +64,6 @@ import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 import sys.utils.Threading;
 
-import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
@@ -199,10 +198,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 return fut.isSuccess();
 
             } catch (Throwable t) {
-                if (t instanceof KryoException)
-                    Log.log(Level.SEVERE, "Exception in connection to: " + remote, t);
-                else
-                    Log.log(Level.INFO, "Exception in connection to: " + remote, t);
+                Log.log(Level.INFO, "Exception in connection to: " + remote, t);
 
                 cause = t;
                 failed = true;
@@ -244,8 +240,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 incomingBytesCounter.addAndGet(downloadTotal);
 
                 msg.deliverTo(AbstractConnection.this, handler);
-            } catch (Exception x) {
-                x.printStackTrace();
+            } catch (Throwable t) {
+                Log.log(Level.INFO, "Exception in connection to: " + remote, t);
+
+                cause = t;
+                failed = true;
+                handler.onFailure(this);
+                // x.printStackTrace();
             }
         }
 
