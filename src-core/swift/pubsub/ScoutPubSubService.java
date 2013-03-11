@@ -77,7 +77,7 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
         this.fifoQueue = new FifoQueue<UpdatesNotification>() {
             public void process(UpdatesNotification p) {
                 gots.add(p.seqN());
-                System.err.println(gots);
+                // System.err.println(gots);
                 for (CommitNotification r : p.getRecords()) {
                     ScoutPubSubService.this.notify(r.info.keySet(), r);
                 }
@@ -103,7 +103,7 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
         subscriptions.add(id);
     }
 
-    Task updater = new Task(0.25) {
+    Task updater = new Task(3) {
         public void run() {
             if (removals.size() > 0 || !bound2dc) {
                 UnsubscribeUpdatesRequest req = new UnsubscribeUpdatesRequest(0L, clientId, removals);
