@@ -1,7 +1,7 @@
 
 class PlanetLab_3xX {
 
-    static int maxPerRegion = 2
+    static int maxPerRegion = 32
     
     static def PlanetLab_EU = [
     "planetlab-node-02.ucd.ie",
@@ -21,9 +21,9 @@ class PlanetLab_3xX {
     "planetlab3.cs.st-andrews.ac.uk",
     "planetlab4.cs.st-andrews.ac.uk",
     "planetlab2.aston.ac.uk",
-//    "pl1.ccsrfi.net",
+    "pl1.ccsrfi.net",
 //    "pl2.ccsrfi.net",
-//    "onelab2.info.ucl.ac.be",
+    "onelab2.info.ucl.ac.be",
     "planetlab2.cs.vu.nl",
 //    "planetlab2.ewi.tudelft.nl",
     "planck228ple.test.ibbt.be",
@@ -54,12 +54,12 @@ static def PlanetLab_NC = [
     "planetslug4.cse.ucsc.edu",
     "planetslug5.cse.ucsc.edu",
     "pli1-pa-5.hpl.hp.com",
-    "planetlab1.millennium.berkeley.edu",
-    "planetlab2.millennium.berkeley.edu",
-    "planetlab8.millennium.berkeley.edu",
+//    "planetlab1.millennium.berkeley.edu",
+//    "planetlab2.millennium.berkeley.edu",
+//    "planetlab5.millennium.berkeley.edu",
     "planetlab7.millennium.berkeley.edu",
-    "planetlab12.millennium.berkeley.edu",
-    "planetlab5.millennium.berkeley.edu",
+//    "planetlab8.millennium.berkeley.edu",
+//    "planetlab12.millennium.berkeley.edu",
     "planetlab16.millennium.berkeley.edu",
 //    "planetlab10.millennium.berkeley.edu",
 //    "planetlab13.millennium.berkeley.edu",
@@ -75,8 +75,8 @@ static def PlanetLab_NC = [
     "planetlab2.cs.ucla.edu",
     "planetlab1.postel.org",
     "planetlab2.postel.org",
-    "planetlab3.postel.org",
-//    "planetlab4.postel.org",
+//    "planetlab3.postel.org",
+    "planetlab4.postel.org",
     "planetlab1.ucsd.edu",
     "planetlab2.ucsd.edu",
     "planetlab3.ucsd.edu",
@@ -94,10 +94,10 @@ static def PlanetLab_NC = [
     "planetlab1.cs.uoregon.edu",
     "planetlab2.cs.uoregon.edu",
     "planetlab3.cs.uoregon.edu",
-    "planetlab4.cs.uoregon.edu"
-//    "pl2.cs.unm.edu",
-//    "pl3.cs.unm.edu",
-//    "pl4.cs.unm.edu",
+    "planetlab4.cs.uoregon.edu",
+    "pl2.cs.unm.edu",
+    "pl3.cs.unm.edu",
+    "pl4.cs.unm.edu"
 ].subList(0, maxPerRegion)
 
 static def PlanetLab_NV = [
@@ -106,10 +106,11 @@ static def PlanetLab_NV = [
     "planetlab1.cs.pitt.edu",
     "planetlab2.cs.pitt.edu",
     "planetlab-1.cmcl.cs.cmu.edu",
-    "planetlab1.poly.edu",
+//    "planetlab1.poly.edu",
     "planetlab2.poly.edu",
-//    "planetlab-01.cs.princeton.edu",
+    "planetlab-01.cs.princeton.edu",
     "planetlab-03.cs.princeton.edu",
+//    "planetlab-04.cs.princeton.edu",
     "planetlab1.temple.edu",
     "planetlab3.cs.columbia.edu",
     "planetlab2.cs.columbia.edu",
@@ -124,7 +125,6 @@ static def PlanetLab_NV = [
     "planetlab-02.vt.nodes.planet-lab.org",
     "planetlab-03.vt.nodes.planet-lab.org",
     "planetlab-04.vt.nodes.planet-lab.org",
-//    "planetlab-04.cs.princeton.edu",
     "node2.planetlab.albany.edu",
     "node1.planetlab.albany.edu",
     "planetlab6.cs.duke.edu",

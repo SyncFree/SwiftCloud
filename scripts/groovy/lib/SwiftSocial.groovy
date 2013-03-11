@@ -120,7 +120,7 @@ class SwiftSocial {
             def cmd = { _ ->
                 def str = "nohup nice -n 10 java -Xmx" + heap + " -Dswiftsocial=" + config + " " + CS_SCOUT_CMD + " -instance " + instance + " -servers "
                 servers.each { str += it + " "}
-                str += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+                str += "> scout-stdout-"+ instance+".txt 2> scout-stderr-"+instance+".txt < /dev/null &"
             }
             Parallel.rsh( scouts, cmd, resHandler, true, 500000)         
         }

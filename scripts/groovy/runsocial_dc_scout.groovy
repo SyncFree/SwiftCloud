@@ -11,11 +11,12 @@ def __ = onControlC({
 
 
 Surrogates = [
-    "peeramide.irisa.fr"
+    "ec2-54-228-99-2.eu-west-1.compute.amazonaws.com",
+    "ec2-54-241-53-254.us-west-1.compute.amazonaws.com",
 ]
 
-//EndClients_EU = []
-//EndClients_NC = []
+
+//ec2-54-228-99-154.eu-west-1.compute.amazonaws.com ec2-50-18-226-88.us-west-1.compute.amazonaws.com ec2-184-72-158-91.compute-1.amazonaws.com
 
 EndClients = PlanetLab_NC + PlanetLab_NV + PlanetLab_EU
 
@@ -33,13 +34,19 @@ dumpTo(AllMachines, "/tmp/nodes.txt")
 
 pnuke(AllMachines, "java", 60)
 
-println "==== BUILDING JAR..."
+boolean deployJar = false, deploy_logging = false, deploy_props = true
 
-sh("ant -buildfile smd-jar-build.xml").waitFor()
+if( deployJar ) {
+    println "==== BUILDING JAR..."
+    sh("ant -buildfile smd-jar-build.xml").waitFor()
+    deployTo(AllMachines, "swiftcloud.jar")
+}
 
-deployTo(AllMachines, "swiftcloud.jar")
-deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
-deployTo(AllMachines, SwiftSocial_Props)
+if( deploy_logging)
+    deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
+    
+if( deploy_props)
+    deployTo(AllMachines, SwiftSocial_Props)
 
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
@@ -61,7 +68,7 @@ println "==== WAITING A BIT BEFORE STARTING SERVER SCOUTS ===="
 Sleep(10)
 
 int instances = Math.max(1, (int)EndClients.size() / 16)
-SwiftSocial.runCS_ServerScouts(instances, Scouts, ["localhost"], SwiftSocial_Props, "512m")
+SwiftSocial.runCS_ServerScouts(instances, Scouts, ["localhost"], SwiftSocial_Props, "1024m")
 
 println "==== WAITING A BIT BEFORE STARTING ENDCLIENTS ===="
 Sleep(10)
