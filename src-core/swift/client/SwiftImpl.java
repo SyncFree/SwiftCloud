@@ -858,7 +858,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 // If clock >= cacheCrdt.clock, it 1) does not make sense to
                 // merge, 2) received version may have different pruneClock,
                 // which could be either helpful or not depending on the case.
-                objectsCache.add(crdt, txn == null ? -1L : txn.id);
+                objectsCache.add(crdt, txn == null ? -1L : txn.serial);
                 cacheCRDT = crdt;
             } else {
                 cacheCRDT.merge(crdt);
@@ -1217,12 +1217,17 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         } else {
             tryReuseTxnTimestamp(txn);
             txn.markGloballyCommitted(null);
+            removeEvictionProtection(txn);
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
             }
         }
         removePendingTxn(txn);
-        objectsCache.removeProtection(txn.id);
+        objectsCache.removeProtection(txn.serial);
+    }
+
+    public void removeEvictionProtection(AbstractTxnHandle txn) {
+        objectsCache.removeProtection(txn.serial);
     }
 
     private void tryReuseTxnTimestamp(AbstractTxnHandle txn) {
@@ -1275,6 +1280,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 case COMMITTED_WITH_KNOWN_TIMESTAMPS:
                     for (final Timestamp ts : reply.getCommitTimestamps()) {
                         txn.markGloballyCommitted(ts);
+                        removeEvictionProtection(txn);
                         lastGloballyCommittedTxnClock.record(ts);
                         committedVersion.record(ts);
                         // TODO: call updateCommittedVersion?
@@ -1284,6 +1290,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
                     lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
                     txn.markGloballyCommitted(null);
+                    removeEvictionProtection(txn);
                     // TODO: call updateCommittedVersion?
                     break;
                 case INVALID_OPERATION:

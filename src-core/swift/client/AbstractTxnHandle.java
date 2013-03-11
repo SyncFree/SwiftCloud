@@ -126,7 +126,6 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
-
         this.serial = serialGenerator.getAndIncrement();
     }
 

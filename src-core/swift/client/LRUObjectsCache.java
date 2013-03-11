@@ -16,10 +16,12 @@
  *****************************************************************************/
 package swift.client;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -58,8 +60,10 @@ class LRUObjectsCache {
         }
     };
 
-    synchronized public void removeProtection(long id) {
-        evictionProtections.remove(id);
+    List<Long> foo = new ArrayList<Long>();
+
+    synchronized public void removeProtection(long serial) {
+        evictionProtections.remove(serial);
         evictExcess();
         evictOutdated();
     }
@@ -107,9 +111,9 @@ class LRUObjectsCache {
      * @param object
      *            object to add
      */
-    synchronized public void add(final CRDT<?> object, long txnId) {
-        evictionProtections.add(txnId);
-        Entry e = new Entry(object, txnId);
+    synchronized public void add(final CRDT<?> object, long txnSerial) {
+        evictionProtections.add(txnSerial);
+        Entry e = new Entry(object, txnSerial);
         entries.put(object.getUID(), e);
         shadowEntries.put(object.getUID(), e);
     }
@@ -210,7 +214,6 @@ class LRUObjectsCache {
         }
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
     synchronized void augmentWithCausalClock(final CausalityClock causalClock) {
         for (final Entry entry : entries.values()) {
             entry.object.augmentWithDCClock(causalClock);
