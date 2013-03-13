@@ -230,8 +230,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     private final CacheStats cacheStats;
 
     // OPTIONS
-    private final int timeoutMillis;
-    private final int notificationTimeoutMillis;
     private final int deadlineMillis;
     // If true, only disaster safe committed (and local) transactions are read
     // by transactions, so the scout virtually never blocks due to systen
@@ -261,9 +259,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
         this.disasterSafe = options.isDisasterSafe();
-        this.timeoutMillis = options.getTimeoutMillis();
         this.deadlineMillis = options.getDeadlineMillis();
-        this.notificationTimeoutMillis = options.getNotificationTimeoutMillis();
         this.maxCommitBatchSize = options.getMaxCommitBatchSize();
         this.localEndpoint = localEndpoint;
         this.serverEndpoint = serverEndpoint;
@@ -359,11 +355,13 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         cacheStats.printAndReset();
         try {
             Output output = new Output(new FileOutputStream("/dev/null"));
-            KryoLib.kryo().writeObject(output, objectsCache);
+            synchronized (objectsCache) {
+                KryoLib.kryo().writeObject(output, objectsCache);
+            }
             output.close();
             System.out.printf("CACHE SIZE: %s KB\n", output.total() >> 10);
         } catch (Exception e) {
-            e.printStackTrace();
+            // e.printStackTrace();
         }
     }
 
@@ -1382,12 +1380,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             if (result.size() > maxCommitBatchSize) {
                 throw new IllegalStateException("Internal error, transaction batch size computed wrongly");
             }
-            if (result.isEmpty() && !stopFlag) {
-                try {
-                    this.wait();
-                } catch (InterruptedException e) {
-                }
-            } else {
+            if (result.isEmpty() && !stopFlag)
+                Threading.waitOn(this);
+            else {
                 return result;
             }
         } while (true);

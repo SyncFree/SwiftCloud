@@ -24,6 +24,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import swift.clocks.CausalityClock;
@@ -86,9 +89,9 @@ class LRUObjectsCache {
                     shadowEntries.remove(eldest.getKey());
                     evictionListener.onEviction(eldest.getKey());
 
-                    // System.err.println( eldest.getKey() +
-                    // " evicted from the cache due to size limit, acesses:" +
-                    // e.getNumberOfAccesses());
+                    // System.err.println(eldest.getKey() +
+                    // " evicted from the cache due to size limit, acesses:"
+                    // + e.getNumberOfAccesses());
 
                     logger.info("Object evicted from the cache due to size limit, acesses:" + e.getNumberOfAccesses());
                     return true;
@@ -220,11 +223,20 @@ class LRUObjectsCache {
         }
     }
 
-    private final class Entry {
+    synchronized void printStats() {
+        SortedSet<Entry> se = new TreeSet<Entry>(entries.values());
+        for (Entry i : se)
+            System.err.println(i.object.getUID() + "/" + i.accesses);
+    }
+
+    static AtomicLong g_serial = new AtomicLong();
+
+    private final class Entry implements Comparable<Entry> {
         private final CRDT<?> object;
         private long lastAccessTimeMillis;
         private long accesses;
         private long txnId;
+        private long serial = g_serial.incrementAndGet();
 
         public Entry(final CRDT<?> object, long txnId) {
             this.object = object;
@@ -251,6 +263,14 @@ class LRUObjectsCache {
         public void touch() {
             accesses++;
             lastAccessTimeMillis = System.currentTimeMillis();
+        }
+
+        @Override
+        public int compareTo(Entry other) {
+            if (accesses == other.accesses)
+                return serial < other.serial ? -1 : 1;
+            else
+                return accesses < other.accesses ? -1 : 1;
         }
     }
 }

@@ -67,6 +67,10 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
 
         abstract String doLine(Random rg, String user, List<String> candidates);
+
+        public String toString() {
+            return getClass().getSimpleName();
+        }
     }
 
     /*
@@ -89,7 +93,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
     static class Post extends Operation {
 
         public String doLine(Random rg, String user, List<String> candidates) {
-            int index = rg.nextInt(candidates.size() - 1);
+            int index = rg.nextInt(candidates.size());
             String recipient = candidates.get(index);
             return String.format("post;%s;\"What up, dawg\";", recipient);
         }
@@ -101,7 +105,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
      */
     static class Read extends Operation {
         public String doLine(Random rg, String user, List<String> candidates) {
-            int index = rg.nextInt(candidates.size() - 1);
+            int index = rg.nextInt(candidates.size());
             String peer = candidates.get(index);
             return String.format("read;%s;", peer);
         }
@@ -113,7 +117,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
      */
     static class Friend extends Operation {
         public String doLine(Random rg, String user, List<String> candidates) {
-            int index = rg.nextInt(candidates.size() - 1);
+            int index = rg.nextInt(candidates.size());
             String peer = candidates.get(index);
             return String.format("friend;%s;", peer);
         }
@@ -125,7 +129,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
      */
     static class SeeFriends extends Operation {
         public String doLine(Random rg, String user, List<String> candidates) {
-            int index = rg.nextInt(candidates.size() - 1);
+            int index = rg.nextInt(candidates.size());
             String peer = candidates.get(index);
             return String.format("see_friends;%s;", peer);
         }
@@ -187,7 +191,10 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
             for (int j = 0; j < i.frequency; j++)
                 mix.add(i.doLine(rg, user, friends));
 
-        assert mix.size() == 100;
+        if (mix.size() != 100) {
+            System.err.println("Workload generation bug");
+            System.exit(0);
+        }
 
         return new Workload() {
             int groupCounter = 0;
@@ -251,7 +258,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
         Workload.populate(25000);
 
-        Workload res = Workload.doMixed(0, 25, 9, 1, 500, 10);
+        Workload res = Workload.doMixed(0, 1, 9, 1, 500, 10);
         for (String i : res)
             System.out.println(i);
 

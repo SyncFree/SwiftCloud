@@ -8,7 +8,9 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "peeramide.irisa.fr",
+    "ec2-176-34-198-55.eu-west-1.compute.amazonaws.com",
+    "ec2-50-18-25-107.us-west-1.compute.amazonaws.com",
+    "ec2-50-16-156-24.compute-1.amazonaws.com",
 ]
 
 PlanetLab_PT = [
@@ -22,8 +24,8 @@ Scouts = (PlanetLab_PT).unique()
 
 Shepard = "planetlab-2.tagus.ist.utl.pt"
 
-def Threads = 3
-def Duration = 300
+def Threads = 5
+def Duration = 180
 def SwiftSocial_Props = "swiftsocial-test.props"
 
 
@@ -40,7 +42,7 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 
 
 deployTo(AllMachines, "swiftcloud.jar")
-deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
+//deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
 deployTo(AllMachines, SwiftSocial_Props)
 
 

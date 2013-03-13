@@ -39,6 +39,8 @@ public class CommitTSRequest implements RpcMessage {
     protected boolean commit; // true if transaction was committed
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
 
+    protected boolean disasterSafe;
+
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
@@ -53,6 +55,23 @@ public class CommitTSRequest implements RpcMessage {
         this.version = version;
         this.commit = commit;
         this.objectUpdateGroups = objectUpdateGroups;
+        this.disasterSafe = false;
+    }
+
+    public CommitTSRequest(Timestamp timestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp,
+            CausalityClock version, boolean commit, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
+            boolean disasterSafe) {
+        this.timestamp = timestamp;
+        this.cltTimestamp = cltTimestamp;
+        this.prvCltTimestamp = prvCltTimestamp;
+        this.version = version;
+        this.commit = commit;
+        this.objectUpdateGroups = objectUpdateGroups;
+        this.disasterSafe = disasterSafe;
+    }
+
+    public boolean wantsDisasterSafe() {
+        return disasterSafe;
     }
 
     /**

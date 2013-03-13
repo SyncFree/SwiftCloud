@@ -77,10 +77,15 @@ public class CacheStats {
         for (final Entry<String, TableCacheStats> statsEntry : tablesStats.entrySet()) {
             final String tableName = statsEntry.getKey();
             final TableCacheStats stats = statsEntry.getValue();
-            System.out
-                    .printf("TABLE=%s,CACHE_HITS=%d,CACHE_MISSES_NO_OBJECT=%d,CACHE_MISSES_WRONG_VERSION=%d,CACHE_MISSES_BIZARRE=%d\n",
-                            tableName, stats.cacheHits.get(), stats.cacheMissesNoObject.get(),
-                            stats.cacheMissesWrongVersion.get(), stats.cacheMissesBizarre.get());
+            long _cacheHits = stats.cacheHits.get();
+            long _cacheMissesNoObject = stats.cacheMissesNoObject.get();
+            long _cacheMissesWrongVersion = stats.cacheMissesWrongVersion.get();
+            long _cacheMissesBizarre = stats.cacheMissesBizarre.get();
+            long _total = 1 + _cacheHits + _cacheMissesNoObject + _cacheMissesWrongVersion + _cacheMissesBizarre;
+            System.err
+                    .printf("TABLE=%s, CACHE_RATIO=%.0f, CACHE_HITS=%d,CACHE_MISSES_NO_OBJECT=%d,CACHE_MISSES_WRONG_VERSION=%d,CACHE_MISSES_BIZARRE=%d\n",
+                            tableName, 100.0 * _cacheHits / _total, _cacheHits, _cacheMissesNoObject,
+                            _cacheMissesWrongVersion, _cacheMissesBizarre);
             stats.reset();
         }
     }

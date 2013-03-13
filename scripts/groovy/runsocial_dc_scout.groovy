@@ -11,8 +11,7 @@ def __ = onControlC({
 
 
 Surrogates = [
-    "ec2-54-228-99-2.eu-west-1.compute.amazonaws.com",
-    "ec2-54-241-53-254.us-west-1.compute.amazonaws.com",
+    "ec2-54-228-99-2.eu-west-1.compute.amazonaws.com"
 ]
 
 
@@ -23,7 +22,7 @@ EndClients = PlanetLab_NC + PlanetLab_NV + PlanetLab_EU
 Shepard = Surrogates.get(0);
 
 def Threads = 1
-def Duration = 900
+def Duration = 600
 def SwiftSocial_Props = "swiftsocial-test.props"
 
 def Scouts = Surrogates

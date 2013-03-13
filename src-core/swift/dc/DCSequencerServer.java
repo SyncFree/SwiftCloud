@@ -347,6 +347,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
                                         synchronized (thisServer) {
                                             stableClock.record(req.getTimestamp());
+                                            // Threading.notifyAllOn(thisServer);
                                         }
                                         setRemoteState(reply.getDcName(), reply.getDcKnownClock());
                                     }
@@ -562,7 +563,15 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk, stableClk));
             return;
         }
-
+        // if (request.wantsDisasterSafe()) {
+        // synchronized (this) {
+        // while (!stableClock.includes(request.getTimestamp())) {
+        // Threading.waitOn(stableClock, 100);
+        // System.err.println("waiting to become stable...:" +
+        // request.getTimestamp());
+        // }
+        // }
+        // }
         conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
         if (!isBackup && sequencerShadowEP != null) {
             final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(siteId, request.getTimestamp(),
