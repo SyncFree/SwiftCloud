@@ -43,7 +43,6 @@ import org.jboss.netty.channel.ChannelPipeline;
 import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.ChannelStateEvent;
 import org.jboss.netty.channel.Channels;
-import org.jboss.netty.channel.DefaultChannelFuture;
 import org.jboss.netty.channel.ExceptionEvent;
 import org.jboss.netty.channel.MessageEvent;
 import org.jboss.netty.channel.SimpleChannelUpstreamHandler;
@@ -72,16 +71,15 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
     static Executor bossExecutors, workerExecutors;
-    static ExecutionHandler executionHandler = null;
     static NioClientSocketChannelFactory nioCltFac;
     static NioServerSocketChannelFactory nioSrvFac;
+    ExecutionHandler executionHandler = null;
 
     static {
-        DefaultChannelFuture.setUseDeadLockChecker(false);
+        // DefaultChannelFuture.setUseDeadLockChecker(false);
+
         bossExecutors = Executors.newCachedThreadPool();
         workerExecutors = Executors.newCachedThreadPool();
-        executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
-                NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
 
         nioCltFac = new NioClientSocketChannelFactory(bossExecutors, workerExecutors);
         nioSrvFac = new NioServerSocketChannelFactory(bossExecutors, workerExecutors);
@@ -92,6 +90,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
         this.gid = Sys.rg.nextLong() >>> 1;
 
         if (executionHandler == null) {
+            executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
+                    NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
         }
 
         boolean isServer = tcpPort >= 0;
@@ -141,11 +141,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
         bootstrap.setOption("child.connectTimeoutMillis", NETTY_CONNECTION_TIMEOUT);
 
         final OutgoingConnectionHandler res = new OutgoingConnectionHandler(remote);
+
         bootstrap.setPipelineFactory(new ChannelPipelineFactory() {
             public ChannelPipeline getPipeline() throws Exception {
-                return Channels.pipeline(new MessageFrameDecoder(), res);
+                return Channels.pipeline(new MessageFrameDecoder(), res, executionHandler);
             }
         });
+
         ChannelFuture future = bootstrap.connect(((AbstractEndpoint) remote).sockAddress());
         future.awaitUninterruptibly();
         if (!future.isSuccess()) {

@@ -137,7 +137,7 @@ public class SwiftSocialMain {
         numUsers = Props.intValue("swiftsocial.numUsers", 1000);
         userFriends = Props.intValue("swiftsocial.userFriends", 25);
         biasedOps = Props.intValue("swiftsocial.biasedOps", 9);
-        randomOps = Props.intValue("swiftsocial.biasedOps", 1);
+        randomOps = Props.intValue("swiftsocial.randomOps", 1);
         opGroups = Props.intValue("swiftsocial.opGroups", 500);
         thinkTime = Props.intValue("swiftsocial.thinkTime", 1000);
 
