@@ -9,16 +9,16 @@ class SwiftSocial {
 
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.shepard.Shepard"
     
-    static String SURROGATE_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCServer"
-    static String SEQUENCER_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCSequencerServer"    
+    static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCServer"
+    static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCSequencerServer"    
 
     static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.SwiftSocialBenchmark"
     
     
-    static String SCOUT_CMD = "-cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.SwiftSocialBenchmark"
+    static String SCOUT_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.SwiftSocialBenchmark"
 
-    static String CS_SCOUT_CMD = "-cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkServer"
-    static String CS_ENDCLIENT_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkClient"
+    static String CS_SCOUT_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkServer"
+    static String CS_ENDCLIENT_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkClient"
     
     
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {

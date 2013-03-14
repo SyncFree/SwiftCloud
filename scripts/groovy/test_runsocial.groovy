@@ -8,21 +8,19 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "ec2-176-34-198-55.eu-west-1.compute.amazonaws.com",
-    "ec2-50-18-25-107.us-west-1.compute.amazonaws.com",
-    "ec2-50-16-156-24.compute-1.amazonaws.com",
+    "peeramide.irisa.fr",
 ]
 
 PlanetLab_PT = [
-    "planetlab1.di.fct.unl.pt",
-    "planetlab2.di.fct.unl.pt",
     "planetlab1.fct.ualg.pt",
     "planetlab2.fct.ualg.pt",
+    "planetlab1.uc3m.es",
+    "planetlab2.uc3m.es",
 ]
 
 Scouts = (PlanetLab_PT).unique()
 
-Shepard = "planetlab-2.tagus.ist.utl.pt"
+Shepard = "inriarennes2.irisa.fr"
 
 def Threads = 5
 def Duration = 180

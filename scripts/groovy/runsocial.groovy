@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy -classpath .:scripts/groovy:scripts/groovy/lib
 
 import static Tools.*
-import static PlanetLab_3xX.*
+import static PlanetLab_3X.*
 
 def __ = onControlC({
     pnuke(AllMachines, "java", 60)
@@ -9,17 +9,18 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "ec2-176-34-198-55.eu-west-1.compute.amazonaws.com",
-    "ec2-50-18-25-107.us-west-1.compute.amazonaws.com",
-    "ec2-50-16-156-24.compute-1.amazonaws.com"
+    "ec2-54-228-60-16.eu-west-1.compute.amazonaws.com",
+    "ec2-50-112-87-147.us-west-2.compute.amazonaws.com",
+//    "ec2-54-241-199-234.us-west-1.compute.amazonaws.com",
+//    "ec2-54-234-176-198.compute-1.amazonaws.com",
 ]
 
 Scouts = (PlanetLab_NC + PlanetLab_NV + PlanetLab_EU).unique()
 
 Shepard = Surrogates.get(0);
 
-def Threads = 5
-def Duration = 180
+def Threads = 3
+def Duration = 240
 def SwiftSocial_Props = "swiftsocial-test.props"
 
 
@@ -29,9 +30,9 @@ dumpTo(AllMachines, "/tmp/nodes.txt")
 
 pnuke(AllMachines, "java", 60)
 
+//System.exit(0)
 
 println "==== BUILDING JAR..."
-
 sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
