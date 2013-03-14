@@ -75,6 +75,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
     static NioServerSocketChannelFactory nioSrvFac;
     ExecutionHandler executionHandler = null;
 
+    static boolean isDCServer;
+
     static {
         // DefaultChannelFuture.setUseDeadLockChecker(false);
 
@@ -83,18 +85,20 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
         nioCltFac = new NioClientSocketChannelFactory(bossExecutors, workerExecutors);
         nioSrvFac = new NioServerSocketChannelFactory(bossExecutors, workerExecutors);
+
+        isDCServer = sys.Sys.Sys.mainClass.contains("DCS");
     }
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
         this.gid = Sys.rg.nextLong() >>> 1;
 
+        boolean isServer = tcpPort >= 0;
         if (executionHandler == null) {
-            executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(NETTY_CORE_THREADS,
+            int threads = isServer ? NETTY_CORE_THREADS : 4;
+            executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(threads,
                     NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
         }
-
-        boolean isServer = tcpPort >= 0;
         if (isServer) {
             ServerBootstrap bootstrap = new ServerBootstrap(nioSrvFac);
 
@@ -179,8 +183,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
         public boolean send(final Message msg) {
             try {
-                while (!channel.isWritable())
-                    Threading.synchronizedWaitOn(this, 10);
+                // while (!channel.isWritable())
+                // Threading.synchronizedWaitOn(this, 10);
 
                 ChannelBuffer buf = ChannelBuffers.dynamicBuffer(NETTY_WRITEBUFFER_DEFAULTSIZE);
                 buf.writeInt(0);
