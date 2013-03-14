@@ -59,7 +59,7 @@ public class Sys {
         Sys = this;
 
         StackTraceElement[] sta = Thread.currentThread().getStackTrace();
-        mainClass = Thread.currentThread().getStackTrace()[sta.length - 1].getClassName() + "@" + IP.localHostname();
+        mainClass = Thread.currentThread().getStackTrace()[sta.length - 1].getClassName() + " @ " + IP.localHostname();
         initInstance();
     }
 

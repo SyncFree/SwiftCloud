@@ -20,17 +20,17 @@ public interface NetworkingConstants {
 
     static final int TCP_CONNECTION_TIMEOUT = 10000;
 
-    static final int NETTY_CORE_THREADS = 128;
-    static final int NETTY_WRITEBUFFER_DEFAULTSIZE = 2048;
+    static final int NETTY_CORE_THREADS = 64;
     static final int NETTY_MAX_TOTAL_MEMORY = 128 * (1 << 20);
     static final int NETTY_MAX_MEMORY_PER_CHANNEL = 1 * (1 << 20);
     static final int NETTY_CONNECTION_TIMEOUT = 20000;
+    static final int NETTY_WRITEBUFFER_DEFAULTSIZE = 1024;
 
-    static final int KRYOBUFFER_INITIAL_CAPACITY = 2048;
-    static final int KRYOBUFFERPOOL_CLT_MAXSIZE = 8;
-    static final int KRYOBUFFERPOOL_SRV_MAXSIZE = 1024;
-    static final int KRYOBUFFERPOOL_DELAY = 100;
-    static final int KRYOBUFFERPOOL_MAXUSES = 100;
+    // static final int KRYOBUFFER_INITIAL_CAPACITY = 2048;
+    // static final int KRYOBUFFERPOOL_CLT_MAXSIZE = 8;
+    // static final int KRYOBUFFERPOOL_SRV_MAXSIZE = 1024;
+    // static final int KRYOBUFFERPOOL_DELAY = 100;
+    // static final int KRYOBUFFERPOOL_MAXUSES = 100;
 
     static final int RPC_DEFAULT_TIMEOUT = 3600 * 60;
     static final long RPC_MAX_SERVICE_ID = 1L << 16;
