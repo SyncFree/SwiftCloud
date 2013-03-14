@@ -16,6 +16,7 @@
  *****************************************************************************/
 package sys.utils;
 
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +25,7 @@ import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.Channel;
+import java.util.Collection;
 
 public class IO {
 
@@ -80,6 +82,17 @@ public class IO {
             System.setErr(new PrintStream(new FileOutputStream(stderr)));
         } catch (IOException x) {
             x.printStackTrace();
+        }
+    }
+
+    public static void dumpTo(Collection<?> data, String dstFile) {
+        try {
+            PrintStream ps = new PrintStream(dstFile);
+            for (Object i : data)
+                ps.println(i);
+            ps.close();
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
     }
 }

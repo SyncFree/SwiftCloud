@@ -95,7 +95,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
         boolean isServer = tcpPort >= 0;
         if (executionHandler == null) {
-            int threads = isServer ? NETTY_CORE_THREADS : 4;
+            int threads = isServer ? NETTY_CORE_THREADS : 24;
             executionHandler = new ExecutionHandler(new MemoryAwareThreadPoolExecutor(threads,
                     NETTY_MAX_MEMORY_PER_CHANNEL, NETTY_MAX_TOTAL_MEMORY));
         }

@@ -117,6 +117,15 @@ class DCSurrogate extends SwiftProtocolHandler {
         estimatedDCStableVersion = ClockFactory.newClock();
         dataServer = new DCDataServer(this, props);
 
+        // HACK HACK
+        CausalityClock clk = (CausalityClock) dataServer.dbServer.readSysData("SYS_TABLE", "CURRENT_CLK");
+        if (clk != null) {
+            System.err.println("SURROGATE CLK:" + clk);
+            estimatedDCVersion.merge(clk);
+            estimatedDCStableVersion.merge(clk);
+        }
+
+        System.err.println("EstimatedDCVersion: " + estimatedDCVersion);
         dcPubSub = new DcPubSubService();
     }
 
@@ -359,10 +368,13 @@ class DCSurrogate extends SwiftProtocolHandler {
             estimatedDCVersionCopy.record(txTs);
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(reply.getCurrVersion());
+                dataServer.dbServer.writeSysData("SYS_TABLE", "CURRENT_CLK", estimatedDCVersion);
             }
             synchronized (estimatedDCStableVersion) {
                 estimatedDCStableVersion.merge(reply.getStableVersion());
+                dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", estimatedDCVersion);
             }
+
             if (txnOK && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
@@ -399,6 +411,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             } else {
                 r.addTimestampsToDeps(tsLst);
                 CommitUpdatesReply repOne = prepareAndDoCommit(session, r);
+
                 if (repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
                     List<Timestamp> tsLstOne = repOne.getCommitTimestamps();
                     if (tsLstOne != null)

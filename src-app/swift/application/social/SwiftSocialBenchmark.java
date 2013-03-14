@@ -58,7 +58,7 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             if (dcName.equals("@")) {
                 dcName = "localhost";
                 DCServer.main(new String[] { dcName });
-                DCSequencerServer.main(new String[] { "-name", dcName });
+                DCSequencerServer.main(new String[] { "-name", "INIT" });
             }
 
             Props.parseFile("swiftsocial", System.out);
@@ -91,6 +91,7 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            Threading.sleep(5000);
             System.out.println("\nFinished populating db with users.");
         }
         if (command.equals("run")) {
@@ -118,7 +119,7 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             bufferedOutput.printf(";\tShepard=%s\n", shepard);
             bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
-            Workload.populate(SwiftSocialMain.numUsers);
+            List<String> users = Workload.populate(SwiftSocialMain.numUsers);
 
             if (!shepard.isEmpty())
                 new Shepard().joinHerd(shepard);

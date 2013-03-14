@@ -36,6 +36,7 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.dc.db.DCKryoFileDatabase;
 import swift.dc.db.DCNodeDatabase;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
@@ -159,12 +160,26 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
     void initDB(Properties props) {
         try {
-            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            String dbFile = props.getProperty(DCKryoFileDatabase.DB_PROPERTY);
+            if (dbFile == null)
+                dbFile = "kryoDB";
+            props.setProperty(DCKryoFileDatabase.DB_PROPERTY, dbFile + "-seq.db");
+
+            dbServer = new DCKryoFileDatabase();
+            // dbServer = (DCNodeDatabase)
+            // Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot start underlying database", e);
         }
         dbServer.init(props);
 
+        // HACK HACK
+        CausalityClock clk = (CausalityClock) dbServer.readSysData("SYS_TABLE", "CLK");
+        if (clk != null) {
+            System.err.println(clk);
+            currentState.merge(clk);
+            stableClock.merge(clk);
+        }
     }
 
     void execPending() {
@@ -586,6 +601,9 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
         Threading.synchronizedNotifyAllOn(pendingOps);
         cleanPendingTSReq();
+
+        dbServer.writeSysData("SYS_TABLE", "CLK", currentState);
+
     }
 
     @Override
@@ -630,6 +648,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     public static void main(String[] args) {
+        sys.Sys.init();
         Properties props = new Properties();
         props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
         List<String> sequencers = new ArrayList<String>();
@@ -686,6 +705,9 @@ class CommitRecord implements Comparable<CommitRecord> {
     Timestamp cltTimestamp;
     Timestamp prvCltTimestamp;
     long lastSent;
+
+    CommitRecord() {
+    }
 
     public CommitRecord(CausalityClock notUsed, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
             Timestamp baseTimestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp) {

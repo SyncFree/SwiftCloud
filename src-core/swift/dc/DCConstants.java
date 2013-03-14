@@ -65,7 +65,7 @@ public class DCConstants {
                                                                      // once a
                                                                      // day
 
-    public static final boolean DEFAULT_DB_NULL = true;
+    public static final boolean DEFAULT_DB_NULL = false;
 
     public static final int SURROGATE_NOTIFIER_THREAD_POOL_SIZE = 3;
 }

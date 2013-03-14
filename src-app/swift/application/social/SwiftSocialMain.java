@@ -87,14 +87,16 @@ public class SwiftSocialMain {
         options.setMaxAsyncTransactionsQueued(asyncQueueSize);
         options.setMaxCommitBatchSize(batchSize);
 
-        startSequencer();
-        startDCServer();
+        DCSequencerServer.main(new String[] { "-name", dcName });
+        DCServer.main(new String[] { dcName });
 
         Props.parseFile("swiftsocial", bufferedOutput);
 
         System.out.println("Initializing Users...");
 
-        initUsers(options, Workload.populate(numUsers), new AtomicInteger(), numUsers);
+        List<String> users = Workload.populate(numUsers);
+
+        // initUsers(options, users, new AtomicInteger(), numUsers);
 
         System.out.println("Waiting for 3 seconds...");
 
@@ -280,13 +282,4 @@ public class SwiftSocialMain {
             e1.printStackTrace();
         }
     }
-
-    private static void startDCServer() {
-        DCServer.main(new String[] { dcName });
-    }
-
-    private static void startSequencer() {
-        DCSequencerServer.main(new String[] { "-name", dcName });
-    }
-
 }

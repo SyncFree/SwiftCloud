@@ -8,7 +8,10 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "peeramide.irisa.fr",
+    "ec2-54-228-109-231.eu-west-1.compute.amazonaws.com",
+    "ec2-54-241-202-13.us-west-1.compute.amazonaws.com",
+    "ec2-50-19-158-166.compute-1.amazonaws.com",
+    "ec2-54-244-182-93.us-west-2.compute.amazonaws.com"
 ]
 
 PlanetLab_PT = [
@@ -48,15 +51,15 @@ def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
 
 SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "512m")
 
-println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
-Sleep(10)
-
-
-println "==== INITIALIZING DATABASE ===="
-def INIT_DB_DC = Surrogates.get(0)
-def INIT_DB_CLIENT = Surrogates.get(0)
-
-SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
+//println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
+//Sleep(10)
+//
+//
+//println "==== INITIALIZING DATABASE ===="
+//def INIT_DB_DC = Surrogates.get(0)
+//def INIT_DB_CLIENT = Surrogates.get(0)
+//
+//SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
