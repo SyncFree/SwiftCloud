@@ -258,7 +258,8 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
         Workload.populate(25000);
 
-        Workload res = Workload.doMixed(0, 1, 9, 1, 500, 10);
+        Workload res = Workload.doMixed(0, 25, 9, 1, 2, 10);
+        System.out.println(res.size());
         for (String i : res)
             System.out.println(i);
 

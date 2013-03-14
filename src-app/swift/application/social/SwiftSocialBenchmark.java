@@ -134,8 +134,6 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
                 final Workload commands = Workload.doMixed(site, SwiftSocialMain.userFriends,
                         SwiftSocialMain.biasedOps, SwiftSocialMain.randomOps, SwiftSocialMain.opGroups, numberOfSites);
 
-                totalCommands.addAndGet(commands.size());
-
                 sessionsExecutor.execute(new Runnable() {
                     public void run() {
                         // Randomize startup to avoid clients running all at the
@@ -146,12 +144,14 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
                 });
             }
 
-            // smd - report client progress every 10 seconds...
+            // smd - report client progress every 1 seconds...
             new PeriodicTask(0.0, 1.0) {
                 String prev = "";
 
                 public void run() {
-                    String curr = String.format("--->DONE: %.1f%%\n", 100.0 * commandsDone.get() / totalCommands.get());
+                    int done = commandsDone.get();
+                    int total = totalCommands.get();
+                    String curr = String.format("--->DONE: %.1f%%, %d/%d\n", 100.0 * done / total, done, total);
                     if (!curr.equals(prev)) {
                         System.err.println(curr);
                         prev = curr;
