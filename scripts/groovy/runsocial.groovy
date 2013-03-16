@@ -7,19 +7,21 @@ def __ = onControlC({
     pnuke(AllMachines, "java", 60)
     System.exit(0);
 })
-
 Surrogates = [
-    "ec2-54-228-109-231.eu-west-1.compute.amazonaws.com",
-    "ec2-54-244-182-93.us-west-2.compute.amazonaws.com"
-//    "ec2-50-19-158-166.compute-1.amazonaws.com",
+    "ec2-54-228-106-66.eu-west-1.compute.amazonaws.com",
+//    "ec2-50-112-200-169.us-west-2.compute.amazonaws.com",
+//    "ec2-54-242-185-216.compute-1.amazonaws.com",
+//    "ec2-54-249-137-48.ap-northeast-1.compute.amazonaws.com",
+//    "ec2-54-228-109-231.eu-west-1.compute.amazonaws.com",
 //    "ec2-54-241-202-13.us-west-1.compute.amazonaws.com",
+//    "ec2-54-244-182-93.us-west-2.compute.amazonaws.com"
 ]
 
 Scouts = (PlanetLab_NC + PlanetLab_NV + PlanetLab_EU).unique()
 
 Shepard = Surrogates.get(0);
 
-def Threads = 2
+def Threads = 3
 def Duration = 180
 def SwiftSocial_Props = "swiftsocial-test.props"
 

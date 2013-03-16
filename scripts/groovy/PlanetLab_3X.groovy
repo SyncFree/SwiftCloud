@@ -3,7 +3,7 @@ class PlanetLab_3X {
     
     static int maxPerRegion = 32
     
-    static def PlanetLab_EU_RAW = [
+    static def PlanetLab_EU_ALL = [
         "planetlab2.extern.kuleuven.be",
         "orval.infonet.fundp.ac.be",
         "planck227ple.test.ibbt.be",
@@ -30,7 +30,7 @@ class PlanetLab_3X {
 //        "onelab-2.fhi-fokus.de",
         "planetlab4.inf.ethz.ch",
         "planetlab-1.cs.unibas.ch",
-        "pl1.bell-labs.fr",
+//        "pl1.bell-labs.fr",
         "dfn-ple1.x-win.dfn.de",
         "onelab-1.fhi-fokus.de",
         "planetlab1.inf.ethz.ch",
@@ -121,7 +121,7 @@ class PlanetLab_3X {
         "onelab6.iet.unipi.it"
     ]
     
-    static def PlanetLab_NC_RAW = [
+    static def PlanetLab_NC_ALL = [
 "pli1-pa-6.hpl.hp.com",
 "pli1-pa-4.hpl.hp.com",
 "planetslug4.cse.ucsc.edu",
@@ -188,7 +188,7 @@ class PlanetLab_3X {
 "planetlab2.cs.colorado.edu"
 ]
     
-    static def PlanetLab_NV_RAW = [
+    static def PlanetLab_NV_ALL = [
 "planetlab2.georgetown.edu",
 "osiris.planetlab.cs.umd.edu",
 "planetlab1.georgetown.edu",
@@ -214,8 +214,8 @@ class PlanetLab_3X {
 "orbpl2.rutgers.edu",
 //"planetlab02.sys.virginia.edu",
 //"planetlab4.rutgers.edu",
-//"planetlab1.rutgers.edu",
-"planetlab2.rutgers.edu",
+"planetlab1.rutgers.edu",
+//"planetlab2.rutgers.edu",
 "planetlab-3.cmcl.cs.cmu.edu",
 "planetlab-2.cmcl.cs.cmu.edu",
 "planetlab2.cs.pitt.edu",
@@ -347,18 +347,69 @@ class PlanetLab_3X {
 "ricepl-5.cs.rice.edu"
     ]
     
+    static def PlanetLab_JP_ALL = [
+//    "planetlab1.koganei.wide.ad.jp",
+    "planetlab2.koganei.wide.ad.jp",
+    "planetlab2.sfc.wide.ad.jp",
+    "planetlab1.dojima.wide.ad.jp",
+    "planetlab4.goto.info.waseda.ac.jp",
+    "planetlab5.goto.info.waseda.ac.jp",
+    "planetlab6.goto.info.waseda.ac.jp",
+    "planetlab4.n.info.eng.osaka-cu.ac.jp",
+    "pub1-s.ane.cmc.osaka-u.ac.jp",
+    "planetlab2.nakao-lab.org",
+    "nis-planet1.doshisha.ac.jp",
+    "planetlab-02.kusa.ac.jp",
+    "planet1.pnl.nitech.ac.jp",
+//    "planet2.pnl.nitech.ac.jp",
+    "pub2-s.ane.cmc.osaka-u.ac.jp",
+//    "planetlab0.otemachi.wide.ad.jp",
+    "planetlab1.otemachi.wide.ad.jp",
+    "pl2.sos.info.hiroshima-cu.ac.jp",
+    "planetlab1.sfc.wide.ad.jp",
+    "planet0.jaist.ac.jp",
+//    "pl1.planetlab.ics.tut.ac.jp",
+    "planetlab1.iis.sinica.edu.tw",
+    "planetlab2.iis.sinica.edu.tw",
+    "planetlab-2.webedu.ccu.edu.tw",
+    "plab1.cs.ust.hk",
+    "planetlab1.ntu.nodes.planet-lab.org",
+//    "pl2.planetlab.ics.tut.ac.jp",
+//    "planetlab1.eee.hku.hk",
+    "planetlab1.singaren.net.sg",
+    "plab2.cs.ust.hk",
+    "pnode1.pdcc-ntu.singaren.net.sg",
+    "pnode2.pdcc-ntu.singaren.net.sg",
+    "pl02.comp.polyu.edu.hk",
+    "planetlab3.singaren.net.sg",
+    "planetlab1.comp.nus.edu.sg",
+    "planetlab2.comp.nus.edu.sg",
+    "ple2.ait.ac.th",
+    "ple1.ait.ac.th",
+    "planetlab-1.sjtu.edu.cn",
+    "planetlab-2.sjtu.edu.cn",
+    "planetlab-2.sysu.edu.cn",
+    "planetlab1.cqupt.edu.cn",
+    "planetlab2.buaa.edu.cn",
+    "csplanetlab3.kaist.ac.kr",
+    "csplanetlab4.kaist.ac.kr"
+]
+    
     
     static private def int EU = 0
-    static def PlanetLab_EU = PlanetLab_EU_RAW.subList(EU, Math.min(EU + maxPerRegion, PlanetLab_EU_RAW.size()) )
+    static def PlanetLab_EU = PlanetLab_EU_ALL.subList(EU, Math.min(EU + maxPerRegion, PlanetLab_EU_ALL.size()) )
     
     static private def int NC = 8
-    static def PlanetLab_NC = PlanetLab_NC_RAW.subList(NC, Math.min(NC + maxPerRegion, PlanetLab_NC_RAW.size()) )
+    static def PlanetLab_NC = PlanetLab_NC_ALL.subList(NC, Math.min(NC + maxPerRegion, PlanetLab_NC_ALL.size()) )
     
-    static def PlanetLab_NV_RAW2 = PlanetLab_NV_RAW - PlanetLab_NC
+    static def PlanetLab_NV_ALL2 = PlanetLab_NV_ALL - PlanetLab_NC
 
     static private def int NV = 10
-    static def PlanetLab_NV = PlanetLab_NV_RAW2.subList(NV, Math.min(NV + maxPerRegion, PlanetLab_NV_RAW2.size()) )
-    
+    static def PlanetLab_NV = PlanetLab_NV_ALL2.subList(NV, Math.min(NV + maxPerRegion, PlanetLab_NV_ALL2.size()) )
+
+    static private def int JP = 0
+    static def PlanetLab_JP = PlanetLab_JP_ALL.subList(JP, Math.min(JP + maxPerRegion, PlanetLab_JP_ALL.size()) )
+
 }
 
 

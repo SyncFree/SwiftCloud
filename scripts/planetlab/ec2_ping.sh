@@ -1,10 +1,9 @@
 #! /bin/bash
 
 export DATACENTER_SERVERS=(
-    ec2-54-228-60-16.eu-west-1.compute.amazonaws.com
-    ec2-50-112-87-147.us-west-2.compute.amazonaws.com
-    ec2-54-241-199-234.us-west-1.compute.amazonaws.com
-    ec2-54-234-176-198.compute-1.amazonaws.com
+    ec2-54-228-106-66.eu-west-1.compute.amazonaws.com
+    ec2-54-249-137-48.ap-northeast-1.compute.amazonaws.com
+    ec2-50-112-200-169.us-west-2.compute.amazonaws.com
 )
 
 DCS=("${DATACENTER_SERVERS[@]}")

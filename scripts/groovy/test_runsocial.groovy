@@ -1,6 +1,7 @@
 #!/usr/bin/env groovy -classpath .:scripts/groovy:scripts/groovy/lib
 
 import static Tools.*
+import static PlanetLab_3X.*
 
 def __ = onControlC({
     pnuke(AllMachines, "java", 60)
@@ -8,10 +9,11 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "ec2-54-228-109-231.eu-west-1.compute.amazonaws.com",
-    "ec2-54-241-202-13.us-west-1.compute.amazonaws.com",
-    "ec2-50-19-158-166.compute-1.amazonaws.com",
-    "ec2-54-244-182-93.us-west-2.compute.amazonaws.com"
+    "ec2-54-249-197-196.ap-northeast-1.compute.amazonaws.com"
+//    "ec2-54-228-109-231.eu-west-1.compute.amazonaws.com",
+//    "ec2-54-241-202-13.us-west-1.compute.amazonaws.com",
+//    "ec2-50-19-158-166.compute-1.amazonaws.com",
+//    "ec2-54-244-182-93.us-west-2.compute.amazonaws.com"
 ]
 
 PlanetLab_PT = [
@@ -22,6 +24,7 @@ PlanetLab_PT = [
 ]
 
 Scouts = (PlanetLab_PT).unique()
+Scouts = (PlanetLab_ASIA_RAW).unique()
 
 Shepard = "inriarennes2.irisa.fr"
 
@@ -35,7 +38,7 @@ AllMachines = (Surrogates + Scouts + Shepard).unique()
 dumpTo(AllMachines, "/tmp/nodes.txt")
 
 pnuke(AllMachines, "java", 60)
-
+System.exit(0)
 
 println "==== BUILDING JAR..."
 
@@ -43,9 +46,10 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 
 
 deployTo(AllMachines, "swiftcloud.jar")
-//deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
+deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
 deployTo(AllMachines, SwiftSocial_Props)
 
+System.exit(0)
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
 
