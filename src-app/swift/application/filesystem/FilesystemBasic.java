@@ -20,7 +20,6 @@ package swift.application.filesystem;
 import java.io.File;
 import java.util.Collection;
 
-import loria.swift.crdt.logoot.LogootVersioned;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.DirectoryTxnLocal;
 import swift.crdt.DirectoryVersioned;
@@ -49,7 +48,8 @@ public class FilesystemBasic implements Filesystem {
     // FIXME
     private static Class getFileClass(String name) {
         if (name.endsWith(".txt")) {
-            return LogootVersioned.class;
+            // return LogootVersioned.class;
+            return null; // LogootVersioned.class;
         }
         return RegisterVersioned.class;
     }

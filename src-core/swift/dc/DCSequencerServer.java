@@ -21,12 +21,16 @@ import static sys.net.api.Networking.Networking;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,7 +40,6 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
-import swift.dc.db.DCKryoFileDatabase;
 import swift.dc.db.DCNodeDatabase;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
@@ -94,6 +97,9 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                                                     // executed locally
     Map<Timestamp, BlockedTimestampRequest> pendingTsReq; // timestamp requests
                                                           // awaiting reply
+
+    ExecutorService stableExecutor = Executors.newCachedThreadPool();
+    Set<Timestamp> unstableTS = new HashSet<Timestamp>();
 
     public DCSequencerServer(String siteId, List<String> servers, List<String> sequencers, String sequencerShadow,
             boolean isBackup, Properties props) {
@@ -160,26 +166,29 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
     void initDB(Properties props) {
         try {
-            String dbFile = props.getProperty(DCKryoFileDatabase.DB_PROPERTY);
-            if (dbFile == null)
-                dbFile = "kryoDB";
-            props.setProperty(DCKryoFileDatabase.DB_PROPERTY, dbFile + "-seq.db");
-
-            dbServer = new DCKryoFileDatabase();
-            // dbServer = (DCNodeDatabase)
-            // Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            // String dbFile =
+            // props.getProperty(DCKryoFileDatabase.DB_PROPERTY);
+            // if (dbFile == null)
+            // dbFile = "kryoDB";
+            // props.setProperty(DCKryoFileDatabase.DB_PROPERTY, dbFile +
+            // "-seq.db");
+            //
+            // dbServer = new DCKryoFileDatabase();
+            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot start underlying database", e);
         }
         dbServer.init(props);
 
-        // HACK HACK
-        CausalityClock clk = (CausalityClock) dbServer.readSysData("SYS_TABLE", "CLK");
-        if (clk != null) {
-            System.err.println(clk);
-            currentState.merge(clk);
-            stableClock.merge(clk);
-        }
+        // // HACK HACK
+        // CausalityClock clk = (CausalityClock)
+        // dbServer.readSysData("SYS_TABLE", "CLK");
+        //
+        // if (clk != null) {
+        // System.err.println(clk);
+        // currentState.merge(clk);
+        // stableClock.merge(clk);
+        // }
     }
 
     void execPending() {
@@ -351,7 +360,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                                         continue;
                                 }
                                 final int i0 = i;
-                                Endpoint other = sequencersEP.get(i);
+                                final Endpoint other = sequencersEP.get(i);
                                 srvEndpoint.send(other, req, new SwiftProtocolHandler() {
 
                                     @Override
@@ -362,7 +371,11 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
                                         synchronized (thisServer) {
                                             stableClock.record(req.getTimestamp());
-                                            // Threading.notifyAllOn(thisServer);
+                                        }
+
+                                        synchronized (unstableTS) {
+                                            unstableTS.remove(req.getTimestamp());
+                                            Threading.notifyAllOn(unstableTS);
                                         }
                                         setRemoteState(reply.getDcName(), reply.getDcKnownClock());
                                     }
@@ -516,19 +529,6 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         cleanPendingTS();
     }
 
-    // @Override
-    // public void onReceive(RpcHandle conn, KeepaliveRequest request) {
-    // if (logger.isLoggable(Level.INFO)) {
-    // logger.info("sequencer: keepaliverequest");
-    // }
-    // if (isBackup && !upgradeToPrimary())
-    // return;
-    // boolean success = refreshId(request.getTimestamp());
-    // conn.reply(new KeepaliveReply(success, success,
-    // DCConstants.DEFAULT_TRXIDTIME));
-    // cleanPendingTS();
-    // }
-
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -554,7 +554,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
      *            request to serve
      */
     @Override
-    public void onReceive(RpcHandle conn, CommitTSRequest request) {
+    public void onReceive(final RpcHandle conn, final CommitTSRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("sequencer: commitTSRequest:" + request.getTimestamp() + ":nops="
                     + request.getObjectUpdateGroups().size());
@@ -563,9 +563,9 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             return;
 
         boolean ok = false;
-        CausalityClock clk = null;
-        CausalityClock stableClk = null;
-        CausalityClock nuClk = null;
+        final CausalityClock clk;
+        final CausalityClock stableClk;
+        CausalityClock nuClk;
 
         synchronized (this) {
             ok = commitTS(request.getVersion(), request.getTimestamp(), request.getCltTimestamp(), request.getCommit());
@@ -578,16 +578,6 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk, stableClk));
             return;
         }
-        // if (request.wantsDisasterSafe()) {
-        // synchronized (this) {
-        // while (!stableClock.includes(request.getTimestamp())) {
-        // Threading.waitOn(stableClock, 100);
-        // System.err.println("waiting to become stable...:" +
-        // request.getTimestamp());
-        // }
-        // }
-        // }
-        conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
         if (!isBackup && sequencerShadowEP != null) {
             final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(siteId, request.getTimestamp(),
                     request.getCltTimestamp(), request.getPrvCltTimestamp(), request.getObjectUpdateGroups(), clk,
@@ -598,12 +588,31 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getTimestamp(),
                 request.getCltTimestamp(), request.getPrvCltTimestamp()));
-
         Threading.synchronizedNotifyAllOn(pendingOps);
-        cleanPendingTSReq();
 
         dbServer.writeSysData("SYS_TABLE", "CLK", currentState);
 
+        if (request.disasterSafe()) {
+            stableExecutor.execute(new Runnable() {
+                public void run() {
+                    long t0 = System.currentTimeMillis();
+                    synchronized (unstableTS) {
+                        unstableTS.add(request.getTimestamp());
+                        while (unstableTS.contains(request.getTimestamp())) {
+                            Threading.waitOn(unstableTS, 10);
+                        }
+                    }
+                    long t = System.currentTimeMillis();
+                    // System.out.printf("€€€€€€ %s TOOK %s ms to become stable...\n",
+                    // request.getTimestamp(), t - t0);
+                    conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
+                    cleanPendingTSReq();
+                }
+            });
+        } else {
+            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
+            cleanPendingTSReq();
+        }
     }
 
     @Override
@@ -612,6 +621,10 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             logger.info("sequencer: received commit record:" + request.getTimestamp() + ":clt="
                     + request.getCltTimestamp() + ":nops=" + request.getObjectUpdateGroups().size());
         }
+        // System.out.println("sequencer: received commit record:" +
+        // request.getTimestamp() + ":clt="
+        // + request.getCltTimestamp() + ":nops=" +
+        // request.getObjectUpdateGroups().size());
 
         if (isBackup) {
             this.addToOps(new CommitRecord(request.getDcNotUsed(), request.getObjectUpdateGroups(), request

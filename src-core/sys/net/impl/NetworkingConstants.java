@@ -32,7 +32,7 @@ public interface NetworkingConstants {
     // static final int KRYOBUFFERPOOL_DELAY = 100;
     // static final int KRYOBUFFERPOOL_MAXUSES = 100;
 
-    static final int RPC_DEFAULT_TIMEOUT = 3600 * 60;
+    static final int RPC_DEFAULT_TIMEOUT = 1000 * 30;
     static final long RPC_MAX_SERVICE_ID = 1L << 16;
     static final long RPC_MAX_SERVICE_ID_MASK = (1L << 16) - 1L;
 

@@ -106,7 +106,7 @@ public class SwiftDocPatchReplay<V> {
 
         File file = new File("swiftdoc-patches.zip");
         if (!file.exists())
-            file = new File("data/swiftdoc/swiftdoc-patches.zip");
+            file = new File("evaluation/swiftdoc/swiftdoc-patches.zip");
 
         zipFile = new ZipFile(file);
 

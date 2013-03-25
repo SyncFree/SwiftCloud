@@ -20,7 +20,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 import sys.net.api.Endpoint;
@@ -139,7 +138,13 @@ abstract public class AbstractEndpoint implements Endpoint {
     }
 
     protected static long encodeLocator(InetSocketAddress addr) {
-        return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();
+        try {
+            return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();
+        } catch (Exception x) {
+            System.err.println(addr);
+            x.printStackTrace();
+            return 0;
+        }
     }
 
     protected static InetSocketAddress decodeLocator(long locator) {

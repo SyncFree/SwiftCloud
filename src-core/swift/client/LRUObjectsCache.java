@@ -16,12 +16,10 @@
  *****************************************************************************/
 package swift.client;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -62,8 +60,6 @@ class LRUObjectsCache {
         public void onEviction(CRDTIdentifier id) {
         }
     };
-
-    List<Long> foo = new ArrayList<Long>();
 
     synchronized public void removeProtection(long serial) {
         evictionProtections.remove(serial);
@@ -115,7 +111,9 @@ class LRUObjectsCache {
      *            object to add
      */
     synchronized public void add(final CRDT<?> object, long txnSerial) {
-        evictionProtections.add(txnSerial);
+        if (txnSerial >= 0)
+            evictionProtections.add(txnSerial);
+
         Entry e = new Entry(object, txnSerial);
         entries.put(object.getUID(), e);
         shadowEntries.put(object.getUID(), e);
@@ -146,7 +144,7 @@ class LRUObjectsCache {
      * @return object or null if object is absent in the cache
      */
     synchronized public CRDT<?> getWithoutTouch(final CRDTIdentifier id) {
-        final Entry entry = entries.get(id);
+        final Entry entry = shadowEntries.get(id);
         return entry == null ? null : entry.getObject();
     }
 

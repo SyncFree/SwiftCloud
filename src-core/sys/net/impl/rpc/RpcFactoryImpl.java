@@ -22,7 +22,6 @@ import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
 import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
 import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_TIMEOUT;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
-import static sys.stats.RpcStats.RpcStats;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +48,7 @@ import sys.scheduler.Task;
 import sys.utils.LongMap;
 import sys.utils.Threading;
 
-final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEchoHandler {
+final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
     private static Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName());
 
@@ -124,18 +123,6 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
         };
     }
 
-    public void onReceive(final TransportConnection conn, final RpcEcho echo) {
-        conn.send(echo);
-    }
-
-    public void onReceive(final TransportConnection conn, final RpcPing ping) {
-        conn.send(new RpcPong(ping));
-    }
-
-    public void onReceive(final TransportConnection conn, final RpcPong pong) {
-        RpcStats.logRpcRTT(conn.remoteEndpoint(), pong.rtt());
-    }
-
     static boolean isServer = Sys.mainClass.indexOf("Server") >= 0;
     static double T0 = Sys.currentTime();
     static AtomicInteger totRPCs = new AtomicInteger(0);
@@ -156,6 +143,9 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
 
     public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
         totRPCs.incrementAndGet();
+        // if (sys.Sys.Sys.mainClass.contains("Sequencer"))
+        // System.out.println(pkt.getPayload().getClass());
+
         // if( isServer && totRPCs.get() % 999 == 0 )
         // System.err.println(sys.Sys.Sys.mainClass + "/%%%%%%%" + totRPCs.get()
         // );

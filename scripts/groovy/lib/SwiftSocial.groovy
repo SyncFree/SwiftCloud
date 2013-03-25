@@ -2,6 +2,7 @@
 import static Tools.*
 
 import java.util.List
+import java.util.Map
 import java.util.concurrent.atomic.AtomicInteger
 
 
@@ -108,6 +109,22 @@ class SwiftSocial {
         Parallel.rsh( scouts, cmd, resHandler, true, 500000)    
     } 
 
+    static void runStandaloneScoutFailOver( List scouts, List servers, String config, String shepard, int threads, String heap ="512m" ) {
+        def cmd = { host ->
+            String partition = scouts.indexOf( host ) + "/" + scouts.size()
+            def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "
+            servers.each { res += it + ","}
+            res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+            return res;
+        }
+
+        AtomicInteger n = new AtomicInteger();
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + scouts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.rsh( scouts, cmd, resHandler, true, 500000)
+    }
         static void runCS_ServerScouts( int instances, List scouts, List servers, String config, String heap="512m") {
         
         AtomicInteger n = new AtomicInteger();
@@ -141,5 +158,32 @@ class SwiftSocial {
             println str
         }
         Parallel.rsh( clients, cmd, resHandler, true, 500000) 
+    }
+    
+    private static final defaultProps = [
+    'swift.AsyncCommit':'true',
+    'swift.Notifications':'true',
+    'swift.CachePolicy':'CACHED',
+    'swift.IsolationLevel':'SNAPSHOT_ISOLATION',
+    'swift.cacheEvictionTimeMillis':'3600000',
+    'swift.BatchSize':'10',
+    'swift.AsyncQueue':'50',
+    'swift.CacheSize':'512',    
+    'swiftsocial.numUsers':'25000',
+    'swiftsocial.userFriends':'25',
+    'swiftsocial.biasedOps':'9',
+    'swiftsocial.randomOps':'1',
+    'swiftsocial.opGroups':'10000',
+    'swiftsocial.thinkTime':'0'
+    ]
+    
+    static File genPropsFile( Map props) {
+        File f = File.createTempFile("swiftsocial-", ".props")
+        PrintWriter pw = f.newPrintWriter()
+        defaultProps.each { k,v ->
+            pw.printf("%s=%s\n", k, props.get(k) ?: v );
+        }
+        pw.close()
+        return f
     }
 }

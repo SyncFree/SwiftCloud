@@ -77,10 +77,9 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
         this.fifoQueue = new FifoQueue<UpdatesNotification>() {
             public void process(UpdatesNotification p) {
                 gots.add(p.seqN());
-                // System.err.println(gots);
-                for (CommitNotification r : p.getRecords()) {
+                System.err.println(gots);
+                for (CommitNotification r : p.getRecords())
                     ScoutPubSubService.this.notify(r.info.keySet(), r);
-                }
             }
         };
     }

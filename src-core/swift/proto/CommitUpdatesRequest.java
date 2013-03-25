@@ -42,6 +42,8 @@ public class CommitUpdatesRequest extends ClientRequest {
     transient Timestamp timestamp;
     protected Timestamp cltTimestamp;
 
+    transient boolean disasterSafe;
+
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
@@ -54,6 +56,20 @@ public class CommitUpdatesRequest extends ClientRequest {
         this.cltTimestamp = cltTimestamp;
         this.dependencyClock = dependencyClock;
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
+    }
+
+    /**
+     * Set the waitTilStable
+     */
+    public void setDisasterSafe() {
+        this.disasterSafe = true;
+    }
+
+    /**
+     * Flag to tell if this commit requires stability
+     */
+    public boolean disasterSafe() {
+        return disasterSafe;
     }
 
     /**

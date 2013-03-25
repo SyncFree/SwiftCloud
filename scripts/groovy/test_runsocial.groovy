@@ -9,27 +9,20 @@ def __ = onControlC({
 })
 
 Surrogates = [
-    "ec2-54-249-197-196.ap-northeast-1.compute.amazonaws.com"
-//    "ec2-54-228-109-231.eu-west-1.compute.amazonaws.com",
-//    "ec2-54-241-202-13.us-west-1.compute.amazonaws.com",
-//    "ec2-50-19-158-166.compute-1.amazonaws.com",
-//    "ec2-54-244-182-93.us-west-2.compute.amazonaws.com"
-]
+        "ec2-176-34-66-61.eu-west-1.compute.amazonaws.com",
+        ]
 
 PlanetLab_PT = [
-    "planetlab1.fct.ualg.pt",
-    "planetlab2.fct.ualg.pt",
-    "planetlab1.uc3m.es",
-    "planetlab2.uc3m.es",
+   "planetlab1.fct.ualg.pt",
 ]
 
 Scouts = (PlanetLab_PT).unique()
-Scouts = (PlanetLab_ASIA_RAW).unique()
+//Scouts = (PlanetLab_ASIA_RAW).unique()
 
-Shepard = "inriarennes2.irisa.fr"
+Shepard = Surrogates.get(0)
 
-def Threads = 5
-def Duration = 180
+def Threads = 1
+def Duration = 60
 def SwiftSocial_Props = "swiftsocial-test.props"
 
 
@@ -38,7 +31,7 @@ AllMachines = (Surrogates + Scouts + Shepard).unique()
 dumpTo(AllMachines, "/tmp/nodes.txt")
 
 pnuke(AllMachines, "java", 60)
-System.exit(0)
+//System.exit(0)
 
 println "==== BUILDING JAR..."
 
@@ -49,7 +42,7 @@ deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
 deployTo(AllMachines, SwiftSocial_Props)
 
-System.exit(0)
+//System.exit(0)
 
 def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
 
@@ -77,7 +70,7 @@ shep.take()
 
 Countdown( "Remaining: ", Duration + 30)
 
-pnuke(AllMachines, "java", 60)
+//pnuke(AllMachines, "java", 60)
 
 def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') + System.currentTimeMillis()
 def dstFile = String.format("1pc-results-swiftsocial-DC-%s-SC-%s-TH-%s.log", Surrogates.size(), Scouts.size(), Threads)
@@ -87,3 +80,4 @@ pslurp( Scouts, "scout-stdout.txt", dstDir, dstFile, 300)
 exec(["/bin/bash", "-c", "wc " + dstDir + "/*/*"]).waitFor()
 System.exit(0)
 
+//pssh -t 120 -i -h nodes.txt "ping -a -q -c 10 ec2-107-20-2-64.compute-1.amazonaws.com" | grep mdev | sed "s/\/ //g" | awk '{print $4}' | sed "s/\// /g" | awk '{ print $2 }' | sort

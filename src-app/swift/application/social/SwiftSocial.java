@@ -438,11 +438,11 @@ public class SwiftSocial {
     Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkRes = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
 
     void bulkGet(TxnHandle txn, CRDTIdentifier... ids) {
-        bulkRes = txn.bulkGet(ids);
+        txn.bulkGet(ids);
     }
 
     void bulkGet(TxnHandle txn, Set<CRDTIdentifier> ids) {
-        bulkRes = txn.bulkGet(ids.toArray(new CRDTIdentifier[ids.size()]));
+        txn.bulkGet(ids.toArray(new CRDTIdentifier[ids.size()]));
     }
 
     @SuppressWarnings("unchecked")
@@ -450,10 +450,9 @@ public class SwiftSocial {
             Class<V> classOfT, final ObjectUpdatesListener updatesListener) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
 
-        T res = (T) bulkRes.get(id);
+        T res = (T) bulkRes.remove(id);
         if (res == null)
             res = (T) txn.get(id, create, classOfT, updatesListener);
-
         return res;
     }
 
@@ -463,7 +462,8 @@ public class SwiftSocial {
     <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(TxnHandle txn, CRDTIdentifier id, boolean create,
             Class<V> classOfT) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
-        T res = (T) bulkRes.get(id);
+
+        T res = (T) bulkRes.remove(id);
         if (res == null)
             res = (T) txn.get(id, create, classOfT);
 

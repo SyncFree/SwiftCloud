@@ -64,6 +64,9 @@ public class SwiftDoc {
         // start DC server
         DCServer.main(new String[] { dcName });
 
+        final SwiftOptions options = new SwiftOptions("localhost", DCConstants.SURROGATE_PORT);
+        options.setDisasterSafe(false);
+
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
@@ -108,14 +111,16 @@ public class SwiftDoc {
                     try {
                         for (int k = 0; !done.get(); k++) {
                             final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
-                                    : CachePolicy.CACHED, true);
+                                    : CachePolicy.CACHED, false);
 
+                            @SuppressWarnings("unchecked")
                             SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class,
                                     new AbstractObjectUpdatesListener() {
                                         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id,
                                                 TxnLocalCRDT<?> previousValue) {
-                                            // System.err.println("Triggered Reader get():"
-                                            // + previousValue.getValue());
+                                            // System.err.printf("Triggered Reader get(%s): %s\n",
+                                            // j2,
+                                            // previousValue.getValue());
                                             semaphore.release();
                                         }
                                     });
@@ -133,6 +138,8 @@ public class SwiftDoc {
                     }
                 }
             }).start();
+
+            Threading.sleep(5000);
 
             SwiftDocPatchReplay<TextLine> player = new SwiftDocPatchReplay<TextLine>();
 
@@ -200,15 +207,17 @@ public class SwiftDoc {
             for (int k = 0;; k++) {
                 final TxnHandle handle = swift1.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
                         : CachePolicy.CACHED, true);
+
                 SequenceTxnLocal<TextLine> doc = handle.get(j1, true, swift.crdt.SequenceVersioned.class,
                         new AbstractObjectUpdatesListener() {
                             public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-                                // System.err.println("previous:" +
+                                // System.err.printf("previous: %s, %s\n", j1,
                                 // previousValue.getValue());
                                 barrier.release();
                             }
                         });
 
+                System.err.println(doc.getValue());
                 // Determine the new atoms this update brought...
                 final Collection<TextLine> newAtoms = new ArrayList<TextLine>();
                 synchronized (serials) {

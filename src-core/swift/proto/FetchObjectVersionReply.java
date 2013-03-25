@@ -16,6 +16,8 @@
  *****************************************************************************/
 package swift.proto;
 
+import java.util.Map;
+
 import swift.clocks.CausalityClock;
 import swift.crdt.interfaces.CRDT;
 import sys.net.api.rpc.RpcHandle;
@@ -52,18 +54,27 @@ public class FetchObjectVersionReply implements RpcMessage {
     protected CausalityClock estimatedLatestKnownClock;
     protected CausalityClock estimatedDisasterDurableLatestKnownClock;
 
-    public long timestamp;
-    public int stableReadMissedUpdates;
-    public int stableReadLatency;
-    public long serverTimestamp = System.currentTimeMillis();
+    public Map<String, Object> staleReadsInfo;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     FetchObjectVersionReply() {
     }
 
     public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
-            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock, long ts,
-            int mu, int lat) {
+            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock) {
+
+        this.crdt = crdt;
+        this.status = status;
+        this.version = version;
+        this.pruneClock = pruneClock;
+        this.estimatedLatestKnownClock = estimatedLatestKnownClock;
+        this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
+        this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
+    }
+
+    public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
+            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock,
+            Map<String, Object> staleReadsInfo) {
 
         this.crdt = crdt;
         this.status = status;
@@ -74,9 +85,7 @@ public class FetchObjectVersionReply implements RpcMessage {
         this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
 
         // EVALUATION
-        this.timestamp = ts;
-        this.stableReadLatency = lat;
-        this.stableReadMissedUpdates = mu;
+        this.staleReadsInfo = staleReadsInfo;
     }
 
     /**
@@ -136,9 +145,5 @@ public class FetchObjectVersionReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         // ((SwiftProtocolHandler) handler).onReceive(conn, this);
-    }
-
-    public long rtt() {
-        return sys.Sys.Sys.timeMillis() - this.timestamp;
     }
 }

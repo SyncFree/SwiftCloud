@@ -63,6 +63,7 @@ import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.crdt.interfaces.TxnStatus;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.dc.DCConstants;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
@@ -98,7 +99,7 @@ import com.esotericsoftware.kryo.io.Output;
  * @see Swift, TxnManager
  * @author mzawirski
  */
-public class SwiftImpl implements SwiftScout, TxnManager {
+public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // Temporary Nuno's hack:
     public static final boolean DEFAULT_LISTENER_FOR_GET = false;
     static ObjectUpdatesListener DEFAULT_LISTENER = new AbstractObjectUpdatesListener() {
@@ -137,9 +138,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
      * @see SwiftOptions
      */
     public static SwiftSession newSingleSessionInstance(final SwiftOptions options) {
-        final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
-                options.getServerHostname(), options.getServerPort()), new LRUObjectsCache(
-                options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
+        Endpoint[] servers = parseEndpoints(options.getServerHostname());
+        final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers,
+                new LRUObjectsCache(options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
         return sharedImpl.newSession("singleton-session");
     }
 
@@ -152,8 +153,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
      * @see SwiftOptions
      */
     public static SwiftScout newMultiSessionInstance(final SwiftOptions options) {
-        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), Networking.resolve(
-                options.getServerHostname(), options.getServerPort()), new LRUObjectsCache(
+        Endpoint[] servers = parseEndpoints(options.getServerHostname());
+
+        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers, new LRUObjectsCache(
                 options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
     }
 
@@ -169,7 +171,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
     private final String scoutId;
     private final RpcEndpoint localEndpoint;
-    private final Endpoint serverEndpoint;
+    private final Endpoint[] serverEndpoints;
 
     // Cache of objects.
     // Invariant: if object is in the cache, it includes all updates of locally
@@ -250,7 +252,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
     private final SwiftOptions options;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint serverEndpoint, final LRUObjectsCache objectsCache,
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
             final SwiftOptions options) {
 
         this.options = KryoLib.copy(options);
@@ -262,7 +264,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         this.deadlineMillis = options.getDeadlineMillis();
         this.maxCommitBatchSize = options.getMaxCommitBatchSize();
         this.localEndpoint = localEndpoint;
-        this.serverEndpoint = serverEndpoint;
+        this.serverEndpoints = serverEndpoints;
         this.objectsCache = objectsCache;
         this.cacheStats = new CacheStats();
 
@@ -286,7 +288,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
 
         this.executorService = Executors.newFixedThreadPool(32, Threading.factory("Client"));
 
-        this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint) {
+        this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint()) {
             synchronized public void notify(Set<CRDTIdentifier> ids, CommitNotification info) {
                 processDcNotification(ids, info);
             }
@@ -312,6 +314,8 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             log = new NoFlushLogDecorator(log);
         }
         this.durableLog = log;
+
+        // new FailOverWatchDog().start();
 
         getDCClockEstimates();
     }
@@ -366,7 +370,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
     }
 
     private boolean getDCClockEstimates() {
-        LatestKnownClockReply reply = localEndpoint.request(serverEndpoint, new LatestKnownClockRequest(scoutId));
+        LatestKnownClockReply reply = localEndpoint.request(serverEndpoint(), new LatestKnownClockRequest(scoutId));
         if (reply != null) {
             reply.getDistasterDurableClock().intersect(reply.getClock());
             updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
@@ -385,7 +389,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             final CausalityClock snapshotClock;
-            if (options.assumeAtomicCausalNotifications()) {
+            if (options.assumeAtomicCausalNotifications() && cachePolicy == CachePolicy.CACHED) {
                 synchronized (SwiftImpl.this) {
                     snapshotClock = getGlobalCommittedVersion(true);
                     snapshotClock.merge(causalNotificationsClock);
@@ -695,9 +699,9 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // TODO: Discuss. This is a very aggressive caching mode.
         }
 
-        // if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION &&
-        // options.assumeAtomicCausalNotifications())
-        // clock.intersect(crdt.getClock());
+        if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && options.assumeAtomicCausalNotifications()
+                && txn.cachePolicy == CachePolicy.CACHED)
+            clock.intersect(crdt.getClock());
 
         final TxnLocalCRDT<V> crdtView;
         try {
@@ -776,7 +780,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     throw new NetworkException("Deadline exceeded to get appropriate answer from the store;"
                             + "note it may be caused by prior errors");
                 }
-                reply = localEndpoint.request(serverEndpoint, fetchRequest);
+                reply = localEndpoint.request(serverEndpoint(), fetchRequest);
                 if (reply == null) {
                     throw new NetworkException("Fetching object version exceeded the deadline");
                 }
@@ -800,12 +804,16 @@ public class SwiftImpl implements SwiftScout, TxnManager {
         final V crdt;
 
         {
-            long rtt = fetchReply.rtt();
-            int stableReadLatency = fetchReply.stableReadLatency;
-            int stableReadMissedUpdates = fetchReply.stableReadMissedUpdates;
-            if (stableReadMissedUpdates >= 0 && false)
-                System.out.printf("SYS, GET, %s, %s, %s, %s, %s,%s\n", txn.getSerial(), rtt, request.getUid(),
-                        stableReadMissedUpdates, stableReadLatency, fetchReply.serverTimestamp);
+            Map<String, Object> staleReadInfo = fetchReply.staleReadsInfo;
+            if (staleReadInfo != null && staleReadInfo.size() > 0) {
+                long serial = txn == null ? -1 : txn.getSerial();
+                long rtt = sys.Sys.Sys.timeMillis() - (Long) staleReadInfo.get("timestamp");
+                Object diff1 = staleReadInfo.get("Diff1-scout-normal-vs-scout-stable");
+                Object diff2 = staleReadInfo.get("Diff2-dc-normal-vs-scout-stable");
+                Object diff3 = staleReadInfo.get("Diff3-dc-normal-vs-dc-stable");
+                System.out.printf("SYS, GET, %s, %s, %s, %s, %s, %s\n", serial, rtt, request.getUid(), diff1, diff2,
+                        diff3);
+            }
         }
 
         switch (fetchReply.getStatus()) {
@@ -999,6 +1007,24 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
+        // System.err.printf("Committed Version:---->%s\n",
+        // getGlobalCommittedVersion(false));
+        // System.err.printf("Read: %s  --------------->%s\n",
+        // subscription.readVersion, Arrays.asList(timestampMappings));
+        // for (final TimestampMapping tm : timestampMappings) {
+        // if (!tm.anyTimestampIncluded(subscription.readVersion)) {
+        // System.err.println("---->" +
+        // tm.anyTimestampIncluded(subscription.readVersion));
+        // if (tm.anyTimestampIncluded(getGlobalCommittedVersion(false))
+        // || tm.anyTimestampIncluded(lastLocallyCommittedTxnClock)) {
+        // executorService.execute(subscription.generateNotificationAndDiscard(this,
+        // id));
+        // return;
+        // }
+        // }
+        // }
+        // if (true)
+        // return;
 
         Map<TimestampMapping, CRDTIdentifier> uncommittedUpdates = new HashMap<TimestampMapping, CRDTIdentifier>();
         for (final TimestampMapping tm : timestampMappings) {
@@ -1027,6 +1053,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("Update on object " + id + " visible, but not committed, delaying notification");
             }
+            System.err.println("Update on object " + id + " visible, but not committed, delaying notification");
         }
     }
 
@@ -1221,7 +1248,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             }
         }
         removePendingTxn(txn);
-        objectsCache.removeProtection(txn.serial);
     }
 
     public void removeEvictionProtection(AbstractTxnHandle txn) {
@@ -1260,10 +1286,10 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                     .getUpdatesDependencyClock(), operationsGroups));
         }
 
-        BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint, new BatchCommitUpdatesRequest(
+        BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), new BatchCommitUpdatesRequest(
                 scoutId, requests));
 
-        if (batchReply.getReplies().size() != requests.size()) {
+        if (batchReply == null || batchReply.getReplies().size() != requests.size()) {
             throw new IllegalStateException("Fatal error: server returned " + batchReply.getReplies().size() + " for "
                     + requests.size() + " commit requests!");
         }
@@ -1278,7 +1304,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 case COMMITTED_WITH_KNOWN_TIMESTAMPS:
                     for (final Timestamp ts : reply.getCommitTimestamps()) {
                         txn.markGloballyCommitted(ts);
-                        removeEvictionProtection(txn);
                         lastGloballyCommittedTxnClock.record(ts);
                         committedVersion.record(ts);
                         // TODO: call updateCommittedVersion?
@@ -1288,7 +1313,6 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
                     lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
                     txn.markGloballyCommitted(null);
-                    removeEvictionProtection(txn);
                     // TODO: call updateCommittedVersion?
                     break;
                 case INVALID_OPERATION:
@@ -1297,7 +1321,7 @@ public class SwiftImpl implements SwiftScout, TxnManager {
                 default:
                     throw new UnsupportedOperationException("unknown commit status: " + reply.getStatus());
                 }
-
+                removeEvictionProtection(txn);
                 lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
                 lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
                 removeLocallyNowGloballyCommitedTxn(txn);
@@ -1498,18 +1522,55 @@ public class SwiftImpl implements SwiftScout, TxnManager {
             // + sub.getOldClock() + "; new clk " + sub.getNewClock());
             // }
         }
-        for (final ObjectUpdatesInfo i : updates)
-            applyObjectUpdates(i.getId(), i.getOldClock(), i.getUpdates(), i.getNewClock(), i.getPruneClock());
+        updateCommittedVersions(notification.currVersion, notification.stableVersion);
 
         synchronized (causalNotificationsClock) {
             causalNotificationsClock.merge(notification.currVersion);
         }
 
-        synchronized (SwiftImpl.this) {
-            objectsCache.augmentWithCausalClock(causalNotificationsClock);
+        for (final ObjectUpdatesInfo i : updates)
+            applyObjectUpdates(i.getId(), i.getOldClock(), i.getUpdates(), i.getNewClock(), i.getPruneClock());
+
+        // synchronized (SwiftImpl.this) {
+        // objectsCache.augmentWithCausalClock(causalNotificationsClock);
+        // }
+    }
+
+    @Override
+    public void onFailOver() {
+        System.out.println("SYS FAILOVER TO: " + serverEndpoint());
+    }
+
+    int serverIndex = 0;
+
+    Endpoint serverEndpoint() {
+        return serverEndpoints[serverIndex];
+    }
+
+    static Endpoint[] parseEndpoints(String serverList) {
+        List<Endpoint> res = new ArrayList<Endpoint>();
+        for (String i : serverList.split(","))
+            res.add(Networking.resolve(i, DCConstants.SURROGATE_PORT));
+        return res.toArray(new Endpoint[res.size()]);
+    }
+
+    class FailOverWatchDog extends Thread {
+        FailOverWatchDog() {
+            super.setDaemon(true);
+            serverIndex = 0;
         }
 
-        // updateCommittedVersions(notifications.getEstimatedCommittedVersion(),
-        // notifications.getEstimatedDisasterDurableCommittedVersion());
+        public void run() {
+            for (;;) {
+                Threading.sleep((30 + sys.Sys.Sys.rg.nextInt(10)) * 1000);
+                serverIndex = (serverIndex + 1) % serverEndpoints.length;
+                System.out.println("SYS FAILOVER TO INITIATED: " + serverEndpoint());
+                getDCClockEstimates();
+                getDCClockEstimates();
+                getDCClockEstimates();
+                System.out.println("SYS FAILOVER TO COMPLETED: " + serverEndpoint());
+                onFailOver();
+            }
+        }
     }
 }

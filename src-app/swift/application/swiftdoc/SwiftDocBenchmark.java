@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.application.swiftdoc;
 
-import java.util.Arrays;
 import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
@@ -24,7 +23,6 @@ import swift.client.SwiftOptions;
 import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.SwiftSession;
-import swift.dc.DCConstants;
 import sys.Sys;
 
 /**
@@ -41,20 +39,16 @@ public class SwiftDocBenchmark {
 
     public static void main(String[] args) throws Exception {
 
-        if (args.length != 6) {
-            System.out.println("-->" + Arrays.asList(args));
-            System.out
-                    .println("Usage: [surrogate address] [number of iterations] [client id (1|2)] [isolationLevel] [cachePolicy] [notifications (true|false)]");
-            return;
-        } else {
+        if (args.length == 6) {
             dcName = args[0];
-            int pos = dcName.indexOf(":");
-            if (pos != -1) {
-                dcPort = Integer.parseInt(dcName.substring(pos + 1));
-                dcName = dcName.substring(0, pos);
-            } else
-                dcPort = DCConstants.SURROGATE_PORT;
             SwiftDoc.iterations = Integer.parseInt(args[1]);
+            clientId = Integer.parseInt(args[2]);
+            SwiftDoc.isolationLevel = IsolationLevel.valueOf(args[3]);
+            SwiftDoc.cachePolicy = CachePolicy.valueOf(args[4]);
+            SwiftDoc.notifications = Boolean.parseBoolean(args[5]);
+        } else {
+            dcName = "localhost";
+            SwiftDoc.iterations = 1;
             clientId = Integer.parseInt(args[2]);
             SwiftDoc.isolationLevel = IsolationLevel.valueOf(args[3]);
             SwiftDoc.cachePolicy = CachePolicy.valueOf(args[4]);
@@ -81,10 +75,10 @@ public class SwiftDocBenchmark {
         // @Override
         // public void run() {
         // // TODO Auto-generated method stub
-        // SwiftDoc.runClient2( SwiftImpl.newInstance(dcName, dcPort) );
+        // SwiftDoc.runClient2(SwiftImpl.newInstance(dcName, dcPort));
         // }
         //
         // }).start();
-        // SwiftDoc.runClient1( SwiftImpl.newInstance(dcName, dcPort) );
+        // SwiftDoc.runClient1(SwiftImpl.newInstance(dcName, dcPort));
     }
 }

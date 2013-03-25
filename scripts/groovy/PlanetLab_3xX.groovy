@@ -32,7 +32,7 @@ class PlanetLab_3X {
         "planetlab-1.cs.unibas.ch",
         "pl1.bell-labs.fr",
         "dfn-ple1.x-win.dfn.de",
-        "onelab-1.fhi-fokus.de",
+//        "onelab-1.fhi-fokus.de",
         "planetlab1.inf.ethz.ch",
         "host1.planetlab.informatik.tu-darmstadt.de",
         "planetlab01.ethz.ch",

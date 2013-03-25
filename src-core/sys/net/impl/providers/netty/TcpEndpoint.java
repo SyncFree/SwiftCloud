@@ -200,7 +200,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
 
                 Sys.uploadedBytes.getAndAdd(uploadTotal + 4);
                 outgoingBytesCounter.getAndAdd(uploadTotal + 4);
-
                 return fut.isSuccess();
 
             } catch (Throwable t) {
@@ -210,6 +209,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 failed = true;
                 handler.onFailure(this);
             }
+            // finally {
+            // if (msg instanceof RpcPacket) {
+            // RpcPacket pkt = (RpcPacket) msg;
+            // System.out.println("Sent:" + pkt.getPayload());
+            // }
+            //
+            // }
             return false;
         }
 
@@ -244,6 +250,9 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 int downloadTotal = in.position() + 4;
                 Sys.downloadedBytes.getAndAdd(downloadTotal);
                 incomingBytesCounter.addAndGet(downloadTotal);
+
+                // System.out.println(sys.Sys.Sys.mainClass + " Got message:" +
+                // msg);
 
                 msg.deliverTo(AbstractConnection.this, handler);
             } catch (Throwable t) {

@@ -27,7 +27,7 @@ class Parallel {
                 public void run() {
                     def cmdline = ["ssh", String.format("%s@%s", ACCOUNT, it), cmd.call(it)]
                     Process proc = new ProcessBuilder(cmdline).redirectErrorStream(true).start()
-                    Thread.start {
+                    Thread.startDaemon {
                         proc.inputStream.eachLine { if( ! ignoreIO ) println it }
                     }
                     proc.waitFor();
@@ -59,7 +59,7 @@ class Parallel {
                 public void run() {
                     def cmdline = cmd.call(it)
                     Process proc = new ProcessBuilder(cmdline).redirectErrorStream(true).start()
-                    Thread.start {
+                    Thread.startDaemon {
                         proc.inputStream.eachLine { if( ! discardIO ) println it }
                     }
                     proc.waitFor();

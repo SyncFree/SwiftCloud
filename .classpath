@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry excluding="swift/client/TimeSizeBoundedObjectsCache.java|swift/client/proto/FastRecentUpdatesReply.java|swift/client/proto/FastRecentUpdatesReplyHandler.java|swift/client/proto/FastRecentUpdatesRequest.java|swift/dc/proto/DHTSendNotification.java|swift/client/proto/RecentUpdatesReply.java|swift/client/proto/RecentUpdatesReplyHandler.java|swift/client/proto/RecentUpdatesRequest.java|swift/client/proto/GenerateTimestampReply.java|swift/client/proto/GenerateTimestampReplyHandler.java|swift/client/proto/GenerateTimestampRequest.java|swift/client/proto/KeepaliveReply.java|swift/client/proto/KeepaliveReplyHandler.java|swift/client/proto/KeepaliveRequest.java|swift/client/proto/SubscriptionType.java|swift/client/proto/BaseServer.java|swift/client/proto/SwiftServer.java|swift/dc/proto/SequencerServer.java|swift/proto/DHTSendNotification.java|swift/proto/SequencerServer.java|swift/proto/SilentFailRpcHandler.java|swift/proto/MultipleSeqCommitUpdatesRequest.java|swift/proto/MultiSeqCommitUpdatesReply.java|swift/proto/MultiSeqCommitUpdatesReplyHandler.java|sys/pubsub/impl/PubSubService.java" kind="src" path="src-core"/>
-	<classpathentry excluding="swift/application/swiftdoc/|swift/application/swiftset/|swift/application/filesystem/" kind="src" path="src-app"/>
+	<classpathentry excluding="swift/application/swiftset/" kind="src" path="src-app"/>
 	<classpathentry kind="src" path="src-core-bench"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
@@ -13,5 +13,7 @@
 	<classpathentry kind="lib" path="lib/core/xstream-1.4.3.jar"/>
 	<classpathentry kind="lib" path="lib/core/kryo-2.21-all.jar"/>
 	<classpathentry kind="lib" path="lib/core/netty-3.6.3.Final.jar"/>
+	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
+	<classpathentry kind="lib" path="lib/extras/fuse4j-core-2.4.0.0-SNAPSHOT.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

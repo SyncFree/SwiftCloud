@@ -35,7 +35,8 @@ public class FetchObjectVersionRequest extends ClientRequest {
 
     protected boolean subscribe;
 
-    public long timestamp = sys.Sys.Sys.timeMillis();
+    public long timestamp = sys.Sys.Sys.timeMillis(); // FOR EVALUATION, TO BE
+                                                      // REMOVED...
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
