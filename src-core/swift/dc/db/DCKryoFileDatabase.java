@@ -48,7 +48,6 @@ public class DCKryoFileDatabase implements DCNodeDatabase {
     @SuppressWarnings("unchecked")
     synchronized public void init(Properties props) {
         try {
-            Thread.dumpStack();
             dbFile = new File(props.getProperty("kryo.dbFile"));
             if (dbFile.exists()) {
                 DataInputStream dis = new DataInputStream(new FileInputStream(dbFile));

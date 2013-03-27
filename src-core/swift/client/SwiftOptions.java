@@ -35,6 +35,8 @@ final public class SwiftOptions {
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
 
+    public static final int DEFAULT_SCOUTGATEWAY_PORT = 28881;
+
     private String serverHostname;
     private int serverPort;
     private boolean disasterSafe;

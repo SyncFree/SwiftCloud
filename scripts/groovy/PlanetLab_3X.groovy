@@ -148,7 +148,7 @@ class PlanetLab_3X {
         "planetlab2.cs.ucla.edu",
         //"planetlab3.postel.org",
         "planetlab2.postel.org",
-        "planetlab1.postel.org",
+//        "planetlab1.postel.org",
         "planetlab4.postel.org",
         //"planetlab1.ucsd.edu",
         //"planetlab2.ucsd.edu",
@@ -205,7 +205,7 @@ class PlanetLab_3X {
         "planetlab2.cnds.jhu.edu",
         "planetlab4.cnds.jhu.edu",
         //"planetlab1.cis.upenn.edu",
-        "planetlab2.cis.upenn.edu",
+//        "planetlab2.cis.upenn.edu",
         //"plab1.nec-labs.com",
         //"plab2.nec-labs.com",
         //"planetlab01.sys.virginia.edu",
@@ -222,12 +222,12 @@ class PlanetLab_3X {
         "planetlab-1.cmcl.cs.cmu.edu",
         "planetlab1.cs.pitt.edu",
         //"planetlab1.poly.edu",
-        "planetlab-01.cs.princeton.edu",
+//        "planetlab-01.cs.princeton.edu",
         "planetlab2.poly.edu",
-        "planetlab-03.cs.princeton.edu",
+//        "planetlab-03.cs.princeton.edu",
         "planetlab1.temple.edu",
         "planetlab3.cs.columbia.edu",
-        "planetlab2.cs.columbia.edu",
+//        "planetlab2.cs.columbia.edu",
         "planetlab7.cs.duke.edu",
         "pl1.cs.yale.edu",
         "planetlab1.cs.unc.edu",
@@ -398,7 +398,7 @@ class PlanetLab_3X {
     static private def int EU = 0
     static def PlanetLab_EU = PlanetLab_EU_ALL.subList(EU, Math.min(EU + maxPerRegion, PlanetLab_EU_ALL.size()) )
 
-    static private def int NC = 8
+    static private def int NC = 6
     static def PlanetLab_NC = PlanetLab_NC_ALL.subList(NC, Math.min(NC + maxPerRegion, PlanetLab_NC_ALL.size()) )
 
     static def PlanetLab_NV_ALL2 = PlanetLab_NV_ALL - PlanetLab_NC
