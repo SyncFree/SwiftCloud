@@ -165,6 +165,6 @@ def gnuplot = [
 ]
 
 GnuPlot.doGraph( outputFile, gnuplot, plots, { k, v ->
-    String.format('title "%s" with linespoints pointinterval 1 lw 3 ps 2', k)
+    String.format('title "%s" with linespoints pointinterval 1 lw 4 ps 2.5', k)
 })
 

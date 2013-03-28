@@ -124,17 +124,17 @@ processRootDir(90, 600, DIR +"Mar24-1364144788195", wSoaFT)
 
 def pstyles = [:]
 
-pstyles[rOS]='with linespoints pointinterval 26 lw 2 ps 2 pt 7'
-pstyles[wOS]='with linespoints pointinterval 17 lw 2 ps 2 pt 6'
+pstyles[rOS]='with linespoints pointinterval 26 lw 3 ps 2 pt 7'
+pstyles[wOS]='with linespoints pointinterval 17 lw 3 ps 2 pt 6'
 
-pstyles[rOSsoaFT]='with linespoints pointinterval 17 lw 2 ps 2 pt 9'
-pstyles[wOSsoaFT]='with linespoints pointinterval 29 lw 2 ps 2 pt 8'
+pstyles[rOSsoaFT]='with linespoints pointinterval 17 lw 3 ps 2 pt 9'
+pstyles[wOSsoaFT]='with linespoints pointinterval 29 lw 3 ps 2 pt 8'
 
-pstyles[rSoaNoFT]='with linespoints pointinterval 30 lw 2 ps 2 pt 13'
-pstyles[wSoaNoFT]='with linespoints pointinterval 25 lw 2 ps 2 pt 12'
+pstyles[rSoaNoFT]='with linespoints pointinterval 30 lw 3 ps 2 pt 13'
+pstyles[wSoaNoFT]='with linespoints pointinterval 25 lw 3 ps 2 pt 12'
 
-pstyles[rSoaFT]='with linespoints pointinterval 23 lw 2 ps 2 pt 5'
-pstyles[wSoaFT]='with linespoints pointinterval 29 lw 2 ps 2 pt 4'
+pstyles[rSoaFT]='with linespoints pointinterval 23 lw 3 ps 2 pt 5'
+pstyles[wSoaFT]='with linespoints pointinterval 29 lw 3 ps 2 pt 4'
 
 //processRootDir(120, 300, DIR +"Mar18-1363623972595", "sync")
 //processRootDir(120, 300, DIR + "Mar18-1363624888705", "async")
@@ -170,8 +170,7 @@ for( Histogram i : stats.histograms("data") ) {
 
 def gnuplot = [
 '#set encoding utf8',
-'set terminal postscript size 10.0, 7.0 monochrome enhanced dl 3 font "Helvetica,24" linewidth 1.25',
-'#set terminal pdf monochrome size 10.0, 5.0 monochrome dashed font "Helvetica,26" linewidth 2',
+'set terminal postscript size 10.0, 6.0 monochrome enhanced font "Helvetica,24" linewidth 1.25',
 'set xlabel "Latency [ ms ]"',
 'set ylabel "Cumulative Ocurrences [ % ]" offset 2,0',
 'set ytics 10',

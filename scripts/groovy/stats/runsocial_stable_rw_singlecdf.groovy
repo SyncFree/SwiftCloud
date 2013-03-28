@@ -108,17 +108,17 @@ processRootDir(90, 600, DIR +"Mar24-1364144788195", wSoaFT)
 
 def pstyles = [:]
 
-pstyles[rOS]='with linespoints pointinterval 11 lw 2 ps 2 pt 7'
-pstyles[wOS]='with linespoints pointinterval 7 lw 2 ps 2 pt 6'
+pstyles[rOS]='with linespoints pointinterval 11 lw 3 ps 2 pt 7'
+pstyles[wOS]='with linespoints pointinterval 7 lw 3 ps 2 pt 6'
 
-pstyles[rOSsoaFT]='with linespoints pointinterval 4 lw 2 ps 2 pt 9'
-pstyles[wOSsoaFT]='with linespoints pointinterval 9 lw 2 ps 2 pt 8'
+pstyles[rOSsoaFT]='with linespoints pointinterval 4 lw 3 ps 2 pt 9'
+pstyles[wOSsoaFT]='with linespoints pointinterval 9 lw 3 ps 2 pt 8'
 
-pstyles[rSoaNoFT]='with linespoints pointinterval 5 lw 2 ps 2 pt 13'
-pstyles[wSoaNoFT]='with linespoints pointinterval 15 lw 2 ps 2 pt 12'
+pstyles[rSoaNoFT]='with linespoints pointinterval 5 lw 3 ps 2 pt 13'
+pstyles[wSoaNoFT]='with linespoints pointinterval 2 lw 3 ps 2 pt 12'
 
-pstyles[rSoaFT]='with linespoints pointinterval 8 lw 2 ps 2 pt 5'
-pstyles[wSoaFT]='with linespoints pointinterval 19 lw 2 ps 2 pt 4'
+pstyles[rSoaFT]='with linespoints pointinterval 8 lw 3 ps 2 pt 5'
+pstyles[wSoaFT]='with linespoints pointinterval 19 lw 3 ps 2 pt 4'
 
 
 
@@ -149,8 +149,7 @@ for( Histogram i : stats.histograms("data") ) {
 
 def gnuplot = [
 '#set encoding utf8',
-'set terminal postscript size 10.0, 7.0 monochrome enhanced font "Helvetica,24" linewidth 1.25',
-'#set terminal pdf monochrome size 10.0, 5.0 monochrome dashed font "Helvetica,26" linewidth 2',
+'set terminal postscript size 10.6, 7.0 monochrome enhanced font "Helvetica,24" linewidth 1.25',
 'set xlabel "Latency [ ms ]"',
 'set ylabel "Cumulative Ocurrences [ % ]" offset 2,0',
 'set ytics 10',

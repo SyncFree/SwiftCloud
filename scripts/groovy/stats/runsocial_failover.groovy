@@ -35,12 +35,13 @@ plots = ['latency': series ]
 //       ]
 
 def gnuplot = [
-    'set terminal postscript size 10.0, 7.0 enhanced monochrome dashed font "Helvetica,24" linewidth 1',
+    'set terminal postscript size 10.0, 4.0 enhanced monochrome dashed font "Helvetica,24" linewidth 1',
     'set ylabel "Latency [ ms ]"',
     'set xlabel "Time [ s ]"',
     'set mxtics',
     'set mytics',
-    'set grid xtics ytics lt 30 lt 30',
+//    'set clip',
+//    'set grid xtics ytics lt 30 lt 30',
     'set xr [0.0:80.0]',
     'set yr [0:400]',
     'set lmargin at screen 0.11',
