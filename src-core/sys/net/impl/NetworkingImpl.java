@@ -98,5 +98,5 @@ public class NetworkingImpl extends Networking {
             throw new NetworkingException("Invalid argument...");
     }
 
-    static TransportProvider defaultProvider = TransportProvider.NETTY_IO_TCP;
+    static TransportProvider defaultProvider = TransportProvider.OIO_TCP;
 }

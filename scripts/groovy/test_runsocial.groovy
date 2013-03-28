@@ -9,11 +9,14 @@ def __ = onControlC({
 })
 
 Surrogates = [
-        "ec2-176-34-66-61.eu-west-1.compute.amazonaws.com",
+        "peeramide.irisa.fr",
         ]
 
 PlanetLab_PT = [
    "planetlab1.fct.ualg.pt",
+   "planetlab2.fct.ualg.pt",
+   "planetlab1.di.fct.unl.pt",
+   "planetlab2.di.fct.unl.pt"
 ]
 
 Scouts = (PlanetLab_PT).unique()

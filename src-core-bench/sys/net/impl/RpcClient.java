@@ -29,6 +29,7 @@ import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.stats.Tally;
 import sys.utils.Threading;
 
 public class RpcClient {
@@ -46,6 +47,7 @@ public class RpcClient {
 
         final SortedSet<Integer> values = new TreeSet<Integer>();
 
+        final Tally rtt = new Tally("rtt");
         for (int n = 0;; n++) {
             synchronized (values) {
                 values.add(n);
@@ -60,6 +62,9 @@ public class RpcClient {
 
                 @Override
                 public void onReceive(Reply r) {
+                    rtt.add(r.rtt() / 1000);
+                    System.err.printf("%.1f/%.1f/%.1f±%.1f\n", rtt.min(), rtt.average(), rtt.max(),
+                            rtt.standardDeviation());
                     synchronized (values) {
                         values.remove(r.val);
                     }
@@ -72,7 +77,7 @@ public class RpcClient {
             h.getReply();
 
             int total = n;
-            if (total % 10000 == 0) {
+            if (total % 1 == 0) {
                 synchronized (values) {
                     System.out.printf(endpoint.localEndpoint()
                             + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total,

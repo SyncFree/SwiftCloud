@@ -17,13 +17,15 @@
 package sys.net.impl.providers.oio;
 
 import static sys.Sys.Sys;
-import static sys.net.impl.NetworkingConstants.TCP_CONNECTION_TIMEOUT;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
-import java.net.ServerSocket;
+import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -47,23 +49,24 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
     private static Logger Log = Logger.getLogger(TcpEndpoint.class.getName());
 
-    ServerSocket ss;
+    ServerSocketChannel ssc;
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
         this.gid = Sys.rg.nextLong() >>> 1;
 
         if (tcpPort >= 0) {
-            ss = new ServerSocket(tcpPort);
+            ssc = ServerSocketChannel.open();
+            ssc.socket().bind(new InetSocketAddress(tcpPort));
         }
-        super.setSocketAddress(ss == null ? 0 : ss.getLocalPort());
+        super.setSocketAddress(ssc == null ? 0 : ssc.socket().getLocalPort());
     }
 
     public void start() throws IOException {
 
         handler = localEndpoint.getHandler();
 
-        if (ss != null)
+        if (ssc != null)
             Threading.newThread("accept", true, this).start();
     }
 
@@ -76,6 +79,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             }
             return new FailedTransportConnection(localEndpoint, remote, null);
         } catch (Throwable t) {
+            t.printStackTrace();
             Log.log(Level.WARNING, "Cannot connect to: <" + remote + "> :" + t.getMessage());
             return new FailedTransportConnection(localEndpoint, remote, t);
         }
@@ -86,14 +90,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         try {
             Log.finest("Bound to: " + this);
             for (;;) {
-                Socket cs = ss.accept();
-                configureChannel(cs);
+                SocketChannel cs = ssc.accept();
                 new IncomingConnection(cs);
             }
         } catch (Exception x) {
             Log.log(Level.SEVERE, "Unexpected error in incoming endpoint: " + localEndpoint, x);
         } finally {
-            IO.close(ss);
+            IO.close(ssc);
         }
     }
 
@@ -112,11 +115,10 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         String type;
         Throwable cause;
         Socket socket;
-
-        Input in;
-        OutputStream os;
-        MessageOutputStream baos = new MessageOutputStream();
-        Output out = new Output(baos);
+        SocketChannel channel;
+        KryoInputBuffer inBuf;
+        KryoOutputBuffer outBuf;
+        ExecutorService workers = Executors.newFixedThreadPool(2);
 
         public AbstractConnection() throws IOException {
             super(localEndpoint, null);
@@ -126,10 +128,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         final public void run() {
             try {
                 for (;;) {
-                    int size = in.readInt() + 4;
-                    Message msg = (Message) KryoLib.kryo().readClassAndObject(in);
-                    Sys.downloadedBytes.addAndGet(size);
-                    incomingBytesCounter.addAndGet(size);
+                    Message msg;
+                    synchronized (inBuf) {
+                        msg = inBuf.readClassAndObject(channel);
+                        int msgSize = inBuf.msgSize;
+                        Sys.downloadedBytes.addAndGet(msgSize);
+                        incomingBytesCounter.addAndGet(msgSize);
+                    }
                     msg.deliverTo(this, TcpEndpoint.this.handler);
                 }
             } catch (Throwable t) {
@@ -144,11 +149,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
         synchronized public boolean send(final Message msg) {
             try {
-                baos.reset();
-                out.clear();
-                KryoLib.kryo().writeClassAndObject(out, msg);
-                out.flush();
-                int msgSize = baos.flushContents(os);
+                int msgSize = outBuf.writeClassAndObject(msg, channel);
                 Sys.uploadedBytes.getAndAdd(msgSize);
                 outgoingBytesCounter.getAndAdd(msgSize);
                 msg.setSize(msgSize);
@@ -180,13 +181,16 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
     final class IncomingConnection extends AbstractConnection {
 
-        public IncomingConnection(Socket socket) throws IOException {
-            super.socket = socket;
+        public IncomingConnection(SocketChannel channel) throws IOException {
             super.type = "in";
+            super.channel = channel;
+            super.socket = channel.socket();
             configureChannel(socket);
-            os = socket.getOutputStream();
-            in = new Input(socket.getInputStream());
-            Threading.newThread("incoming-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
+            inBuf = new KryoInputBuffer();
+            outBuf = new KryoOutputBuffer();
+            workers.execute(this);
+            // Threading.newThread("incoming-tcp-channel-reader:" + local +
+            // " <-> " + remote, true, this).start();
         }
     }
 
@@ -200,11 +204,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
 
         void init() throws IOException {
             try {
-                socket = new Socket();
-                socket.connect(((AbstractEndpoint) remote).sockAddress(), TCP_CONNECTION_TIMEOUT);
+                channel = SocketChannel.open();
+                channel.connect(((AbstractEndpoint) remote).sockAddress());
+                socket = channel.socket();
+                System.err.println(socket + "/" + socket.getChannel());
                 configureChannel(socket);
-                os = socket.getOutputStream();
-                in = new Input(socket.getInputStream());
+                inBuf = new KryoInputBuffer();
+                outBuf = new KryoOutputBuffer();
             } catch (IOException x) {
                 cause = x;
                 isBroken = true;
@@ -213,25 +219,122 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             }
             this.send(new InitiatorInfo(localEndpoint));
             handler.onConnect(this);
-            Threading.newThread("outgoing-tcp-channel-reader:" + local + " <-> " + remote, true, this).start();
+            workers.execute(this);
+            // Threading.newThread("outgoing-tcp-channel-reader:" + local +
+            // " <-> " + remote, true, this).start();
+        }
+    }
+}
+
+final class KryoInputBuffer {
+
+    private static final int MAXUSES = 1024; // 2b replace in networking
+                                             // constants...
+
+    int uses = 0;
+    Input in;
+    ByteBuffer buffer;
+    int msgSize;
+
+    KryoInputBuffer() {
+        buffer = ByteBuffer.allocate(8192);
+        in = new Input(buffer.array());
+    }
+
+    public int msgSize() {
+        return msgSize;
+    }
+
+    final public int readFrom(SocketChannel ch) throws IOException {
+
+        buffer.clear().limit(4);
+        while (buffer.hasRemaining() && ch.read(buffer) > 0)
+            ;
+
+        if (buffer.hasRemaining())
+            return -1;
+
+        msgSize = buffer.getInt(0);
+
+        ensureCapacity(msgSize);
+
+        buffer.clear().limit(msgSize);
+        while (buffer.hasRemaining() && ch.read(buffer) > 0)
+            ;
+
+        if (buffer.hasRemaining())
+            return -1;
+
+        buffer.flip();
+        msgSize += 4;
+        return msgSize;
+    }
+
+    @SuppressWarnings("unchecked")
+    public <T> T readClassAndObject(SocketChannel ch) throws Exception {
+        if (readFrom(ch) > 0) {
+            in.setPosition(0);
+            return (T) KryoLib.kryo().readClassAndObject(in);
+        } else
+            throw new RuntimeException("Channel closed...");
+    }
+
+    private void ensureCapacity(int required) {
+        if (required > buffer.array().length || ++uses > MAXUSES) {
+            buffer = ByteBuffer.allocate(nextPowerOfTwo(required));
+            in.setBuffer(buffer.array());
+            uses = 0;
         }
     }
 
-    class MessageOutputStream extends ByteArrayOutputStream {
+    static private int nextPowerOfTwo(int value) {
+        if (value == 0)
+            return 1;
+        if ((value & value - 1) == 0)
+            return value;
+        value |= value >> 1;
+        value |= value >> 2;
+        value |= value >> 4;
+        value |= value >> 8;
+        value |= value >> 16;
+        return value + 1;
+    }
+}
 
-        public void reset() {
-            super.count = 4;
-        }
+final class KryoOutputBuffer {
 
-        public int flushContents(OutputStream os) throws IOException {
-            int frameSize = count - 4;
-            buf[0] = (byte) (frameSize >>> 24);
-            buf[1] = (byte) ((frameSize >>> 16) & 0xFF);
-            buf[2] = (byte) ((frameSize >>> 8) & 0xFF);
-            buf[3] = (byte) ((frameSize) & 0xFF);
-            os.write(buf, 0, count);
-            os.flush();
-            return count;
+    private static final int MAXUSES = 1024;
+
+    int uses;
+    Output out;
+    ByteBuffer buffer;
+
+    public KryoOutputBuffer() {
+        uses = Integer.MAX_VALUE;
+        reset();
+    }
+
+    private void reset() {
+        if (uses++ > MAXUSES) {
+            buffer = ByteBuffer.allocate(8192);
+            out = new Output(buffer.array(), Integer.MAX_VALUE);
+            uses = 0;
         }
-    };
+    }
+
+    public int writeClassAndObject(Object object, SocketChannel ch) throws Exception {
+        reset();
+        out.setPosition(4);
+        KryoLib.kryo().writeClassAndObject(out, object);
+        int length = out.position();
+
+        if (length > buffer.capacity())
+            buffer = ByteBuffer.wrap(out.getBuffer());
+
+        buffer.clear();
+        buffer.putInt(0, length - 4);
+        buffer.limit(length);
+
+        return ch.write(buffer);
+    }
 }
