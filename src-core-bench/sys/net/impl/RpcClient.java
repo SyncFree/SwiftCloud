@@ -48,6 +48,7 @@ public class RpcClient {
         final SortedSet<Integer> values = new TreeSet<Integer>();
 
         final Tally rtt = new Tally("rtt");
+        final Tally maxRTT = new Tally("max rtt");
         for (int n = 0;; n++) {
             synchronized (values) {
                 values.add(n);
@@ -63,8 +64,11 @@ public class RpcClient {
                 @Override
                 public void onReceive(Reply r) {
                     rtt.add(r.rtt() / 1000);
-                    System.err.printf("%.1f/%.1f/%.1f±%.1f\n", rtt.min(), rtt.average(), rtt.max(),
-                            rtt.standardDeviation());
+                    System.err.printf("%.1f/%.1f/%.1f - %.1f\n", rtt.min(), rtt.average(), rtt.max(), maxRTT.average());
+                    if (rtt.numberObs() % 99 == 0) {
+                        maxRTT.add(rtt.max());
+                        rtt.init();
+                    }
                     synchronized (values) {
                         values.remove(r.val);
                     }

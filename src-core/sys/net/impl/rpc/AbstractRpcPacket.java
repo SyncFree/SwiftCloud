@@ -139,6 +139,10 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
         return reply;
     }
 
+    public long rtt() {
+        return System.currentTimeMillis() - timestamp;
+    }
+
     protected RpcMessage getReplyPayload() {
         return reply != null ? reply.payload : null;
     }
@@ -148,6 +152,7 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
         this.handlerId = input.readLong();
         this.replyHandlerId = input.readLong();
         this.deferredRepliesTimeout = input.readInt();
+        this.timestamp = input.readLong();
         this.payload = (RpcMessage) kryo.readClassAndObject(input);
     }
 
@@ -156,6 +161,7 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
         output.writeLong(this.handlerId);
         output.writeLong(this.replyHandlerId);
         output.writeInt(this.deferredRepliesTimeout);
+        output.writeLong(this.timestamp);
         kryo.writeClassAndObject(output, payload);
     }
 }

@@ -104,7 +104,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         try {
             cs.setTcpNoDelay(true);
             cs.setReceiveBufferSize(1 << 20);
-            cs.setSendBufferSize(1500);
+            cs.setSendBufferSize(1 << 20);
         } catch (Exception x) {
             x.printStackTrace();
         }
@@ -207,7 +207,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 channel = SocketChannel.open();
                 channel.connect(((AbstractEndpoint) remote).sockAddress());
                 socket = channel.socket();
-                System.err.println(socket + "/" + socket.getChannel());
                 configureChannel(socket);
                 inBuf = new KryoInputBuffer();
                 outBuf = new KryoOutputBuffer();
@@ -251,6 +250,7 @@ final class KryoInputBuffer {
         while (buffer.hasRemaining() && ch.read(buffer) > 0)
             ;
 
+        sys.Sys.Sys.startWatch("rcv");
         if (buffer.hasRemaining())
             return -1;
 

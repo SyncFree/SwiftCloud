@@ -41,6 +41,9 @@ public class DCKryoFileDatabase implements DCNodeDatabase {
     Task flusher;
     Map<String, Map<String, Object>> db = new HashMap<String, Map<String, Object>>();
 
+    public DCKryoFileDatabase() {
+    }
+
     public boolean ramOnly() {
         return true;
     }
@@ -48,6 +51,11 @@ public class DCKryoFileDatabase implements DCNodeDatabase {
     @SuppressWarnings("unchecked")
     synchronized public void init(Properties props) {
         try {
+            String dbFileName = props.getProperty(DCKryoFileDatabase.DB_PROPERTY);
+            if (dbFileName == null) {
+                throw new RuntimeException("KryoDB: need to set kryp.dbFile property");
+            }
+
             dbFile = new File(props.getProperty("kryo.dbFile"));
             if (dbFile.exists()) {
                 DataInputStream dis = new DataInputStream(new FileInputStream(dbFile));

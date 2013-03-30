@@ -124,4 +124,11 @@ public interface RpcHandle {
      *         returned this handle
      */
     RpcHandle getReply();
+
+    /**
+     * For a reply handle, return the rtt, otherwise the result is undefined.
+     * 
+     * @return
+     */
+    long rtt();
 }

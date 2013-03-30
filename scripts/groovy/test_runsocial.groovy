@@ -51,15 +51,15 @@ def shep = SwiftSocial.runShepard( Shepard, Duration, "Released" )
 
 SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "512m")
 
-//println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
-//Sleep(10)
-//
-//
-//println "==== INITIALIZING DATABASE ===="
-//def INIT_DB_DC = Surrogates.get(0)
-//def INIT_DB_CLIENT = Surrogates.get(0)
-//
-//SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
+println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
+Sleep(10)
+
+
+println "==== INITIALIZING DATABASE ===="
+def INIT_DB_DC = Surrogates.get(0)
+def INIT_DB_CLIENT = Surrogates.get(0)
+
+SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="

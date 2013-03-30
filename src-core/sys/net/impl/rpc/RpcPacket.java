@@ -16,7 +16,6 @@
  *****************************************************************************/
 package sys.net.impl.rpc;
 
-import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 
 import java.util.concurrent.SynchronousQueue;
@@ -64,7 +63,6 @@ final public class RpcPacket extends AbstractRpcPacket {
                 this.replyHandlerId = ++g_handlers;
                 fac.handlers1.put(this.replyHandlerId, this);
             }
-            this.timestamp = Sys.timeMillis();
         } else
             this.replyHandlerId = 0L;
     }
@@ -77,6 +75,7 @@ final public class RpcPacket extends AbstractRpcPacket {
     @Override
     public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
         RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout);
+        pkt.timestamp = System.currentTimeMillis();
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
             if (pkt.sendRpcPacket(null, this) == true) {
@@ -98,6 +97,7 @@ final public class RpcPacket extends AbstractRpcPacket {
     @Override
     public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
         RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout);
+        pkt.timestamp = this.timestamp;
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
             if (pkt.sendRpcPacket(conn, this) == true) {
@@ -190,6 +190,7 @@ final public class RpcPacket extends AbstractRpcPacket {
     @Override
     public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
         RpcHandle reply = send(dst, m, RpcHandler.NONE);
+        // System.err.printf("RTT for: %s  = %s\n", m, reply.rtt());
         if (!reply.failed()) {
             reply = reply.getReply();
             if (reply != null)

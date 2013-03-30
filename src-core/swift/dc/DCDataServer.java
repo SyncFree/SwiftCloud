@@ -36,7 +36,6 @@ import swift.crdt.IntegerVersioned;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
-import swift.dc.db.DCKryoFileDatabase;
 import swift.dc.db.DCNodeDatabase;
 import swift.proto.DHTExecCRDT;
 import swift.proto.DHTExecCRDTReply;
@@ -216,14 +215,7 @@ class DCDataServer {
      *********************************************************************************************/
     void initDB(Properties props) {
         try {
-            String dbFile = props.getProperty(DCKryoFileDatabase.DB_PROPERTY);
-            if (dbFile == null)
-                dbFile = "kryoDB";
-            props.setProperty(DCKryoFileDatabase.DB_PROPERTY, dbFile + "-data.db");
-
-            dbServer = new DCKryoFileDatabase();
-            // dbServer = (DCNodeDatabase)
-            // Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot start underlying database", e);
         }

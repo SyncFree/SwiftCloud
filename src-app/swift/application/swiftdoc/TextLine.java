@@ -31,6 +31,7 @@ public class TextLine implements KryoSerializable {
     String text;
     long arrival_ts;
     long departure_ts;
+    int commit;
 
     // for kryo
     TextLine() {
@@ -40,6 +41,13 @@ public class TextLine implements KryoSerializable {
         this.text = text;
         this.serial = g_serial.getAndIncrement();
         this.departure_ts = -1;
+    }
+
+    public TextLine(String text, int commit) {
+        this.text = text;
+        this.serial = g_serial.getAndIncrement();
+        this.departure_ts = -1;
+        this.commit = commit;
     }
 
     public int hashCode() {
@@ -55,6 +63,7 @@ public class TextLine implements KryoSerializable {
 
     @Override
     public void read(Kryo kryo, Input in) {
+        commit = in.readInt();
         serial = in.readLong();
         text = in.readString();
         departure_ts = in.readLong();
@@ -63,6 +72,7 @@ public class TextLine implements KryoSerializable {
 
     @Override
     public void write(Kryo kryo, Output out) {
+        out.writeInt(commit);
         out.writeLong(serial);
         out.writeString(text);
         out.writeLong(departure_ts >= 0 ? departure_ts : (departure_ts = System.currentTimeMillis()));

@@ -24,6 +24,7 @@ import swift.crdt.interfaces.CachePolicy;
 import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.SwiftSession;
 import sys.Sys;
+import sys.utils.Threading;
 
 /**
  * 
@@ -58,16 +59,27 @@ public class SwiftDocBenchmark {
         logger.info("Initializing the system");
 
         Sys.init();
+        SwiftOptions options = new SwiftOptions(dcName, dcPort);
+        options.setConcurrentOpenTransactions(true);
+        options.setDisasterSafe(false);
 
-        SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, dcPort));
-        SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName, dcPort));
+        final SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(options);
+        final SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(options);
 
         if (clientId == 1) {
             logger.info("Starting client 1");
-            SwiftDoc.runClient1(swift1, swift2);
+            SwiftDoc.runClient1(swift1);
         } else if (clientId == 2) {
             logger.info("Starting client 2");
-            SwiftDoc.runClient2(swift1, swift2);
+            SwiftDoc.runClient2(swift2);
+        } else {
+
+            Threading.newThread(true, new Runnable() {
+                public void run() {
+                    SwiftDoc.runClient2(swift1);
+                }
+            }).start();
+            SwiftDoc.runClient1(swift2);
         }
 
         // Threading.newThread(true, new Runnable() {

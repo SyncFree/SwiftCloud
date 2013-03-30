@@ -24,10 +24,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 
 import swift.crdt.CRDTIdentifier;
+import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;
 import swift.proto.UpdatesNotification;
+import sys.RpcServices;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -53,19 +55,17 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
     final Set<CRDTIdentifier> removals = new ConcurrentSkipListSet<CRDTIdentifier>();
 
     final Map<Long, UnsubscribeUpdatesRequest> updates = new ConcurrentHashMap<Long, UnsubscribeUpdatesRequest>();
-    RpcHandler replyHandler;
 
     List<Integer> gots = new ArrayList<Integer>();
-    boolean bound2dc = false;
+    final RpcHandler handler;
 
     public ScoutPubSubService(final String clientId, RpcEndpoint endpoint, Endpoint surrogate) {
         this.clientId = clientId;
-        this.endpoint = endpoint;
         this.surrogate = surrogate;
 
-        this.replyHandler = new SwiftProtocolHandler() {
+        this.handler = new SwiftProtocolHandler() {
             protected void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {
-                bound2dc = true;
+                Thread.dumpStack();
                 // System.err.println(ack.getId());
             }
 
@@ -74,10 +74,14 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
             }
         };
 
+        this.endpoint = endpoint.getFactory().toService(RpcServices.PUBSUB.ordinal(), handler);
+
         this.fifoQueue = new FifoQueue<UpdatesNotification>() {
             public void process(UpdatesNotification p) {
                 gots.add(p.seqN());
-                // System.err.println(gots);
+                for (ObjectUpdatesInfo i : p.getRecords()[0].info())
+                    System.err.println(p.seqN() + "--->" + i.getId() + "   " + i.getUpdates().size());
+
                 for (CommitNotification r : p.getRecords())
                     ScoutPubSubService.this.notify(r.info.keySet(), r);
             }
@@ -104,13 +108,11 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNot
 
     Task updater = new Task(3) {
         public void run() {
-            if (removals.size() > 0 || !bound2dc) {
+            if (removals.size() > 0) {
                 UnsubscribeUpdatesRequest req = new UnsubscribeUpdatesRequest(0L, clientId, removals);
-                endpoint.send(surrogate, req, replyHandler, 0);
+                endpoint.send(surrogate, req, handler, 0);
                 removals.clear();
             }
-            if (!bound2dc)
-                reSchedule(1);
         }
     };
 }

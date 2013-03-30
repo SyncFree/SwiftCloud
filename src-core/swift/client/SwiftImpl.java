@@ -79,6 +79,7 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.ObjectUpdatesInfo;
+import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.CommitNotification;
 import swift.pubsub.ScoutPubSubService;
 import swift.utils.DummyLog;
@@ -286,11 +287,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.objectSessionsUpdateSubscriptions = new HashMap<CRDTIdentifier, Map<String, UpdateSubscriptionWithListener>>();
         this.uncommittedUpdatesObjectsToNotify = new HashMap<TimestampMapping, Set<CRDTIdentifier>>();
 
-        this.executorService = Executors.newFixedThreadPool(32, Threading.factory("Client"));
+        this.executorService = Executors.newFixedThreadPool(8, Threading.factory("Client"));
+
+        localEndpoint.setHandler(new SwiftProtocolHandler());
 
         this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint()) {
-            synchronized public void notify(Set<CRDTIdentifier> ids, CommitNotification info) {
+            public void notify(final Set<CRDTIdentifier> ids, final CommitNotification info) {
                 processDcNotification(ids, info);
+                // executorService.execute(new Runnable() {
+                // public void run() {
+                // processDcNotification(ids, info);
+                // }
+                // });
             }
         };
 
@@ -1007,7 +1015,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
         }
-        // System.err.printf("Committed Version:---->%s\n",
+        // System.err.printf("My CLOCK:---->%s\n",
         // getGlobalCommittedVersion(false));
         // System.err.printf("Read: %s  --------------->%s\n",
         // subscription.readVersion, Arrays.asList(timestampMappings));
@@ -1017,6 +1025,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // tm.anyTimestampIncluded(subscription.readVersion));
         // if (tm.anyTimestampIncluded(getGlobalCommittedVersion(false))
         // || tm.anyTimestampIncluded(lastLocallyCommittedTxnClock)) {
+        // System.err.println("SwiftImpl.preNotify:" + id);
         // executorService.execute(subscription.generateNotificationAndDiscard(this,
         // id));
         // return;
@@ -1289,7 +1298,25 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), new BatchCommitUpdatesRequest(
                 scoutId, requests));
 
-        if (batchReply == null || batchReply.getReplies().size() != requests.size()) {
+        // final AtomicReference<BatchCommitUpdatesReply> rep = new
+        // AtomicReference<BatchCommitUpdatesReply>();
+        // localEndpoint.send(serverEndpoint(), new
+        // BatchCommitUpdatesRequest(scoutId, requests),
+        // new SwiftProtocolHandler() {
+        // protected void onReceive(RpcHandle conn, BatchCommitUpdatesReply r) {
+        // rep.set(r);
+        // System.err.println("Got commit reply...");
+        // Threading.synchronizedNotifyAllOn(rep);
+        // }
+        // });
+        //
+        // Threading.synchronizedWaitOn(rep);
+        // BatchCommitUpdatesReply batchReply = rep.get();
+
+        if (batchReply == null) {
+            throw new IllegalStateException("Fatal error: server returned null on commit");
+        }
+        if (batchReply != null && batchReply.getReplies().size() != requests.size()) {
             throw new IllegalStateException("Fatal error: server returned " + batchReply.getReplies().size() + " for "
                     + requests.size() + " commit requests!");
         }

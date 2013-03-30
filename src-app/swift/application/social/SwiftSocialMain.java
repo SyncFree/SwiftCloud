@@ -96,7 +96,7 @@ public class SwiftSocialMain {
 
         List<String> users = Workload.populate(numUsers);
 
-        // initUsers(options, users, new AtomicInteger(), numUsers);
+        initUsers(options, users, new AtomicInteger(), numUsers);
 
         System.out.println("Waiting for 3 seconds...");
 

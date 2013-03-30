@@ -22,6 +22,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -38,6 +40,10 @@ import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
+import swift.exceptions.NetworkException;
+import swift.exceptions.NoSuchObjectException;
+import swift.exceptions.VersionNotFoundException;
+import swift.exceptions.WrongTypeException;
 import sys.Sys;
 import sys.utils.Threading;
 
@@ -53,8 +59,8 @@ public class SwiftDoc {
     static IsolationLevel isolationLevel = IsolationLevel.REPEATABLE_READS;
     static CachePolicy cachePolicy = CachePolicy.CACHED;
     static boolean notifications = true;
-    static CRDTIdentifier j1 = new CRDTIdentifier("doc", "1");
-    static CRDTIdentifier j2 = new CRDTIdentifier("doc", "2");
+    public static CRDTIdentifier j1 = new CRDTIdentifier("doc", "1");
+    public static CRDTIdentifier j2 = new CRDTIdentifier("doc", "2");
 
     public static void main(String[] args) {
         System.out.println("SwiftDoc start!");
@@ -66,15 +72,17 @@ public class SwiftDoc {
 
         final SwiftOptions options = new SwiftOptions("localhost", DCConstants.SURROGATE_PORT);
         options.setDisasterSafe(false);
+        options.setConcurrentOpenTransactions(true);
+
+        final SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                DCConstants.SURROGATE_PORT));
+        final SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
+                DCConstants.SURROGATE_PORT));
 
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
-                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
-                        DCConstants.SURROGATE_PORT));
-                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
-                        DCConstants.SURROGATE_PORT));
-                runClient1(swift1, swift2);
+                runClient1(swift1);
             }
         }).start();
 
@@ -83,24 +91,20 @@ public class SwiftDoc {
         Threading.newThread("client2", true, new Runnable() {
             public void run() {
                 Sys.init();
-                SwiftSession swift1 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
-                        DCConstants.SURROGATE_PORT));
-                SwiftSession swift2 = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
-                        DCConstants.SURROGATE_PORT));
-                runClient2(swift1, swift2);
+                runClient2(swift2);
             }
         }).start();
     }
 
-    static void runClient1(SwiftSession swift1, SwiftSession swift2) {
-        client1code(swift1, swift2);
+    static void runClient1(SwiftSession swift1) {
+        client1code(swift1);
     }
 
-    static void runClient2(SwiftSession swift1, SwiftSession swift2) {
-        client2code(swift1, swift2);
+    static void runClient2(SwiftSession swift2) {
+        client2code(swift2);
     }
 
-    static void client1code(final SwiftSession swift1, final SwiftSession swift2) {
+    static void client1code(final SwiftSession swift1) {
         try {
             final AtomicBoolean done = new AtomicBoolean(false);
             final Map<Long, TextLine> samples = new HashMap<Long, TextLine>();
@@ -109,18 +113,14 @@ public class SwiftDoc {
             Threading.newThread(true, new Runnable() {
                 public void run() {
                     try {
-                        for (int k = 0; !done.get(); k++) {
-                            final TxnHandle handle = swift2.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
-                                    : CachePolicy.CACHED, false);
+                        while (!done.get()) {
+                            final TxnHandle handle = swift1.beginTxn(isolationLevel, CachePolicy.CACHED, true);
 
-                            @SuppressWarnings("unchecked")
-                            SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class,
+                            SequenceTxnLocal<TextLine> doc = getDoc(handle, j2, false,
                                     new AbstractObjectUpdatesListener() {
                                         public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id,
                                                 TxnLocalCRDT<?> previousValue) {
-                                            // System.err.printf("Triggered Reader get(%s): %s\n",
-                                            // j2,
-                                            // previousValue.getValue());
+                                            System.err.printf("CLIENT 1");
                                             semaphore.release();
                                         }
                                     });
@@ -139,19 +139,18 @@ public class SwiftDoc {
                 }
             }).start();
 
-            Threading.sleep(5000);
-
             SwiftDocPatchReplay<TextLine> player = new SwiftDocPatchReplay<TextLine>();
 
             player.parseFiles(new SwiftDocOps<TextLine>() {
                 TxnHandle handle = null;
                 SequenceTxnLocal<TextLine> doc = null;
+                int cm = 0;
 
                 @Override
                 public void begin() {
                     try {
                         handle = swift1.beginTxn(isolationLevel, cachePolicy, false);
-                        doc = handle.get(j1, true, swift.crdt.SequenceVersioned.class, null);
+                        doc = getDoc(handle, j1, true, null);
                     } catch (Throwable e) {
                         e.printStackTrace();
                         System.exit(0);
@@ -179,19 +178,20 @@ public class SwiftDoc {
 
                 @Override
                 public void commit() {
+                    cm++;
                     handle.commit();
-                    Threading.sleep(50);
                 }
 
                 @Override
                 public TextLine gen(String s) {
-                    return new TextLine(s);
+                    return new TextLine(s, cm);
                 }
             });
             done.set(true);
+            Threading.sleep(5000);
 
             for (TextLine i : new ArrayList<TextLine>(samples.values()))
-                System.out.printf("%s\n", i.latency());
+                System.out.printf("%s\t%s\n", i.latency(), i.commit);
 
             System.exit(0);
         } catch (Exception e) {
@@ -199,57 +199,50 @@ public class SwiftDoc {
         }
     }
 
-    static void client2code(final SwiftSession swift1, final SwiftSession swift2) {
+    static ExecutorService executor = Executors.newFixedThreadPool(1);
+
+    static void client2code(final SwiftSession swift2) {
         try {
             final Set<Long> serials = new HashSet<Long>();
             final Semaphore barrier = new Semaphore(0);
 
-            for (int k = 0;; k++) {
-                final TxnHandle handle = swift1.beginTxn(isolationLevel, k == 0 ? CachePolicy.MOST_RECENT
-                        : CachePolicy.CACHED, true);
+            for (;;) {
+                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
+                SequenceTxnLocal<TextLine> doc = getDoc(handle, j1, false, new AbstractObjectUpdatesListener() {
+                    public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+                        // System.err.printf("CLIENT 2: %s\n", j1);
+                        barrier.release();
+                    }
+                });
 
-                SequenceTxnLocal<TextLine> doc = handle.get(j1, true, swift.crdt.SequenceVersioned.class,
-                        new AbstractObjectUpdatesListener() {
-                            public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
-                                // System.err.printf("previous: %s, %s\n", j1,
-                                // previousValue.getValue());
-                                barrier.release();
+                final SequenceTxnLocal<TextLine> doc2 = doc;
+                executor.execute(new Runnable() {
+                    public void run() {
+                        try {
+                            Collection<TextLine> newAtoms = new ArrayList<TextLine>();
+                            synchronized (serials) {
+                                for (TextLine i : doc2.getValue()) {
+                                    if (serials.add(i.serial())) {
+                                        newAtoms.add(i);
+                                    }
+                                }
                             }
-                        });
-
-                System.err.println(doc.getValue());
-                // Determine the new atoms this update brought...
-                final Collection<TextLine> newAtoms = new ArrayList<TextLine>();
-                synchronized (serials) {
-                    for (TextLine i : doc.getValue()) {
-                        if (serials.add(i.serial())) {
-                            newAtoms.add(i);
+                            System.err.println("------->" + newAtoms.size());
+                            TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
+                            SequenceTxnLocal<TextLine> doc3 = getDoc(handle, j2, true, null);
+                            for (TextLine i : newAtoms)
+                                doc3.insertAt(doc3.size(), i);
+                            handle.commit();
+                        } catch (Exception x) {
+                            x.printStackTrace();
                         }
                     }
-                }
+                });
                 handle.commit();
 
-                // Wait for the notification, before reading the new value of
+                // Wait for the notification, before reading again the new value
+                // of
                 // the sequence...
-
-                // Write the atoms into the other sequence to measure RTT...
-                Threading.newThread(true, new Runnable() {
-                    public void run() {
-                        synchronized (serials) {// wait for the previous
-                                                // transaction to complete...
-                            try {
-                                final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-                                SequenceTxnLocal<TextLine> doc2 = handle.get(j2, true,
-                                        swift.crdt.SequenceVersioned.class, null);
-                                for (TextLine i : newAtoms)
-                                    doc2.insertAt(doc2.size(), i);
-                                handle.commit();
-                            } catch (Exception x) {
-                                x.printStackTrace();
-                            }
-                        }
-                    }
-                }).start();
                 barrier.acquireUninterruptibly();
             }
 
@@ -257,5 +250,19 @@ public class SwiftDoc {
             e.printStackTrace();
         }
 
+    }
+
+    @SuppressWarnings("unchecked")
+    static SequenceTxnLocal<TextLine> getDoc(TxnHandle handle, CRDTIdentifier id, boolean create,
+            AbstractObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException,
+            VersionNotFoundException, NetworkException {
+
+        for (;;) {
+            try {
+                return handle.get(id, create, swift.crdt.SequenceVersioned.class, listener);
+            } catch (Exception x) {
+                Threading.sleep(10);
+            }
+        }
     }
 }

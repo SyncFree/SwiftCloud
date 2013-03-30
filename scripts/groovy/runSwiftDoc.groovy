@@ -14,10 +14,8 @@ Surrogates = [
     'peeramide.irisa.fr'
 ]
 
-
-
 Scouts = [
-"planetlab1.di.fct.unl.pt"    
+"planetlab1.di.fct.unl.pt","planetlab2.di.fct.unl.pt"    
 ]
 
 AllMachines = (Surrogates + Scouts).unique()
@@ -38,7 +36,7 @@ SwiftDoc.runEachAsDatacentre(Surrogates, "256m", "512m")
 Sleep(10)
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
-SwiftDoc.runStandaloneScouts( Scouts, Surrogates.get(0),  "1", "REPEATABLE_READS", "CACHED", "true" )
+SwiftDoc.runStandaloneScouts( Scouts, Surrogates.get(0), "1", "REPEATABLE_READS", "CACHED", "true" )
 
 
 Countdown( "Remaining: ", Duration + 30)

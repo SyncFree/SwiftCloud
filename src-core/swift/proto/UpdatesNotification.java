@@ -31,7 +31,7 @@ import sys.net.api.rpc.RpcMessage;
 public class UpdatesNotification implements RpcMessage {
 
     protected int seqN;
-    protected List<CommitNotification> records;
+    protected CommitNotification[] records;
 
     /**
      * For Kryo, do NOT use.
@@ -41,14 +41,19 @@ public class UpdatesNotification implements RpcMessage {
 
     public UpdatesNotification(int seqN, List<CommitNotification> records) {
         this.seqN = seqN;
-        this.records = records;
+        this.records = records.toArray(new CommitNotification[records.size()]);
+    }
+
+    public UpdatesNotification(int seqN, CommitNotification record) {
+        this.seqN = seqN;
+        this.records = new CommitNotification[] { record };
     }
 
     public int seqN() {
         return seqN;
     }
 
-    public List<CommitNotification> getRecords() {
+    public CommitNotification[] getRecords() {
         return records;
     }
 

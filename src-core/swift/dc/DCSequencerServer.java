@@ -40,7 +40,6 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
-import swift.dc.db.DCKryoFileDatabase;
 import swift.dc.db.DCNodeDatabase;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
@@ -57,8 +56,6 @@ import sys.net.api.rpc.RpcHandle;
 import sys.utils.Threading;
 
 /**
- * Single server replying to client request. This class is used only to allow
- * client testing.
  * 
  * @author nmp
  * 
@@ -167,14 +164,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
     void initDB(Properties props) {
         try {
-            String dbFile = props.getProperty(DCKryoFileDatabase.DB_PROPERTY);
-            if (dbFile == null)
-                dbFile = "kryoDB";
-            props.setProperty(DCKryoFileDatabase.DB_PROPERTY, dbFile + "-seq.db");
-
-            dbServer = new DCKryoFileDatabase();
-            // dbServer = (DCNodeDatabase)
-            // Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
         } catch (Exception e) {
             throw new RuntimeException("Cannot start underlying database", e);
         }
@@ -451,8 +441,10 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, Timestamp cltTs, boolean commit) {
         boolean hasTS = pendingTS.remove(t) != null
                 || ((!t.getIdentifier().equals(this.siteId)) && !currentState.includes(t));
+
         currentState.merge(clk); // nmp: not sure why is this here
         currentState.record(t);
+        clientClock.record(cltTs);
         if (sequencers.size() == 0 || !siteId.equals(t.getIdentifier())) // HACK:
                                                                          // Stable
                                                                          // is
@@ -467,7 +459,6 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                                                                          // DC.
             stableClock.record(t);
 
-        clientClock.record(cltTs);
         return hasTS;
     }
 
@@ -489,23 +480,13 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             }
         }
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
-        synchronized (this) {// smd. sync on currentstate is not correct with
-                             // other exclusive uses...
+        synchronized (this) {
             cmp = currentState.compareTo(request.getDependencyClk());
         }
         if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
 
             conn.reply(new GenerateDCTimestampReply(generateNewId(),
                     clientClock.getLatestCounter(request.getClientId())));
-
-            // HACK to use client based version vectors...
-            // Timestamp ts = new Timestamp("SEQ" +
-            // request.getCltTimestamp().getIdentifier(),
-            // request.getCltTimestamp()
-            // .getCounter());
-            //
-            // conn.reply(new GenerateDCTimestampReply(siteId, ts,
-            // clientClock.getLatestCounter(request.getClientId())));
 
             return true;
         } else {
@@ -586,6 +567,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getTimestamp(),
                 request.getCltTimestamp(), request.getPrvCltTimestamp()));
+
         Threading.synchronizedNotifyAllOn(pendingOps);
 
         dbServer.writeSysData("SYS_TABLE", "CLK", currentState);

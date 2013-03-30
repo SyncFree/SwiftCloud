@@ -16,6 +16,8 @@
  *****************************************************************************/
 package sys;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
@@ -42,6 +44,18 @@ public class Sys {
     public String mainClass;
 
     private String datacenter = "*";
+
+    Map<String, Long> marks = new HashMap<String, Long>();
+
+    public void startWatch(String mark) {
+        marks.put(mark, System.currentTimeMillis());
+    }
+
+    public long stopWatch(String mark) {
+        Long val = marks.get(mark);
+        val = val == null ? 0 : val;
+        return System.currentTimeMillis() - val.longValue();
+    }
 
     public double currentTime() {
         return (System.nanoTime() - T0n) * NANOSECOND;
