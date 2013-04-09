@@ -340,6 +340,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             txnOK = txnOK && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(i.getDependency());
+                System.err.println(i.getTargetUID() + "--->" + i.getDependency() + "/ " + estimatedDCVersion);
             }
             pos++;
         }
