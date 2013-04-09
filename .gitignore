@@ -7,3 +7,7 @@ swiftcloud.pem
 /swiftsocial-test.props
 /stuff
 /results
+/kryoDB-data.db
+/kryoDB-seq.db
+/.settings
+/.gitignore
