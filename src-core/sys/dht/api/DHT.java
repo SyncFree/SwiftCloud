@@ -114,6 +114,11 @@ public interface DHT {
          * @return true/false if the reply was successful or failed
          */
         boolean reply(final DHT.Reply msg, final DHT.ReplyHandler handler);
+
+        /**
+         * @return the endpoint of the node associated with the request...
+         */
+        Endpoint remoteEndpoint();
     }
 
     abstract class AbstractReplyHandler implements ReplyHandler {

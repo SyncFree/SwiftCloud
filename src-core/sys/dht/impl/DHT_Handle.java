@@ -20,6 +20,7 @@ import sys.dht.api.DHT;
 import sys.dht.api.DHT.Reply;
 import sys.dht.api.DHT.ReplyHandler;
 import sys.dht.impl.msgs.DHT_RequestReply;
+import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcHandle;
 
 public class DHT_Handle implements DHT.Handle {
@@ -45,5 +46,10 @@ public class DHT_Handle implements DHT.Handle {
     @Override
     public boolean reply(Reply msg, ReplyHandler handler) {
         throw new RuntimeException("Not implemented");
+    }
+
+    @Override
+    public Endpoint remoteEndpoint() {
+        return handle.remoteEndpoint();
     }
 }

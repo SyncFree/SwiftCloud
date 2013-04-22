@@ -33,7 +33,7 @@ import sys.net.api.rpc.RpcHandler;
 public class UnsubscribeUpdatesRequest extends ClientRequest {
 
     protected long id;
-    protected Collection<CRDTIdentifier> removals;
+    protected Collection<CRDTIdentifier> unsubscriptions;
 
     /**
      * For Kryo, do NOT use.
@@ -44,7 +44,7 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
     public UnsubscribeUpdatesRequest(long id, String clientId, Set<CRDTIdentifier> removals) {
         super(clientId);
         this.id = id;
-        this.removals = new ArrayList<CRDTIdentifier>(removals);
+        this.unsubscriptions = new ArrayList<CRDTIdentifier>(removals);
     }
 
     public long getId() {
@@ -52,7 +52,7 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
     }
 
     public Set<CRDTIdentifier> getUnSubscriptions() {
-        return new HashSet<CRDTIdentifier>(removals);
+        return new HashSet<CRDTIdentifier>(unsubscriptions);
     }
 
     @Override

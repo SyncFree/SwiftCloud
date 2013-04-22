@@ -67,7 +67,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
     @Override
     synchronized public RpcEndpoint toService(final int service, final RpcHandler handler) {
-        RpcEndpoint res = getHandler((long) service, false);
+        RpcPacket res = getHandler((long) service, false);
         if (res == null)
             res = new RpcPacket(this, service, handler);
         return res;

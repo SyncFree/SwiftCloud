@@ -22,7 +22,6 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -80,8 +79,9 @@ import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
-import swift.pubsub.CommitNotification;
 import swift.pubsub.ScoutPubSubService;
+import swift.pubsub.SnapshotNotification;
+import swift.pubsub.UpdateNotification;
 import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
@@ -185,7 +185,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     // A clock that advances with atomic causal notifications received from the
     // surrogate
-    private final CausalityClock causalNotificationsClock;
+    private final CausalityClock causalSnapshot;
 
     // A clock known to be committed at the store.
     private final CausalityClock committedVersion;
@@ -274,7 +274,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedDisasterDurableVersion = ClockFactory.newClock();
-        this.causalNotificationsClock = ClockFactory.newClock();
+        this.causalSnapshot = ClockFactory.newClock();
 
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
@@ -292,19 +292,21 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         localEndpoint.setHandler(new SwiftProtocolHandler());
 
         this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint()) {
-            public void notify(final Set<CRDTIdentifier> ids, final CommitNotification info) {
-                processDcNotification(ids, info);
-                // executorService.execute(new Runnable() {
-                // public void run() {
-                // processDcNotification(ids, info);
-                // }
-                // });
+            public void onNotification(final UpdateNotification update) {
+                applyObjectUpdates(update.info);
+            }
+
+            public void onNotification(final SnapshotNotification n) {
+                synchronized (SwiftImpl.this) {
+                    causalSnapshot.merge(n.snapshotClock());
+                    System.err.println(n.timestamp());
+                }
             }
         };
 
         this.objectsCache.setEvictionListener(new EvictionListener() {
             public void onEviction(CRDTIdentifier id) {
-                suPubSub.unsubscribe(id, null);
+                suPubSub.unsubscribe(id);
             }
         });
 
@@ -400,7 +402,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (options.assumeAtomicCausalNotifications() && cachePolicy == CachePolicy.CACHED) {
                 synchronized (SwiftImpl.this) {
                     snapshotClock = getGlobalCommittedVersion(true);
-                    snapshotClock.merge(causalNotificationsClock);
+                    snapshotClock.merge(causalSnapshot);
                 }
             } else {
                 if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -761,7 +763,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         if (subscribeUpdates)
-            suPubSub.subscribe(id, null);
+            suPubSub.subscribe(id, suPubSub);
         else
             subscribeUpdates = suPubSub.isSubscribed(id);
 
@@ -936,8 +938,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     /**
      * @return true if subscription should be continued for this object
      */
-    private synchronized void applyObjectUpdates(final CRDTIdentifier id, final CausalityClock dependencyClock,
-            final List<CRDTObjectUpdatesGroup<?>> ops, final CausalityClock outputClock, final CausalityClock pruneClock) {
+    private synchronized void applyObjectUpdates(ObjectUpdatesInfo update) {
+
+        final CRDTIdentifier id = update.getId();
+        final CausalityClock outputClock = update.getNewClock();
+        final CausalityClock dependencyClock = update.getOldClock();
+        final List<CRDTObjectUpdatesGroup<?>> ops = update.getUpdates();
+
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
@@ -1006,7 +1013,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
         }
         crdt.getClock().merge(outputClock);
-        crdt.prune(pruneClock, true);
+        crdt.prune(update.getPruneClock(), true);
     }
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id,
@@ -1530,37 +1537,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             };
         }
-    }
-
-    private void processDcNotification(Set<CRDTIdentifier> ids, CommitNotification notification) {
-
-        Collection<ObjectUpdatesInfo> updates = notification.info();
-
-        if (logger.isLoggable(Level.INFO)) {
-
-            logger.info("notifications received for " + ids.size() + " objects" + ";vrs=" + notification.currVersion
-                    + ";stable=" + notification.stableVersion);
-
-            // if (info.size() > 0) {
-            // ObjectSubscriptionInfo sub =
-            // notifications.getSubscriptions().get(0);
-            // logger.info("notifications received in " + scoutId + " for " +
-            // sub.getId() + "; old clk: "
-            // + sub.getOldClock() + "; new clk " + sub.getNewClock());
-            // }
-        }
-        updateCommittedVersions(notification.currVersion, notification.stableVersion);
-
-        synchronized (causalNotificationsClock) {
-            causalNotificationsClock.merge(notification.currVersion);
-        }
-
-        for (final ObjectUpdatesInfo i : updates)
-            applyObjectUpdates(i.getId(), i.getOldClock(), i.getUpdates(), i.getNewClock(), i.getPruneClock());
-
-        // synchronized (SwiftImpl.this) {
-        // objectsCache.augmentWithCausalClock(causalNotificationsClock);
-        // }
     }
 
     @Override

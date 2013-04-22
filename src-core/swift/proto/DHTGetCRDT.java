@@ -28,9 +28,10 @@ import sys.dht.api.DHT;
  */
 public class DHTGetCRDT implements DHT.Message {
 
-    String cltId;
+    String clientId;
     CRDTIdentifier id;
     CausalityClock version;
+    boolean subscribeUpdates;
 
     /**
      * Needed for Kryo serialization
@@ -38,11 +39,12 @@ public class DHTGetCRDT implements DHT.Message {
     DHTGetCRDT() {
     }
 
-    public DHTGetCRDT(String cltId, CRDTIdentifier id, CausalityClock version) {
+    public DHTGetCRDT(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
         super();
         this.id = id;
-        this.cltId = cltId;
         this.version = version;
+        this.clientId = clientId;
+        this.subscribeUpdates = subscribeUpdates;
     }
 
     public CRDTIdentifier getId() {
@@ -53,12 +55,16 @@ public class DHTGetCRDT implements DHT.Message {
         return version;
     }
 
-    public String getCltId() {
-        return cltId;
+    public boolean subscribesUpdates() {
+        return subscribeUpdates;
     }
 
     @Override
     public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler handler) {
         ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
+    }
+
+    public String getCltId() {
+        return clientId;
     }
 }

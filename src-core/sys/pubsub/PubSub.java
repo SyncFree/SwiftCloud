@@ -18,23 +18,39 @@ package sys.pubsub;
 
 import java.util.Set;
 
-public interface PubSub<K, P> {
+public interface PubSub<T> {
 
-    interface Handler<K, P> {
-        void notify(final K key, final P info);
+    interface Notifyable<T> {
 
-        void notify(final Set<K> key, final P info);
+        Object src();
+
+        void notifyTo(PubSub<T> pubsub);
     }
 
-    void publish(K key, P info);
+    interface Subscriber<T> {
 
-    void publish(Set<K> key, P info);
+        void onNotification(final Notifyable<T> info);
 
-    void subscribe(K key, Handler<K, P> handler);
+    }
 
-    void subscribe(Set<K> key, Handler<K, P> handler);
+    interface Publisher<T, P extends Notifyable<T>> {
 
-    void unsubscribe(K key, Handler<K, P> handler);
+        void publish(P info);
+    }
 
-    void unsubscribe(Set<K> keys, Handler<K, P> handler);
+    boolean subscribe(T key, Subscriber<T> handler);
+
+    boolean subscribe(Set<T> keys, Subscriber<T> handler);
+
+    boolean unsubscribe(T key, Subscriber<T> handler);
+
+    boolean unsubscribe(Set<T> keys, Subscriber<T> handler);
+
+    Set<Subscriber<T>> subscribers(T key, boolean clone);
+
+    Set<Subscriber<T>> subscribers(Set<T> keys);
+
+    boolean isSubscribed(T key);
+
+    boolean isSubscribed(T key, Subscriber<T> handler);
 }

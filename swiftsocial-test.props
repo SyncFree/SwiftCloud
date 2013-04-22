@@ -1,5 +1,5 @@
 swift.AsyncCommit=true
-swift.Notifications=false
+swift.Notifications=true
 swift.CachePolicy=CACHED
 swift.IsolationLevel=REPEATABLE_READS
 swift.cacheEvictionTimeMillis=5000000

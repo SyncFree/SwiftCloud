@@ -19,6 +19,7 @@ package swift.dc;
 import static sys.net.api.Networking.Networking;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -57,14 +57,15 @@ import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;
-import swift.proto.UpdatesNotification;
-import swift.pubsub.CommitNotification;
-import swift.pubsub.DcPubSubService;
+import swift.pubsub.SnapshotNotification;
+import swift.pubsub.SurrogatePubSubService;
+import swift.pubsub.SwiftSubscriber;
+import swift.pubsub.UpdateNotification;
 import sys.RpcServices;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.pubsub.impl.AbstractPubSub;
+import sys.pubsub.RemoteSubscriber;
 //import swift.client.proto.FastRecentUpdatesReply;
 //import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 //import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
@@ -90,13 +91,11 @@ class DCSurrogate extends SwiftProtocolHandler {
     CausalityClock estimatedDCVersion; // estimate of current DC state
     CausalityClock estimatedDCStableVersion; // estimate of current DC state
 
-    DcPubSubService dcPubSub;
-    ExecutorService sequencerCommitExecutor = Executors.newCachedThreadPool();
+    SurrogatePubSubService suPubSub;
+    ExecutorService executor = Executors.newCachedThreadPool();
 
     DCSurrogate(int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
         this.surrogateId = "s" + System.nanoTime();
-
-        initData(props);
 
         this.sequencerServerEndpoint = sequencerEndpoint;
         this.cltEndpoint4Sequencer = Networking.rpcConnect().toDefaultService();
@@ -108,6 +107,11 @@ class DCSurrogate extends SwiftProtocolHandler {
         srvEndpoint4Clients.setHandler(this);
         srvEndpoint4Sequencer.setHandler(this);
 
+        suPubSub = new SurrogatePubSubService(executor, endpoint4PubSub);
+        dataServer = new DCDataServer(this, props, endpoint4PubSub, suPubSub);
+
+        initData(props);
+
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Server ready...");
         }
@@ -116,7 +120,6 @@ class DCSurrogate extends SwiftProtocolHandler {
     private void initData(Properties props) {
         estimatedDCVersion = ClockFactory.newClock();
         estimatedDCStableVersion = ClockFactory.newClock();
-        dataServer = new DCDataServer(this, props);
 
         // HACK HACK
         CausalityClock clk = (CausalityClock) dataServer.dbServer.readSysData("SYS_TABLE", "CURRENT_CLK");
@@ -127,7 +130,6 @@ class DCSurrogate extends SwiftProtocolHandler {
         }
 
         System.err.println("EstimatedDCVersion: " + estimatedDCVersion);
-        dcPubSub = new DcPubSubService();
     }
 
     String getId() {
@@ -178,8 +180,8 @@ class DCSurrogate extends SwiftProtocolHandler {
      * @param subscribe
      *            Subscription type
      */
-    CRDTObject getCRDT(CRDTIdentifier id, CausalityClock clk, String cltId) {
-        return dataServer.getCRDT(id, clk, cltId); // call DHT server
+    CRDTObject getCRDT(CRDTIdentifier id, CausalityClock clk, String clientId) {
+        return dataServer.getCRDT(id, clk, clientId, suPubSub.isSubscribed(id));
     }
 
     @Override
@@ -340,7 +342,6 @@ class DCSurrogate extends SwiftProtocolHandler {
             txnOK = txnOK && results[pos].isResult();
             synchronized (estimatedDCVersion) {
                 estimatedDCVersion.merge(i.getDependency());
-                System.err.println(i.getTargetUID() + "--->" + i.getDependency() + "/ " + estimatedDCVersion);
             }
             pos++;
         }
@@ -377,10 +378,11 @@ class DCSurrogate extends SwiftProtocolHandler {
                     logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
                 }
                 CommitUpdatesReply commitReply = new CommitUpdatesReply(reply.getCurrVersion(), txTs);
-                CommitNotification notification = new CommitNotification(session.clientId, results, snapshotClock,
-                        reply.getCurrVersion(), reply.getStableVersion());
 
-                dcPubSub.publish(notification.uids(), notification);
+                Set<CRDTIdentifier> uids = new HashSet<CRDTIdentifier>();
+                for (CRDTObjectUpdatesGroup<?> i : ops)
+                    uids.add(i.getTargetUID());
+                suPubSub.publish(new SnapshotNotification(req.getClientId(), uids, txTs, reply.getCurrVersion()));
 
                 return commitReply;
             }
@@ -426,7 +428,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             logger.info("SeqCommitUpdatesRequest timestamp = " + request.getTimestamp() + ";clt="
                     + request.getCltTimestamp());
         }
-        sequencerCommitExecutor.execute(new Runnable() {
+        executor.execute(new Runnable() {
             public void run() {
                 ClientSession session = getSession("Sequencer", null);
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
@@ -461,21 +463,17 @@ class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("UnsubscribeUpdatesRequest client = " + request.getClientId());
         }
-        Thread.dumpStack();
         getSession(request.getClientId(), handle).unsubscribe(request.getUnSubscriptions());
         handle.reply(new UnsubscribeUpdatesReply(request.getId()));
     }
 
-    class ClientSession extends AbstractPubSub<CRDTIdentifier, CommitNotification> {
-        long replyTime;
-        String clientId;
+    class ClientSession extends RemoteSubscriber implements SwiftSubscriber {
+        final String clientId;
         Timestamp lastSeqNo;
-        Endpoint cltEndpoint;
-        AtomicInteger fifoSeqN = new AtomicInteger(0);
 
         ClientSession(String clientId, RpcHandle handle) {
+            super(clientId, endpoint4PubSub, handle.remoteEndpoint());
             this.clientId = clientId;
-            this.cltEndpoint = handle.remoteEndpoint();
         }
 
         Timestamp getLastSeqNo() {
@@ -486,25 +484,22 @@ class DCSurrogate extends SwiftProtocolHandler {
             this.lastSeqNo = cltTs;
         }
 
-        /**
-         * Update client subscriptions
-         * 
-         */
-        synchronized void subscribe(CRDTIdentifier id) {
-            dcPubSub.subscribe(id, this);
+        void subscribe(CRDTIdentifier key) {
+            suPubSub.subscribe(key, this);
         }
 
-        /**
-         * Update client subscriptions
-         * 
-         */
-        synchronized void unsubscribe(Set<CRDTIdentifier> ids) {
-            dcPubSub.unsubscribe(ids, this);
+        void unsubscribe(Set<CRDTIdentifier> keys) {
+            suPubSub.unsubscribe(keys, this);
         }
 
         @Override
-        public void notify(Set<CRDTIdentifier> keys, CommitNotification data) {
-            endpoint4PubSub.send(cltEndpoint, new UpdatesNotification(fifoSeqN.getAndIncrement(), data));
+        public void onNotification(UpdateNotification update) {
+            super.onNotification(update);
+        }
+
+        @Override
+        public void onNotification(SnapshotNotification snapshot) {
+            super.onNotification(snapshot);
         }
     }
 

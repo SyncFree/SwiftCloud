@@ -24,6 +24,7 @@ import sys.dht.api.DHT.Reply;
 import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
+import sys.pubsub.PubSubNotification;
 
 /**
  * 
@@ -32,10 +33,6 @@ import sys.net.api.rpc.RpcMessage;
  */
 public class SwiftProtocolHandler extends AbstractRpcHandler implements DHT.ReplyHandler {
     private static Logger logger = Logger.getLogger(SwiftProtocolHandler.class.getName());
-
-    protected void onReceive(RpcHandle conn, UpdatesNotification request) {
-        Thread.dumpStack();
-    }
 
     protected void onReceive(RpcHandle conn, UnsubscribeUpdatesReply request) {
         Thread.dumpStack();
@@ -121,8 +118,13 @@ public class SwiftProtocolHandler extends AbstractRpcHandler implements DHT.Repl
         Thread.dumpStack();
     }
 
+    public void onReceive(RpcHandle conn, PubSubNotification notification) {
+        Thread.dumpStack();
+    }
+
     @Override
     public void onReceive(RpcMessage m) {
+        System.err.println("-------------------->" + getClass());
         logger.warning("unhandled RPC message " + m);
     }
 

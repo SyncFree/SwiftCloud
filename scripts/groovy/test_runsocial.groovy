@@ -9,7 +9,7 @@ def __ = onControlC({
 })
 
 Surrogates = [
-        "peeramide.irisa.fr",
+        "planet1.zib.de",
         ]
 
 PlanetLab_PT = [

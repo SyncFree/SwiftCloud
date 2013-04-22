@@ -16,50 +16,89 @@
  *****************************************************************************/
 package sys.pubsub.impl;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import sys.pubsub.PubSub;
+import sys.pubsub.PubSub.Notifyable;
+import sys.pubsub.PubSub.Publisher;
+import sys.pubsub.PubSub.Subscriber;
 
-public abstract class AbstractPubSub<K, P> implements PubSub<K, P>, PubSub.Handler<K, P> {
+public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Publisher<T, Notifyable<T>> {
 
-    @Override
-    public void publish(K key, P info) {
-        throw new RuntimeException();
+    final Map<Object, Set<Subscriber<T>>> subscribers;
+
+    protected AbstractPubSub() {
+        subscribers = new HashMap<Object, Set<Subscriber<T>>>();
     }
 
     @Override
-    public void publish(Set<K> key, P info) {
-        throw new RuntimeException();
+    public void publish(Notifyable<T> info) {
+        info.notifyTo(this);
     }
 
     @Override
-    public void subscribe(K key, sys.pubsub.PubSub.Handler<K, P> handler) {
-        throw new RuntimeException();
+    public void onNotification(Notifyable<T> info) {
+        Thread.dumpStack();
     }
 
     @Override
-    public void subscribe(Set<K> key, sys.pubsub.PubSub.Handler<K, P> handler) {
-        throw new RuntimeException();
+    synchronized public boolean subscribe(T key, Subscriber<T> subscriber) {
+        Set<Subscriber<T>> res = subscribers.get(key);
+        if (res == null)
+            subscribers.put(key, res = new HashSet<Subscriber<T>>());
+
+        return res.add(subscriber);
     }
 
     @Override
-    public void unsubscribe(K key, sys.pubsub.PubSub.Handler<K, P> handler) {
-        throw new RuntimeException();
+    synchronized public boolean unsubscribe(T key, Subscriber<T> subscriber) {
+        Set<Subscriber<T>> ss = subscribers.get(key);
+        return ss != null && ss.remove(subscriber) && ss.isEmpty();
     }
 
     @Override
-    public void unsubscribe(Set<K> key, sys.pubsub.PubSub.Handler<K, P> handler) {
-        throw new RuntimeException();
+    synchronized public boolean subscribe(Set<T> keys, Subscriber<T> Subscriber) {
+        boolean changed = false;
+        for (T i : keys)
+            changed |= subscribe(i, Subscriber);
+
+        return changed;
     }
 
     @Override
-    public void notify(K key, P info) {
-        throw new RuntimeException();
+    synchronized public boolean unsubscribe(Set<T> keys, Subscriber<T> subscriber) {
+        boolean changed = false;
+        for (T i : keys)
+            changed |= unsubscribe(i, subscriber);
+        return changed;
     }
 
     @Override
-    public void notify(Set<K> key, P info) {
-        throw new RuntimeException();
+    public synchronized Set<Subscriber<T>> subscribers(T key, boolean clone) {
+        Set<Subscriber<T>> res = subscribers.get(key);
+        res = res != null ? res : Collections.unmodifiableSet(Collections.<Subscriber<T>> emptySet());
+        return clone ? new HashSet<Subscriber<T>>(res) : res;
     }
 
+    @Override
+    public synchronized Set<Subscriber<T>> subscribers(Set<T> keys) {
+        Set<Subscriber<T>> res = new HashSet<Subscriber<T>>();
+        for (T i : keys)
+            res.addAll(subscribers(i, false));
+        return res;
+    }
+
+    @Override
+    public boolean isSubscribed(T key, Subscriber<T> handler) {
+        return subscribers(key, true).contains(handler);
+    }
+
+    @Override
+    synchronized public boolean isSubscribed(Object key) {
+        return subscribers.containsKey(key);
+    }
 }

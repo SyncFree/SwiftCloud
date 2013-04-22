@@ -18,8 +18,8 @@
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/xpp3_min-1.1.4c.jar"/>
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/xstream-1.4.3.jar"/>
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/kryo-2.21-all.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/netty-3.6.3.Final.jar"/>
             <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/extras/diffutils-1.2.1.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/netty-3.6.5.Final.jar"/>
         </jar>
     </target>
 </project>

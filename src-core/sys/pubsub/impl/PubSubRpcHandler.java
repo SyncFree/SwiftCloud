@@ -16,10 +16,10 @@
  *****************************************************************************/
 package sys.pubsub.impl;
 
-import swift.proto.UnsubscribeUpdatesReply;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+import sys.pubsub.PubSubNotification;
 
 /**
  * 
@@ -27,10 +27,8 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author smduarte
  * 
- * @param <K>
- * @param <P>
  */
-public class PubSubRpcHandler<K, P> implements RpcHandler {
+public class PubSubRpcHandler implements RpcHandler {
 
     @Override
     public void onReceive(RpcMessage m) {
@@ -47,11 +45,7 @@ public class PubSubRpcHandler<K, P> implements RpcHandler {
         Thread.dumpStack();
     }
 
-    public void onReceive(RpcHandle conn, UnsubscribeUpdatesReply m) {
+    public void onReceive(RpcHandle conn, PubSubNotification m) {
         Thread.dumpStack();
     }
-
-    // public void onReceive(RpcHandle conn, PubSubNotification<K, P> m) {
-    // Thread.dumpStack();
-    // }
 }

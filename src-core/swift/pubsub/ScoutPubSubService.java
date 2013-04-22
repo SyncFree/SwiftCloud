@@ -1,118 +1,84 @@
-/*****************************************************************************
- * Copyright 2011-2012 INRIA
- * Copyright 2011-2012 Universidade Nova de Lisboa
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
 package swift.pubsub;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 
 import swift.crdt.CRDTIdentifier;
-import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;
-import swift.proto.UpdatesNotification;
 import sys.RpcServices;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcHandler;
+import sys.pubsub.PubSubNotification;
 import sys.pubsub.impl.AbstractPubSub;
 import sys.scheduler.Task;
 import sys.utils.FifoQueue;
 
-/**
- * Stub for the notification system. Currently only manages unsubscriptions...
- * 
- * @author smduarte
- * 
- */
-public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier, CommitNotification> {
+public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> implements SwiftSubscriber {
 
     final String clientId;
     final Endpoint surrogate;
     final RpcEndpoint endpoint;
-    final Set<CRDTIdentifier> subscriptions = new ConcurrentSkipListSet<CRDTIdentifier>();
 
-    final FifoQueue<UpdatesNotification> fifoQueue;
-    final Set<CRDTIdentifier> removals = new ConcurrentSkipListSet<CRDTIdentifier>();
+    final FifoQueue<PubSubNotification> fifoQueue;
 
-    final Map<Long, UnsubscribeUpdatesRequest> updates = new ConcurrentHashMap<Long, UnsubscribeUpdatesRequest>();
+    final Set<CRDTIdentifier> unsubscriptions = Collections.synchronizedSet(new HashSet<CRDTIdentifier>());
 
-    List<Integer> gots = new ArrayList<Integer>();
-    final RpcHandler handler;
+    final Task updater;
 
-    public ScoutPubSubService(final String clientId, RpcEndpoint endpoint, Endpoint surrogate) {
+    public ScoutPubSubService(final String clientId, final RpcEndpoint scoutEndpoint, final Endpoint surrogate) {
         this.clientId = clientId;
         this.surrogate = surrogate;
 
-        this.handler = new SwiftProtocolHandler() {
-            protected void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {
-                Thread.dumpStack();
-                // System.err.println(ack.getId());
+        this.endpoint = scoutEndpoint.getFactory().toService(RpcServices.PUBSUB.ordinal(), new SwiftProtocolHandler() {
+            @Override
+            public void onReceive(RpcHandle conn, PubSubNotification update) {
+                fifoQueue.offer(update.seqN(), update);
             }
+        });
 
-            protected void onReceive(RpcHandle conn, UpdatesNotification request) {
-                fifoQueue.offer(request.seqN(), request);
+        this.fifoQueue = new FifoQueue<PubSubNotification>() {
+            public void process(PubSubNotification p) {
+                p.payload().notifyTo(ScoutPubSubService.this);
             }
         };
 
-        this.endpoint = endpoint.getFactory().toService(RpcServices.PUBSUB.ordinal(), handler);
-
-        this.fifoQueue = new FifoQueue<UpdatesNotification>() {
-            public void process(UpdatesNotification p) {
-                gots.add(p.seqN());
-                for (ObjectUpdatesInfo i : p.getRecords()[0].info())
-                    System.err.println(p.seqN() + "--->" + i.getId() + "   " + i.getUpdates().size());
-
-                for (CommitNotification r : p.getRecords())
-                    ScoutPubSubService.this.notify(r.info.keySet(), r);
+        updater = new Task(0) {
+            public void run() {
+                final Set<CRDTIdentifier> uset = new HashSet<CRDTIdentifier>(unsubscriptions);
+                scoutEndpoint.send(surrogate, new UnsubscribeUpdatesRequest(-1L, clientId, uset),
+                        new SwiftProtocolHandler() {
+                            public void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {
+                                unsubscriptions.removeAll(uset);
+                            }
+                        }, 0);
             }
         };
     }
 
-    public boolean isSubscribed(CRDTIdentifier id) {
-        return subscriptions.contains(id);
+    public void subscribe(CRDTIdentifier key) {
+        unsubscriptions.remove(key);
+        super.subscribe(key, this);
     }
 
-    @Override
-    public void unsubscribe(CRDTIdentifier id, Handler<CRDTIdentifier, CommitNotification> handler) {
-        if (subscriptions.remove(id)) {
-            removals.add(id);
+    public void unsubscribe(CRDTIdentifier key) {
+        if (super.unsubscribe(key, this)) {
+            unsubscriptions.add(key);
             if (!updater.isScheduled())
                 updater.reSchedule(0.1);
         }
     }
 
     @Override
-    public void subscribe(CRDTIdentifier id, Handler<CRDTIdentifier, CommitNotification> handler) {
-        subscriptions.add(id);
+    public void onNotification(UpdateNotification update) {
+        Thread.dumpStack();
     }
 
-    Task updater = new Task(3) {
-        public void run() {
-            if (removals.size() > 0) {
-                UnsubscribeUpdatesRequest req = new UnsubscribeUpdatesRequest(0L, clientId, removals);
-                endpoint.send(surrogate, req, handler, 0);
-                removals.clear();
-            }
-        }
-    };
+    @Override
+    public void onNotification(SnapshotNotification snapshot) {
+        Thread.dumpStack();
+    }
 }
