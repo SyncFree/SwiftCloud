@@ -152,7 +152,6 @@ public final class Stats {
                             long frequency = pollUpdate.getFirst();
 
                             if (currTime - lastUpdate >= frequency) {
-                                System.out.println("here");
                                 double value = pollStats.getSecond().poll();
                                 pollStats.getFirst().setValue(value);
                                 pollUpdate.setSecond(currTime);
