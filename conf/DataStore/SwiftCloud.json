@@ -1,0 +1,27 @@
+{
+	"DataBaseInfo":{
+		"keyspace":"Tpcw"
+		},
+	"DataBaseConnections":{
+		"localhost":"9999"
+		},
+	"Configuration":{
+		 "retrievedRowSlices":"1000"
+		},
+	"ConsistencyLevels":{
+		"ISOLATION_LEVEL":"SNAPSHOT_ISOLATION",
+		"CACHE_POLICY":"MOST_RECENT"
+		},
+	"ScoutsResultPath":{
+		"path":"./Results/"
+		},
+	"ColumnPaths":{
+		"OrderLines":"OL_O_ID",
+		"ShoppingCart":"KEY_SHOPPING_CART",
+		"results":"CLIENT_ID"
+		},
+	"OtherConnections":{
+		},
+	"Replication":{
+	}
+}

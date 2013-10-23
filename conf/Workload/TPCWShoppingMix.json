@@ -1,0 +1,24 @@
+{
+"Configuration":{	
+	"name":"TPCW_SHOPPING_WORKLOAD",
+	"initialStock":"500000",
+    "resultPath":"../Results/shopping"
+	},	
+"ProbabilityDistributions":{
+	"Distribution":"org.uminho.gsd.benchmarks.probabilityDistributions.PowerLawDistribution",
+    "alpha":"2.0"
+	}, 	
+"Workload":{	
+	    "home":"16.00",
+	    "new_products":"5.00",
+	    "best_sellers":"5.00",
+		"product_detail":"17.19",
+		"search":"37.00",
+ 		"shoppingCart":"11.60",
+		"register/login":"3.0", 			
+		"buy_request":"2.60",
+		"buy_confirm":"1.20",
+		"order_inquiry":"1.41",
+		"admin_change":"0.0"
+	}
+}

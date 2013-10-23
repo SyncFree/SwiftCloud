@@ -1,0 +1,57 @@
+{
+   "BenchmarkInterfaces" :
+      {
+         "BenchmarkWorkload" : "org.uminho.gsd.benchmarks.generic.workloads.TPCWWorkloadFactory",
+         "DataEngineInterface" : "org.uminho.gsd.benchmarks.TPCW_MySQL.executor.TPCW_MySQL_Factory",
+         "BenchmarkPopulator" : "org.uminho.gsd.benchmarks.TPCW_MySQL.populator.Populator"
+      },
+   "BenchmarkInfo" :
+      {
+         "populatorConfiguration" : "TPCW.json",
+         "databaseExecutorConfiguration" : "MYSQL.json",
+         "workloadConfiguration" : "TPCWBrowsingMix.json",
+         "thread_number" : "100",
+         "operation_number" : "200"
+      },
+   "BenchmarkSlaves" :
+      {
+      },
+   "Database_alias" :
+      {
+
+	"swiftcloud" :
+            {
+               "DataEngineInterface" : "pt.citi.cs.crdt.benchmarks.tpcw.database.TPCWSwiftCloudExecutorFactory",
+               "BenchmarkPopulator" : "pt.citi.cs.crdt.benchmarks.tpcw.populator.SwiftCloudPopulator",
+               "databaseExecutorConfiguration" : "SwiftCloud.json"
+            }
+
+
+      },
+
+   "Workload_alias" :
+      {
+         "consistency" :
+            {
+               "BenchmarkWorkload" : "org.uminho.gsd.benchmarks.generic.workloads.ConsistencyTestWorkloadFactory",
+               "workloadConfiguration" : "TPCWConsistency.json"
+            },
+         "ordering" :
+            {
+               "BenchmarkWorkload" : "org.uminho.gsd.benchmarks.generic.workloads.TPCWWorkloadFactory",
+               "workloadConfiguration" : "TPCWOrderingMix.json"
+            },
+         "browsing" :
+            {
+               "BenchmarkWorkload" : "org.uminho.gsd.benchmarks.generic.workloads.TPCWWorkloadFactory",
+               "workloadConfiguration" : "TPCWBrowsingMix.json"
+            },
+		
+		"shopping" :
+            {
+               "BenchmarkWorkload" : "org.uminho.gsd.benchmarks.generic.workloads.TPCWWorkloadFactory",
+               "workloadConfiguration" : "TPCWShoppingMix.json"
+            }
+           
+      }
+}

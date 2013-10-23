@@ -1,0 +1,14 @@
+{
+
+"Configuration":{	
+	"name":"TPCW_CONSISTENCY_WORKLOAD",
+	"initialStock":"500000",
+    "resultPath":"../Results/Consistency"
+	},	
+"ProbabilityDistributions":{
+	"Distribution":"org.uminho.gsd.benchmarks.probabilityDistributions.PowerLawDistribution",
+    "skew":"1.2"
+	}, 	
+"Workload":{	
+	}
+}
