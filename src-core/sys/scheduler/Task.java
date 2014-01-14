@@ -72,12 +72,13 @@ public class Task implements Comparable<Task> {
      */
     public Task(TaskOwner owner, double due) {
         this.owner = owner;
-        Scheduler.schedule(this, due);
+        if (due >= 0)
+            Scheduler.schedule(this, due);
         if (owner != null)
             owner.registerTask(this);
     }
 
-    public Task(TaskOwner owner, double due, double period) {
+    protected Task(TaskOwner owner, double due, double period) {
         this.owner = owner;
         this.period = period;
 
@@ -124,7 +125,8 @@ public class Task implements Comparable<Task> {
      *            The new deadline for next execution of this task.
      */
     public void reSchedule(double t) {
-        Scheduler.reSchedule(this, t);
+        if (t >= 0)
+            Scheduler.reSchedule(this, t);
         wasReScheduled = true;
     }
 

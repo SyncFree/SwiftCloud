@@ -20,9 +20,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 import swift.clocks.TripleTimestamp;
-import swift.crdt.SetVersioned;
+import swift.crdt.AbstractSetVersioned;
 
-public class SetRemove<V, T extends SetVersioned<V, T>> extends BaseUpdate<T> {
+public class SetRemove<V, T extends AbstractSetVersioned<V, T>> extends BaseUpdate<T> {
     private V val;
     private Set<TripleTimestamp> ids;
 

@@ -17,20 +17,24 @@
 package swift.clocks;
 
 /**
- * TripleTimestamp generator based on an existing Timestamp.
+ * IncrementalTripleTimestampGenerator generator based on an existing
+ * TimestampMapping.
  * 
- * @author nmp
+ * @author nmp, smduarte
  * 
  */
 public class IncrementalTripleTimestampGenerator implements TimestampSource<TripleTimestamp> {
 
-    private final TimestampMapping mapping;
-    private long last;
+    protected TimestampMapping mapping;
+    protected long last;
+
+    // for Kryo
+    IncrementalTripleTimestampGenerator() {
+    }
 
     public IncrementalTripleTimestampGenerator(TimestampMapping mapping) {
         this.mapping = mapping;
         this.last = Timestamp.MIN_VALUE;
-
     }
 
     @Override

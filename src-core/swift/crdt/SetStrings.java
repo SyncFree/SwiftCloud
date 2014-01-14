@@ -21,7 +21,7 @@ import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
-public class SetStrings extends SetVersioned<String, SetStrings> {
+public class SetStrings extends AbstractSetVersioned<String, SetStrings> {
 
     private static final long serialVersionUID = 1L;
 

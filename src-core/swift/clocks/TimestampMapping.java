@@ -83,7 +83,7 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
      * @return unmodifiable list of all timestamps assigned to the transaction
      */
     public Timestamp[] getTimestamps() {
-        return timestamps; // smd Arrays.copyOf(...) to ensure imutability????
+        return timestamps; // smd Arrays.copyOf(...) to ensure immutability????
     }
 
     /**

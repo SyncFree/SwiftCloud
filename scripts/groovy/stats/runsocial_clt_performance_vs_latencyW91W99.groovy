@@ -202,7 +202,7 @@ def gnuplot = [
     'set tmargin at screen 0.9999',
     'set grid xtics ytics lt 30 lt 30',
 ]
-String outputFile = "/tmp/sosp/swiftsocial-scout-at-client-w91w99-lat-vs-perf"
+String outputFile = "/tmp/sosp/swiftsocial-scout-at-client-w91w99-lat-vs-perf-socc13"
 
 GnuPlot.doGraph( outputFile, gnuplot, plots, { k, v ->
     String.format('title "%s" with linespoints pointinterval 1 lw 3 ps 2', k)

@@ -259,7 +259,8 @@ public class SwiftDoc {
 
         for (;;) {
             try {
-                return handle.get(id, create, swift.crdt.SequenceVersioned.class, listener);
+                return (SequenceTxnLocal<TextLine>) handle
+                        .get(id, create, swift.crdt.SequenceVersioned.class, listener);
             } catch (Exception x) {
                 Threading.sleep(10);
             }

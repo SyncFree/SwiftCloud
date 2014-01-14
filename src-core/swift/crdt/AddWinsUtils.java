@@ -43,6 +43,7 @@ public final class AddWinsUtils {
             CausalityClock baseClock, Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> other,
             CausalityClock otherClock, List<TripleTimestamp> outputTimestampsToRegister,
             List<TripleTimestamp> outputTimestampsToUnregister) {
+
         Iterator<Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>>> it = other.entrySet().iterator();
         while (it.hasNext()) {
             Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e = it.next();

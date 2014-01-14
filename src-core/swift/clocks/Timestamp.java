@@ -43,7 +43,6 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     private static final long serialVersionUID = 1L;
     private String siteid;
     private long counter;
-    private long time;
 
     /**
      * WARNING: Do not use: Empty constructor needed by Kryo
@@ -54,7 +53,6 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     public Timestamp(String siteid, long counter) {
         this.siteid = siteid;
         this.counter = counter;
-        this.time = System.currentTimeMillis();
     }
 
     @Override
@@ -87,7 +85,7 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     }
 
     public String toString() {
-        return "(" + siteid + "," + counter + "):" + time;
+        return "(" + siteid + "," + counter + ")";
     }
 
     public Timestamp clone() {
@@ -132,23 +130,17 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     public void read(Kryo kryo, Input in) {
         this.siteid = s2s(in.readString());
         this.counter = in.readLong();
-        this.time = in.readLong();
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
         out.writeString(this.siteid);
         out.writeLong(this.counter);
-        out.writeLong(this.time);
     }
 
     @Override
     public Timestamp copy(Kryo kryo) {
         return new Timestamp(this.siteid, this.counter);
-    }
-
-    public long time() {
-        return time;
     }
 
     String s2s(String s) {

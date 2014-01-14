@@ -81,6 +81,7 @@ def processRootDir = { int lt, int ht, String dirFilename, String scenario ->
 
         recurseDir.call( lt, ht, dir, clock, threads, latency, thinkTime, scenario);
 
+        err.println threads.report();
         err.println latency.report()
         err.println thinkTime.report()
         err.println clock.report()
@@ -141,7 +142,7 @@ for( Series i : stats.series("AvgThroughput") ) {
     plots[i.name()] = data
 }
 
-String outputFile = "/tmp/sosp/swiftsocial-scout-at-dc-w91-lat-vs-perf"
+String outputFile = "/tmp/sosp/swiftsocial-scout-at-dc-w91-lat-vs-perf-load"
 
 def gnuplot = [
     'set encoding utf8',

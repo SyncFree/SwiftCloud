@@ -16,10 +16,10 @@
  *****************************************************************************/
 package swift.crdt;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -150,7 +150,8 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     @Override
     public void merge(CRDT<V> otherObject) {
         mergeTimestampMappings((V) otherObject);
-        ((V) otherObject).mergeTimestampMappings((V) this);
+        // ((V) otherObject).mergeTimestampMappings((V) this); //smduarte ???
+        // why is this necessary????
         final boolean requiresPrune = mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
         pruneClock.merge(otherObject.getPruneClock());
@@ -210,7 +211,7 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     protected void registerTimestampUsage(final TripleTimestamp ts) {
         List<TripleTimestamp> timestampsForClient = clientTimestampsInUse.get(ts.getClientTimestamp());
         if (timestampsForClient == null) {
-            timestampsForClient = new LinkedList<TripleTimestamp>();
+            timestampsForClient = new ArrayList<TripleTimestamp>(1);
             clientTimestampsInUse.put(ts.getClientTimestamp(), timestampsForClient);
         }
         boolean updated = false;
