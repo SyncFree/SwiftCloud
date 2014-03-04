@@ -176,7 +176,7 @@ public class SwiftSocial {
                 RegisterVersioned.class, null);
 
         User newUser = new User(loginName, passwd, fullName, birthday, true);
-        reg.set(newUser);
+        reg.set((User) newUser.copy());
 
         // Construct the associated sets with messages, friends etc.
         txn.get(newUser.msgList, true, SetMsg.class, null);
@@ -202,7 +202,7 @@ public class SwiftSocial {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             RegisterTxnLocal<User> reg = (RegisterTxnLocal<User>) get(txn,
                     NamingScheme.forUser(this.currentUser.loginName), true, RegisterVersioned.class, updatesSubscriber);
-            reg.set(currentUser);
+            reg.set((User) currentUser.copy());
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
