@@ -16,4 +16,7 @@ This product includes/uses software(s) developed by 'OFFIS, Tammo Freese, Henri 
 This product includes/uses software(s) developed by 'www.hamcrest.org'
   - junit (http://www.junit.org/) under the BSD license
 
+This product includes/uses software(s) developed by 'Yahoo! Inc. (www.yahoo.com)'
+  - YCSB (http://research.yahoo.com/Web_Information_Management/YCSB/) under The Apache License 2.0
+
 FIXME: provide information for other libraries
