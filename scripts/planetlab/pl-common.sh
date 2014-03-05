@@ -27,7 +27,7 @@ run_cmd() {
 	cmd=$*
 	echo "Running command on $server"
 	echo "$cmd"
-	$SSH -i $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd"
+	$SSH "$EC2_USER@$server" "$cmd"
 }
 
 # run_cmd_bg <server> <cmd>
@@ -37,8 +37,9 @@ run_cmd_bg() {
 	cmd=$*
 	echo "Running command on $server and detaching"
 	echo "$cmd"
-	$SSH -i $EC2_IDENTITY_FILE "$EC2_USER@$server" "$cmd" &
+	$SSH "$EC2_USER@$server" "$cmd" &
 }
+
 
 # swift_app_cmd <java options>
 # output in CMD
@@ -59,63 +60,4 @@ swift_app_cmd_raw() {
 		java -cp $JAR -Djava.util.logging.config.file=$PROPS $args
 EOF
 )
-}
-
-# kill_swift <server>
-kill_swift() {
-	server=$1
-	run_cmd $server "killall java && sleep 1 && killall -9 java"
-}
-
-# copy_to <local_file> <server> <remote_file>
-copy_to() {
-	echo "Copying to $2..."
-    echo "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
-	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
-}
-
-# copy_to_bg <local_file> <server> <remote_file>
-copy_to_bg() {
-	echo "Copying to $2 in background..."
-#	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3" &
-	$RSYNC -e "ssh -i $EC2_IDENTITY_FILE" "$1" "$EC2_USER@$2:$3"
-}
-
-# copy_from <server> <remote file> <local file>
-copy_from() {
-	echo "Copying from $1..."
-	$SCP -i $EC2_IDENTITY_FILE "$EC2_USER@$1:$2" "$3"
-}
-
-# deploy_swift_to <server>
-deploy_swift_on() {
-	echo "Installing swift on: $1"
-	server=$1
-	copy_to $JAR $server $JAR
-	copy_to stuff/$PROPS $server $PROPS	
-}
-
-# deploy_swift_to_many <server1, server2, server3... >
-deploy_swift_on_many2() {
-	echo "Installing swift on: $*"
-	for server in $*; do
-        deploy_swift_on $server
-	done
-}
-
-# deploy_swift_to_many <server1, server2, server3... >
-deploy_swift_on_many() {
-	echo "Installing swift on: $*"
-	primary=$1
-	echo "Installing on the primary first"
-	deploy_swift_on $primary
-	shift
-	rsync_cmd=":" # no-op
-	rsync_ec2_int="$RSYNC -e '$SSH -o StrictHostKeyChecking=no'"
-	for server in $*; do
-		# deploy_swift_on $server
-		rsync_cmd="$rsync_cmd; $rsync_ec2_int $SWIFT_FILES $server:"
-	done
-	echo "Copying from the primary to other servers."
-	run_cmd $primary $rsync_cmd
 }

@@ -16,28 +16,24 @@
  *****************************************************************************/
 package swift.dc;
 
-import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.client.proto.GenerateTimestampReply;
-import swift.client.proto.GenerateTimestampRequest;
-import swift.client.proto.KeepaliveReply;
-import swift.client.proto.KeepaliveRequest;
-import swift.client.proto.LatestKnownClockReply;
-import swift.client.proto.LatestKnownClockReplyHandler;
-import swift.client.proto.LatestKnownClockRequest;
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
@@ -45,35 +41,33 @@ import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
-import swift.dc.proto.CommitTSReply;
-import swift.dc.proto.CommitTSReplyHandler;
-import swift.dc.proto.CommitTSRequest;
-import swift.dc.proto.GenerateDCTimestampReply;
-import swift.dc.proto.GenerateDCTimestampRequest;
-import swift.dc.proto.SeqCommitUpdatesReply;
-import swift.dc.proto.SeqCommitUpdatesReplyHandler;
-import swift.dc.proto.SeqCommitUpdatesRequest;
-import swift.dc.proto.SequencerServer;
+import swift.proto.CommitTSReply;
+import swift.proto.CommitTSRequest;
+import swift.proto.GenerateDCTimestampReply;
+import swift.proto.GenerateDCTimestampRequest;
+import swift.proto.LatestKnownClockReply;
+import swift.proto.LatestKnownClockRequest;
+import swift.proto.SeqCommitUpdatesReply;
+import swift.proto.SeqCommitUpdatesRequest;
+import swift.proto.SwiftProtocolHandler;
 import sys.net.api.Endpoint;
-import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.net.api.rpc.RpcMessage;
 import sys.utils.Threading;
 
 /**
- * Single server replying to client request. This class is used only to allow
- * client testing.
  * 
  * @author nmp
  * 
  */
-public class DCSequencerServer extends Handler implements SequencerServer {
+public class DCSequencerServer extends SwiftProtocolHandler {
     private static Logger logger = Logger.getLogger(DCSequencerServer.class.getName());
 
     DCSequencerServer thisServer = this;
 
-    RpcEndpoint endpoint;
+    RpcEndpoint srvEndpoint;
+    RpcEndpoint cltEndpoint;
+
     IncrementalTimestampGenerator clockGen;
     CausalityClock receivedMessages;
     CausalityClock currentState;
@@ -95,13 +89,15 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     int port;
     boolean isBackup;
     DCNodeDatabase dbServer;
-
     Map<String, LinkedList<CommitRecord>> ops;
     LinkedList<SeqCommitUpdatesRequest> pendingOps; // ops received from other
                                                     // sites that need to be
                                                     // executed locally
     Map<Timestamp, BlockedTimestampRequest> pendingTsReq; // timestamp requests
                                                           // awaiting reply
+
+    ExecutorService stableExecutor = Executors.newCachedThreadPool();
+    Set<Timestamp> unstableTS = new HashSet<Timestamp>();
 
     public DCSequencerServer(String siteId, List<String> servers, List<String> sequencers, String sequencerShadow,
             boolean isBackup, Properties props) {
@@ -174,6 +170,13 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         }
         dbServer.init(props);
 
+        // HACK HACK
+        CausalityClock clk = (CausalityClock) dbServer.readSysData("SYS_TABLE", "CLK");
+        if (clk != null) {
+            System.err.println(clk);
+            currentState.merge(clk);
+            stableClock.merge(clk);
+        }
     }
 
     void execPending() {
@@ -206,11 +209,12 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                     if (req != null) {
                         SeqCommitUpdatesRequest req1 = req;
                         if (serversEP.size() > 0) {
-                            endpoint.send(serversEP.get(Math.abs(req1.hashCode()) % servers.size()), req1);
+                            Endpoint surrogate = serversEP.get(Math.abs(req1.hashCode()) % servers.size());
+                            cltEndpoint.send(surrogate, req1);
                             req.lastSent = System.currentTimeMillis();
                         }
                     } else
-                        Threading.synchronizedWaitOn(pendingOps, 500);
+                        Threading.synchronizedWaitOn(pendingOps, 50);
                 }
             }
         }).start();
@@ -245,48 +249,27 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     public void start() {
-        Sys.init();
+        sys.Sys.init();
+
+        // Note: Networking.resolve() now accepts host[:port], the port
+        // parameter is used as default, if port is missing
         this.serversEP = new ArrayList<Endpoint>();
-        Iterator<String> it = servers.iterator();
-        while (it.hasNext()) {
-            String s = it.next();
-            int pos = s.indexOf(":");
-            if (pos != -1) {
-                int port = Integer.parseInt(s.substring(pos + 1));
-                s = s.substring(0, pos);
-                serversEP.add(Networking.resolve(s, port));
-            } else
-                serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT));
-        }
+        for (String s : servers)
+            serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT_FOR_SEQUENCERS));
+
         this.sequencersEP = new ArrayList<Endpoint>();
-        it = sequencers.iterator();
-        while (it.hasNext()) {
-            String s = it.next();
-            int pos = s.indexOf(":");
-            if (pos != -1) {
-                int port = Integer.parseInt(s.substring(pos + 1));
-                s = s.substring(0, pos);
-                sequencersEP.add(Networking.resolve(s, port));
-            } else
-                sequencersEP.add(Networking.resolve(s, DCConstants.SEQUENCER_PORT));
-        }
+        for (String s : sequencers)
+            sequencersEP.add(Networking.resolve(s, DCConstants.SEQUENCER_PORT));
 
-        this.endpoint = Networking.rpcBind(port).toDefaultService();
-        this.endpoint.setHandler(this);
+        this.cltEndpoint = Networking.rpcConnect().toDefaultService();
+        this.srvEndpoint = Networking.rpcBind(port).toDefaultService().setHandler(this);
 
-        if (sequencerShadow != null) {
-            String s = sequencerShadow;
-            int pos = s.indexOf(":");
-            if (pos != -1) {
-                int port = Integer.parseInt(s.substring(pos + 1));
-                s = s.substring(0, pos);
-                sequencerShadowEP = Networking.resolve(s, port);
-            } else
-                sequencerShadowEP = Networking.resolve(s, DCConstants.SEQUENCER_PORT);
-        }
+        if (sequencerShadow != null)
+            sequencerShadowEP = Networking.resolve(sequencerShadow, DCConstants.SEQUENCER_PORT);
+
         if (!isBackup) {
             synchronizer();
-            execPending(); // smd
+            execPending();
         }
         if (isBackup) {
             if (logger.isLoggable(Level.INFO)) {
@@ -333,7 +316,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                             Iterator<CommitRecord> it = s.iterator();
                             while (it.hasNext()) {
                                 CommitRecord c = it.next();
-                                if (c.acked.nextClearBit(0) == sequencers.size()) {
+                                if (c.acked.nextClearBit(0) == sequencersEP.size()) {
                                     it.remove();
                                     continue;
                                 }
@@ -349,14 +332,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                 logger.info("sequencer: synchronizer: num operations to propagate : " + s.size());
                             }
                             if (r == null) {
-                                try {
-                                    long waitime = lastEffectiveSendTime - System.currentTimeMillis()
-                                            + DCConstants.INTERSEQ_RETRY;
-                                    if (waitime > 0)
-                                        s.wait(Math.min(DCConstants.INTERSEQ_RETRY, waitime));
-                                } catch (InterruptedException e) {
-                                    // do nothing
-                                }
+                                long waitime = lastEffectiveSendTime - System.currentTimeMillis()
+                                        + DCConstants.INTERSEQ_RETRY;
+                                Threading.waitOn(s, Math.min(DCConstants.INTERSEQ_RETRY, waitime));
                             }
                         }
                         if (r != null) {
@@ -370,16 +348,22 @@ public class DCSequencerServer extends Handler implements SequencerServer {
                                         continue;
                                 }
                                 final int i0 = i;
-                                Endpoint ep = sequencersEP.get(i);
-                                endpoint.send(ep, req, new SeqCommitUpdatesReplyHandler() {
+                                final Endpoint other = sequencersEP.get(i);
+                                srvEndpoint.send(other, req, new SwiftProtocolHandler() {
 
                                     @Override
                                     public void onReceive(RpcHandle conn, SeqCommitUpdatesReply reply) {
                                         synchronized (r0) {
                                             r0.acked.set(i0);
                                         }
+
                                         synchronized (thisServer) {
                                             stableClock.record(req.getTimestamp());
+                                        }
+
+                                        synchronized (unstableTS) {
+                                            unstableTS.remove(req.getTimestamp());
+                                            Threading.notifyAllOn(unstableTS);
                                         }
                                         setRemoteState(reply.getDcName(), reply.getDcKnownClock());
                                     }
@@ -447,21 +431,34 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         return t;
     }
 
-    private synchronized boolean refreshId(Timestamp t) {
-        boolean hasTS = pendingTS.containsKey(t);
-        if (hasTS)
-            pendingTS.put(t, System.currentTimeMillis());
-        return hasTS;
-    }
+    // private synchronized boolean refreshId(Timestamp t) {
+    // boolean hasTS = pendingTS.containsKey(t);
+    // if (hasTS)
+    // pendingTS.put(t, System.currentTimeMillis());
+    // return hasTS;
+    // }
 
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, Timestamp cltTs, boolean commit) {
         boolean hasTS = pendingTS.remove(t) != null
                 || ((!t.getIdentifier().equals(this.siteId)) && !currentState.includes(t));
+
         currentState.merge(clk); // nmp: not sure why is this here
         currentState.record(t);
-        if (sequencers.size() == 0)
-            stableClock.record(t);
         clientClock.record(cltTs);
+        if (sequencers.size() == 0 || !siteId.equals(t.getIdentifier())) // HACK:
+                                                                         // Stable
+                                                                         // is
+                                                                         // updated
+                                                                         // only
+                                                                         // when
+                                                                         // Op
+                                                                         // is
+                                                                         // recorded
+                                                                         // in
+                                                                         // local
+                                                                         // DC.
+            stableClock.record(t);
+
         return hasTS;
     }
 
@@ -475,18 +472,6 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         return c;
     }
 
-    @Override
-    public void onReceive(RpcHandle conn, GenerateTimestampRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("sequencer: generatetimestamprequest");
-        }
-        if (isBackup && !upgradeToPrimary()) {
-            return;
-        }
-        conn.reply(new GenerateTimestampReply(generateNewId(), DCConstants.DEFAULT_TRXIDTIME));
-        cleanPendingTS();
-    }
-
     private boolean processGenerateDCTimestampRequest(RpcHandle conn, GenerateDCTimestampRequest request) {
         synchronized (clientClock) {
             if (clientClock.includes(request.getCltTimestamp())) {
@@ -495,12 +480,14 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             }
         }
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
-        synchronized (currentState) {
+        synchronized (this) {
             cmp = currentState.compareTo(request.getDependencyClk());
         }
         if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
+
             conn.reply(new GenerateDCTimestampReply(generateNewId(),
                     clientClock.getLatestCounter(request.getClientId())));
+
             return true;
         } else {
             addPendingTimestampReq(new BlockedTimestampRequest(conn, request));
@@ -518,18 +505,6 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         if (!processGenerateDCTimestampRequest(conn, request)) {
             addPendingTimestampReq(new BlockedTimestampRequest(conn, request));
         }
-        cleanPendingTS();
-    }
-
-    @Override
-    public void onReceive(RpcHandle conn, KeepaliveRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("sequencer: keepaliverequest");
-        }
-        if (isBackup && !upgradeToPrimary())
-            return;
-        boolean success = refreshId(request.getTimestamp());
-        conn.reply(new KeepaliveReply(success, success, DCConstants.DEFAULT_TRXIDTIME));
         cleanPendingTS();
     }
 
@@ -558,7 +533,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
      *            request to serve
      */
     @Override
-    public void onReceive(RpcHandle conn, CommitTSRequest request) {
+    public void onReceive(final RpcHandle conn, final CommitTSRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("sequencer: commitTSRequest:" + request.getTimestamp() + ":nops="
                     + request.getObjectUpdateGroups().size());
@@ -567,9 +542,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             return;
 
         boolean ok = false;
-        CausalityClock clk = null;
-        CausalityClock stableClk = null;
-        CausalityClock nuClk = null;
+        final CausalityClock clk;
+        final CausalityClock stableClk;
+        CausalityClock nuClk;
 
         synchronized (this) {
             ok = commitTS(request.getVersion(), request.getTimestamp(), request.getCltTimestamp(), request.getCommit());
@@ -582,30 +557,42 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.FAILED, clk, stableClk));
             return;
         }
-
-        conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
         if (!isBackup && sequencerShadowEP != null) {
             final SeqCommitUpdatesRequest msg = new SeqCommitUpdatesRequest(siteId, request.getTimestamp(),
                     request.getCltTimestamp(), request.getPrvCltTimestamp(), request.getObjectUpdateGroups(), clk,
                     nuClk);
-            endpoint.send(sequencerShadowEP, msg, new AbstractRpcHandler() {
-                @Override
-                public void onReceive(RpcMessage m) {
-                    // do nothing
-                }
 
-                @Override
-                public void onReceive(RpcHandle conn, RpcMessage m) {
-                    // do nothing
-                }
-
-            }, 0);
+            cltEndpoint.send(sequencerShadowEP, msg);
         }
 
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getTimestamp(),
                 request.getCltTimestamp(), request.getPrvCltTimestamp()));
+
         Threading.synchronizedNotifyAllOn(pendingOps);
-        cleanPendingTSReq();
+
+        dbServer.writeSysData("SYS_TABLE", "CLK", currentState);
+
+        if (request.disasterSafe()) {
+            stableExecutor.execute(new Runnable() {
+                public void run() {
+                    long t0 = System.currentTimeMillis();
+                    synchronized (unstableTS) {
+                        unstableTS.add(request.getTimestamp());
+                        while (unstableTS.contains(request.getTimestamp())) {
+                            Threading.waitOn(unstableTS, 10);
+                        }
+                    }
+                    long t = System.currentTimeMillis();
+                    // System.out.printf("€€€€€€ %s TOOK %s ms to become stable...\n",
+                    // request.getTimestamp(), t - t0);
+                    conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
+                    cleanPendingTSReq();
+                }
+            });
+        } else {
+            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
+            cleanPendingTSReq();
+        }
     }
 
     @Override
@@ -614,6 +601,10 @@ public class DCSequencerServer extends Handler implements SequencerServer {
             logger.info("sequencer: received commit record:" + request.getTimestamp() + ":clt="
                     + request.getCltTimestamp() + ":nops=" + request.getObjectUpdateGroups().size());
         }
+        // System.out.println("sequencer: received commit record:" +
+        // request.getTimestamp() + ":clt="
+        // + request.getCltTimestamp() + ":nops=" +
+        // request.getObjectUpdateGroups().size());
 
         if (isBackup) {
             this.addToOps(new CommitRecord(request.getDcNotUsed(), request.getObjectUpdateGroups(), request
@@ -639,8 +630,9 @@ public class DCSequencerServer extends Handler implements SequencerServer {
         }
 
         conn.reply(new SeqCommitUpdatesReply(siteId, currentClockCopy(), stableClockCopy(), receivedMessagesCopy()));
+
         if (!isBackup && sequencerShadowEP != null) {
-            endpoint.send(sequencerShadowEP, request);
+            cltEndpoint.send(sequencerShadowEP, request);
         }
 
         addPending(request);
@@ -649,6 +641,7 @@ public class DCSequencerServer extends Handler implements SequencerServer {
     }
 
     public static void main(String[] args) {
+        sys.Sys.init();
         Properties props = new Properties();
         props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
         List<String> sequencers = new ArrayList<String>();
@@ -705,6 +698,9 @@ class CommitRecord implements Comparable<CommitRecord> {
     Timestamp cltTimestamp;
     Timestamp prvCltTimestamp;
     long lastSent;
+
+    CommitRecord() {
+    }
 
     public CommitRecord(CausalityClock notUsed, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
             Timestamp baseTimestamp, Timestamp cltTimestamp, Timestamp prvCltTimestamp) {

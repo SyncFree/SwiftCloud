@@ -18,9 +18,13 @@ package swift.client;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
@@ -30,9 +34,11 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.CRDTIdentifier;
+import swift.crdt.interfaces.BulkGetProgressListener;
 import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.CachePolicy;
+import swift.crdt.interfaces.IsolationLevel;
 import swift.crdt.interfaces.ObjectUpdatesListener;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
@@ -49,6 +55,7 @@ import sys.stats.StatsConstants;
 import sys.stats.sources.CounterSignalSource;
 import sys.stats.sources.ValueSignalSource;
 import sys.stats.sources.ValueSignalSource.Stopper;
+import sys.utils.Threading;
 
 /**
  * Implementation of abstract SwiftCloud transaction with unspecified isolation
@@ -78,6 +85,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     protected final TxnManager manager;
     protected final boolean readOnly;
+    protected final IsolationLevel isolationLevel;
     protected CachePolicy cachePolicy;
     protected final TimestampMapping timestampMapping;
     protected final CausalityClock updatesDependencyClock;
@@ -88,7 +96,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
     protected final TransactionsLog durableLog;
     protected final long id;
+    protected final long serial;
+
     protected final String sessionId;
+    protected static final AtomicLong serialGenerator = new AtomicLong();
     private CounterSignalSource locallyCommitCountStats;
     private CounterSignalSource unstableCommitCountStats;
     private ValueSignalSource unstableCommitDurationStats;
@@ -110,12 +121,14 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      *            updates of this transaction
      */
     AbstractTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
-            final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats stats) {
+            final IsolationLevel isolationLevel, final CachePolicy cachePolicy,
+            final TimestampMapping timestampMapping, Stats stats) {
         this.manager = manager;
         this.readOnly = false;
         this.sessionId = sessionId;
         this.durableLog = durableLog;
         this.id = timestampMapping.getClientTimestamp().getCounter();
+        this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = timestampMapping;
         this.updatesDependencyClock = ClockFactory.newClock();
@@ -123,6 +136,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+        this.serial = serialGenerator.getAndIncrement();
         initStats(stats);
     }
 
@@ -138,12 +152,14 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      * @param cachePolicy
      *            cache policy used by this transaction
      */
-    AbstractTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy, Stats stats) {
+    AbstractTxnHandle(final TxnManager manager, final String sessionId, final IsolationLevel isolationLevel,
+            final CachePolicy cachePolicy, Stats stats) {
         this.manager = manager;
         this.readOnly = true;
         this.sessionId = sessionId;
         this.durableLog = new DummyLog();
         this.id = -1;
+        this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
         this.timestampMapping = null;
         this.updatesDependencyClock = ClockFactory.newClock();
@@ -151,21 +167,22 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
         this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+
+        this.serial = serialGenerator.getAndIncrement();
         initStats(stats);
     }
 
     @Override
-    public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
-            Class<V> classOfV) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         return get(id, create, classOfV, null);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public synchronized <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create,
-            Class<V> classOfV, ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException,
-            VersionNotFoundException, NetworkException {
+    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
+            NetworkException {
         assertStatus(TxnStatus.PENDING);
         try {
             if (SwiftImpl.DEFAULT_LISTENER_FOR_GET && listener == null)
@@ -394,6 +411,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         return id;
     }
 
+    protected long getSerial() {
+        return serial;
+    }
+
     @Override
     public int compareTo(AbstractTxnHandle o) {
         return Long.signum(orderingScore() - o.orderingScore());
@@ -401,6 +422,53 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     private long orderingScore() {
         return getTimestampMapping() == null ? 0 : getTimestampMapping().getClientTimestamp().getCounter();
+    }
+
+    @Override
+    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
+            final BulkGetProgressListener listener) {
+        final Map<CRDTIdentifier, TxnLocalCRDT<?>> res = Collections
+                .synchronizedMap(new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>());
+
+        if (ids.isEmpty())
+            return res;
+
+        for (final CRDTIdentifier i : ids)
+            execute(new Runnable() {
+                @Override
+                public void run() {
+                    TxnLocalCRDT<?> val;
+                    try {
+                        val = get(i, readOnly, null);
+                        res.put(i, val);
+                        if (listener != null)
+                            listener.onGet(AbstractTxnHandle.this, i, val);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        res.put(i, null);
+                    }
+                    Threading.synchronizedNotifyAllOn(res);
+                }
+            });
+
+        while (res.size() != ids.size()) {
+            Threading.synchronizedWaitOn(res, 100);
+        }
+        return res;
+    }
+
+    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(CRDTIdentifier... crdtIdentifiers) {
+        long timeout = Long.MAX_VALUE;
+        Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>(Arrays.asList(crdtIdentifiers));
+        return this.bulkGet(ids, false, timeout, null);
+    }
+
+    public IsolationLevel getIsolationLevel() {
+        return isolationLevel;
+    }
+
+    private void execute(Runnable r) {
+        ((SwiftImpl) manager).execute(r);
     }
 
     private void initStats(Stats stats) {

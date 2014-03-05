@@ -16,11 +16,16 @@
  *****************************************************************************/
 package sys.utils;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.PrintStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.channels.Channel;
+import java.util.Collection;
 
 public class IO {
 
@@ -28,6 +33,15 @@ public class IO {
     };
 
     public static void close(Socket s) {
+        try {
+            if (s != null)
+                s.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void close(ServerSocket s) {
         try {
             s.close();
         } catch (IOException e) {
@@ -37,7 +51,8 @@ public class IO {
 
     public static void close(InputStream in) {
         try {
-            in.close();
+            if (in != null)
+                in.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -45,7 +60,8 @@ public class IO {
 
     public static void close(OutputStream out) {
         try {
-            out.close();
+            if (out != null)
+                out.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -53,8 +69,29 @@ public class IO {
 
     public static void close(Channel ch) {
         try {
-            ch.close();
+            if (ch != null)
+                ch.close();
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void redirect(String stdout, String stderr) {
+        try {
+            System.setOut(new PrintStream(new FileOutputStream(stdout)));
+            System.setErr(new PrintStream(new FileOutputStream(stderr)));
+        } catch (IOException x) {
+            x.printStackTrace();
+        }
+    }
+
+    public static void dumpTo(Collection<?> data, String dstFile) {
+        try {
+            PrintStream ps = new PrintStream(dstFile);
+            for (Object i : data)
+                ps.println(i);
+            ps.close();
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
     }

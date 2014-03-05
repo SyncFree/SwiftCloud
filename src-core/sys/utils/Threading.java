@@ -1,29 +1,14 @@
-/*****************************************************************************
- * Copyright 2011-2012 INRIA
- * Copyright 2011-2012 Universidade Nova de Lisboa
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *****************************************************************************/
 package sys.utils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A collection of convenience methods for dealing with threads.
  * 
- * @author Sérgio Duarte (smd@fct.unl.pt)
+ * @author smduarte (smd@fct.unl.pt)
  * 
  */
 public class Threading {
@@ -45,21 +30,22 @@ public class Threading {
 
     static public Thread newThread(String name, boolean daemon, Runnable r) {
         Thread res = new Thread(r);
-        res.setName(name);
+        res.setName(Thread.currentThread() + "." + name);
         res.setDaemon(daemon);
         return res;
     }
 
     static public Thread newThread(String name, Runnable r, boolean daemon) {
         Thread res = new Thread(r);
-        res.setName(name);
+        res.setName(Thread.currentThread() + "." + name);
         res.setDaemon(daemon);
         return res;
     }
 
     static public void sleep(long ms) {
         try {
-            Thread.sleep(ms);
+            if (ms > 0)
+                Thread.sleep(ms);
         } catch (InterruptedException x) {
             x.printStackTrace();
         }
@@ -67,7 +53,8 @@ public class Threading {
 
     static public void sleep(long ms, int ns) {
         try {
-            Thread.sleep(ms, ns);
+            if (ms > 0 || ns > 0)
+                Thread.sleep(ms, ns);
         } catch (InterruptedException x) {
             x.printStackTrace();
         }
@@ -81,7 +68,7 @@ public class Threading {
         }
     }
 
-    static public void waitOn(Object o, int ms) {
+    static public void waitOn(Object o, long ms) {
         try {
             if (ms > 0)
                 o.wait(ms);
@@ -155,5 +142,33 @@ public class Threading {
 
         AtomicInteger counter = new AtomicInteger(0);
         Map<Object, Object> locks = new HashMap<Object, Object>();
+    }
+
+    synchronized public static void dumpAllThreadsTraces() {
+        Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
+        loop: for (StackTraceElement[] trace : traces.values()) {
+            for (int j = 0; j < trace.length; j++)
+                if (trace[j].getClassName().startsWith("swift")) {
+                    for (int k = j; k < trace.length; k++)
+                        System.err.print(">>" + trace[k] + " ");
+                    System.err.println();
+                    continue loop;
+                }
+        }
+
+    }
+
+    static public ThreadFactory factory(final String name) {
+        return new ThreadFactory() {
+            int counter = 0;
+            String callerName = Thread.currentThread().getName();
+
+            @Override
+            public Thread newThread(Runnable target) {
+                Thread t = new Thread(target, callerName + "." + name + "-" + counter++);
+                t.setDaemon(true);
+                return t;
+            }
+        };
     }
 }

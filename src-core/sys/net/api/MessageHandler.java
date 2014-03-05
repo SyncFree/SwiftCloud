@@ -28,12 +28,36 @@ package sys.net.api;
  */
 public interface MessageHandler {
 
+    /**
+     * Reports the establishment of a new incoming connection to some endpoint
+     * 
+     * @param conn
+     *            the new incoming connection
+     */
     void onAccept(final TransportConnection conn);
 
+    /**
+     * Reports the establishment of a new outgoing connection to some endpoint
+     * 
+     * @param conn
+     *            the new outgoing connection
+     */
     void onConnect(final TransportConnection conn);
 
+    /**
+     * Reports the failure of a connection to some endpoint
+     * 
+     * @param conn
+     *            the connection that failed
+     */
     void onFailure(final TransportConnection conn);
 
+    /**
+     * Reports the "normal" closure of a connection to some endpoint
+     * 
+     * @param conn
+     *            the connection that was closed.
+     */
     void onClose(final TransportConnection conn);
 
     /**

@@ -24,11 +24,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
-import swift.client.proto.SubscriptionType;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
@@ -38,17 +39,23 @@ import swift.crdt.interfaces.CRDT;
 import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
 import swift.crdt.operations.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
-import swift.dc.proto.DHTExecCRDT;
-import swift.dc.proto.DHTExecCRDTReply;
-import swift.dc.proto.DHTExecCRDTReplyHandler;
-import swift.dc.proto.DHTGetCRDT;
-import swift.dc.proto.DHTGetCRDTReply;
-import swift.dc.proto.DHTGetCRDTReplyHandler;
+import swift.proto.DHTExecCRDT;
+import swift.proto.DHTExecCRDTReply;
+import swift.proto.DHTGetCRDT;
+import swift.proto.DHTGetCRDTReply;
+import swift.proto.ObjectUpdatesInfo;
+import swift.proto.SwiftProtocolHandler;
+import swift.pubsub.DataServerPubSubService;
+import swift.pubsub.SurrogatePubSubService;
+import swift.pubsub.UpdateNotification;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.api.DHT.Handle;
 import sys.dht.api.DHT.Key;
 import sys.dht.api.StringKey;
+import sys.net.api.Endpoint;
+import sys.net.api.rpc.RpcEndpoint;
+import sys.utils.Threading;
 
 /**
  * Class to maintain data in the server.
@@ -58,66 +65,36 @@ import sys.dht.api.StringKey;
 class DCDataServer {
     private static Logger logger = Logger.getLogger(DCDataServer.class.getName());
 
-    Map<String, Map<String, CRDTData<?>>> db;
     Map<CRDTIdentifier, LockInfo> locks;
+    Map<String, Map<String, CRDTData<?>>> db;
 
     CausalityClock version;
     CausalityClock cltClock;
     String localSurrogateId;
-    Observer localSurrogate;
 
-    DCNodeDatabase dbServer;
     DHT dhtClient;
+    DCNodeDatabase dbServer;
     static public boolean prune;
-
-    // LinkedList<NotificationRecord> notifications;//to comment...
 
     Set<CRDTData<?>> modified;
 
-    DCDataServer(DCSurrogate surrogate, Properties props) {
-        this.localSurrogate = new LocalObserver(surrogate);
+    SurrogatePubSubService suPubSub;
+    DataServerPubSubService dsPubSub;
+    ExecutorService executor = Executors.newCachedThreadPool();
+
+    DCDataServer(DCSurrogate surrogate, Properties props, RpcEndpoint endpoint4PubSub, SurrogatePubSubService suPubSub) {
         this.localSurrogateId = surrogate.getId();
+        this.suPubSub = suPubSub;
+        this.dsPubSub = new DataServerPubSubService(executor, endpoint4PubSub);
+
         prune = Boolean.parseBoolean(props.getProperty(DCConstants.PRUNE_POLICY));
         initStore();
         initData(props);
         initDHT();
-        // initNotifier();
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Data server ready...");
         }
     }
-
-    // /**
-    // * Start backgorund thread that dumps notifications
-    // */
-    // void initNotifier() {
-    //
-    //
-    // Threading.newThread( new Runnable() {
-    //
-    // @Override
-    // public void run() {
-    // for (;;) {
-    // NotificationRecord record = null;
-    // synchronized (notifications) {
-    // while (notifications.isEmpty())
-    // Threading.waitOn( notifications );
-    // record = notifications.removeFirst();
-    // }
-    // if (record != null) {
-    // if( record.notification) {
-    // ;//PubSub.publish(record.info.getId(), new
-    // DHTSendNotification(record.info.cloneNotification()));
-    // } else {
-    // ;//PubSub.publish(record.info.getId(), new
-    // DHTSendNotification(record.info));
-    // }
-    // }
-    // // record.to.sendNotification(record.info);
-    // }
-    // }
-    // }, true).start();
-    // }
 
     /**
      * Start backgorund thread that dumps to disk
@@ -173,21 +150,19 @@ class DCDataServer {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("DHT data server: get CRDT : " + request.getId());
                 }
-                con.reply(new DHTGetCRDTReply(localGetCRDTObject(new RemoteObserver(request.getSurrogateId(), con),
-                        request.getId(), request.getSubscribe(), request.getVersion(), request.getCltId())));
+                con.reply(new DHTGetCRDTReply(localGetCRDTObject(con.remoteEndpoint(), request)));
             }
 
             @Override
-            public void onReceive(Handle con, Key key, DHTExecCRDT<?> request) {
+            public void onReceive(Handle con, Key key, DHTExecCRDT request) {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("DHT data server: exec CRDT : " + request.getGrp().getTargetUID());
                 }
-                con.reply(new DHTExecCRDTReply(localExecCRDT(new RemoteObserver(request.getSurrogateId(), con),
-                        request.getGrp(), request.getSnapshotVersion(), request.getTrxVersion(), request.getTxTs(),
-                        request.getCltTs(), request.getPrvCltTs(), request.getCurDCVersion())));
+                con.reply(new DHTExecCRDTReply(localExecCRDT(request.getGrp(), request.getSnapshotVersion(),
+                        request.getTrxVersion(), request.getTxTs(), request.getCltTs(), request.getPrvCltTs(),
+                        request.getCurDCVersion())));
             }
         });
-
     }
 
     void lock(CRDTIdentifier id) {
@@ -239,12 +214,12 @@ class DCDataServer {
             IntegerVersioned i = new IntegerVersioned();
             CRDTIdentifier id = new CRDTIdentifier("e", "1");
             i.init(id, version.clone(), version.clone(), true);
-            localPutCRDT(localSurrogate, id, i, i.getClock(), i.getPruneClock(), ClockFactory.newClock());
+            localPutCRDT(id, i, i.getClock(), i.getPruneClock(), ClockFactory.newClock());
 
             IntegerVersioned i2 = new IntegerVersioned();
             CRDTIdentifier id2 = new CRDTIdentifier("e", "2");
             i2.init(id2, version.clone(), version.clone(), true);
-            localPutCRDT(localSurrogate, id2, i2, i2.getClock(), i2.getPruneClock(), ClockFactory.newClock());
+            localPutCRDT(id2, i2, i2.getClock(), i2.getPruneClock(), ClockFactory.newClock());
         }
     }
 
@@ -266,6 +241,7 @@ class DCDataServer {
     }
 
     void writeCRDTintoDB(CRDTData<?> data) {
+
         lock(data.id);
         try {
             dbServer.write(data.id, data);
@@ -322,21 +298,24 @@ class DCDataServer {
             CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
         final StringKey key = new StringKey(grp.getTargetUID().toString());
         if (!DHT_Node.getInstance().isHandledLocally(key)) {
-            final Result<DHTExecCRDTReply> result = new Result<DHTExecCRDTReply>();
-            while (!result.hasResult()) {
-                dhtClient.send(key, new DHTExecCRDT(localSurrogateId, grp, snapshotVersion, trxVersion, txTs, cltTs,
-                        prvCltTs, curDCVersion), new DHTExecCRDTReplyHandler() {
-                    @Override
-                    public void onReceive(DHTExecCRDTReply reply) {
-                        result.setResult(reply);
+
+            final AtomicReference<ExecCRDTResult> result = new AtomicReference<ExecCRDTResult>();
+
+            for (;;) {
+                dhtClient.send(key, new DHTExecCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs,
+                        curDCVersion), new SwiftProtocolHandler() {
+                    public void onReceive(DHTExecCRDTReply r) {
+                        result.set(r.getResult());
+                        Threading.synchronizedNotifyAllOn(result);
                     }
                 });
-                result.waitForResult(2000);
-                // TODO: probably should not continue forever !!!
+                Threading.synchronizedWaitOn(result, 2000);
+
+                if (result.get() != null)
+                    return result.get();
             }
-            return result.getResult().getResult();
         } else
-            return localExecCRDT(localSurrogate, grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs, curDCVersion);
+            return localExecCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs, curDCVersion);
     }
 
     // /**
@@ -355,31 +334,33 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTObject<?> getCRDT(CRDTIdentifier id, SubscriptionType subscribe, CausalityClock clk, String cltId) {
+    CRDTObject getCRDT(CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed) {
         final StringKey key = new StringKey(id.toString());
         if (!DHT_Node.getInstance().isHandledLocally(key)) {
-            final Result<CRDTObject<?>> result = new Result<CRDTObject<?>>();
-            while (!result.hasResult()) {
-                dhtClient.send(key, new DHTGetCRDT(localSurrogateId, cltId, id, subscribe, clk),
-                        new DHTGetCRDTReplyHandler() {
-                            @Override
-                            public void onReceive(DHTGetCRDTReply reply) {
-                                result.setResult(reply.getObject());
-                            }
-                        });
-                result.waitForResult(2000);
-                // TODO: probably should not continue forever !!!
+
+            final AtomicReference<CRDTObject> result = new AtomicReference<CRDTObject>();
+            for (;;) {
+                dhtClient.send(key, new DHTGetCRDT(id, clk, clientId, isSubscribed), new SwiftProtocolHandler() {
+                    @Override
+                    public void onReceive(DHTGetCRDTReply reply) {
+                        result.set(reply.getObject());
+                        Threading.synchronizedNotifyAllOn(result);
+                    }
+                });
+                Threading.synchronizedWaitOn(result, 2000);
+
+                if (result.get() != null)
+                    return result.get();
             }
-            return result.getResult();
         } else
-            return localGetCRDTObject(localSurrogate, id, subscribe, clk, cltId);
+            return localGetCRDTObject(id, clk, clientId, isSubscribed);
     }
 
     /**
      * Return null if CRDT does not exist
      */
-    <V extends CRDT<V>> CRDTData<V> localPutCRDT(Observer observer, CRDTIdentifier id, CRDT<V> crdt,
-            CausalityClock clk, CausalityClock prune, CausalityClock cltClock) {
+    <V extends CRDT<V>> CRDTData<V> localPutCRDT(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clk,
+            CausalityClock prune, CausalityClock cltClock) {
         lock(id);
         try {
             @SuppressWarnings("unchecked")
@@ -405,18 +386,18 @@ class DCDataServer {
     }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(Observer observer, CRDTObjectUpdatesGroup<V> grp,
-            CausalityClock snapshotVersion, CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs,
-            Timestamp prvCltTs, CausalityClock curDCVersion) {
+    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
         CRDTIdentifier id = grp.getTargetUID();
         lock(id);
         try {
-            CRDTData<?> data = localGetCRDT(observer, id, SubscriptionType.NONE);
+            CRDTData<?> data = localGetCRDT(id);
             if (data == null) {
                 if (!grp.hasCreationState()) {
+                    System.err.println("OUCH!!!!!!!!!!!!!!!!" + grp.getTargetUID());
                     return new ExecCRDTResult(false);
                 }
-                CRDT crdt = grp.getCreationState().copy();
+                CRDT<?> crdt = grp.getCreationState().copy();
                 // TODO: check clocks
                 CausalityClock clk = grp.getDependency();
                 if (clk == null) {
@@ -427,7 +408,7 @@ class DCDataServer {
                 CausalityClock prune = ClockFactory.newClock();
                 CausalityClock cltClock = ClockFactory.newClock();
                 crdt.init(id, clk, prune, true);
-                data = localPutCRDT(observer, id, crdt, clk, prune, cltClock); // will
+                data = localPutCRDT(id, crdt, clk, prune, cltClock); // will
                 // merge if
                 // object
                 // exists
@@ -447,6 +428,7 @@ class DCDataServer {
 
             if (prvCltTs != null)
                 data.crdt.augmentWithScoutClock(prvCltTs);
+
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
@@ -461,7 +443,8 @@ class DCDataServer {
              * data.prunedCrdt.prune(data.clock, false);
              * data.prunedCrdt.discardScoutClock(cltTs.getIdentifier());
              * data.pruneClock = data.clock; }
-             */data.crdt.discardScoutClock(cltTs.getIdentifier());
+             */
+            data.crdt.discardScoutClock(cltTs.getIdentifier());
             data.clock = data.crdt.getClock();
 
             setModifiedDatabaseEntry(data);
@@ -478,24 +461,25 @@ class DCDataServer {
                         + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
             }
 
-            ExecCRDTResult result = null;
-            if (data.observers.size() > 0 || data.notifiers.size() > 0) {
-                if (data.observers.size() > 0) {
-                    result = new ExecCRDTResult(true, grp.getTargetUID(), false, new ObjectSubscriptionInfo(id,
-                            oldClock, data.clock.clone(), data.pruneClock.clone(), grp));
-                } else {
-                    result = new ExecCRDTResult(true, grp.getTargetUID(), true, new ObjectSubscriptionInfo(id,
-                            oldClock, data.clock.clone(), data.pruneClock.clone(), null));
-                }
-            } else {
-                result = new ExecCRDTResult(true);
-            }
+            ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, oldClock, data.clock.clone(), data.pruneClock.clone(),
+                    grp);
 
-            return result;
+            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), info));
+
+            return new ExecCRDTResult(true, id, info);
         } finally {
             unlock(id);
         }
 
+    }
+
+    private CRDTObject localGetCRDTObject(Endpoint remote, DHTGetCRDT req) {
+        if (req.subscribesUpdates())
+            dsPubSub.subscribe(req.getId(), remote);
+        else
+            dsPubSub.unsubscribe(req.getId(), remote);
+
+        return localGetCRDTObject(req.getId(), req.getVersion(), req.getCltId(), false);
     }
 
     /**
@@ -507,14 +491,19 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTObject<?> localGetCRDTObject(Observer observer, CRDTIdentifier id, SubscriptionType subscribe,
-            CausalityClock version, String cltId) {
+    CRDTObject localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
+        if (subscribeUpdates)
+            dsPubSub.subscribe(id, suPubSub);
+        else
+            dsPubSub.unsubscribe(id, suPubSub);
+
         lock(id);
         try {
-            CRDTData<?> data = localGetCRDT(observer, id, subscribe);
+            CRDTData<?> data = localGetCRDT(id);
             if (data == null)
                 return null;
-            return new CRDTObject(data, version, cltId, cltClock);
+
+            return new CRDTObject(data, version, clientId, cltClock);
         } finally {
             unlock(id);
         }
@@ -529,91 +518,19 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTData<?> localGetCRDT(Observer observer, CRDTIdentifier id, SubscriptionType subscribe) {
+    CRDTData<?> localGetCRDT(CRDTIdentifier id) {
         lock(id);
         try {
             CRDTData<?> data = this.getDatabaseEntry(id);
             if (data.empty)
                 return null;
-            if (subscribe == SubscriptionType.UPDATES) {
-                data.addObserver(observer);
-            } else if (subscribe == SubscriptionType.NOTIFICATION) {
-                data.addNotifier(observer);
-            }
-            // if (observer instanceof RemoteObserver && subscribe !=
-            // SubscriptionType.NONE) {
-            // RemoteObserver observerR = (RemoteObserver)observer;
-            // PubSub.PubSub.addRemoteSubscriber(id.toString(),
-            // observerR.con.remoteEndpoint());
-            // }
+
             return data;
         } finally {
             unlock(id);
         }
     }
 
-}
-
-interface Observer extends Comparable<Observer> {
-    public String getSurrogateId();
-}
-
-class LocalObserver implements Observer {
-    DCSurrogate surrogate; // replace with information to access the FCSurrogate
-
-    LocalObserver(DCSurrogate s) {
-        this.surrogate = s;
-    }
-
-    public int hashCode() {
-        return surrogate.hashCode();
-    }
-
-    public boolean equals(Object o) {
-        return (o instanceof Observer) && surrogate == ((LocalObserver) o).surrogate;
-    }
-
-    @Override
-    public int compareTo(Observer o) {
-        if (o == null)
-            throw new RuntimeException("local.o == null");
-        if (getSurrogateId() == null)
-            throw new RuntimeException("local.surrogateid == null");
-        return getSurrogateId().compareTo(o.getSurrogateId());
-    }
-
-    @Override
-    public String getSurrogateId() {
-        return surrogate.getId();
-    }
-}
-
-class RemoteObserver implements Observer {
-    String surrogateId;
-    Handle con;
-
-    public RemoteObserver(String surrogateId, Handle con) {
-        this.surrogateId = surrogateId;
-        this.con = con;
-    }
-
-    public int hashCode() {
-        return surrogateId.hashCode();
-    }
-
-    public boolean equals(Object o) {
-        return (o instanceof RemoteObserver) && surrogateId.equals(((RemoteObserver) o).surrogateId);
-    }
-
-    @Override
-    public int compareTo(Observer o) {
-        return getSurrogateId().compareTo(o.getSurrogateId());
-    }
-
-    @Override
-    public String getSurrogateId() {
-        return this.surrogateId;
-    }
 }
 
 class LockInfo {
@@ -639,49 +556,4 @@ class LockInfo {
         return count <= 0;
     }
 
-}
-
-class NotificationRecord {
-    boolean notification;
-    ObjectSubscriptionInfo info;
-
-    NotificationRecord(boolean notification, ObjectSubscriptionInfo info) {
-        this.notification = notification;
-        this.info = info;
-    }
-}
-
-class Result<T> {
-    T obj;
-    boolean hasResult;
-
-    Result() {
-        hasResult = false;
-    }
-
-    synchronized boolean hasResult() {
-        return hasResult;
-    }
-
-    synchronized T getResult() {
-        return obj;
-    }
-
-    synchronized void setResult(T o) {
-        obj = o;
-        hasResult = true;
-        notifyAll();
-
-    }
-
-    synchronized boolean waitForResult(long timeout) {
-        if (!hasResult) {
-            try {
-                wait(timeout);
-            } catch (Exception e) {
-                // do nothing
-            }
-        }
-        return hasResult;
-    }
 }

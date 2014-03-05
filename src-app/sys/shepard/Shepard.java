@@ -34,11 +34,20 @@ import sys.shepard.proto.GrazingRequest;
 import sys.shepard.proto.ShepardProtoHandler;
 import sys.utils.Args;
 import sys.utils.IP;
+import sys.utils.Threading;
 
+/**
+ * 
+ * Simple manager for coordinating execution of multiple swiftsocial instances
+ * in a single deployment...
+ * 
+ * @author smduarte
+ * 
+ */
 public class Shepard extends ShepardProtoHandler {
     private static Logger Log = Logger.getLogger(Shepard.class.getName());
 
-    private static final int PORT = 9876;
+    private static final int PORT = 29876;
 
     int totalSheep;
     int grazingDuration;
@@ -49,8 +58,7 @@ public class Shepard extends ShepardProtoHandler {
     public Shepard() {
     }
 
-    public Shepard(int sheep, int duration) {
-        this.totalSheep = sheep;
+    public Shepard(int duration) {
         this.grazingDuration = duration;
         this.waitingSheep = new ArrayList<RpcHandle>();
         this.endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
@@ -58,18 +66,27 @@ public class Shepard extends ShepardProtoHandler {
 
     public static void main(String[] args) {
         sys.Sys.init();
-        int sheep = Args.valueOf(args, "-sheep", 1);
         int duration = Args.valueOf(args, "-duration", Integer.MAX_VALUE);
-        new Shepard(sheep, duration);
+
+        new Shepard(duration);
     }
 
     public void joinHerd(String shepardAddress) {
         Endpoint shepard = Networking.resolve(shepardAddress, PORT);
         RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
+        System.err.println("Contacting shepard at: " + shepardAddress);
 
         final Semaphore barrier = new Semaphore(0);
         endpoint.send(shepard, new GrazingRequest(), new ShepardProtoHandler() {
+
+            public void onReceive(GrazingAccepted r) {
+                System.err.println("Got ack from shepard...");
+            }
+
             public void onReceive(GrazingGranted permission) {
+                System.err.println("Got from shepard; when:" + permission.when() + "/ duration:"
+                        + permission.duration());
+                Threading.sleep(permission.when() + new java.util.Random().nextInt(5000));
                 barrier.release();
                 new Task(permission.duration()) {
                     public void run() {
@@ -78,25 +95,38 @@ public class Shepard extends ShepardProtoHandler {
                     }
                 };
             }
-        });
+        }, 0).enableDeferredReplies(1200000);
         barrier.acquireUninterruptibly();
         Log.info(IP.localHostAddressString() + " Let's GO!!!!!");
+        System.err.println(IP.localHostAddressString() + " Let's GO!!!!!");
     }
+
+    Task releaseTask = new Task(Double.MAX_VALUE) {
+        public void run() {
+            synchronized (Shepard.this) {
+                System.err.printf("SHEPARD: Releasing: %d sheep\n", waitingSheep.size());
+                if (releaseTime < 0) {
+                    releaseTime = System.currentTimeMillis();
+                }
+                for (RpcHandle i : waitingSheep) {
+                    long when = Math.max(0, 15000 - (System.currentTimeMillis() - releaseTime));
+                    i.reply(new GrazingGranted(grazingDuration, (int) when));
+                }
+
+                System.err.printf("SHEPARD: Released: %d sheep\n", waitingSheep.size());
+                waitingSheep.clear();
+            }
+        }
+    };
+    long releaseTime = -1;
 
     synchronized public void onReceive(RpcHandle sheep, GrazingRequest request) {
         sheep.enableDeferredReplies(Integer.MAX_VALUE);
         sheep.reply(new GrazingAccepted());
-
         waitingSheep.add(sheep);
+        releaseTask.reSchedule(releaseTime < 0 ? 20.0 : 0);
+        System.err.printf("SHEPARD: Added one more sheep: %s, total: %d sheep\n", sheep.remoteEndpoint(),
+                waitingSheep.size());
 
-        if (waitingSheep.size() == totalSheep) {// Release the sheep
-            Log.info("Releasing the sheep...");
-            for (RpcHandle i : waitingSheep)
-                i.reply(new GrazingGranted(grazingDuration));
-
-            waitingSheep.clear();
-            // Get ready for next herd...
-            Log.info("Waiting for next herd...");
-        }
     }
 }

@@ -26,6 +26,8 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
+import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.interfaces.TxnLocalCRDT;
 import swift.utils.PrettyPrint;
 
 /**
@@ -37,10 +39,10 @@ import swift.utils.PrettyPrint;
  * 
  * @param <V>
  */
-public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends BaseCRDT<T> {
+public class SetVersioned<V> extends AbstractSetVersioned<V, SetVersioned<V>> {
 
     private static final long serialVersionUID = 1L;
-    private Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> elems;
+    protected Map<V, Map<TripleTimestamp, Set<TripleTimestamp>>> elems;
 
     public SetVersioned() {
         elems = new HashMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>>();
@@ -54,10 +56,10 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         Map<TripleTimestamp, Set<TripleTimestamp>> entry = elems.get(e);
         // if element not present in the set, add entry for it in payload
         if (entry == null) {
-            entry = new HashMap<TripleTimestamp, Set<TripleTimestamp>>();
+            entry = new HashMap<TripleTimestamp, Set<TripleTimestamp>>(1);
             elems.put(e, entry);
         }
-        entry.put(uid, new HashSet<TripleTimestamp>());
+        entry.put(uid, new HashSet<TripleTimestamp>(1));
         registerTimestampUsage(uid);
     }
 
@@ -78,11 +80,11 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
     }
 
     @Override
-    protected boolean mergePayload(T other) {
+    protected boolean mergePayload(SetVersioned<V> other) {
         final List<TripleTimestamp> newTimestampUsages = new LinkedList<TripleTimestamp>();
         final List<TripleTimestamp> releasedTimestampUsages = new LinkedList<TripleTimestamp>();
-        AddWinsUtils.mergePayload(this.elems, this.getClock(), ((SetVersioned<V, T>) other).elems, other.getClock(),
-                newTimestampUsages, releasedTimestampUsages);
+        AddWinsUtils.mergePayload(this.elems, this.getClock(), other.elems, other.getClock(), newTimestampUsages,
+                releasedTimestampUsages);
         for (final TripleTimestamp ts : newTimestampUsages) {
             registerTimestampUsage(ts);
         }
@@ -105,7 +107,7 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
         }
     }
 
-    protected void copyLoad(SetVersioned<V, T> copy) {
+    protected void copyLoad(SetVersioned<V> copy) {
         copy.elems = new HashMap<V, Map<TripleTimestamp, Set<TripleTimestamp>>>();
         for (final Entry<V, Map<TripleTimestamp, Set<TripleTimestamp>>> e : this.elems.entrySet()) {
             final V v = e.getKey();
@@ -116,4 +118,11 @@ public abstract class SetVersioned<V, T extends SetVersioned<V, T>> extends Base
             copy.elems.put(v, subMap);
         }
     }
+
+    @Override
+    protected TxnLocalCRDT<SetVersioned<V>> getTxnLocalCopyImpl(CausalityClock versionClock, TxnHandle txn) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

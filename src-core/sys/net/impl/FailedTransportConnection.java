@@ -35,18 +35,8 @@ public class FailedTransportConnection extends AbstractTransport {
         return false;
     }
 
-    @Override
-    public <T extends Message> T receive() {
-        return null;
-    }
-
     public Throwable causeOfFailure() {
         return cause;
-    }
-
-    @Override
-    public boolean sendNow(Message m) {
-        return false;
     }
 
     public String toString() {

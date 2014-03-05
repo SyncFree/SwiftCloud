@@ -45,7 +45,7 @@ public class IntegerVersioned extends BaseCRDT<IntegerVersioned> {
         this.prunedValuesPerSite = new HashMap<String, Integer>();
     }
 
-    private int value(CausalityClock snapshotClock) {
+    protected int value(CausalityClock snapshotClock) {
         if (snapshotClock.compareTo(getClock()) != CMP_CLOCK.CMP_ISDOMINATED) {
             // Since snapshot covers all updates making up this object, use the
             // current value.

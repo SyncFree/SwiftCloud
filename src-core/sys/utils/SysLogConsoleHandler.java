@@ -22,7 +22,7 @@ import java.util.logging.LogRecord;
 /**
  * Provides a simple customized Logger class.
  * 
- * @author smd
+ * @author smduarte
  * 
  */
 public class SysLogConsoleHandler extends ConsoleHandler {

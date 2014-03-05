@@ -16,8 +16,8 @@
  *****************************************************************************/
 package swift.client;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.TimestampMapping;
@@ -65,8 +65,9 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
     SnapshotIsolationTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
             final CachePolicy cachePolicy, final TimestampMapping timestampMapping, final CausalityClock snapshotClock,
             Stats statistics) {
-        super(manager, sessionId, durableLog, cachePolicy, timestampMapping, statistics);
-        this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        super(manager, sessionId, durableLog, IsolationLevel.SNAPSHOT_ISOLATION, cachePolicy, timestampMapping,
+                statistics);
+        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }
 
@@ -85,8 +86,8 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      */
     SnapshotIsolationTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
             final CausalityClock snapshotClock, Stats statistics) {
-        super(manager, sessionId, cachePolicy, statistics);
-        this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        super(manager, sessionId, IsolationLevel.SNAPSHOT_ISOLATION, cachePolicy, statistics);
+        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }
 

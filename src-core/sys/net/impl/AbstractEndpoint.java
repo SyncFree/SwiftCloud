@@ -78,7 +78,8 @@ abstract public class AbstractEndpoint implements Endpoint {
 
     @Override
     public int hashCode() {
-        return (int) (locator >>> 32 ^ locator & 0xFFFFFFFFL);
+        long tmp = locator ^ gid;
+        return (int) (tmp >>> 32 ^ tmp & 0xFFFFFFFFL);
     }
 
     final public boolean equals(AbstractEndpoint other) {
@@ -137,7 +138,13 @@ abstract public class AbstractEndpoint implements Endpoint {
     }
 
     protected static long encodeLocator(InetSocketAddress addr) {
-        return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();
+        try {
+            return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();
+        } catch (Exception x) {
+            System.err.println(addr);
+            x.printStackTrace();
+            return 0;
+        }
     }
 
     protected static InetSocketAddress decodeLocator(long locator) {

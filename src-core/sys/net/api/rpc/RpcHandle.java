@@ -103,19 +103,19 @@ public interface RpcHandle {
 
     /**
      * By default deferred replies for a given send operation are disabled. Only
-     * the first reply will be accepted.
+     * the first reply will be accepted,
      * 
      * This method allows multiple replies to the same send operation to be
      * received. The reply handler will be hard referenced internally up to the
-     * given timeout. After that, it will be held as a soft reference and can be
-     * reclaimed by the GC, causing late replies to be discarded.
+     * given timeout. Each new reply, refreshes the timeout. TODO. Explain the
+     * semantics of calling this at each end...
      * 
      * @param flag
      *            - flag to control if accepting multiple replies for a send is
      *            enabled or disabled.
      * @return the handle that was modified.
      */
-    RpcHandle enableDeferredReplies(int timeout);
+    RpcHandle enableDeferredReplies(long timeout);
 
     /**
      * In blocking mode, this method returns the handle to the reply message.
@@ -124,4 +124,11 @@ public interface RpcHandle {
      *         returned this handle
      */
     RpcHandle getReply();
+
+    /**
+     * For a reply handle, return the rtt, otherwise the result is undefined.
+     * 
+     * @return
+     */
+    long rtt();
 }

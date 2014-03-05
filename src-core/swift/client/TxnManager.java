@@ -33,6 +33,7 @@ import swift.exceptions.WrongTypeException;
  * @author mzawirski
  */
 public interface TxnManager {
+
     <V extends CRDT<V>> TxnLocalCRDT<V> getObjectLatestVersionTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
             CachePolicy cachePolicy, boolean create, Class<V> classOfV, final ObjectUpdatesListener updatesListener)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;

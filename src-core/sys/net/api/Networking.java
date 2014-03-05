@@ -27,7 +27,7 @@ import sys.net.api.rpc.RpcFactory;
 abstract public class Networking {
 
     public enum TransportProvider {
-        DEFAULT, NIO_TCP, NETTY_IO_TCP, NETTY_IO_WS
+        DEFAULT, NIO_TCP, OIO_TCP, NETTY_IO_TCP, NETTY_IO_WS
     }
 
     /**

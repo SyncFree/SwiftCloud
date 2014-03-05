@@ -22,7 +22,7 @@ import swift.crdt.interfaces.CRDTUpdate;
 import swift.crdt.interfaces.TxnHandle;
 import swift.crdt.interfaces.TxnLocalCRDT;
 
-public class SetMsg extends SetVersioned<Message, SetMsg> {
+public class SetMsg extends AbstractSetVersioned<Message, SetMsg> {
 
     private static final long serialVersionUID = 1L;
 

@@ -80,4 +80,9 @@ public interface SwiftSession {
      * @return scout associated with this session
      */
     SwiftScout getScout();
+
+    /**
+     * Prints any statistics collected by the runtime.
+     */
+    void printStatistics();
 }

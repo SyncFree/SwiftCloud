@@ -20,11 +20,11 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.interfaces.CRDT;
 
-public class CRDTObject<V extends CRDT<V>> {
+public class CRDTObject {
     /**
      * crdt object
      */
-    CRDT<V> crdt;
+    CRDT<?> crdt;
     /**
      * current clock reflects all updates and their causal past
      */
@@ -35,11 +35,15 @@ public class CRDTObject<V extends CRDT<V>> {
      */
     CausalityClock pruneClock;
 
+    /**
+     * The total number of updates performed on the crdt object so far
+     */
+
     public CRDTObject() {
         // do nothing
     }
 
-    public CRDTObject(CRDTData<V> data, CausalityClock version, String cltId, CausalityClock cltClock) {
+    public CRDTObject(CRDTData<?> data, CausalityClock version, String cltId, CausalityClock cltClock) {
         // 1) let int clientTxs =
         // clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
         // probably it could be done better, lock-free
@@ -53,7 +57,8 @@ public class CRDTObject<V extends CRDT<V>> {
          * data.pruneClock); if( cmp == CMP_CLOCK.CMP_EQUALS || cmp ==
          * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
          * this.crdt = data.crdt.copy(); } else;
-         */this.crdt = data.crdt.copy();
+         */
+        this.crdt = data.crdt.copy();
         this.clock = data.clock.clone();
         this.pruneClock = data.pruneClock.clone();
         Timestamp ts = null;

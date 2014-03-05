@@ -26,20 +26,27 @@ import java.util.TreeMap;
 
 import swift.exceptions.IncompatibleTypeException;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoCopyable;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * Class to represent version vectors with exceptions. This representation
  * records the intervals of contiguous values.
  * 
  * @author nmp
  */
-public class VersionVectorWithExceptions implements CausalityClock {
+public class VersionVectorWithExceptions implements CausalityClock, KryoSerializable,
+        KryoCopyable<VersionVectorWithExceptions> {
 
     @Override
     public Object copy() {
         return new VersionVectorWithExceptions(this);
     }
 
-    public static class Interval {
+    public static class Interval implements KryoSerializable, KryoCopyable<Interval> {
 
         long from; // inclusive
         long to; // inclusive
@@ -118,6 +125,22 @@ public class VersionVectorWithExceptions implements CausalityClock {
             return true;
         }
 
+        @Override
+        public Interval copy(Kryo kryo) {
+            return new Interval(from, to);
+        }
+
+        @Override
+        public void read(Kryo kryo, Input in) {
+            from = in.readLong();
+            to = in.readLong();
+        }
+
+        @Override
+        public void write(Kryo kryo, Output out) {
+            out.writeLong(from);
+            out.writeLong(to);
+        }
     }
 
     private static final long serialVersionUID = 1L;
@@ -868,5 +891,37 @@ public class VersionVectorWithExceptions implements CausalityClock {
         int hash = 7;
         hash += this.vv.hashCode();
         return hash;
+    }
+
+    @Override
+    public VersionVectorWithExceptions copy(Kryo kryo) {
+        return new VersionVectorWithExceptions(this);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input in) {
+        numPairs = in.readInt();
+        for (int i = in.readInt(); --i >= 0;) {
+            LinkedList<Interval> lli = new LinkedList<Interval>();
+            vv.put(in.readString(), lli);
+            for (int j = in.readInt(); --j >= 0;) {
+                Interval ii = new Interval();
+                ii.read(kryo, in);
+                lli.add(ii);
+            }
+        }
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        out.writeInt(numPairs);
+        out.writeInt(vv.size());
+        for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
+            out.writeString(e.getKey());
+            LinkedList<Interval> lli = e.getValue();
+            out.writeInt(lli.size());
+            for (Interval ii : e.getValue())
+                ii.write(kryo, out);
+        }
     }
 }

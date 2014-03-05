@@ -46,4 +46,12 @@ public class IP {
             throw new NetworkingException(e.getMessage());
         }
     }
+
+    public static String addressString(String hostname) {
+        try {
+            return InetAddress.getByName(hostname).getHostAddress();
+        } catch (UnknownHostException e) {
+            throw new NetworkingException(e.getMessage());
+        }
+    }
 }

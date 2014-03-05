@@ -16,8 +16,8 @@
  *****************************************************************************/
 package swift.client;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import swift.clocks.TimestampMapping;
 import swift.crdt.CRDTIdentifier;
@@ -63,8 +63,9 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      */
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
             final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats statistics) {
-        super(manager, sessionId, durableLog, cachePolicy, timestampMapping, statistics);
-        this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        super(manager, sessionId, durableLog, IsolationLevel.REPEATABLE_READS, cachePolicy, timestampMapping,
+                statistics);
+        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 
     /**
@@ -79,8 +80,8 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      */
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
             Stats statistics) {
-        super(manager, sessionId, cachePolicy, statistics);
-        this.objectViewsCache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        super(manager, sessionId, IsolationLevel.REPEATABLE_READS, cachePolicy, statistics);
+        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
     }
 
     @Override

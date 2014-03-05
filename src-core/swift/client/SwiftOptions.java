@@ -21,20 +21,22 @@ package swift.client;
  * 
  * @author mzawirski
  */
-public class SwiftOptions {
+final public class SwiftOptions {
     public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
-    public static final boolean DEFAULT_DISASTER_SAFE = true;
+    public static final boolean DEFAULT_DISASTER_SAFE = false;
     public static final int DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED = 50;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
-    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 8 * 1000;
+    public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 5 * 1000;
+
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
     public static final int DEFAULT_CACHE_SIZE = 100000;
-    public static final int DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE = 2;
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
     private static final String DEFAULT_STATISTICS_FOLDER = "statistics";
+
+    public static final int DEFAULT_SCOUTGATEWAY_PORT = 28881;
 
     private String serverHostname;
     private int serverPort;
@@ -46,10 +48,14 @@ public class SwiftOptions {
     private long cacheEvictionTimeMillis;
     private int cacheSize;
     private int notificationTimeoutMillis;
-    private int notificationThreadPoolsSize;
     private int maxCommitBatchSize;
     private String logFilename;
     private boolean logFlushOnCommit;
+    private boolean causalNotifications;
+
+    // for kryo...
+    SwiftOptions() {
+    }
 
     private boolean overwriteStatisticsDir;
     private String statisticsOutputDir;
@@ -62,7 +68,9 @@ public class SwiftOptions {
      * @param serverPort
      *            TCP port of the store server
      */
+
     public SwiftOptions(String serverHostname, int serverPort) {
+        this.causalNotifications = true;
         this.serverHostname = serverHostname;
         this.serverPort = serverPort;
         this.disasterSafe = DEFAULT_DISASTER_SAFE;
@@ -73,7 +81,6 @@ public class SwiftOptions {
         this.cacheEvictionTimeMillis = DEFAULT_CACHE_EVICTION_MILLIS;
         this.cacheSize = DEFAULT_CACHE_SIZE;
         this.notificationTimeoutMillis = DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
-        this.notificationThreadPoolsSize = DEFAULT_NOTIFICATIONS_THREAD_POOLS_SIZE;
         this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
         this.logFilename = DEFAULT_LOG_FILENAME;
         this.setLogFlushOnCommit(DEFAULT_LOG_FLUSH_ON_COMMIT);
@@ -117,6 +124,15 @@ public class SwiftOptions {
      */
     public boolean isDisasterSafe() {
         return disasterSafe;
+    }
+
+    /**
+     * @return true if the scout should assume notifications are delivered
+     *         atomically in causal order for the cache as a whole.
+     * 
+     */
+    public boolean assumeAtomicCausalNotifications() {
+        return causalNotifications;
     }
 
     /**
@@ -234,21 +250,6 @@ public class SwiftOptions {
     }
 
     /**
-     * @return size of each thread pool processing object notifications
-     */
-    public int getNotificationThreadPoolsSize() {
-        return notificationThreadPoolsSize;
-    }
-
-    /**
-     * @param notificationThreadPoolsSize
-     *            size of each thread pool processing object notifications
-     */
-    public void setNotificationThreadPoolsSize(final int notificationThreadPoolsSize) {
-        this.notificationThreadPoolsSize = notificationThreadPoolsSize;
-    }
-
-    /**
      * @return maximum number of transactions in one commit request to the store
      */
     public int getMaxCommitBatchSize() {
@@ -292,6 +293,16 @@ public class SwiftOptions {
      */
     public void setLogFlushOnCommit(boolean logFlushOnCommit) {
         this.logFlushOnCommit = logFlushOnCommit;
+    }
+
+    /**
+     * 
+     * @param flag
+     *            true if the scout should assume notifications are delivered
+     *            atomically and in causal order for the whole cache.
+     */
+    public void setCausalNotifications(boolean flag) {
+        this.causalNotifications = flag;
     }
 
     public void setStatisticsOutputFolder(String outputFolder, boolean overwriteExistingDir) {

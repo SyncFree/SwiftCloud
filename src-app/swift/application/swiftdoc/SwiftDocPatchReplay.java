@@ -27,15 +27,10 @@ import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.ListIterator;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-
-import difflib.Delta;
-import difflib.DiffUtils;
-import difflib.Patch;
 
 public class SwiftDocPatchReplay<V> {
 
@@ -47,20 +42,16 @@ public class SwiftDocPatchReplay<V> {
 
         ZipEntry initial = patches.first();
 
-        if (seq != null)
-            seq.begin();
-
         // Populate initial doc with
         List<Object> doc = new ArrayList<Object>();
         for (String i : fileToLines(initial)) {
             if (seq != null) {
+                seq.begin();
                 seq.add(seq.size(), seq.gen(i));
+                seq.commit();
             }
             doc.add(i);
         }
-
-        if (seq != null)
-            seq.commit();
 
         int k = 0;
         for (ZipEntry i : patches) {
@@ -72,22 +63,23 @@ public class SwiftDocPatchReplay<V> {
             if (seq != null)
                 seq.begin();
 
-            Patch patch = DiffUtils.parseUnifiedDiff(fileToLines(i));
-
-            List<Object> result = new HelperList<Object>(doc, seq);
-
-            List<Delta> deltas = patch.getDeltas();
-            ListIterator<Delta> it = deltas.listIterator(deltas.size());
-            while (it.hasPrevious()) {
-                Delta delta = (Delta) it.previous();
-                delta.applyTo(result);
-            }
-            doc = result;
-
+            doc.add(i.getName());
+            seq.add(0, seq.gen(i.getName()));
+            // Patch patch = DiffUtils.parseUnifiedDiff(fileToLines(i));
+            //
+            // List<Object> result = new HelperList<Object>(doc, seq);
+            //
+            // List<Delta> deltas = patch.getDeltas();
+            // ListIterator<Delta> it = deltas.listIterator(deltas.size());
+            // while (it.hasPrevious()) {
+            // Delta delta = (Delta) it.previous();
+            // delta.applyTo(result);
+            // }
+            // doc = result;
             if (seq != null)
                 seq.commit();
 
-            if (i.getName().startsWith("100-"))
+            if (i.getName().startsWith("500-"))
                 return;
         }
         System.err.println("All Done");
@@ -106,7 +98,7 @@ public class SwiftDocPatchReplay<V> {
 
         File file = new File("swiftdoc-patches.zip");
         if (!file.exists())
-            file = new File("data/swiftdoc/swiftdoc-patches.zip");
+            file = new File("evaluation/swiftdoc/swiftdoc-patches.zip");
 
         zipFile = new ZipFile(file);
 

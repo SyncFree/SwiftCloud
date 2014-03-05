@@ -58,4 +58,9 @@ class SwiftSessionToScoutAdapter implements SwiftSession {
     public SwiftScout getScout() {
         return sharedSwift;
     }
+
+    @Override
+    public void printStatistics() {
+        sharedSwift.printAndResetCacheStats();
+    }
 }

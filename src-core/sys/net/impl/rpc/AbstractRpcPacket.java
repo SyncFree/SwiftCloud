@@ -34,24 +34,24 @@ import com.esotericsoftware.kryo.io.Output;
 abstract class AbstractRpcPacket extends AbstractMessage implements Message, RpcHandle, RpcEndpoint, KryoSerializable {
 
     long handlerId; // destination service handler
-    public long replyHandlerId; // reply handler, 0 = no reply expected.
-    public int deferredRepliesTimeout = 0;
-
-    RpcMessage payload;
-
-    RpcHandler handler;
-    TransportConnection conn;
+    long replyHandlerId; // reply handler, 0 = no reply expected.
+    int deferredRepliesTimeout = 0;
 
     int timeout;
-    Endpoint remote;
     long timestamp;
+
+    RpcHandler handler;
+    RpcMessage payload;
+    RpcFactoryImpl fac;
+    AbstractRpcPacket reply;
+
+    Endpoint remote;
+    TransportConnection conn;
 
     int DEFAULT_TIMEOUT = NetworkingConstants.RPC_DEFAULT_TIMEOUT;
 
     boolean failed = false;
     Throwable failureCause;
-
-    volatile AbstractRpcPacket reply;
 
     protected AbstractRpcPacket() {
     }
@@ -139,12 +139,20 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
         return reply;
     }
 
+    public long rtt() {
+        return System.currentTimeMillis() - timestamp;
+    }
+
+    protected RpcMessage getReplyPayload() {
+        return reply != null ? reply.payload : null;
+    }
+
     @Override
     final public void read(Kryo kryo, Input input) {
         this.handlerId = input.readLong();
         this.replyHandlerId = input.readLong();
         this.deferredRepliesTimeout = input.readInt();
-
+        this.timestamp = input.readLong();
         this.payload = (RpcMessage) kryo.readClassAndObject(input);
     }
 
@@ -152,8 +160,8 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
     final public void write(Kryo kryo, Output output) {
         output.writeLong(this.handlerId);
         output.writeLong(this.replyHandlerId);
-        output.writeInt(deferredRepliesTimeout);
-
+        output.writeInt(this.deferredRepliesTimeout);
+        output.writeLong(this.timestamp);
         kryo.writeClassAndObject(output, payload);
     }
 }

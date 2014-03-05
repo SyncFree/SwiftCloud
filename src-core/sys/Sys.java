@@ -16,6 +16,8 @@
  *****************************************************************************/
 package sys;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
@@ -25,6 +27,7 @@ import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.catadupa.KryoCatadupa;
 import sys.net.impl.NetworkingImpl;
+import sys.scheduler.Task;
 import sys.scheduler.TaskScheduler;
 import sys.utils.IP;
 
@@ -42,6 +45,18 @@ public class Sys {
 
     private String datacenter = "*";
 
+    Map<String, Long> marks = new HashMap<String, Long>();
+
+    public void startWatch(String mark) {
+        marks.put(mark, System.currentTimeMillis());
+    }
+
+    public long stopWatch(String mark) {
+        Long val = marks.get(mark);
+        val = val == null ? 0 : val;
+        return System.currentTimeMillis() - val.longValue();
+    }
+
     public double currentTime() {
         return (System.nanoTime() - T0n) * NANOSECOND;
     }
@@ -58,8 +73,7 @@ public class Sys {
         Sys = this;
 
         StackTraceElement[] sta = Thread.currentThread().getStackTrace();
-        mainClass = Thread.currentThread().getStackTrace()[sta.length - 1].getClassName() + "@"
-                + IP.localHostAddressString();
+        mainClass = Thread.currentThread().getStackTrace()[sta.length - 1].getClassName() + " @ " + IP.localHostname();
         initInstance();
     }
 
@@ -91,6 +105,13 @@ public class Sys {
     synchronized public static void init() {
         if (Sys == null) {
             new Sys();
+
+            new Task(60 * 60) {
+                public void run() {// TODO. Make this an option...
+                    System.err.println("BOOOM. Self shutdown to avoid leaving processes running on PlanetLab.");
+                    System.exit(0);
+                }
+            };
         }
     }
 

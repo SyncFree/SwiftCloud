@@ -36,17 +36,15 @@ import com.esotericsoftware.kryo.io.Output;
 public class KryoLib {
     private static Logger Log = Logger.getLogger(RpcPacket.class.getName());
 
-    static Kryo kryo = new Kryo();
-
     synchronized public static <T> T copy(T obj) {
-        return kryo.copy(obj);
+        return kryo().copy(obj);
     }
 
     synchronized public static <T> T copyShallow(T obj) {
-        return kryo.copyShallow(obj);
+        return kryo().copyShallow(obj);
     }
 
-    synchronized public static Kryo kryo() {
+    synchronized public static Kryo getKryoInstance() {
         Kryo res = new _Kryo(registry);
         for (_Registration i : registry)
             if (i.ser != null)
@@ -158,5 +156,16 @@ public class KryoLib {
         public String toString() {
             return _registrations.toString();
         }
+    }
+
+    private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
+        @Override
+        protected Kryo initialValue() {
+            return getKryoInstance();
+        }
+    };
+
+    public static Kryo kryo() {
+        return kryo.get();
     }
 }

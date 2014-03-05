@@ -16,18 +16,19 @@
  *****************************************************************************/
 package swift.application.social;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import static sys.Sys.Sys;
+
+import java.io.PrintStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
@@ -39,148 +40,221 @@ import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import swift.exceptions.SwiftException;
-import sys.Sys;
+import sys.utils.Args;
+import sys.utils.Props;
+import sys.utils.Threading;
 
 /**
  * Executing SwiftSocial operations, based on data model of WaltSocial prototype
  * [Sovran et al. SOSP 2011].
  */
 public class SwiftSocialMain {
-    private static final long DELAY_AFTER_INIT = 3000;
-    private static int lengthInputFile = 500;
-    private static String dcName;
-    private static String usersFileName;
-    private static String commandsFileName;
-    private static IsolationLevel isolationLevel;
-    private static CachePolicy cachePolicy;
-    private static boolean subscribeUpdates;
-    private static boolean asyncCommit;
+    protected static String dcName;
+    protected static IsolationLevel isolationLevel;
+    protected static CachePolicy cachePolicy;
+    protected static boolean subscribeUpdates;
+    protected static boolean asyncCommit;
+    protected static int asyncQueueSize;
+    protected static int batchSize;
+    protected static int cacheSize;
+    protected static int cacheEvictionTimeMillis;
+
+    protected static int thinkTime;
+    protected static int numUsers;
+    protected static int userFriends;
+    protected static int biasedOps;
+    protected static int randomOps;
+    protected static int opGroups;
+
+    protected static PrintStream bufferedOutput;
+
+    protected static AtomicInteger commandsDone = new AtomicInteger(0);
+    protected static AtomicInteger totalCommands = new AtomicInteger(0);
 
     public static void main(String[] args) {
-        if (args.length != 6 && args.length != 7) {
-            System.out
-                    .println("Usage: <surrogate addr> <isolationLevel> <cachePolicy> <subscribe updates (true|false)>");
-            System.out
-                    .println("       <async. commit (true|false)> <commands filename> [users filename to initialize]");
-            return;
-        } else {
-            dcName = args[0];
-            isolationLevel = IsolationLevel.valueOf(args[1]);
-            cachePolicy = CachePolicy.valueOf(args[2]);
-            subscribeUpdates = Boolean.parseBoolean(args[3]);
-            asyncCommit = Boolean.parseBoolean(args[4]);
-            commandsFileName = args[5];
-            if (args.length == 7) {
-                usersFileName = args[6];
-            } else {
-                usersFileName = null;
-            }
-        }
-        startSequencer();
-        startDCServer();
-        runClient(commandsFileName, usersFileName);
-    }
+        sys.Sys.init();
 
-    public static List<String> readInputFromFile(final String fileName) {
-        List<String> data = new ArrayList<String>(lengthInputFile);
-        try {
-            FileInputStream fstream = new FileInputStream(fileName);
-            DataInputStream in = new DataInputStream(fstream);
-            BufferedReader br = new BufferedReader(new InputStreamReader(in));
-            String strLine;
-            try {
-                while ((strLine = br.readLine()) != null) {
-                    // read file into memory
-                    data.add(strLine);
+        Logger.getLogger("swift").setLevel(Level.WARNING);
+        // Logger.getLogger("sys").setLevel(Level.ALL);
+
+        dcName = args.length == 0 ? "localhost" : args[0];
+
+        init();
+
+        SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
+        options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
+        options.setCacheSize(cacheSize);
+        options.setMaxAsyncTransactionsQueued(asyncQueueSize);
+        options.setMaxCommitBatchSize(batchSize);
+
+        DCSequencerServer.main(new String[] { "-name", dcName });
+        DCServer.main(new String[] { dcName });
+
+        Props.parseFile("swiftsocial", bufferedOutput);
+
+        System.out.println("Initializing Users...");
+
+        List<String> users = Workload.populate(numUsers);
+
+        initUsers(options, users, new AtomicInteger(), numUsers);
+
+        System.out.println("Waiting for 3 seconds...");
+
+        int concurrentSessions = Args.valueOf(args, "-sessions", 1);
+
+        Threading.sleep(3000);
+        final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions,
+                Threading.factory("Client"));
+
+        System.err.println("Spawning session threads.");
+        for (int i = 0; i < concurrentSessions; i++) {
+            final int sessionId = i;
+            final Workload commands = Workload.doMixed(0, userFriends, biasedOps, randomOps, opGroups, 1);
+            sessionsExecutor.execute(new Runnable() {
+                public void run() {
+                    // Randomize startup to avoid clients running all at the
+                    // same time; causes problems akin to DDOS symptoms.
+                    Threading.sleep(Sys.rg.nextInt(1000));
+                    runClientSession(sessionId, commands, false);
                 }
-            } finally {
-                in.close();
-            }
-            return data;
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    private static void runClient(final String inputFileName, final String usersFileName) {
-        Sys.init();
-        SwiftSession clientServer = SwiftImpl.newSingleSessionInstance(new SwiftOptions(dcName,
-                DCConstants.SURROGATE_PORT));
-        SwiftSocial client = new SwiftSocial(clientServer, isolationLevel, cachePolicy, subscribeUpdates, asyncCommit);
-
-        if (usersFileName != null) {
-            initUsers(clientServer, client, usersFileName);
-            clientServer.stopScout(true);
-            try {
-                Thread.sleep(DELAY_AFTER_INIT);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // Execute the commands assigned to this thread
-        List<String> commandData = readInputFromFile(inputFileName);
-        while (true) {
-            int n_fail = 0;
-            for (String line : commandData) {
-                String[] toks = line.split(";");
-                switch (Commands.valueOf(toks[0].toUpperCase())) {
-                case LOGIN:
-                    if (toks.length == 3) {
-                        client.login(toks[1], toks[2]);
-                        break;
-                    }
-                case LOGOUT:
-                    if (toks.length == 2) {
-                        client.logout(toks[1]);
-                        break;
-                    }
-                case READ:
-                    if (toks.length == 2) {
-                        client.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
-                        break;
-                    }
-                case SEE_FRIENDS:
-                    if (toks.length == 2) {
-                        client.readFriendList(toks[1]);
-                        break;
-                    }
-                case FRIEND:
-                    if (toks.length == 2) {
-                        client.befriend(toks[1]);
-                        break;
-                    }
-                case STATUS:
-                    if (toks.length == 2) {
-                        client.updateStatus(toks[1], System.currentTimeMillis());
-                        break;
-                    }
-                case POST:
-                    if (toks.length == 3) {
-                        client.postMessage(toks[1], toks[2], System.currentTimeMillis());
-                        break;
-                    }
-                default:
-                    System.out.println("Can't parse command line :" + line);
-                    n_fail++;
-                }
-            }
+            });
         }
 
     }
 
-    public static void initUsers(SwiftSession swiftClient, SwiftSocial client, final String usersFileName) {
+    public static void init() {
+
+        bufferedOutput = new PrintStream(System.out, false);
+
+        Props.parseFile("swiftsocial", bufferedOutput);
+        isolationLevel = IsolationLevel.valueOf(Props.get("swift.IsolationLevel"));
+        cachePolicy = CachePolicy.valueOf(Props.get("swift.CachePolicy"));
+        subscribeUpdates = Props.boolValue("swift.Notifications", false);
+        asyncCommit = Props.boolValue("swift.AsyncCommit", true);
+        asyncQueueSize = Props.intValue("swift.AsyncQueue", 50);
+        cacheEvictionTimeMillis = Props.intValue("swift.cacheEvictionTimeMillis", 120000);
+        cacheSize = Props.intValue("swift.CacheSize", 1024);
+        batchSize = Props.intValue("swift.BatchSize", 10);
+
+        numUsers = Props.intValue("swiftsocial.numUsers", 1000);
+        userFriends = Props.intValue("swiftsocial.userFriends", 25);
+        biasedOps = Props.intValue("swiftsocial.biasedOps", 9);
+        randomOps = Props.intValue("swiftsocial.randomOps", 1);
+        opGroups = Props.intValue("swiftsocial.opGroups", 500);
+        thinkTime = Props.intValue("swiftsocial.thinkTime", 1000);
+
+    }
+
+    public static SwiftSocial getSwiftSocial() {
+        final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
+        options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
+        options.setCacheSize(cacheSize);
+        options.setMaxAsyncTransactionsQueued(asyncQueueSize);
+        options.setMaxCommitBatchSize(batchSize);
+        options.setDisasterSafe(false);
+        SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
+        SwiftSocial socialClient = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
+                asyncCommit);
+        return socialClient;
+    }
+
+    static void runClientSession(final int sessionId, final Workload commands, boolean loop4Ever) {
+        final SwiftSocial socialClient = getSwiftSocial();
+
+        totalCommands.addAndGet(commands.size());
+        final long sessionStartTime = System.currentTimeMillis();
+        final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
+        bufferedOutput.println(initSessionLog);
+
+        do
+            for (String cmdLine : commands) {
+                long txnStartTime = System.currentTimeMillis();
+                Commands cmd = runCommandLine(socialClient, cmdLine);
+                long txnEndTime = System.currentTimeMillis();
+                final long txnExecTime = txnEndTime - txnStartTime;
+                final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, txnEndTime);
+                bufferedOutput.println(log);
+
+                Threading.sleep(thinkTime);
+                commandsDone.incrementAndGet();
+            }
+        while (loop4Ever);
+
+        socialClient.getSwift().stopScout(true);
+
+        final long now = System.currentTimeMillis();
+        final long sessionExecTime = now - sessionStartTime;
+        bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
+        bufferedOutput.flush();
+    }
+
+    public static Commands runCommandLine(SwiftSocial socialClient, String cmdLine) {
+        String[] toks = cmdLine.split(";");
+        final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+        switch (cmd) {
+        case LOGIN:
+            if (toks.length == 3) {
+                while (!socialClient.login(toks[1], toks[2]))
+                    Threading.sleep(1000);
+                break;
+            }
+        case LOGOUT:
+            if (toks.length == 2) {
+                socialClient.logout(toks[1]);
+                break;
+            }
+        case READ:
+            if (toks.length == 2) {
+                socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
+                break;
+            }
+        case SEE_FRIENDS:
+            if (toks.length == 2) {
+                socialClient.readFriendList(toks[1]);
+                break;
+            }
+        case FRIEND:
+            if (toks.length == 2) {
+                socialClient.befriend(toks[1]);
+                break;
+            }
+        case STATUS:
+            if (toks.length == 2) {
+                socialClient.updateStatus(toks[1], System.currentTimeMillis());
+                break;
+            }
+        case POST:
+            if (toks.length == 3) {
+                socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
+                break;
+            }
+        default:
+            System.err.println("Can't parse command line :" + cmdLine);
+            System.err.println("Exiting...");
+            System.exit(1);
+        }
+        return cmd;
+    }
+
+    static String progressMsg = "";
+
+    public static void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {
         try {
+            SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(swiftOptions);
+            SwiftSocial client = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
+                    asyncCommit);
+
             TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
             int txnSize = 0;
             // Initialize user data
-            List<String> userData = readInputFromFile(usersFileName);
-            int total = userData.size(), counter = 0;
+            List<String> userData = users;
             for (String line : userData) {
-                System.out.printf("\rInitialization:%.1f%%", 100.0 * counter++ / total);
+
+                String msg = String.format("Initialization:%.0f%%", 100.0 * counter.incrementAndGet() / total);
+                if (!msg.equals(progressMsg)) {
+                    progressMsg = msg;
+                    System.out.println(progressMsg);
+                }
                 // Divide into smaller transactions.
                 if (txnSize >= 100) {
                     txn.commit();
@@ -203,18 +277,9 @@ public class SwiftSocialMain {
             if (!txn.getStatus().isTerminated()) {
                 txn.commit();
             }
+            swiftClient.stopScout(true);
         } catch (SwiftException e1) {
             e1.printStackTrace();
         }
-        System.out.println("Initialization finished");
     }
-
-    private static void startDCServer() {
-        DCServer.main(new String[] { dcName });
-    }
-
-    private static void startSequencer() {
-        DCSequencerServer.main(new String[] { "-name", dcName });
-    }
-
 }

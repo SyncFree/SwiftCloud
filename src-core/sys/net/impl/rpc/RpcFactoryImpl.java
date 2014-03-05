@@ -20,9 +20,8 @@ import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRIES;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
 import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
-import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY;
+import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_TIMEOUT;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
-import static sys.stats.RpcStats.RpcStats;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -33,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
@@ -48,7 +48,7 @@ import sys.scheduler.Task;
 import sys.utils.LongMap;
 import sys.utils.Threading;
 
-final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEchoHandler {
+final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
     private static Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName());
 
@@ -56,26 +56,6 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
     ConnectionManager conMgr;
 
     public RpcFactoryImpl() {
-
-        // new PeriodicTask(0.0, 10.0) {
-        // public void run() {
-        // synchronized (conMgr) {
-        // for (final TransportConnection[] i : conMgr.ro_connections.values())
-        // {
-        // new Task(Sys.rg.nextDouble() * 5) {
-        // public void run() {
-        // try {
-        // if (i.length > 0)
-        // i[0].send(new RpcPing(Sys.currentTime()));
-        // } catch (Exception x) {
-        // }
-        // }
-        // };
-        // }
-        // }
-        // }
-        // };
-
         initStaleHandlersGC_Task();
     }
 
@@ -87,7 +67,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
 
     @Override
     synchronized public RpcEndpoint toService(final int service, final RpcHandler handler) {
-        RpcEndpoint res = getHandler((long) service, false);
+        RpcPacket res = getHandler((long) service, false);
         if (res == null)
             res = new RpcPacket(this, service, handler);
         return res;
@@ -143,45 +123,62 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
         };
     }
 
-    public void onReceive(final TransportConnection conn, final RpcEcho echo) {
-        conn.send(echo);
-    }
-
-    public void onReceive(final TransportConnection conn, final RpcPing ping) {
-        conn.send(new RpcPong(ping));
-    }
-
-    public void onReceive(final TransportConnection conn, final RpcPong pong) {
-        RpcStats.logRpcRTT(conn.remoteEndpoint(), pong.rtt());
+    static boolean isServer = Sys.mainClass.indexOf("Server") >= 0;
+    static double T0 = Sys.currentTime();
+    static AtomicInteger totRPCs = new AtomicInteger(0);
+    static {
+        new PeriodicTask(0, 5) {
+            public void run() {
+                if (isServer) {
+                    double elapsed = Sys.currentTime() - T0;
+                    System.err.printf("%s RPC/s:%.1f\n", Sys.mainClass, totRPCs.get() / elapsed);
+                    if (elapsed > 10.0) {
+                        T0 = Sys.currentTime();
+                        totRPCs.set(0);
+                    }
+                }
+            }
+        };
     }
 
     public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
-        // double t0 = Sys.timeMillis();
-        RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+        totRPCs.incrementAndGet();
+        // if (sys.Sys.Sys.mainClass.contains("Sequencer"))
+        // System.out.println(pkt.getPayload().getClass());
 
-        Log.info("RPC: " + pkt.payload.getClass() + " from: " + conn.remoteEndpoint());
-        // System.err.println("RPC: " + pkt.payload.getClass() + " from: " +
-        // conn.remoteEndpoint() );
+        // if( isServer && totRPCs.get() % 999 == 0 )
+        // System.err.println(sys.Sys.Sys.mainClass + "/%%%%%%%" + totRPCs.get()
+        // );
+
+        // double t0 = Sys.timeMillis();
+
+        // RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+
+        // if( isServer)
+        // Log.info("RPC: " + pkt.payload.getClass() + " from: " +
+        // conn.remoteEndpoint());
+        // System.err.println(IP.localHostAddressString() + " RPC: " +
+        // pkt.payload.getClass() + " from: " + conn.remoteEndpoint() );
 
         final RpcPacket handler = getHandler(pkt.handlerId, pkt.deferredRepliesTimeout > 0);
         if (handler != null) {
-
             pkt.fac = this;
             pkt.conn = conn;
             pkt.remote = conn.remoteEndpoint();
             handler.deliver(pkt);
 
+            // System.out.printf("%s exec for: %s, took: %s\n",
+            // sys.Sys.Sys.mainClass, pkt.payload.getClass(), Sys.timeMillis() -
+            // t0);
             // RpcStats.logRpcExecTime(pkt.payload.getClass(), Sys.timeMillis()
             // - t0);
 
         } else
-            Log.warning("No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
-
+            Log.warning(sys.Sys.Sys.mainClass + " - No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
     }
 
     @Override
     public void onReceive(TransportConnection conn, Message m) {
-        System.err.println(m.getClass());
         throw new NetworkingException("Incoming object is not an RpcPacket???");
     }
 
@@ -190,30 +187,22 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
         Thread.dumpStack();
     }
 
-    // synchronized int _g_serial(Object o) {
-    // AtomicInteger x = g_serial.get(o);
-    // if (x == null)
-    // g_serial.put(o, x = new AtomicInteger(0));
-    //
-    // return x.getAndIncrement();
-    // }
-    // Map<Object, AtomicInteger> g_serial = new HashMap<Object,
-    // AtomicInteger>();
-
     RpcPacket getHandler(Long hid, boolean deferredRepliesEnabled) {
-
         RpcPacket res;
 
         if (hid < RPC_MAX_SERVICE_ID || deferredRepliesEnabled) {
             res = handlers0.get(hid);
-            if (res != null)
+            if (res != null) {
+                res.timestamp = Sys.timeMillis();
                 return res;
+            }
         }
 
         synchronized (handlers1) {
             res = handlers1.remove(hid);
             if (res != null && deferredRepliesEnabled) {
                 handlers0.put(hid, res);
+                res.timestamp = Sys.timeMillis();
             }
             return res;
         }
@@ -225,33 +214,32 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler, RpcEcho
     void initStaleHandlersGC_Task() {
         final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName() + ".gc");
 
-        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD / (RPC_GC_STALE_HANDLERS_SWEEP_FREQUENCY)) {
+        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
             public void run() {
                 double now = Sys.timeMillis();
                 synchronized (handlers0) {
-
                     for (Iterator<RpcPacket> it = handlers0.values().iterator(); it.hasNext();) {
                         RpcPacket p = it.next();
                         if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) > p.deferredRepliesTimeout) {
                             it.remove();
                         }
                     }
-                    Log.info("Active Service+DeferredReplies Handlers: " + handlers0.size());
+                    Log.finest("initStaleHandlersGC_Task(): DeferredReplies Handlers: " + handlers0.size());
                 }
                 synchronized (handlers1) {
                     List<Long> expired = new ArrayList<Long>();
                     for (Iterator<RpcPacket> it = handlers1.values().iterator(); it.hasNext();) {
                         RpcPacket p = it.next();
 
-                        if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_PERIOD)
+                        if (p.timestamp > 0 && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_TIMEOUT)
                             expired.add(p.handlerId);
                     }
                     for (Long i : expired) {
                         handlers1.remove(i);
-                        Log.info("GC'ing Handlers: " + i);
+                        Log.finest("GC'ing Handlers: " + i);
 
                     }
-                    Log.info("Active Reply Handlers: " + handlers1.size());
+                    Log.finest("initStaleHandlersGC_Task(): Reply Handlers: " + handlers1.size());
                 }
             }
         };
@@ -275,7 +263,7 @@ final class ConnectionManager {
 
         for (int j = 0; j < RPC_CONNECTION_RETRIES; j++) {
             for (TransportConnection i : connections(remote))
-                if (sendPacket(i, pkt))
+                if (i.send(pkt))
                     return true;
             Threading.sleep((j + 1) * RPC_CONNECTION_RETRY_DELAY);
         }
@@ -337,23 +325,4 @@ final class ConnectionManager {
     }
 
     final TransportConnection[] noConnections = new TransportConnection[0];
-
-    // boolean sendX(Endpoint remote, Message m) {
-    // for (TransportConnection i : connections(remote))
-    // if (i.send(m))
-    // return true;
-    // return false;
-    // }
-
-    /**
-     * Note: Send needs to be done before logging, so the size after
-     * serialization is known...
-     */
-    final static boolean sendPacket(TransportConnection conn, RpcPacket pkt) {
-        try {
-            return conn.send(pkt);
-        } finally {
-            RpcStats.logSentRpcPacket(pkt, conn.remoteEndpoint());
-        }
-    }
 }

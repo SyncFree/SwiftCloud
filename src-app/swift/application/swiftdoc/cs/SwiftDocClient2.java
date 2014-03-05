@@ -36,15 +36,9 @@ import swift.application.swiftdoc.cs.msgs.ServerReply;
 import swift.application.swiftdoc.cs.msgs.SwiftDocRpc;
 import swift.dc.DCConstants;
 import sys.net.api.Endpoint;
-import sys.net.api.Message;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.TransportConnection;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.impl.rpc.RpcEcho;
-import sys.net.impl.rpc.RpcEchoHandler;
-import sys.net.impl.rpc.RpcPing;
-import sys.net.impl.rpc.RpcPong;
-import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
 import umontreal.iro.lecuyer.stat.Tally;
 
@@ -111,25 +105,25 @@ public class SwiftDocClient2 {
     static void client1Code(final Endpoint server, final Endpoint DC) throws Exception {
         final Tally dcRTT = new Tally();
 
-        // Initiate measurement of RTT to central datacenter...
-
-        final Endpoint pinger = Networking.bind(0, new RttHandler() {
-            @Override
-            public void onReceive(TransportConnection conn, RpcPong pong) {
-                dcRTT.add(pong.rtt());
-            }
-        });
-
-        new PeriodicTask(0.0, 1.0) {
-            public void run() {
-                if (pingCon == null)
-                    pingCon = pinger.send(DC, new RpcEcho());
-                else {
-                    if (!pingCon.send(new RpcPing()))
-                        pingCon = null;
-                }
-            }
-        };
+        // // Initiate measurement of RTT to central datacenter...
+        //
+        // // final Endpoint pinger = Networking.bind(0, new RttHandler() {
+        // @Override
+        // public void onReceive(TransportConnection conn, RpcPong pong) {
+        // dcRTT.add(pong.rtt());
+        // }
+        // });
+        //
+        // new PeriodicTask(0.0, 1.0) {
+        // public void run() {
+        // if (pingCon == null)
+        // pingCon = pinger.send(DC, new RpcEcho());
+        // else {
+        // if (!pingCon.send(new RpcPing()))
+        // pingCon = null;
+        // }
+        // }
+        // };
 
         final RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
@@ -259,42 +253,4 @@ public class SwiftDocClient2 {
         }
     }
 
-    static class RttHandler implements RpcEchoHandler {
-
-        @Override
-        public void onAccept(TransportConnection conn) {
-        }
-
-        @Override
-        public void onConnect(TransportConnection conn) {
-        }
-
-        @Override
-        public void onFailure(TransportConnection conn) {
-        }
-
-        @Override
-        public void onClose(TransportConnection conn) {
-        }
-
-        @Override
-        public void onFailure(Endpoint dst, Message m) {
-        }
-
-        @Override
-        public void onReceive(TransportConnection conn, Message m) {
-        }
-
-        @Override
-        public void onReceive(TransportConnection conn, RpcEcho echo) {
-        }
-
-        @Override
-        public void onReceive(TransportConnection conn, RpcPing ping) {
-        }
-
-        @Override
-        public void onReceive(TransportConnection conn, RpcPong pong) {
-        }
-    }
 }

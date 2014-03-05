@@ -32,7 +32,7 @@ public class InitiatorInfo extends AbstractMessage {
         this.local = local;
     }
 
-    public void deliverTo(TransportConnection conn, MessageHandler handler) {
+    public void deliverTo(final TransportConnection conn, final MessageHandler handler) {
         ((RemoteEndpointUpdater) conn).setRemoteEndpoint(local);
         handler.onAccept(conn);
     }

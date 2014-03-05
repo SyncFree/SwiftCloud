@@ -44,7 +44,11 @@ public interface DHT {
 
     void send(final DHT.Key key, final DHT.Message msg);
 
+    void send(final DHT.Key key, final DHT.Message msg, int timeout);
+
     void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler);
+
+    void send(final DHT.Key key, final DHT.Message msg, DHT.ReplyHandler handler, int timeout);
 
     interface Key {
 
@@ -110,6 +114,11 @@ public interface DHT {
          * @return true/false if the reply was successful or failed
          */
         boolean reply(final DHT.Reply msg, final DHT.ReplyHandler handler);
+
+        /**
+         * @return the endpoint of the node associated with the request...
+         */
+        Endpoint remoteEndpoint();
     }
 
     abstract class AbstractReplyHandler implements ReplyHandler {

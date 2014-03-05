@@ -181,7 +181,7 @@ public class SwiftDocServer {
     public void begin() {
         try {
             handle = swift1.beginTxn(isolationLevel, cachePolicy, false);
-            doc = handle.get(j1, true, swift.crdt.SequenceVersioned.class, null);
+            doc = (SequenceTxnLocal<TextLine>) handle.get(j1, true, swift.crdt.SequenceVersioned.class, null);
         } catch (Throwable e) {
             e.printStackTrace();
             System.exit(0);
@@ -210,7 +210,8 @@ public class SwiftDocServer {
         try {
             NotificationHandler notifier = new NotificationHandler();
             final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-            SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, notifier);
+            SequenceTxnLocal<TextLine> doc = (SequenceTxnLocal<TextLine>) handle.get(j2, true,
+                    swift.crdt.SequenceVersioned.class, notifier);
             handle.commit();
             notifier.onObjectUpdate(handle, j2, doc);
         } catch (Exception e) {
@@ -229,7 +230,8 @@ public class SwiftDocServer {
                 synchronized (serials) {
 
                     final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-                    SequenceTxnLocal<TextLine> doc = handle.get(j2, true, swift.crdt.SequenceVersioned.class, this);
+                    SequenceTxnLocal<TextLine> doc = (SequenceTxnLocal<TextLine>) handle.get(j2, true,
+                            swift.crdt.SequenceVersioned.class, this);
                     for (TextLine i : doc.getValue())
                         if (serials.add(i.serial())) {
                             newAtoms.add(i);

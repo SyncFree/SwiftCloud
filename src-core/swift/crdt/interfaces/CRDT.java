@@ -225,5 +225,4 @@ public interface CRDT<V extends CRDT<V>> extends Serializable, Copyable {
      *            id of the scout whose timestamps will be discarded
      */
     public abstract void discardScoutClock(final String scoutId);
-
 }

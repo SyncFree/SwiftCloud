@@ -16,8 +16,8 @@
  *****************************************************************************/
 package swift.dc;
 
-import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 import swift.crdt.CRDTIdentifier;
+import swift.proto.ObjectUpdatesInfo;
 
 /**
  * Result of an exec operation in a CRDT
@@ -26,51 +26,37 @@ import swift.crdt.CRDTIdentifier;
  * 
  */
 public class ExecCRDTResult {
-    CRDTIdentifier id;
+
     boolean result;
-    boolean hasNotification;
-    boolean notificationOnly;
-    ObjectSubscriptionInfo info;
+    CRDTIdentifier id;
+    ObjectUpdatesInfo info;
 
     public ExecCRDTResult(boolean result) {
-        this.result = result;
-        this.notificationOnly = true;
         this.info = null;
-        hasNotification = false;
+        this.result = result;
     }
 
-    public ExecCRDTResult(boolean result, CRDTIdentifier id, boolean notificationOnly, ObjectSubscriptionInfo info) {
-        this.result = result;
+    public ExecCRDTResult(boolean result, CRDTIdentifier id, ObjectUpdatesInfo info) {
         this.id = id;
-        this.notificationOnly = notificationOnly;
         this.info = info;
-        hasNotification = true;
+        this.result = result;
     }
 
     /**
      * Needed for Kryo serialization
      */
-    public ExecCRDTResult() {
+    ExecCRDTResult() {
     }
 
     public boolean isResult() {
         return result;
     }
 
-    public boolean isNotificationOnly() {
-        return notificationOnly;
-    }
-
-    public ObjectSubscriptionInfo getInfo() {
+    public ObjectUpdatesInfo getInfo() {
         return info;
-    }
-
-    public boolean hasNotification() {
-        return hasNotification;
     }
 
     public CRDTIdentifier getId() {
         return id;
     }
-
 }

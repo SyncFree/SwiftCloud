@@ -19,8 +19,16 @@ package sys.pubsub.impl;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+import sys.pubsub.PubSubNotification;
 
-public class PubSubRpcHandler<K, P> implements RpcHandler {
+/**
+ * 
+ * Convenience class to interface the pubsub system with the rpc system...
+ * 
+ * @author smduarte
+ * 
+ */
+public class PubSubRpcHandler implements RpcHandler {
 
     @Override
     public void onReceive(RpcMessage m) {
@@ -37,11 +45,7 @@ public class PubSubRpcHandler<K, P> implements RpcHandler {
         Thread.dumpStack();
     }
 
-    public void onReceive(RpcHandle conn, PubSubAck m) {
-        Thread.dumpStack();
-    }
-
-    public void onReceive(RpcHandle conn, PubSubNotification<K, P> m) {
+    public void onReceive(RpcHandle conn, PubSubNotification m) {
         Thread.dumpStack();
     }
 }

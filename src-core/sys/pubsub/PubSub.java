@@ -16,19 +16,41 @@
  *****************************************************************************/
 package sys.pubsub;
 
-import sys.net.api.Endpoint;
+import java.util.Set;
 
-abstract public class PubSub<K, P> {
+public interface PubSub<T> {
 
-    public interface Handler<K, P> {
-        void notify(final K key, final P info);
+    interface Notifyable<T> {
+
+        Object src();
+
+        void notifyTo(PubSub<T> pubsub);
     }
 
-    public abstract void publish(K key, P info);
+    interface Subscriber<T> {
 
-    public abstract void subscribe(K key, Handler<K, P> handler);
+        void onNotification(final Notifyable<T> info);
 
-    public abstract void unsubscribe(K key, Handler<K, P> handler);
+    }
 
-    public abstract void addRemoteSubscriber(K key, Endpoint subscriber);
+    interface Publisher<T, P extends Notifyable<T>> {
+
+        void publish(P info);
+    }
+
+    boolean subscribe(T key, Subscriber<T> handler);
+
+    boolean subscribe(Set<T> keys, Subscriber<T> handler);
+
+    boolean unsubscribe(T key, Subscriber<T> handler);
+
+    boolean unsubscribe(Set<T> keys, Subscriber<T> handler);
+
+    Set<Subscriber<T>> subscribers(T key, boolean clone);
+
+    Set<Subscriber<T>> subscribers(Set<T> keys);
+
+    boolean isSubscribed(T key);
+
+    boolean isSubscribed(T key, Subscriber<T> handler);
 }

@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import swift.crdt.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
+import sys.utils.FileUtils;
 
 import com.sleepycat.db.Database;
 import com.sleepycat.db.DatabaseConfig;
@@ -74,6 +75,8 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
             String dirPath = props.getProperty(DCConstants.BERKELEYDB_DIR);
 
             dir = new File(dirPath);
+            if (dir.exists())
+                FileUtils.deleteDir(dir);
             dir.mkdirs();
 
             EnvironmentConfig myEnvConfig = new EnvironmentConfig();

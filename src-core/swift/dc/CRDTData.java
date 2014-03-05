@@ -16,9 +16,6 @@
  *****************************************************************************/
 package swift.dc;
 
-import java.util.Set;
-import java.util.TreeSet;
-
 import swift.clocks.CausalityClock;
 import swift.crdt.CRDTIdentifier;
 import swift.crdt.interfaces.CRDT;
@@ -56,22 +53,30 @@ public class CRDTData<V extends CRDT<V>> {
     CausalityClock pruneClock;
     transient long lastPrunedTime;
     transient CausalityClock lastPrunedClock;
-    transient Set<Observer> observers;
-    transient Set<Observer> notifiers;
     transient Object dbInfo;
 
     CRDTData() {
         lastPrunedTime = -1;
-        observers = new TreeSet<Observer>();
-        notifiers = new TreeSet<Observer>();
     }
 
     CRDTData(CRDTIdentifier id) {
         lastPrunedTime = -1;
         this.id = id;
-        observers = new TreeSet<Observer>();
-        notifiers = new TreeSet<Observer>();
         this.empty = true;
+    }
+
+    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock,
+            int foo) {
+        lastPrunedTime = -1;
+        this.crdt = crdt;
+        // if( DCDataServer.prune)
+        // this.prunedCrdt = crdt.copy();
+        this.id = id;
+        this.clock = clock;
+        this.pruneClock = pruneClock;
+        this.pruneClock.trim();
+        // this.cltClock = cltClock;
+        this.empty = false;
     }
 
     CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
@@ -84,8 +89,6 @@ public class CRDTData<V extends CRDT<V>> {
         this.pruneClock = pruneClock;
         this.pruneClock.trim();
         // this.cltClock = cltClock;
-        observers = new TreeSet<Observer>();
-        notifiers = new TreeSet<Observer>();
         this.empty = false;
     }
 
@@ -108,7 +111,7 @@ public class CRDTData<V extends CRDT<V>> {
 
     }
 
-    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
+    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock, int foo) {
         this.crdt = crdt;
         // if( DCDataServer.prune)
         // this.prunedCrdt = crdt.copy();
@@ -118,20 +121,14 @@ public class CRDTData<V extends CRDT<V>> {
         this.empty = false;
     }
 
-    boolean addObserver(Observer o) {
-        return observers.add(o);
-    }
-
-    boolean remObserver(Observer o) {
-        return observers.remove(o);
-    }
-
-    boolean addNotifier(Observer o) {
-        return notifiers.add(o);
-    }
-
-    boolean remNotifier(Observer o) {
-        return notifiers.remove(o);
+    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
+        this.crdt = crdt;
+        // if( DCDataServer.prune)
+        // this.prunedCrdt = crdt.copy();
+        this.clock = clock;
+        this.pruneClock = pruneClock;
+        // this.cltClock = cltClock;
+        this.empty = false;
     }
 
     public int hashCode() {
@@ -181,6 +178,7 @@ public class CRDTData<V extends CRDT<V>> {
     public CausalityClock getPruneClock() {
         return pruneClock;
     }
+
     /*
      * public CausalityClock getCltClock() { return cltClock; }
      */

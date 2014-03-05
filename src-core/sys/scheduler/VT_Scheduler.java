@@ -33,7 +33,7 @@ import sys.utils.Threading;
  * the time spent in their execution, virtual time can run faster or slower than
  * real time.
  * 
- * @author Sergio Duarte (smd@fct.unl.pt)
+ * @author smduarte (smd@fct.unl.pt)
  * 
  */
 public class VT_Scheduler<T extends Task> implements Runnable {
@@ -224,7 +224,7 @@ public class VT_Scheduler<T extends Task> implements Runnable {
      * the scheduler picks a previously blocked thread to continue execution or
      * picks other tasks for execution.
      * 
-     * @author Sérgio Duarte (smd@di.fct.unl.pt)
+     * @author smduarte (smd@di.fct.unl.pt)
      * 
      */
     protected class ThreadManager {
