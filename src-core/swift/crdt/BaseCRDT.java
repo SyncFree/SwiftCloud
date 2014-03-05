@@ -152,6 +152,9 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         mergeTimestampMappings((V) otherObject);
         // ((V) otherObject).mergeTimestampMappings((V) this); //smduarte ???
         // why is this necessary????
+        // TODO Q: Was it broken with that? It might have been
+        // necessary, since as noted at the top of the class, the hybrid with
+        // timestamps mapping is a complete mess that we should get rid of :-)
         final boolean requiresPrune = mergePayload((V) otherObject);
         getClock().merge(otherObject.getClock());
         pruneClock.merge(otherObject.getPruneClock());

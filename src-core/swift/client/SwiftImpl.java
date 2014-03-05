@@ -191,6 +191,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     // A clock that advances with atomic causal notifications received from the
     // surrogate
+    // TODO Q: how it relates to committedVersion or
+    // committedDisasterDurableVersion?
     private final CausalityClock causalSnapshot;
 
     // A clock known to be committed at the store.
@@ -254,6 +256,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // Maximum number of transactions in a single commit request to the store.
     private final int maxCommitBatchSize;
 
+    // TODO Q: what is the semantics/role w.r.t. to
+    // objectSessionsUpdateSubscriptions?
     private final ScoutPubSubService suPubSub;
 
     private final SwiftOptions options;
@@ -390,6 +394,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
         this.durableLog = log;
 
+        // TODO: make it configurable
         // new FailOverWatchDog().start();
 
         getDCClockEstimates();
@@ -477,11 +482,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             final CausalityClock snapshotClock;
+            // TODO Q: is this flag really respected everywhere or should the
+            // whole code assume only one option?
             if (options.assumeAtomicCausalNotifications() && cachePolicy == CachePolicy.CACHED) {
-                synchronized (SwiftImpl.this) {
-                    snapshotClock = getGlobalCommittedVersion(true);
-                    snapshotClock.merge(causalSnapshot);
-                }
+                snapshotClock = getGlobalCommittedVersion(true);
+                snapshotClock.merge(causalSnapshot);
             } else {
                 if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -511,6 +516,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             return siTxn;
 
         case REPEATABLE_READS:
+            // TODO Q: do we ever use RR in any recent experiments?
             final RepeatableReadsTxnHandle rrTxn;
             if (readOnly) {
                 rrTxn = new RepeatableReadsTxnHandle(this, sessionId, cachePolicy, stats);
@@ -553,11 +559,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             return;
         }
 
-        boolean committedVersionUpdated = this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_DOMINATES,
-                CMP_CLOCK.CMP_EQUALS);
+        boolean committedVersionUpdated = this.committedVersion.merge(newCommittedVersion).is(
+                CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
         boolean committedDisasterDurableUpdated = this.committedDisasterDurableVersion.merge(
-                newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS);
-        if (committedVersionUpdated && committedDisasterDurableUpdated) {
+                newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
+        if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
             // No changes.
             return;
         }

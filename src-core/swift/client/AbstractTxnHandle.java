@@ -434,6 +434,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
             return res;
 
         for (final CRDTIdentifier i : ids)
+            // TODO Q: double-checking: is it a hack that simulates bulk-get
+            // with parallel-get?
             execute(new Runnable() {
                 @Override
                 public void run() {

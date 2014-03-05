@@ -59,6 +59,7 @@ public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> implement
         };
     }
 
+    // TODO Q: no synchronization required for these two methods?? 
     public void subscribe(CRDTIdentifier key) {
         unsubscriptions.remove(key);
         super.subscribe(key, this);
