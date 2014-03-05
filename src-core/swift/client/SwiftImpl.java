@@ -258,10 +258,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private final SwiftOptions options;
 
-    // TODO: track stable global commits    
+    // TODO: track stable global commits
     private Stats stats;
     private final CoarseCacheStats cacheStats;
-    
+
     private CounterSignalSource ongoingObjectFetchesStats;
     private ValueSignalSource batchSizeOnCommitStats;
 
@@ -278,6 +278,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.serverEndpoints = serverEndpoints;
         this.objectsCache = objectsCache;
 
+        // TODO: add disabled statistics option!
         this.stats = Stats.getInstance("scout-" + scoutId, Stats.SAMPLING_INTERVAL_MILLIS,
                 options.getStatisticsOuputDir(), options.getStatisticsOverwriteDir());
         this.cacheStats = new CoarseCacheStats(stats);
