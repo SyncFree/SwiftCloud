@@ -330,6 +330,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         this.ongoingObjectFetchesStats = this.stats.getCountingSourceForStat("ongoing-object-fetches");
 
+        // FIXME: synchronization of stats is broken!
         this.stats.registerPollingBasedValueProvider("uncommited-updates-objects-to-notify",
                 new PollingBasedValueProvider() {
                     @Override
@@ -717,6 +718,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             try {
                 return getCachedObjectForTxn(txn, id, globalVersion.clone(), classOfV, updatesListener, true);
+                // FIXME !!!
                 // smduarte
                 // WITH SI, at least, CODE BELOW FAILS AFTER 10min running, as
                 // shown below...[pre causal notifications hack]
@@ -851,6 +853,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         else
             subscribeUpdates = suPubSub.isSubscribed(id);
 
+        // FIXME: remove measurement-related data?
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, id, version,
                 strictUnprunedVersion, clock, disasterDurableClock, subscribeUpdates);
 
@@ -973,6 +976,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (final AbstractTxnHandle localTxn : locallyCommittedTxnsOrderedQueue) {
                 applyLocalObjectUpdates(request.getUid(), cacheCRDT, localTxn);
             }
+            // FIXME: check scout clock and trigger recovery?
 
             Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(request
                     .getUid());
@@ -1250,6 +1254,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     version.drop(scoutId);
                 }
                 try {
+                    // FIXME: <V extends CRDT<V>> should be really part
+                    // of ID, because if the object does not exist, we are
+                    // grilled here with passing interface as V - it will crash
                     fetchObjectVersion(null, id, false, BaseCRDT.class, version, false, true);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
@@ -1409,6 +1416,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // BatchCommitUpdatesReply batchReply = rep.get();
 
         if (batchReply == null) {
+            // FIXME with new RPC API null is just a timeout??
             throw new IllegalStateException("Fatal error: server returned null on commit");
         }
         if (batchReply != null && batchReply.getReplies().size() != requests.size()) {
