@@ -397,8 +397,8 @@ public class SwiftSocial {
             bulkGet(txn, friendIds);
 
             for (CRDTIdentifier f : friendIds) {
-                User u = ((LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(name), false, LWWRegisterCRDT.class,
-                        updatesSubscriber)).getValue();
+                User u = ((LWWRegisterCRDT<User>) get(txn, f, false, LWWRegisterCRDT.class, updatesSubscriber))
+                        .getValue();
                 friends.add(new Friend(u.fullName, f));
             }
             commitTxn(txn);
