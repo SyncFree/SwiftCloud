@@ -31,7 +31,7 @@ public class HistogramTester {
 
     @Test
     public void testOpLatency1() {
-        Stats stats = Stats.getInstance("test");
+        StatsImpl stats = StatsImpl.getInstance("test");
 
         HistogramOverTime opsLatency = (HistogramOverTime) stats
                 .getValuesFrequencyOverTime("histogram", 200, 400, 1000);
@@ -77,7 +77,7 @@ public class HistogramTester {
     // @Test
     public void testOpLatency2() {
 
-        Stats stats = Stats.getInstance("test2");
+        StatsImpl stats = StatsImpl.getInstance("test2");
 
         HistogramOverTime opsLatency = (HistogramOverTime) stats
                 .getValuesFrequencyOverTime("histogram", 200, 400, 1000);

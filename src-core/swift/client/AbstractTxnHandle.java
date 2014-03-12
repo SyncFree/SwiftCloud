@@ -51,6 +51,7 @@ import swift.utils.DummyLog;
 import swift.utils.TransactionsLog;
 import sys.stats.Stats;
 import sys.stats.StatsConstants;
+import sys.stats.StatsImpl;
 import sys.stats.sources.CounterSignalSource;
 import sys.stats.sources.ValueSignalSource;
 import sys.stats.sources.ValueSignalSource.Stopper;
@@ -172,8 +173,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     }
 
     @Override
-    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
+            NoSuchObjectException, VersionNotFoundException, NetworkException {
         return get(id, create, classOfV, null);
     }
 
@@ -430,8 +431,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     @Override
     public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
             final BulkGetProgressListener listener) {
-        final Map<CRDTIdentifier, CRDT<?>> res = Collections
-                .synchronizedMap(new HashMap<CRDTIdentifier, CRDT<?>>());
+        final Map<CRDTIdentifier, CRDT<?>> res = Collections.synchronizedMap(new HashMap<CRDTIdentifier, CRDT<?>>());
 
         if (ids.isEmpty())
             return res;

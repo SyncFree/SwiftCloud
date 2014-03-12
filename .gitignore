@@ -11,3 +11,4 @@ swiftcloud.pem
 /kryoDB-seq.db
 /.settings
 /.gitignore
+statistics*

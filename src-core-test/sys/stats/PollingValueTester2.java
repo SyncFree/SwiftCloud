@@ -33,7 +33,7 @@ public class PollingValueTester2 {
     @Test
     public void testpolling2() {
 
-        Stats stats = Stats.getInstance("teste");
+        StatsImpl stats = StatsImpl.getInstance("teste");
 
         UpdatingFieldClass classWithField = new UpdatingFieldClass(1000);
 

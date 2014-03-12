@@ -84,8 +84,8 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
      *            this transaction; left unmodified
      */
     SnapshotIsolationTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
-            final CausalityClock snapshotClock, Stats statistics) {
-        super(manager, sessionId, IsolationLevel.SNAPSHOT_ISOLATION, cachePolicy, statistics);
+            final CausalityClock snapshotClock, Stats stats) {
+        super(manager, sessionId, IsolationLevel.SNAPSHOT_ISOLATION, cachePolicy, stats);
         this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, CRDT<?>>();
         updateUpdatesDependencyClock(snapshotClock);
     }

@@ -35,6 +35,8 @@ final public class SwiftOptions {
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
     private static final String DEFAULT_STATISTICS_FOLDER = "statistics";
+    public static final boolean DEFAULT_OVERWRITE_STATISTICS_DIR = true;
+    public static final boolean DEFAULT_ENABLE_STATISTICS = true;
 
     public static final int DEFAULT_SCOUTGATEWAY_PORT = 28881;
 
@@ -57,6 +59,7 @@ final public class SwiftOptions {
     SwiftOptions() {
     }
 
+    private boolean enableStatistics;
     private boolean overwriteStatisticsDir;
     private String statisticsOutputDir;
 
@@ -84,7 +87,9 @@ final public class SwiftOptions {
         this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
         this.logFilename = DEFAULT_LOG_FILENAME;
         this.setLogFlushOnCommit(DEFAULT_LOG_FLUSH_ON_COMMIT);
+        this.enableStatistics = DEFAULT_ENABLE_STATISTICS;
         this.statisticsOutputDir = DEFAULT_STATISTICS_FOLDER;
+        this.overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
     }
 
     /**
@@ -317,5 +322,13 @@ final public class SwiftOptions {
 
     public boolean getStatisticsOverwriteDir() {
         return overwriteStatisticsDir;
+    }
+
+    public boolean isEnableStatistics() {
+        return enableStatistics;
+    }
+
+    public void setEnableStatistics(boolean enableStatistics) {
+        this.enableStatistics = enableStatistics;
     }
 }

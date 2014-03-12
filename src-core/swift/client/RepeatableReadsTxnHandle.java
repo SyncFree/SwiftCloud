@@ -61,9 +61,9 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      *            update of this transaction
      */
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
-            final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats statistics) {
+            final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats stats) {
         super(manager, sessionId, durableLog, IsolationLevel.REPEATABLE_READS, cachePolicy, timestampMapping,
-                statistics);
+                stats);
         this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, CRDT<?>>();
     }
 
@@ -78,8 +78,8 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      *            cache policy used by this transaction
      */
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
-            Stats statistics) {
-        super(manager, sessionId, IsolationLevel.REPEATABLE_READS, cachePolicy, statistics);
+            Stats stats) {
+        super(manager, sessionId, IsolationLevel.REPEATABLE_READS, cachePolicy, stats);
         this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, CRDT<?>>();
     }
 

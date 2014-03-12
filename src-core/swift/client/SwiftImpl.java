@@ -19,7 +19,6 @@ package swift.client;
 import static sys.net.api.Networking.Networking;
 
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
@@ -90,14 +89,14 @@ import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.impl.KryoLib;
+import sys.stats.DummyStats;
 import sys.stats.Stats;
 import sys.stats.StatsConstants;
+import sys.stats.StatsImpl;
 import sys.stats.sources.CounterSignalSource;
 import sys.stats.sources.PollingBasedValueProvider;
 import sys.stats.sources.ValueSignalSource;
 import sys.utils.Threading;
-
-import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Implementation of Swift scout and transactions manager. Scout can either
@@ -282,9 +281,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.serverEndpoints = serverEndpoints;
         this.objectsCache = objectsCache;
 
-        // TODO: add disabled statistics option!
-        this.stats = Stats.getInstance("scout-" + scoutId, Stats.SAMPLING_INTERVAL_MILLIS,
-                options.getStatisticsOuputDir(), options.getStatisticsOverwriteDir());
+        if (options.isEnableStatistics()) {
+            this.stats = StatsImpl.getInstance("scout-" + scoutId, StatsImpl.SAMPLING_INTERVAL_MILLIS,
+                    options.getStatisticsOuputDir(), options.getStatisticsOverwriteDir());
+        } else {
+            this.stats = new DummyStats();
+        }
         this.cacheStats = new CoarseCacheStats(stats);
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
@@ -317,6 +319,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             public void onNotification(final SnapshotNotification n) {
                 synchronized (SwiftImpl.this) {
                     causalSnapshot.merge(n.snapshotClock());
+                    // TODO: replace with stats/logging?
                     System.err.println(n.timestamp());
                 }
             }
@@ -344,7 +347,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         }
                         return count;
                     }
-                }, Stats.SAMPLING_INTERVAL_MILLIS);
+                }, StatsImpl.SAMPLING_INTERVAL_MILLIS);
 
         this.stats.registerPollingBasedValueProvider("pending-txns", new PollingBasedValueProvider() {
 
@@ -354,7 +357,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     return pendingTxns.size();
                 }
             }
-        }, Stats.SAMPLING_INTERVAL_MILLIS);
+        }, StatsImpl.SAMPLING_INTERVAL_MILLIS);
 
         this.stats.registerPollingBasedValueProvider("locally-committed-txns-queue", new PollingBasedValueProvider() {
 
@@ -364,7 +367,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     return locallyCommittedTxnsOrderedQueue.size();
                 }
             }
-        }, Stats.SAMPLING_INTERVAL_MILLIS);
+        }, StatsImpl.SAMPLING_INTERVAL_MILLIS);
 
         this.stats.registerPollingBasedValueProvider("global-committed-unstable-txns-queue",
                 new PollingBasedValueProvider() {
@@ -375,7 +378,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                             return globallyCommittedUnstableTxns.size();
                         }
                     }
-                }, Stats.SAMPLING_INTERVAL_MILLIS);
+                }, StatsImpl.SAMPLING_INTERVAL_MILLIS);
 
         batchSizeOnCommitStats = this.stats.getValuesFrequencyOverTime("batch-size-on-commit",
                 StatsConstants.BATCH_SIZE);
@@ -452,16 +455,16 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     public void printAndResetCacheStats() {
         // TODO is it really what we want?
         cacheStats.printAndReset();
-        try {
-            Output output = new Output(new FileOutputStream("/dev/null"));
-            synchronized (objectsCache) {
-                KryoLib.kryo().writeObject(output, objectsCache);
-            }
-            output.close();
-            System.out.printf("CACHE SIZE: %s KB\n", output.total() >> 10);
-        } catch (Exception e) {
-            // e.printStackTrace();
-        }
+        // try {
+        // Output output = new Output(new FileOutputStream("/dev/null"));
+        // synchronized (objectsCache) {
+        // KryoLib.kryo().writeObject(output, objectsCache);
+        // }
+        // output.close();
+        // System.out.printf("CACHE SIZE: %s KB\n", output.total() >> 10);
+        // } catch (Exception e) {
+        // // e.printStackTrace();
+        // }
     }
 
     private boolean getDCClockEstimates() {
@@ -907,6 +910,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 Object diff1 = staleReadInfo.get("Diff1-scout-normal-vs-scout-stable");
                 Object diff2 = staleReadInfo.get("Diff2-dc-normal-vs-scout-stable");
                 Object diff3 = staleReadInfo.get("Diff3-dc-normal-vs-dc-stable");
+                // TODO: replace with stats?
                 System.out.printf("SYS, GET, %s, %s, %s, %s, %s, %s\n", serial, rtt, request.getUid(), diff1, diff2,
                         diff3);
             }
@@ -1169,7 +1173,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("Update on object " + id + " visible, but not committed, delaying notification");
             }
-            System.err.println("Update on object " + id + " visible, but not committed, delaying notification");
         }
     }
 
@@ -1655,6 +1658,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     @Override
     public void onFailOver() {
+        // TODO: replace with logging or Stats?
         System.out.println("SYS FAILOVER TO: " + serverEndpoint());
     }
 
@@ -1681,6 +1685,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (;;) {
                 Threading.sleep((30 + sys.Sys.Sys.rg.nextInt(10)) * 1000);
                 serverIndex = (serverIndex + 1) % serverEndpoints.length;
+                // TODO: replace with logging or stats?
                 System.out.println("SYS FAILOVER TO INITIATED: " + serverEndpoint());
                 getDCClockEstimates();
                 getDCClockEstimates();

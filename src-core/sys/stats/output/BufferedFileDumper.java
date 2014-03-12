@@ -26,7 +26,7 @@ import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import sys.stats.Stats;
+import sys.stats.StatsImpl;
 import sys.stats.StatsConstants;
 import sys.stats.common.PlaneValue;
 import sys.stats.common.PlotValues;
@@ -43,7 +43,7 @@ public class BufferedFileDumper implements StatisticsOutput {
 
     private String filename;
     private OutputStream output;
-    private static Logger logger = Logger.getLogger(Stats.class.getName());
+    private static Logger logger = Logger.getLogger(StatsImpl.class.getName());
 
     public BufferedFileDumper(String filename) {
         this.filename = filename;
