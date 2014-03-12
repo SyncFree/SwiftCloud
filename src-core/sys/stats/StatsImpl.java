@@ -101,12 +101,13 @@ public final class StatsImpl implements Stats {
      */
     public synchronized static StatsImpl getInstance(String name, int samplingInterval, String outputDir,
             boolean overwriteDir) {
-        logger.log(Level.WARNING, "Stats " + name + " already initialized ignoring output folder and sampling interval");
         StatsImpl stats = statisticsByName.get(name);
         if (stats == null) {
             stats = new StatsImpl(outputDir, overwriteDir, samplingInterval);
             stats.init(samplingInterval);
             statisticsByName.put(name, stats);
+        } else {
+            logger.log(Level.WARNING, "Stats " + name + " already initialized ignoring output folder and sampling interval");
         }
         return stats;
     }
