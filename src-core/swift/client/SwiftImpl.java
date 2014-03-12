@@ -333,13 +333,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         this.ongoingObjectFetchesStats = this.stats.getCountingSourceForStat("ongoing-object-fetches");
 
-        // FIXME: synchronization of stats is broken!
         this.stats.registerPollingBasedValueProvider("uncommited-updates-objects-to-notify",
                 new PollingBasedValueProvider() {
                     @Override
                     public double poll() {
                         double count = 0;
-                        synchronized (uncommittedUpdatesObjectsToNotify) {
+                        synchronized (SwiftImpl.this) {
                             for (Entry<TimestampMapping, Set<CRDTIdentifier>> uncommittedUpdates : uncommittedUpdatesObjectsToNotify
                                     .entrySet()) {
                                 count += uncommittedUpdates.getValue().size();
@@ -353,7 +352,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             @Override
             public double poll() {
-                synchronized (pendingTxns) {
+                synchronized (SwiftImpl.this) {
                     return pendingTxns.size();
                 }
             }
@@ -363,7 +362,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             @Override
             public double poll() {
-                synchronized (locallyCommittedTxnsOrderedQueue) {
+                synchronized (SwiftImpl.this) {
                     return locallyCommittedTxnsOrderedQueue.size();
                 }
             }
@@ -374,7 +373,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
                     @Override
                     public double poll() {
-                        synchronized (globallyCommittedUnstableTxns) {
+                        synchronized (SwiftImpl.this) {
                             return globallyCommittedUnstableTxns.size();
                         }
                     }

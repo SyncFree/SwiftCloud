@@ -314,8 +314,6 @@ public final class StatsImpl implements Stats {
                 statsOutput.output(histogram.getValue());
                 statsOutput.close();
             }
-        }
-        synchronized (valuesFrequencySource) {
             for (Entry<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> pollingValues : pollingProviders
                     .entrySet()) {
                 BufferedFileDumper statsOutput = createFile(dir, pollingValues.getKey() + "-poll");
