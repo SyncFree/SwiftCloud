@@ -104,15 +104,19 @@ public class SwiftRegisterBasedClient extends DB {
             txn = null;
             return 0;
         } catch (WrongTypeException e) {
+            e.printStackTrace();
             return ERROR_WRONG_TYPE;
         } catch (NoSuchObjectException e) {
+            e.printStackTrace();
             return ERROR_NOT_FOUND;
         } catch (VersionNotFoundException e) {
+            e.printStackTrace();
             return ERROR_PRUNING_RACE;
         } catch (NetworkException e) {
+            e.printStackTrace();
             return ERROR_NETWORK;
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -145,15 +149,19 @@ public class SwiftRegisterBasedClient extends DB {
             txn = null;
             return 0;
         } catch (WrongTypeException e) {
+            e.printStackTrace();
             return ERROR_WRONG_TYPE;
         } catch (NoSuchObjectException e) {
+            e.printStackTrace();
             return ERROR_NOT_FOUND;
         } catch (VersionNotFoundException e) {
+            e.printStackTrace();
             return ERROR_PRUNING_RACE;
         } catch (NetworkException e) {
+            e.printStackTrace();
             return ERROR_NETWORK;
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
@@ -176,15 +184,19 @@ public class SwiftRegisterBasedClient extends DB {
             txn = null;
             return 0;
         } catch (WrongTypeException e) {
+            e.printStackTrace();
             return ERROR_WRONG_TYPE;
         } catch (NoSuchObjectException e) {
+            e.printStackTrace();
             return ERROR_NOT_FOUND;
         } catch (VersionNotFoundException e) {
+            e.printStackTrace();
             return ERROR_PRUNING_RACE;
         } catch (NetworkException e) {
+            e.printStackTrace();
             return ERROR_NETWORK;
         } finally {
-            if (txn != null) {
+            if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
         }
