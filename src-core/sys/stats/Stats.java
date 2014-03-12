@@ -203,7 +203,7 @@ public final class Stats {
                 cs = new CounterOverTime(maxSamplingInterval, statName);
                 countigSources.put(statName, cs);
             } else {
-                logger.log(Level.INFO, "CounterSignalSource " + statName + " already initialized");
+                logger.log(Level.FINE, "CounterSignalSource " + statName + " already initialized");
 
             }
         }
@@ -231,7 +231,7 @@ public final class Stats {
                 hist = new HistogramOverTime(StatsConstants.histogramTimeFrequency, valueBins, statName);
                 valuesFrequencySource.put(statName, hist);
             } else {
-                logger.log(Level.INFO, "ValueSignalSource " + statName + " already initialized ignoring value bins");
+                logger.log(Level.FINE, "ValueSignalSource " + statName + " already initialized ignoring value bins");
             }
         }
         return hist;
@@ -258,7 +258,7 @@ public final class Stats {
                 pollingProviders.put(statName, p);
                 pollingUpdates.put(statName, new Pair<Integer, Long>(frequency, System.currentTimeMillis()));
             } else {
-                logger.log(Level.INFO, "PollingBasedValueProvider " + statName + " already initialized");
+                logger.log(Level.FINE, "PollingBasedValueProvider " + statName + " already initialized");
 
             }
         }
