@@ -317,10 +317,24 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
 
             public void onNotification(final SnapshotNotification n) {
+                // WISHME: replace with stats/logging?
+                // System.err.println(n.timestamp());
+                final CMP_CLOCK cmp;
                 synchronized (SwiftImpl.this) {
                     causalSnapshot.merge(n.snapshotClock());
-                    // TODO: replace with stats/logging?
-                    System.err.println(n.timestamp());
+                    cmp = causalSnapshot.compareTo(getGlobalCommittedVersion(false));
+                }
+                // TODO Q: What's the difference between causalNotification and
+                // committedVersion?
+                // This is an ad-hoc hack to address liveness of uncommitted
+                // notifications:
+                if (cmp.is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_CONCURRENT)) {
+                    executorService.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            getDCClockEstimates();
+                        }
+                    });
                 }
             }
         };
