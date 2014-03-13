@@ -429,22 +429,19 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     }
 
     @Override
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
-            final BulkGetProgressListener listener) {
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final BulkGetProgressListener listener) {
         final Map<CRDTIdentifier, CRDT<?>> res = Collections.synchronizedMap(new HashMap<CRDTIdentifier, CRDT<?>>());
 
         if (ids.isEmpty())
             return res;
 
         for (final CRDTIdentifier i : ids)
-            // TODO Q: double-checking: is it a hack that simulates bulk-get
-            // with parallel-get?
             execute(new Runnable() {
                 @Override
                 public void run() {
                     CRDT<?> val;
                     try {
-                        val = get(i, readOnly, null);
+                        val = get(i, false, null);
                         res.put(i, val);
                         if (listener != null)
                             listener.onGet(AbstractTxnHandle.this, i, val);
@@ -463,9 +460,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     }
 
     public Map<CRDTIdentifier, CRDT<?>> bulkGet(CRDTIdentifier... crdtIdentifiers) {
-        long timeout = Long.MAX_VALUE;
         Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>(Arrays.asList(crdtIdentifiers));
-        return this.bulkGet(ids, false, timeout, null);
+        return this.bulkGet(ids, null);
     }
 
     public IsolationLevel getIsolationLevel() {

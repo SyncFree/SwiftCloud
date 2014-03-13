@@ -87,9 +87,7 @@ public interface TxnHandle {
      *            identifier of an object
      * @param create
      *            when true if object does not exist in the store, it is
-     *            created; otherwise call fails; for read-only transactions, an
-     *            initial state of an object is presented i the object is not in
-     *            the store
+     *            created; otherwise call fails
      * @param classOfV
      *            class of an object stored (or created) under this identifier;
      *            it is the responsibility of application to ensure uniform
@@ -162,17 +160,37 @@ public interface TxnHandle {
      */
     TxnStatus getStatus();
 
+    /**
+     * Performs a bulk get, by invoking get() concurrently for the given set of
+     * CRDTidentifers.
+     * 
+     * @param ids
+     *            The set of CRDTIdentifiers to obtain
+     * @param listener
+     *            An handler to monitor progress
+     * @return map containing the result. null entries denote failed retrievals;
+     */
+    Map<CRDTIdentifier, CRDT<?>> bulkGet(final Set<CRDTIdentifier> ids, final BulkGetProgressListener listener);
+
+    /**
+     * TODO document
+     * 
+     * @param ids
+     * @return
+     */
+    Map<CRDTIdentifier, CRDT<?>> bulkGet(final CRDTIdentifier... ids);
+
     // SYSTEM API:
     /**
-     * Generates timestamps for operations. Only called by system.
+     * <b>SYSTEM USE ONLY</b> Generates timestamps for operations.
      * 
      * @return next timestamp
      */
     TripleTimestamp nextTimestamp();
 
     /**
-     * Registers a new CRDT operation on an object in this transaction. Called
-     * only called by system (CRDT) object.
+     * <b>SYSTEM USE ONLY</b> Registers a new CRDT operation on an object in
+     * this transaction.
      * 
      * @param id
      *            object identifier
@@ -182,9 +200,8 @@ public interface TxnHandle {
     <V extends CRDT<V>> void registerOperation(final CRDTIdentifier id, CRDTUpdate<V> op);
 
     /**
-     * Registers a creation of CRDT object with a given initial empty state,
-     * identified by the specified id. Called only called by system (CRDT)
-     * object.
+     * <b>SYSTEM USE ONLY</b> Registers a creation of CRDT object with a given
+     * initial empty state, identified by the specified id.
      * <p>
      * Creation can be registered before any other operation is registered and
      * can be done only once in a transaction.
@@ -195,24 +212,4 @@ public interface TxnHandle {
      *            initial empty state of an object
      */
     <V extends CRDT<V>> void registerObjectCreation(final CRDTIdentifier id, V creationState);
-
-    /**
-     * Performs a bulk get, by invoking get() concurrently for the given set of
-     * CRDTidentifers.
-     * 
-     * @param ids
-     *            The set of CRDTIdentifiers to obtain
-     * @param readOnly
-     *            read only flag for the objects being retrieved
-     * 
-     * @param timeout
-     *            maximum time allowed for the operation to return
-     * @param listener
-     *            An handler to monitor progress
-     * @return map containing the result. null entries denote failed retrievals;
-     */
-    Map<CRDTIdentifier, CRDT<?>> bulkGet(final Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
-            final BulkGetProgressListener listener);
-
-    Map<CRDTIdentifier, CRDT<?>> bulkGet(final CRDTIdentifier... ids);
 }
