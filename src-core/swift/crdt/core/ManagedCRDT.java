@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright 2011-2012 INRIA
+ * Copyright 2011-2014 INRIA
  * Copyright 2011-2012 Universidade Nova de Lisboa
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,7 +28,6 @@ import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 
-// WISHME: cache the most recent version?  
 /**
  * Generic manager of an operation-based CRDT implementation V that provides
  * external metadata, versioning, reliable updates execution etc.
@@ -59,8 +58,9 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
         return result;
     }
 
-    // WISHME: we can make some of these fields volatile (e.g., id and
-    // registeredInStore) for sake of efficient storage.
+    // WISHME: we can make some of these fields transient (e.g., id and
+    // registeredInStore) for sake of optimized storage.
+
     // id under which the CRDT is globally known and uniquely identified
     protected CRDTIdentifier id;
     // clock with the current local state of this CRDT, comprises all timestamps
@@ -84,7 +84,7 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
      * @param id
      *            identifier of the object
      * @param initialCheckpoint
-     *            initial staet for the first checkpoint
+     *            initial state for the first checkpoint
      * @param clock
      *            causality clock that is associated to the current object
      *            state; object uses this reference directly without copying it
@@ -188,7 +188,6 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
      * @param currentDCClock
      *            current DC clock
      */
-    // FIXME: should be it a CausalityClock, do we allow holes?
     public void augmentWithDCClockWithoutMappings(final CausalityClock currentDCClock) {
         clock.merge(currentDCClock);
     }
@@ -433,7 +432,8 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
         return version;
     }
 
-    public CRDT<V> getLatestVersion(TxnHandle txn) {
+    public V getLatestVersion(TxnHandle txn) {
+        // WISHME: cache the most recent version? it should be easy.
         return getVersion(getClock(), txn);
     }
 

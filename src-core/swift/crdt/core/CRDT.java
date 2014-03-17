@@ -35,7 +35,9 @@ import swift.clocks.CausalityClock;
  * Application update generates a downstream update {@link CRDTUpdate} using a
  * timestamp provided by a handle and registered in the handle. Downstream
  * update is eventually delivered exactly-once to other object instances in
- * causal order.
+ * causal order. Since the older of delivery of concurrent downstream updates
+ * may be different on each replica, all concurrent updates must generate
+ * donwstream updates that commute.
  * <p>
  * See {@link BaseCRDT} for more information on how to implement an object.
  * 
