@@ -508,7 +508,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             } else {
                 if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                        throw new NetworkException("timed out to get transcation snapshot point");
+                        throw new NetworkException("timed out to get transaction snapshot point");
                     }
                 }
                 // Invariant: for SI snapshotClock of a new transaction
