@@ -20,12 +20,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import swift.clocks.TimestampMapping;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.ObjectUpdatesListener;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -44,7 +43,7 @@ import sys.stats.Stats;
  * @author mzawirski
  */
 class RepeatableReadsTxnHandle extends AbstractTxnHandle {
-    final Map<CRDTIdentifier, TxnLocalCRDT<?>> objectViewsCache;
+    final Map<CRDTIdentifier, CRDT<?>> objectViewsCache;
 
     /**
      * Creates update transaction.
@@ -65,7 +64,7 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
             final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats statistics) {
         super(manager, sessionId, durableLog, IsolationLevel.REPEATABLE_READS, cachePolicy, timestampMapping,
                 statistics);
-        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, CRDT<?>>();
     }
 
     /**
@@ -81,14 +80,14 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final CachePolicy cachePolicy,
             Stats statistics) {
         super(manager, sessionId, IsolationLevel.REPEATABLE_READS, cachePolicy, statistics);
-        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
+        this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, CRDT<?>>();
     }
 
     @Override
-    protected <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T getImpl(CRDTIdentifier id, boolean create,
-            Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
+    protected <V extends CRDT<V>> V getImpl(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        TxnLocalCRDT<V> localView = (TxnLocalCRDT<V>) objectViewsCache.get(id);
+        CRDT<V> localView = (CRDT<V>) objectViewsCache.get(id);
         if (localView != null && updatesListener != null) {
             // force another read to install the listener and discard it
             manager.getObjectVersionTxnView(this, id, localView.getClock(), create, classOfV, updatesListener);
@@ -98,6 +97,6 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
             objectViewsCache.put(id, localView);
             updateUpdatesDependencyClock(localView.getClock());
         }
-        return (T) localView;
+        return (V) localView;
     }
 }

@@ -35,9 +35,10 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.ManagedCRDT;
 import swift.proto.BatchCommitUpdatesReply;
 import swift.proto.BatchCommitUpdatesRequest;
 import swift.proto.CommitTSReply;
@@ -180,7 +181,7 @@ class DCSurrogate extends SwiftProtocolHandler {
      * @param subscribe
      *            Subscription type
      */
-    CRDTObject getCRDT(CRDTIdentifier id, CausalityClock clk, String clientId) {
+    ManagedCRDT getCRDT(CRDTIdentifier id, CausalityClock clk, String clientId) {
         return dataServer.getCRDT(id, clk, clientId, suPubSub.isSubscribed(id));
     }
 
@@ -230,18 +231,16 @@ class DCSurrogate extends SwiftProtocolHandler {
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
 
-        CRDTObject crdt = getCRDT(request.getUid(), request.getVersion(), request.getClientId());
+        ManagedCRDT crdt = getCRDT(request.getUid(), request.getVersion(), request.getClientId());
 
         if (crdt == null) {
-            final CausalityClock versionClock = estimatedDCVersionCopy.clone();
-            if (cltLastSeqNo != null) {
-                versionClock.recordAllUntil(cltLastSeqNo);
-            }
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("END FetchObjectVersionRequest not found:" + request.getUid());
             }
+            // if (cltLastSeqNo != null)
+            // crdt.augmentWithScoutClock(cltLastSeqNo);
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
-                    versionClock, ClockFactory.newClock(), estimatedDCVersionCopy, estimatedDCStableVersionCopy, null);
+                    estimatedDCVersionCopy, estimatedDCStableVersionCopy, null);
         } else {
 
             // for evaluating stale reads
@@ -250,16 +249,16 @@ class DCSurrogate extends SwiftProtocolHandler {
             // estimatedDCStableVersionCopy);
 
             synchronized (crdt) {
-                crdt.clock.merge(estimatedDCVersionCopy);
+                crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionCopy);
                 if (cltLastSeqNo != null)
-                    crdt.clock.recordAllUntil(cltLastSeqNo);
+                    crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
                 final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                         : FetchStatus.OK;
                 if (logger.isLoggable(Level.INFO)) {
-                    logger.info("END FetchObjectVersionRequest clock = " + crdt.clock + "/" + request.getUid());
+                    logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/" + request.getUid());
                 }
-                return new FetchObjectVersionReply(status, crdt.crdt, crdt.clock, crdt.pruneClock,
-                        estimatedDCVersionCopy, estimatedDCStableVersionCopy, null);
+                return new FetchObjectVersionReply(status, crdt, estimatedDCVersionCopy, estimatedDCStableVersionCopy,
+                        null);
             }
         }
     }
@@ -519,19 +518,19 @@ class DCSurrogate extends SwiftProtocolHandler {
 
         Map<String, Object> res = new HashMap<String, Object>();
 
-        CRDTObject mostRecentDCVersion = getCRDT(request.getUid(), estimatedDCVersionCopy, request.getClientId());
+        ManagedCRDT mostRecentDCVersion = getCRDT(request.getUid(), estimatedDCVersionCopy, request.getClientId());
 
-        CRDTObject mostRecentScoutVersion = getCRDT(request.getUid(), request.getClock(), request.getClientId());
+        ManagedCRDT mostRecentScoutVersion = getCRDT(request.getUid(), request.getClock(), request.getClientId());
 
         if (mostRecentDCVersion != null && mostRecentScoutVersion != null) {
 
-            Set<TimestampMapping> diff1 = mostRecentScoutVersion.crdt.getUpdatesTimestampMappingsSince(request
+            List<TimestampMapping> diff1 = mostRecentScoutVersion.getUpdatesTimestampMappingsSince(request
                     .getDistasterDurableClock());
 
-            Set<TimestampMapping> diff2 = mostRecentDCVersion.crdt.getUpdatesTimestampMappingsSince(request
+            List<TimestampMapping> diff2 = mostRecentDCVersion.getUpdatesTimestampMappingsSince(request
                     .getDistasterDurableClock());
 
-            Set<TimestampMapping> diff3 = mostRecentDCVersion.crdt
+            List<TimestampMapping> diff3 = mostRecentDCVersion
                     .getUpdatesTimestampMappingsSince(estimatedDCStableVersionCopy);
 
             res.put("timestamp", request.timestamp);

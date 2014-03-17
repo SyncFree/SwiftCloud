@@ -19,7 +19,7 @@ package swift.proto;
 import java.util.Map;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.interfaces.CRDT;
+import swift.crdt.core.ManagedCRDT;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -46,11 +46,7 @@ public class FetchObjectVersionReply implements RpcMessage {
     }
 
     protected FetchStatus status;
-    // TODO: shalln't we use CRDT class simply and allow leaving certain fields
-    // null?
-    protected CRDT<?> crdt;
-    protected CausalityClock version;
-    protected CausalityClock pruneClock;
+    protected ManagedCRDT<?> crdt;
     protected CausalityClock estimatedLatestKnownClock;
     protected CausalityClock estimatedDisasterDurableLatestKnownClock;
 
@@ -60,29 +56,20 @@ public class FetchObjectVersionReply implements RpcMessage {
     FetchObjectVersionReply() {
     }
 
-    public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
-            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock) {
+    public FetchObjectVersionReply(FetchStatus status, ManagedCRDT<?> crdt, CausalityClock estimatedLatestKnownClock,
+            CausalityClock estimatedDisasterDurableLatestKnownClock) {
 
         this.crdt = crdt;
         this.status = status;
-        this.version = version;
-        this.pruneClock = pruneClock;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
     }
 
-    public FetchObjectVersionReply(FetchStatus status, CRDT<?> crdt, CausalityClock version, CausalityClock pruneClock,
-            CausalityClock estimatedLatestKnownClock, CausalityClock estimatedDisasterDurableLatestKnownClock,
-            Map<String, Object> staleReadsInfo) {
+    public FetchObjectVersionReply(FetchStatus status, ManagedCRDT<?> crdt, CausalityClock estimatedLatestKnownClock,
+            CausalityClock estimatedDisasterDurableLatestKnownClock, Map<String, Object> staleReadsInfo) {
 
-        this.crdt = crdt;
-        this.status = status;
-        this.version = version;
-        this.pruneClock = pruneClock;
-        this.estimatedLatestKnownClock = estimatedLatestKnownClock;
-        this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
-        this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
+        this(status, crdt, estimatedLatestKnownClock, estimatedDisasterDurableLatestKnownClock);
 
         // EVALUATION
         this.staleReadsInfo = staleReadsInfo;
@@ -103,32 +90,12 @@ public class FetchObjectVersionReply implements RpcMessage {
     // FetchStatus#OK} then the object is
     // pruned from history at most to the level specified by version in
     // the original client request;
-    public CRDT<?> getCrdt() {
+    public ManagedCRDT<?> getCrdt() {
         return crdt;
     }
 
     /**
-     * @return version of an object returned, possibly higher than the version
-     *         requested by the client; if {@link #getStatus()} is
-     *         {@link FetchStatus#OBJECT_NOT_FOUND} then it is the latest clock
-     *         known when object does not exist
-     */
-    public CausalityClock getVersion() {
-        return version;
-    }
-
-    /**
-     * @return pruneClock of an object returned; null if {@link #getStatus()} is
-     *         {@link FetchStatus#OBJECT_NOT_FOUND}
-     */
-    public CausalityClock getPruneClock() {
-        return pruneClock;
-
-    }
-
-    /**
-     * @return estimation of the latest committed clock in the store, dominated
-     *         by or equals {@link #getVersion()}
+     * @return estimation of the latest committed clock in the store
      */
     public CausalityClock getEstimatedCommittedVersion() {
         return estimatedLatestKnownClock;

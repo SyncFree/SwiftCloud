@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.dc;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.proto.ObjectUpdatesInfo;
 
 /**

@@ -17,7 +17,7 @@
 package swift.proto;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 

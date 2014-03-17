@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.test.microbenchmark;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 
 public class BenchOperation<V> {
     private CRDTIdentifier identifier;

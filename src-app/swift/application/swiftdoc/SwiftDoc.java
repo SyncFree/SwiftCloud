@@ -30,13 +30,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.SequenceTxnLocal;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.SequenceCRDT;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -116,14 +116,12 @@ public class SwiftDoc {
                         while (!done.get()) {
                             final TxnHandle handle = swift1.beginTxn(isolationLevel, CachePolicy.CACHED, true);
 
-                            SequenceTxnLocal<TextLine> doc = getDoc(handle, j2, false,
-                                    new AbstractObjectUpdatesListener() {
-                                        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id,
-                                                TxnLocalCRDT<?> previousValue) {
-                                            System.err.printf("CLIENT 1");
-                                            semaphore.release();
-                                        }
-                                    });
+                            SequenceCRDT<TextLine> doc = getDoc(handle, j2, false, new AbstractObjectUpdatesListener() {
+                                public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, CRDT<?> previousValue) {
+                                    System.err.printf("CLIENT 1");
+                                    semaphore.release();
+                                }
+                            });
                             handle.commit();
 
                             for (TextLine i : doc.getValue()) {
@@ -143,7 +141,7 @@ public class SwiftDoc {
 
             player.parseFiles(new SwiftDocOps<TextLine>() {
                 TxnHandle handle = null;
-                SequenceTxnLocal<TextLine> doc = null;
+                SequenceCRDT<TextLine> doc = null;
                 int cm = 0;
 
                 @Override
@@ -208,14 +206,14 @@ public class SwiftDoc {
 
             for (;;) {
                 final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, true);
-                SequenceTxnLocal<TextLine> doc = getDoc(handle, j1, false, new AbstractObjectUpdatesListener() {
-                    public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+                SequenceCRDT<TextLine> doc = getDoc(handle, j1, false, new AbstractObjectUpdatesListener() {
+                    public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, CRDT<?> previousValue) {
                         // System.err.printf("CLIENT 2: %s\n", j1);
                         barrier.release();
                     }
                 });
 
-                final SequenceTxnLocal<TextLine> doc2 = doc;
+                final SequenceCRDT<TextLine> doc2 = doc;
                 executor.execute(new Runnable() {
                     public void run() {
                         try {
@@ -229,7 +227,7 @@ public class SwiftDoc {
                             }
                             System.err.println("------->" + newAtoms.size());
                             TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-                            SequenceTxnLocal<TextLine> doc3 = getDoc(handle, j2, true, null);
+                            SequenceCRDT<TextLine> doc3 = getDoc(handle, j2, true, null);
                             for (TextLine i : newAtoms)
                                 doc3.insertAt(doc3.size(), i);
                             handle.commit();
@@ -253,14 +251,13 @@ public class SwiftDoc {
     }
 
     @SuppressWarnings("unchecked")
-    static SequenceTxnLocal<TextLine> getDoc(TxnHandle handle, CRDTIdentifier id, boolean create,
+    static SequenceCRDT<TextLine> getDoc(TxnHandle handle, CRDTIdentifier id, boolean create,
             AbstractObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
 
         for (;;) {
             try {
-                return (SequenceTxnLocal<TextLine>) handle
-                        .get(id, create, swift.crdt.SequenceVersioned.class, listener);
+                return (SequenceCRDT<TextLine>) handle.get(id, create, swift.crdt.SequenceCRDT.class, listener);
             } catch (Exception x) {
                 Threading.sleep(10);
             }

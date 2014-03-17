@@ -2,7 +2,7 @@ package swift.pubsub;
 
 import java.util.concurrent.Executor;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.proto.SwiftProtocolHandler;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;

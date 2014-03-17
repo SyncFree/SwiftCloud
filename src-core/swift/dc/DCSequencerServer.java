@@ -39,7 +39,7 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.dc.db.DCNodeDatabase;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;

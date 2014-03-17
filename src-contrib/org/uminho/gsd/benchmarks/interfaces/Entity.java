@@ -26,7 +26,7 @@ package org.uminho.gsd.benchmarks.interfaces;
 
 import java.util.TreeMap;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 public interface Entity extends Copyable {
 

@@ -2,7 +2,7 @@ package swift.pubsub;
 
 import java.util.concurrent.Executor;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.pubsub.RemoteSubscriber;

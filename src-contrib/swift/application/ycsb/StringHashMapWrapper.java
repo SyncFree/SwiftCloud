@@ -2,8 +2,7 @@ package swift.application.ycsb;
 
 import java.util.HashMap;
 
-import swift.crdt.RegisterVersioned;
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 /**
  * Copyable wrapper of a String-to-String Hashmap. Workaround to use HashMap

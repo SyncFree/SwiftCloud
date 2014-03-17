@@ -19,14 +19,13 @@ package swift.test.microbenchmark;
 import java.util.Random;
 
 import swift.client.AbstractObjectUpdatesListener;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.CRDT;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -87,7 +86,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                                                                          // Math.floor(random.nextDouble()
                                                                          // *
                                                                          // identifiers.length);
-                    IntegerTxnLocal integerCRDT = txh.get(identifiers[randomIndex], false, IntegerVersioned.class,
+                    IntegerCRDT integerCRDT = txh.get(identifiers[randomIndex], false, IntegerCRDT.class,
                             listener);
                     if (random.nextDouble() > 0.5) {
                         integerCRDT.add(10);
@@ -106,7 +105,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
                     TxnHandle txh = clientServer.beginTxn(isolationLevel, cachePolicy, true);
                     for (int i = 0; i < txSize; i++) {
                         int randomIndex = (int) Math.floor(Math.random() * identifiers.length);
-                        txh.get(identifiers[randomIndex], false, IntegerVersioned.class, listener);
+                        txh.get(identifiers[randomIndex], false, IntegerCRDT.class, listener);
                         readOps++;
                     }
                     txh.commit();
@@ -160,7 +159,7 @@ public class SwiftExecutorWorker implements MicroBenchmarkWorker {
     class MicroBenchmarkUpdateListener extends AbstractObjectUpdatesListener {
 
         @Override
-        public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+        public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, CRDT<?> previousValue) {
             // System.out.println("Object Modified " + id);
 
         }

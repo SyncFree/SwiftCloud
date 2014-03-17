@@ -17,9 +17,13 @@
 package swift.dc;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.CRDT;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.ManagedCRDT;
 
+// FIXME: we should unify/agree on a common (super)class with ManagedCRDT/CRDT.
+// Keeping redundant classes doing similar, but slightly different job is
+// asking for troubles.
 public class CRDTData<V extends CRDT<V>> {
     /**
      * true if the entry corresponds to an object that does not exist
@@ -28,7 +32,7 @@ public class CRDTData<V extends CRDT<V>> {
     /**
      * crdt object
      */
-    CRDT<V> crdt;
+    ManagedCRDT<V> crdt;
     /**
      * crdt object
      */
@@ -40,6 +44,8 @@ public class CRDTData<V extends CRDT<V>> {
     /**
      * current clock reflects all updates and their causal past
      */
+    // FIXME(Marek): why do we need a direct reference to the clock?
+    // Arent't WrappedCRDT methods good enough? 
     CausalityClock clock;
     /**
      * current clock reflects all updates and their causal past, from the
@@ -50,6 +56,8 @@ public class CRDTData<V extends CRDT<V>> {
      * prune clock reflects the updates that have been discarded, making it
      * impossible to access a snapshot that is dominated by this clock
      */
+    // FIXME(Marek): why do we need a direct reference to the pruneClock?
+    // Arent't WrappedCRDT methods good enough?
     CausalityClock pruneClock;
     transient long lastPrunedTime;
     transient CausalityClock lastPrunedClock;
@@ -63,33 +71,6 @@ public class CRDTData<V extends CRDT<V>> {
         lastPrunedTime = -1;
         this.id = id;
         this.empty = true;
-    }
-
-    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock,
-            int foo) {
-        lastPrunedTime = -1;
-        this.crdt = crdt;
-        // if( DCDataServer.prune)
-        // this.prunedCrdt = crdt.copy();
-        this.id = id;
-        this.clock = clock;
-        this.pruneClock = pruneClock;
-        this.pruneClock.trim();
-        // this.cltClock = cltClock;
-        this.empty = false;
-    }
-
-    CRDTData(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
-        lastPrunedTime = -1;
-        this.crdt = crdt;
-        // if( DCDataServer.prune)
-        // this.prunedCrdt = crdt.copy();
-        this.id = id;
-        this.clock = clock;
-        this.pruneClock = pruneClock;
-        this.pruneClock.trim();
-        // this.cltClock = cltClock;
-        this.empty = false;
     }
 
     boolean pruneIfPossible() {
@@ -111,17 +92,7 @@ public class CRDTData<V extends CRDT<V>> {
 
     }
 
-    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock, int foo) {
-        this.crdt = crdt;
-        // if( DCDataServer.prune)
-        // this.prunedCrdt = crdt.copy();
-        this.clock = clock;
-        this.pruneClock = pruneClock;
-        // this.cltClock = cltClock;
-        this.empty = false;
-    }
-
-    void initValue(CRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
+    void initValue(ManagedCRDT<V> crdt, CausalityClock clock, CausalityClock pruneClock, CausalityClock cltClock) {
         this.crdt = crdt;
         // if( DCDataServer.prune)
         // this.prunedCrdt = crdt.copy();
@@ -149,8 +120,10 @@ public class CRDTData<V extends CRDT<V>> {
     }
 
     public void mergeInto(CRDTData<?> d) {
-        empty = true;
-        crdt.merge((CRDT<V>) d.crdt);
+        // FIXME: (Marek) It used to be "true", but I have a sense it was
+        // incorrect.
+        empty &= d.empty;
+        crdt.merge((ManagedCRDT<V>) d.crdt);
         clock.merge(d.clock);
         // if( DCDataServer.prune) {
         // this.prunedCrdt.merge((CRDT<V>)d.crdt);
@@ -163,7 +136,7 @@ public class CRDTData<V extends CRDT<V>> {
         return empty;
     }
 
-    public CRDT<V> getCrdt() {
+    public ManagedCRDT<V> getCrdt() {
         return crdt;
     }
 

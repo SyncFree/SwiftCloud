@@ -19,8 +19,8 @@ package swift.application.swiftdoc.cs;
 import java.util.Arrays;
 import java.util.logging.Logger;
 
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
 import sys.Sys;
 
 /**

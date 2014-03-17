@@ -20,12 +20,12 @@ import java.util.Random;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -81,8 +81,8 @@ public class LocalConcurrencyTest {
         try {
             TxnHandle handle = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.STRICTLY_MOST_RECENT,
                     false);
-            IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
-            IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerVersioned.class);
+            IntegerCRDT i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerCRDT.class);
+            IntegerCRDT i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerCRDT.class);
             Random random = new Random();
             for (int i = 0; i < 5; i++) {
                 i1.add(1);
@@ -102,8 +102,8 @@ public class LocalConcurrencyTest {
         try {
             TxnHandle handle = checkServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
                     CachePolicy.STRICTLY_MOST_RECENT, false);
-            IntegerTxnLocal i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerVersioned.class);
-            IntegerTxnLocal i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerVersioned.class);
+            IntegerCRDT i1 = handle.get(new CRDTIdentifier("e", "1"), false, swift.crdt.IntegerCRDT.class);
+            IntegerCRDT i2 = handle.get(new CRDTIdentifier("e", "2"), false, swift.crdt.IntegerCRDT.class);
             int val1 = i1.getValue();
             int val2 = i2.getValue();
 

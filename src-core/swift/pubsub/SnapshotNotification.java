@@ -4,7 +4,7 @@ import java.util.Set;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 import sys.pubsub.PubSub.Subscriber;

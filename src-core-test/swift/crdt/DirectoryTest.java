@@ -16,14 +16,15 @@
  *****************************************************************************/
 package swift.crdt;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import swift.clocks.ClockFactory;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
@@ -32,29 +33,23 @@ import swift.exceptions.WrongTypeException;
 
 public class DirectoryTest {
     TxnHandle txn;
-    DirectoryTxnLocal dir;
+    DirectoryCRDT dir;
 
     @Before
     public void setUp() throws SwiftException {
-        txn = new TxnTester("client1", ClockFactory.newClock());
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), true,
-                DirectoryVersioned.class);
+        txn = TxnTester.createIsolatedTxnTester();
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), true, DirectoryCRDT.class);
     }
 
     @Test
     public void idTest() {
-        assertTrue(dir.id.equals(new CRDTIdentifier("DIR", "/root:swift.crdt.DirectoryVersioned")));
-    }
-
-    @Test
-    public void initTest() {
-        assertTrue(dir.getValue().isEmpty());
+        assertEquals(dir.getUID(), new CRDTIdentifier("DIR", "/root:swift.crdt.DirectoryCRDT"));
     }
 
     @Test
     public void emptyTest() {
         // lookup on empty set
-        assertTrue(!dir.contains("x", IntegerVersioned.class));
+        assertTrue(!dir.contains("x", IntegerCRDT.class));
         assertTrue(dir.getValue().isEmpty());
     }
 
@@ -62,98 +57,89 @@ public class DirectoryTest {
     public void insertTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException, ClassNotFoundException {
         // create one element
-        dir.createNewEntry("x", IntegerVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        IntegerTxnLocal i2 = dir.get("x", IntegerVersioned.class);
+        dir.createNewEntry("x", IntegerCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        IntegerCRDT i2 = dir.get("x", IntegerCRDT.class);
         assertTrue(i2.getValue() == 0);
-        assertTrue(dir.contains("x", IntegerVersioned.class));
+        assertTrue(dir.contains("x", IntegerCRDT.class));
     }
 
     @Test
     public void removeTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException, ClassNotFoundException {
         // create one element
-        dir.createNewEntry("x", IntegerVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        assertTrue(dir.contains("x", IntegerVersioned.class));
+        dir.createNewEntry("x", IntegerCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        assertTrue(dir.contains("x", IntegerCRDT.class));
 
-        dir.removeEntry("x", IntegerVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        assertFalse(dir.contains("x", IntegerVersioned.class));
+        dir.removeEntry("x", IntegerCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        assertFalse(dir.contains("x", IntegerCRDT.class));
     }
 
     @Test
     public void removeRecursiveTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException, ClassNotFoundException {
-        DirectoryTxnLocal parent = dir;
+        DirectoryCRDT parent = dir;
         for (int i = 0; i < 5; i++) {
-            CRDTIdentifier childDirId = parent.createNewEntry("x" + i, DirectoryVersioned.class);
-            parent.createNewEntry("y" + i, DirectoryVersioned.class);
-            parent.createNewEntry("z" + i, IntegerVersioned.class);
+            CRDTIdentifier childDirId = parent.createNewEntry("x" + i, DirectoryCRDT.class);
+            parent.createNewEntry("y" + i, DirectoryCRDT.class);
+            parent.createNewEntry("z" + i, IntegerCRDT.class);
 
-            DirectoryTxnLocal child = txn.get(childDirId, false, DirectoryVersioned.class);
+            DirectoryCRDT child = txn.get(childDirId, false, DirectoryCRDT.class);
             parent = child;
         }
-        dir.removeEntry("x" + 0, DirectoryVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        assertFalse(dir.contains("x" + 0, DirectoryVersioned.class));
-        assertTrue(dir.contains("y" + 0, DirectoryVersioned.class));
+        dir.removeEntry("x" + 0, DirectoryCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        assertFalse(dir.contains("x" + 0, DirectoryCRDT.class));
+        assertTrue(dir.contains("y" + 0, DirectoryCRDT.class));
 
         // Test directly one of the subdirectories to be empty
-        CRDTIdentifier subdirId = new CRDTIdentifier("DIR", "/root/x0/x1/x2/x3/x4:swift.crdt.DirectoryVersioned");
-        DirectoryTxnLocal subdir = txn.get(subdirId, false, DirectoryVersioned.class);
+        CRDTIdentifier subdirId = new CRDTIdentifier("DIR", "/root/x0/x1/x2/x3/x4:swift.crdt.DirectoryCRDT");
+        DirectoryCRDT subdir = txn.get(subdirId, false, DirectoryCRDT.class);
         assertTrue(subdir.getValue().isEmpty());
     }
 
     @Test
     public void differentEntryTypesTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException, ClassNotFoundException {
-        dir.createNewEntry("x", IntegerVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        assertTrue(dir.contains("x", IntegerVersioned.class));
-        dir.createNewEntry("x", DirectoryVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        assertTrue(dir.contains("x", DirectoryVersioned.class));
+        dir.createNewEntry("x", IntegerCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        assertTrue(dir.contains("x", IntegerCRDT.class));
+        dir.createNewEntry("x", DirectoryCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        assertTrue(dir.contains("x", DirectoryCRDT.class));
 
-        dir.removeEntry("x", IntegerVersioned.class);
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        assertFalse(dir.contains("x", IntegerVersioned.class));
-        assertTrue(dir.contains("x", DirectoryVersioned.class));
+        dir.removeEntry("x", IntegerCRDT.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        assertFalse(dir.contains("x", IntegerCRDT.class));
+        assertTrue(dir.contains("x", DirectoryCRDT.class));
     }
 
     @Test
     public void removeAndReconstructTest() throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException, ClassNotFoundException {
-        DirectoryTxnLocal parent = dir;
+        DirectoryCRDT parent = dir;
         for (int i = 0; i < 5; i++) {
-            CRDTIdentifier childDirId = parent.createNewEntry("x" + i, DirectoryVersioned.class);
-            parent.createNewEntry("y" + i, DirectoryVersioned.class);
+            CRDTIdentifier childDirId = parent.createNewEntry("x" + i, DirectoryCRDT.class);
+            parent.createNewEntry("y" + i, DirectoryCRDT.class);
 
-            DirectoryTxnLocal child = txn.get(childDirId, false, DirectoryVersioned.class);
+            DirectoryCRDT child = txn.get(childDirId, false, DirectoryCRDT.class);
             parent = child;
         }
-        dir = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
-        dir.removeEntry("x" + 0, DirectoryVersioned.class);
+        dir = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
+        dir.removeEntry("x" + 0, DirectoryCRDT.class);
 
-        parent.createNewEntry("z", DirectoryVersioned.class);
-        parent = txn.get(DirectoryTxnLocal.createRootId("DIR", "root", DirectoryVersioned.class), false,
-                DirectoryVersioned.class);
+        parent.createNewEntry("z", DirectoryCRDT.class);
+        parent = txn.get(DirectoryCRDT.createRootId("DIR", "root", DirectoryCRDT.class), false, DirectoryCRDT.class);
         for (int i = 0; i < 5; i++) {
-            assertTrue(parent.contains("x" + i, DirectoryVersioned.class));
+            assertTrue(parent.contains("x" + i, DirectoryCRDT.class));
             if (i > 0) {
-                assertFalse(parent.contains("y" + i, DirectoryVersioned.class));
+                assertFalse(parent.contains("y" + i, DirectoryCRDT.class));
             }
-            CRDTIdentifier childDirId = new CRDTIdentifier("DIR", DirectoryTxnLocal.getDirEntry(
-                    DirectoryTxnLocal.getFullPath(parent.id) + "/x" + i, DirectoryVersioned.class));
-            DirectoryTxnLocal child = txn.get(childDirId, false, DirectoryVersioned.class);
+            CRDTIdentifier childDirId = new CRDTIdentifier("DIR", DirectoryCRDT.getDirEntry(
+                    DirectoryCRDT.getFullPath(parent.getUID()) + "/x" + i, DirectoryCRDT.class));
+            DirectoryCRDT child = txn.get(childDirId, false, DirectoryCRDT.class);
             parent = child;
         }
     }

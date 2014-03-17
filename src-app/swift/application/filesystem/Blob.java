@@ -17,7 +17,7 @@
  *****************************************************************************/
 package swift.application.filesystem;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 public class Blob implements Copyable {
     private final byte[] content;

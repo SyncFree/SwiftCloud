@@ -27,21 +27,16 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.clocks.VersionVectorWithExceptions;
-import swift.crdt.BaseCRDT;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.RegisterVersioned;
-import swift.crdt.SetIds;
-import swift.crdt.SetIntegers;
-import swift.crdt.SetMsg;
-import swift.crdt.SetStrings;
-import swift.crdt.SetVersioned;
-import swift.crdt.operations.BaseUpdate;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
-import swift.crdt.operations.IntegerUpdate;
-import swift.crdt.operations.RegisterUpdate;
-import swift.crdt.operations.SetInsert;
-import swift.crdt.operations.SetRemove;
+import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.IntegerUpdate;
+import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.RegisterUpdate;
+import swift.crdt.SetAddUpdate;
+import swift.crdt.SetRemoveUpdate;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.ManagedCRDT;
 import swift.proto.ClientRequest;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
@@ -94,17 +89,17 @@ public class KryoCRDTUtils {
         registerable.register(VersionVectorWithExceptions.Interval.class, 0x53);
         registerable.register(TimestampMapping.class, 0x54);
         registerable.register(CRDTIdentifier.class, 0x55);
-        registerable.register(BaseCRDT.class, 0x56);
+        registerable.register(ManagedCRDT.class, 0x56);
 
-        registerable.register(RegisterVersioned.class, 0x58);
-        registerable.register(RegisterVersioned.UpdateEntry.class, 0x59);
-        registerable.register(SetIds.class, 0x60);
-        registerable.register(SetIntegers.class, 0x61);
-        registerable.register(SetMsg.class, 0x62);
-        registerable.register(SetStrings.class, 0x63);
-        registerable.register(SetVersioned.class, 0x64);
-        registerable.register(IntegerVersioned.class, 0x6D);
-
+        registerable.register(LWWRegisterCRDT.class, 0x58);
+        // 0x59
+        // registerable.register(SetIds.class, 0x60);
+        // registerable.register(SetIntegers.class, 0x61);
+        // registerable.register(SetMsg.class, 0x62);
+        // registerable.register(SetStrings.class, 0x63);
+        // registerable.register(SetVersioned.class, 0x64);
+        registerable.register(IntegerCRDT.class, 0x6D);
+        
         registerable.register(ClientRequest.class, 0x70);
         registerable.register(CommitUpdatesRequest.class, 0x71);
         registerable.register(CommitUpdatesReply.class, 0x72);
@@ -121,11 +116,11 @@ public class KryoCRDTUtils {
         registerable.register(UnsubscribeUpdatesRequest.class, 0x84);
 
         registerable.register(CRDTObjectUpdatesGroup.class, 0x85);
-        registerable.register(BaseUpdate.class, 0x86);
+        registerable.register(AddWinsSetCRDT.class, 0x86);
         registerable.register(IntegerUpdate.class, 0x87);
         registerable.register(RegisterUpdate.class, 0x88);
-        registerable.register(SetInsert.class, 0x89);
-        registerable.register(SetRemove.class, 0x8A);
+        registerable.register(SetAddUpdate.class, 0x89);
+        registerable.register(SetRemoveUpdate.class, 0x8A);
 
         registerable.register(CommitTSRequest.class, 0x8B);
         registerable.register(CommitTSReply.class, 0x8C);

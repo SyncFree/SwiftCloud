@@ -33,17 +33,16 @@ import swift.clocks.IncrementalTripleTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.BulkGetProgressListener;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTUpdate;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.interfaces.TxnStatus;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.BulkGetProgressListener;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.ObjectUpdatesListener;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.TxnStatus;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -93,7 +92,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> localObjectOperations;
     protected TxnStatus status;
     protected CommitListener commitListener;
-    protected final Map<TxnLocalCRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
+    protected final Map<CRDT<?>, ObjectUpdatesListener> objectUpdatesListeners;
     protected final TransactionsLog durableLog;
     protected final long id;
     protected final long serial;
@@ -132,10 +131,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.cachePolicy = cachePolicy;
         this.timestampMapping = timestampMapping;
         this.updatesDependencyClock = ClockFactory.newClock();
-        this.timestampSource = new IncrementalTripleTimestampGenerator(timestampMapping);
+        this.timestampSource = new IncrementalTripleTimestampGenerator(timestampMapping.getClientTimestamp());
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
-        this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+        this.objectUpdatesListeners = new HashMap<CRDT<?>, ObjectUpdatesListener>();
         this.serial = serialGenerator.getAndIncrement();
         initStats(stats);
     }
@@ -166,21 +165,21 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         this.timestampSource = null;
         this.localObjectOperations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.status = TxnStatus.PENDING;
-        this.objectUpdatesListeners = new HashMap<TxnLocalCRDT<?>, ObjectUpdatesListener>();
+        this.objectUpdatesListeners = new HashMap<CRDT<?>, ObjectUpdatesListener>();
 
         this.serial = serialGenerator.getAndIncrement();
         initStats(stats);
     }
 
     @Override
-    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         return get(id, create, classOfV, null);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
             ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
         assertStatus(TxnStatus.PENDING);
@@ -271,6 +270,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      */
     TimestampMapping getTimestampMapping() {
         return timestampMapping;
+    }
+
+    Timestamp getClientTimestamp() {
+        return getTimestampMapping().getClientTimestamp();
     }
 
     /**
@@ -364,8 +367,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      * {@link #updateUpdatesDependencyClock(CausalityClock)} to ensure that it
      * depends on every version read by the transaction.
      */
-    protected abstract <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T getImpl(CRDTIdentifier id, boolean create,
-            Class<V> classOfV, ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
+    protected abstract <V extends CRDT<V>> V getImpl(CRDTIdentifier id, boolean create, Class<V> classOfV,
+            ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException;
 
     /**
@@ -425,10 +428,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     }
 
     @Override
-    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final boolean readOnly, long timeout,
             final BulkGetProgressListener listener) {
-        final Map<CRDTIdentifier, TxnLocalCRDT<?>> res = Collections
-                .synchronizedMap(new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>());
+        final Map<CRDTIdentifier, CRDT<?>> res = Collections
+                .synchronizedMap(new HashMap<CRDTIdentifier, CRDT<?>>());
 
         if (ids.isEmpty())
             return res;
@@ -439,7 +442,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
             execute(new Runnable() {
                 @Override
                 public void run() {
-                    TxnLocalCRDT<?> val;
+                    CRDT<?> val;
                     try {
                         val = get(i, readOnly, null);
                         res.put(i, val);
@@ -459,7 +462,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         return res;
     }
 
-    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(CRDTIdentifier... crdtIdentifiers) {
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(CRDTIdentifier... crdtIdentifiers) {
         long timeout = Long.MAX_VALUE;
         Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>(Arrays.asList(crdtIdentifiers));
         return this.bulkGet(ids, false, timeout, null);

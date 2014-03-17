@@ -19,14 +19,19 @@ package swift.crdt;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftScout;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftScout;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.ManagedCRDT;
 
-public class SwiftTester implements SwiftSession {
+public class SwiftTester implements SwiftSession  {
+    public static <V extends CRDT<V>> void prune(ManagedCRDT<V> local, CausalityClock c) {
+        local.prune(c.clone(), true);
+    }
+
     public CausalityClock latestVersion;
     private IncrementalTimestampGenerator clientTimestampGenerator;
     private IncrementalTimestampGenerator globalTimestampGenerator;
@@ -44,24 +49,16 @@ public class SwiftTester implements SwiftSession {
         throw new RuntimeException("Not implemented");
     }
 
-    public TxnTester beginTxn() {
+    public TxnTester beginTxn(final ManagedCRDT<?>... existingObjects) {
         return new TxnTester(id, latestVersion, clientTimestampGenerator.generateNew(),
-                globalTimestampGenerator.generateNew());
+                globalTimestampGenerator.generateNew(), existingObjects);
     }
 
-    public <V extends CRDT<V>> TxnTesterWithRegister beginTxn(V target) {
-        return new TxnTesterWithRegister(id, latestVersion, clientTimestampGenerator.generateNew(),
-                globalTimestampGenerator.generateNew(), target);
-    }
-
-    public <V extends CRDT<V>> void merge(V local, V other, SwiftTester otherSwift) {
+    public <V extends CRDT<V>> void merge(ManagedCRDT<V> local, ManagedCRDT<V> other, SwiftTester otherSwift) {
         local.merge(other);
-        latestVersion.merge(otherSwift.latestVersion);
+        latestVersion.merge(other.getClock());
     }
 
-    public <V extends CRDT<V>> void prune(V local, CausalityClock c) {
-        local.prune(c.clone(), true);
-    }
 
     @Override
     public void stopScout(boolean waitForCommit) {
@@ -74,7 +71,10 @@ public class SwiftTester implements SwiftSession {
 
     @Override
     public SwiftScout getScout() {
-        // TODO Auto-generated method stub
         return null;
+    }
+
+    @Override
+    public void printStatistics() {
     }
 }

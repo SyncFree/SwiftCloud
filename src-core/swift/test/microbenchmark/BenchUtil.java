@@ -20,8 +20,8 @@ import java.util.Random;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.SwiftSession;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.SwiftSession;
 
 import com.basho.riak.client.IRiakClient;
 import com.basho.riak.client.RiakException;

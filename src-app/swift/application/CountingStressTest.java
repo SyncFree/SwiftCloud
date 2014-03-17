@@ -18,12 +18,12 @@ package swift.application;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -81,7 +81,7 @@ public class CountingStressTest {
         SwiftSession client = SwiftImpl.newSingleSessionInstance(new SwiftOptions("localhost",
                 DCConstants.SURROGATE_PORT));
         TxnHandle txn = client.beginTxn(level, CachePolicy.STRICTLY_MOST_RECENT, false);
-        IntegerTxnLocal i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerVersioned.class,
+        IntegerCRDT i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerCRDT.class,
                 TxnHandle.UPDATES_SUBSCRIBER);
         assert (i1.getValue() == CLIENTS_NUMBER * TRANSACTIONS_PER_CLIENT);
         txn.commit();
@@ -96,7 +96,7 @@ public class CountingStressTest {
         try {
             for (int i = 0; i < TRANSACTIONS_PER_CLIENT; i++) {
                 TxnHandle txn = client.beginTxn(level, CachePolicy.STRICTLY_MOST_RECENT, false);
-                IntegerTxnLocal i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerVersioned.class,
+                IntegerCRDT i1 = txn.get(new CRDTIdentifier("tests", "1"), true, swift.crdt.IntegerCRDT.class,
                         TxnHandle.UPDATES_SUBSCRIBER);
                 i1.add(1);
 

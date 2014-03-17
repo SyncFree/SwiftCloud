@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.client;
 
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.core.TxnHandle;
 
 /**
  * Notification mechanism for asynchronous transaction commit.

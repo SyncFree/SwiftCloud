@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.client;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.stats.Stats;
 import sys.stats.sources.CounterSignalSource;
 

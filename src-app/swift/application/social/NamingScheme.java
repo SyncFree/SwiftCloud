@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.application.social;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 
 /**
  * Provides methods for generating CRDT Identifiers based on the class and type

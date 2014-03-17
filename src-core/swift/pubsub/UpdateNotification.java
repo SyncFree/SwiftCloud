@@ -1,6 +1,6 @@
 package swift.pubsub;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.proto.ObjectUpdatesInfo;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;

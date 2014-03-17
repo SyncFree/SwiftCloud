@@ -16,8 +16,8 @@
  *****************************************************************************/
 package swift.application.social;
 
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.Copyable;
 
 public class Friend implements Copyable, java.io.Serializable {
     String name;

@@ -7,14 +7,13 @@ import java.util.Vector;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.RegisterCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.ObjectUpdatesListener;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -88,8 +87,8 @@ public class SwiftRegisterBasedClient extends DB {
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, true);
             @SuppressWarnings("unchecked")
-            final RegisterTxnLocal<StringHashMapWrapper> register = (RegisterTxnLocal<StringHashMapWrapper>) txn.get(
-                    new CRDTIdentifier(table, key), false, RegisterVersioned.class, notificationsSubscriber);
+            final RegisterCRDT<StringHashMapWrapper> register = (RegisterCRDT<StringHashMapWrapper>) txn.get(
+                    new CRDTIdentifier(table, key), false, RegisterCRDT.class, notificationsSubscriber);
             final StringHashMapWrapper value = register.getValue();
             if (value == null) {
                 return ERROR_NOT_FOUND;
@@ -132,8 +131,8 @@ public class SwiftRegisterBasedClient extends DB {
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
 
             @SuppressWarnings("unchecked")
-            final RegisterTxnLocal<StringHashMapWrapper> register = (RegisterTxnLocal<StringHashMapWrapper>) txn.get(
-                    new CRDTIdentifier(table, key), false, RegisterVersioned.class, notificationsSubscriber);
+            final RegisterCRDT<StringHashMapWrapper> register = (RegisterCRDT<StringHashMapWrapper>) txn.get(
+                    new CRDTIdentifier(table, key), false, RegisterCRDT.class, notificationsSubscriber);
             final StringHashMapWrapper value = register.getValue();
             if (value == null) {
                 return ERROR_NOT_FOUND;
@@ -167,8 +166,8 @@ public class SwiftRegisterBasedClient extends DB {
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
 
             @SuppressWarnings("unchecked")
-            final RegisterTxnLocal<StringHashMapWrapper> register = (RegisterTxnLocal<StringHashMapWrapper>) txn.get(
-                    new CRDTIdentifier(table, key), true, RegisterVersioned.class, notificationsSubscriber);
+            final RegisterCRDT<StringHashMapWrapper> register = (RegisterCRDT<StringHashMapWrapper>) txn.get(
+                    new CRDTIdentifier(table, key), true, RegisterCRDT.class, notificationsSubscriber);
             final StringHashMapWrapper value = StringHashMapWrapper.createWithValue(StringByteIterator
                     .getStringMap(values));
             register.set(value);

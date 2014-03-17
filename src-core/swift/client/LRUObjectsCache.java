@@ -16,6 +16,7 @@
  *****************************************************************************/
 package swift.client;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,11 +29,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.ClockFactory;
+import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTOperationDependencyPolicy;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.ManagedCRDT;
 
 /**
  * Local cache of CRDT objects with LRU eviction policy. Elements get evicted
@@ -110,7 +114,7 @@ class LRUObjectsCache {
      * @param object
      *            object to add
      */
-    synchronized public void add(final CRDT<?> object, long txnSerial) {
+    synchronized public void add(final ManagedCRDT<?> object, long txnSerial) {
         if (txnSerial >= 0)
             evictionProtections.add(txnSerial);
 
@@ -126,7 +130,7 @@ class LRUObjectsCache {
      *            object id
      * @return object or null if object is absent in the cache
      */
-    synchronized public CRDT<?> getAndTouch(final CRDTIdentifier id) {
+    synchronized public ManagedCRDT<?> getAndTouch(final CRDTIdentifier id) {
         final Entry entry = entries.get(id);
         if (entry == null) {
             return null;
@@ -143,7 +147,7 @@ class LRUObjectsCache {
      *            object id
      * @return object or null if object is absent in the cache
      */
-    synchronized public CRDT<?> getWithoutTouch(final CRDTIdentifier id) {
+    synchronized public ManagedCRDT<?> getWithoutTouch(final CRDTIdentifier id) {
         final Entry entry = shadowEntries.get(id);
         return entry == null ? null : entry.getObject();
     }
@@ -207,17 +211,15 @@ class LRUObjectsCache {
         logger.info(evictedObjects + " objects evicted from the cache due to timeout");
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
-    synchronized void recordOnAll(final TimestampMapping timestampMapping) {
-        final CRDTObjectUpdatesGroup dummyOp = new CRDTObjectUpdatesGroup(null, timestampMapping, null, null);
+    synchronized void augmentAllWithDCCausalClockWithoutMappings(final CausalityClock causalClock) {
         for (final Entry entry : entries.values()) {
-            entry.object.execute(dummyOp, CRDTOperationDependencyPolicy.IGNORE);
+            entry.object.augmentWithDCClockWithoutMappings(causalClock);
         }
     }
 
-    synchronized void augmentWithCausalClock(final CausalityClock causalClock) {
+    synchronized void augmentAllWithScoutTimestampWithoutMappings(Timestamp clientTimestamp) {
         for (final Entry entry : entries.values()) {
-            entry.object.augmentWithDCClock(causalClock);
+            entry.object.augmentWithScoutTimestamp(clientTimestamp);
         }
     }
 
@@ -230,13 +232,13 @@ class LRUObjectsCache {
     static AtomicLong g_serial = new AtomicLong();
 
     private final class Entry implements Comparable<Entry> {
-        private final CRDT<?> object;
+        private final ManagedCRDT<?> object;
         private long lastAccessTimeMillis;
         private long accesses;
         private long txnId;
         private long serial = g_serial.incrementAndGet();
 
-        public Entry(final CRDT<?> object, long txnId) {
+        public Entry(final ManagedCRDT<?> object, long txnId) {
             this.object = object;
             this.txnId = txnId;
             touch();
@@ -246,7 +248,7 @@ class LRUObjectsCache {
             return txnId;
         }
 
-        public CRDT<?> getObject() {
+        public ManagedCRDT<?> getObject() {
             return object;
         }
 

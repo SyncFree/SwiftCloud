@@ -18,7 +18,7 @@ package swift.proto;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.dc.DHTDataNode;
 import sys.dht.api.DHT;
 

@@ -18,8 +18,8 @@ package swift.application.social;
 
 import java.util.Date;
 
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.Copyable;
 
 public class User implements Copyable {
     CRDTIdentifier userId;

@@ -88,31 +88,25 @@ import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.Order;
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.OrderInfo;
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.OrderLine;
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SCLine;
-import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetAuthorIndex;
-import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetBestSellers;
-import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetIndexByDate;
-import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetTxnLocalAuthorIndex;
-import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetTxnLocalBestSellers;
-import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetTxnLocalIndexByDate;
+import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetAuthorIndexCRDT;
+import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetBestSellersCRDT;
+import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.SetIndexByDateCRDT;
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt.ShoppingCart;
 import pt.citi.cs.crdt.benchmarks.tpcw.synchronization.TPCWRpc;
 import swift.client.CommitListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.RegisterTxnLocal;
-import swift.crdt.RegisterVersioned;
-import swift.crdt.SetStrings;
-import swift.crdt.SetTxnLocalString;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.SwiftScout;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.ObjectUpdatesListener;
+import swift.crdt.core.SwiftScout;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.CRDT;
 import swift.exceptions.CvRDTSerializationException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -183,7 +177,7 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
         this.requestsQueue = requestsQueue;
         this.keyGenerator = keyGenerator;
         this.counter = tpm_counter;
-        
+
         this.ISOLATION_LEVEL = IsolationLevel.valueOf(isolationLevel);
         this.CACHE_POLICY = CachePolicy.valueOf(cachePolicy);
         // this.ISOLATION_LEVEL = IsolationLevel.READ_UNCOMMITTED;
@@ -214,7 +208,7 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
         }
 
         localSession = scout.newSession(BenchmarkMain.swiftCloudNodeID + "_" + another_executor_id.getAndIncrement());
-            }
+    }
 
     @Override
     public void start(WorkloadGeneratorInterface workload, BenchmarkNodeID nodeId, int operation_number,
@@ -430,13 +424,13 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     @Override
     public Object insert(String key, String bucketName, Entity value) throws NetworkException {
         TxnHandle txh = threadTransaction.get();
-        RegisterTxnLocal<Entity> entity;
+        LWWRegisterCRDT<Entity> entity;
         try {
-            entity = (RegisterTxnLocal<Entity>) txh.get(new CRDTIdentifier(bucketName, key), true,
-                    RegisterVersioned.class);
+            entity = (LWWRegisterCRDT<Entity>) txh
+                    .get(new CRDTIdentifier(bucketName, key), true, LWWRegisterCRDT.class);
             entity.set(value);
-            SetTxnLocalString index = txh.get(TPCWNamingScheme.forIndex(bucketName), true, SetStrings.class);
-            index.insert(key);
+            AddWinsSetCRDT<String> index = txh.get(TPCWNamingScheme.forIndex(bucketName), true, AddWinsSetCRDT.class);
+            index.add(key);
             return entity;
         } catch (WrongTypeException e) {
             e.printStackTrace();
@@ -452,15 +446,15 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void remove(String key, String bucketName, String column) throws Exception {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
 
-        SetTxnLocalString index = handler.get(TPCWNamingScheme.forIndex(bucketName), false, SetStrings.class);
+        AddWinsSetCRDT<String> index = handler.get(TPCWNamingScheme.forIndex(bucketName), false, AddWinsSetCRDT.class);
         index.remove(key);
         handler.commitAsync(commitListener);
     }
 
     public void update(String key, String bucketName, String column, Object value, String superfield) throws Exception {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
-        RegisterTxnLocal<Entity> entityRegister = (RegisterTxnLocal<Entity>) handler.get(new CRDTIdentifier(bucketName,
-                key), false, RegisterVersioned.class);
+        LWWRegisterCRDT<Entity> entityRegister = (LWWRegisterCRDT<Entity>) handler.get(new CRDTIdentifier(bucketName,
+                key), false, LWWRegisterCRDT.class);
         insertOrModifyAttribute(entityRegister.getValue(), value, column);
         entityRegister.set(entityRegister.getValue());
         handler.commitAsync(commitListener);
@@ -468,8 +462,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
 
     public Object read(String key, String bucketName, String column, String superfield) throws Exception {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
-        RegisterTxnLocal<Entity> entityRegister = (RegisterTxnLocal<Entity>) handler.get(new CRDTIdentifier(bucketName,
-                key), false, RegisterVersioned.class);
+        LWWRegisterCRDT<Entity> entityRegister = (LWWRegisterCRDT<Entity>) handler.get(new CRDTIdentifier(bucketName,
+                key), false, LWWRegisterCRDT.class);
         Field fld = getEntityClass(bucketName).getField(column);
         return fld.get(entityRegister.getValue());
 
@@ -503,27 +497,27 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 createdHandler = true;
             }
 
-            SetTxnLocalIndexByDate keyIndexesCRDT = handler.get(ordersSet, false, SetIndexByDate.class);
+            SetIndexByDateCRDT keyIndexesCRDT = handler.get(ordersSet, false, SetIndexByDateCRDT.class);
 
             Collection<OrderInfo> listOfKeys = keyIndexesCRDT.getValue();
 
-//            if (BULK_GET) {
-//                Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//                for (OrderInfo key : listOfKeys) {
-//                    if (count == limit)
-//                        break;
-//                    ids.add(TPCWNamingScheme.forOrder(key.getO_ID()));
-//                    count++;
-//                }
-//                handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//            }
+            // if (BULK_GET) {
+            // Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+            // for (OrderInfo key : listOfKeys) {
+            // if (count == limit)
+            // break;
+            // ids.add(TPCWNamingScheme.forOrder(key.getO_ID()));
+            // count++;
+            // }
+            // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+            // }
 
             count = 0;
             for (OrderInfo key : listOfKeys) {
                 if (count == limit)
                     break;
-                RegisterTxnLocal<Entity> entity = (RegisterTxnLocal<Entity>) handler.get(
-                        TPCWNamingScheme.forOrder(key.getO_ID()), false, RegisterVersioned.class);
+                LWWRegisterCRDT<Entity> entity = (LWWRegisterCRDT<Entity>) handler.get(
+                        TPCWNamingScheme.forOrder(key.getO_ID()), false, LWWRegisterCRDT.class);
                 results.put(key.getO_ID(), entity.getValue());
                 count++;
             }
@@ -542,8 +536,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
         return null;
     }
 
-    private synchronized <T extends RegisterVersioned<RegisterVersioned<Entity>>> Map<String, Entity> getRangeCRDT(
-            String bucketName, boolean readOnly, int limit, TxnHandle handler) {
+    private synchronized Map<String, Entity> getRangeCRDT(String bucketName, boolean readOnly, int limit,
+            TxnHandle handler) {
 
         Map<String, Entity> results = new HashMap<String, Entity>();
         int count = 0;
@@ -556,27 +550,27 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 createdHandler = true;
             }
 
-            SetTxnLocalString keyIndexesCRDT = handler.get(TPCWNamingScheme.forIndex(bucketName), false,
-                    SetStrings.class);
+            AddWinsSetCRDT<String> keyIndexesCRDT = handler.get(TPCWNamingScheme.forIndex(bucketName), false,
+                    AddWinsSetCRDT.class);
 
             Set<String> stringIDs = keyIndexesCRDT.getValue();
-//            if (BULK_GET) {
-//                Set<CRDTIdentifier> crdtIDs = new HashSet<CRDTIdentifier>();
-//                for (String s : stringIDs) {
-//                    if (count == limit)
-//                        break;
-//                    crdtIDs.add(new CRDTIdentifier(bucketName, s));
-//                    count++;
-//                }
-//
-//                handler.bulkGet(crdtIDs, false, TIMEOUT_BULK_OP, null);
-//            }
+            // if (BULK_GET) {
+            // Set<CRDTIdentifier> crdtIDs = new HashSet<CRDTIdentifier>();
+            // for (String s : stringIDs) {
+            // if (count == limit)
+            // break;
+            // crdtIDs.add(new CRDTIdentifier(bucketName, s));
+            // count++;
+            // }
+            //
+            // handler.bulkGet(crdtIDs, false, TIMEOUT_BULK_OP, null);
+            // }
             count = 0;
             for (String key : stringIDs) {
                 if (count == limit)
                     break;
-                RegisterTxnLocal<Entity> entity = (RegisterTxnLocal<Entity>) handler.get(new CRDTIdentifier(bucketName,
-                        key), false, RegisterVersioned.class);
+                LWWRegisterCRDT<Entity> entity = (LWWRegisterCRDT<Entity>) handler.get(new CRDTIdentifier(bucketName,
+                        key), false, LWWRegisterCRDT.class);
                 results.put(key, entity.getValue());
                 count++;
             }
@@ -640,16 +634,17 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
 
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
 
-        SetTxnLocalString keyIndexesCRDT = handler.get(TPCWNamingScheme.forIndex(TPCWNamingScheme.getItemsTableName()),
-                false, SetStrings.class/*
-                                        * , updateListener
-                                        */);
+        AddWinsSetCRDT<String> keyIndexesCRDT = handler.get(
+                TPCWNamingScheme.forIndex(TPCWNamingScheme.getItemsTableName()), false, AddWinsSetCRDT.class/*
+                                                                                                             * ,
+                                                                                                             * updateListener
+                                                                                                             */);
 
         for (String key : keyIndexesCRDT.getValue()) {
-            IntegerTxnLocal stock = handler.get(TPCWNamingScheme.forItemStock(key), false, IntegerVersioned.class/*
-                                                                                                                  * ,
-                                                                                                                  * updateListener
-                                                                                                                  */);
+            IntegerCRDT stock = handler.get(TPCWNamingScheme.forItemStock(key), false, IntegerCRDT.class/*
+                                                                                                         * ,
+                                                                                                         * updateListener
+                                                                                                         */);
 
             stock.add(-stock.getValue() + initial_stock);
 
@@ -671,8 +666,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void addToCart(String cart, String item, int qty_to_add) throws Exception {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
 
-        RegisterTxnLocal<ShoppingCart> shoppingCart = (RegisterTxnLocal<ShoppingCart>) handler.get(
-                TPCWNamingScheme.forShoppingCart(cart), false, RegisterVersioned.class);
+        LWWRegisterCRDT<ShoppingCart> shoppingCart = (LWWRegisterCRDT<ShoppingCart>) handler.get(
+                TPCWNamingScheme.forShoppingCart(cart), false, LWWRegisterCRDT.class);
         ShoppingCart sc = shoppingCart.getValue();
 
         SCLine sc_line = sc.getSCLine(item, handler);
@@ -693,10 +688,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
      * @throws NetworkException
      */
     private BuyingResult BuyCartItem(String item, int qty, TxnHandle handler) throws NetworkException {
-        RegisterTxnLocal<Item> itemRegister;
+        LWWRegisterCRDT<Item> itemRegister;
         try {
-            itemRegister = (RegisterTxnLocal<Item>) handler.get(TPCWNamingScheme.forItem(item), false,
-                    RegisterVersioned.class);
+            itemRegister = (LWWRegisterCRDT<Item>) handler.get(TPCWNamingScheme.forItem(item), false,
+                    LWWRegisterCRDT.class);
 
             if (itemRegister.getValue() == null) {
                 return BuyingResult.DOES_NOT_EXIST;
@@ -771,10 +766,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     private void buyCart(String cart_id, Customer c) {
         try {
             TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
-            RegisterTxnLocal<ShoppingCart> shop_c;
+            LWWRegisterCRDT<ShoppingCart> shop_c;
             try {
-                shop_c = (RegisterTxnLocal<ShoppingCart>) handler.get(TPCWNamingScheme.forShoppingCart(cart_id), false,
-                        RegisterVersioned.class);
+                shop_c = (LWWRegisterCRDT<ShoppingCart>) handler.get(TPCWNamingScheme.forShoppingCart(cart_id), false,
+                        LWWRegisterCRDT.class);
 
                 Collection<SCLine> scLines = shop_c.getValue().getSCLines(handler);
                 for (SCLine line : scLines) {
@@ -826,11 +821,11 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
      */
     public void HomeOperation(int customer, int item) throws Exception {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
-        RegisterTxnLocal<Item> itemCRDT = (RegisterTxnLocal<Item>) handler.get(TPCWNamingScheme.forItem(item + ""),
-                false, RegisterVersioned.class);
+        LWWRegisterCRDT<Item> itemCRDT = (LWWRegisterCRDT<Item>) handler.get(TPCWNamingScheme.forItem(item + ""),
+                false, LWWRegisterCRDT.class);
         Item itemObj = itemCRDT.getValue();
-        RegisterTxnLocal<Customer> customerCRDT = (RegisterTxnLocal<Customer>) handler.get(
-                TPCWNamingScheme.forCustomer(customer + ""), false, RegisterVersioned.class);
+        LWWRegisterCRDT<Customer> customerCRDT = (LWWRegisterCRDT<Customer>) handler.get(
+                TPCWNamingScheme.forCustomer(customer + ""), false, LWWRegisterCRDT.class);
         Customer customerObj = customerCRDT.getValue();
         handler.commitAsync(commitListener);
     }
@@ -854,22 +849,22 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 Timestamp stamp = new Timestamp(System.currentTimeMillis());
                 shop_c = new ShoppingCart(cart_id);
                 shop_c.setSC_DATE(stamp.toString());
-                RegisterTxnLocal<ShoppingCart> shopCRDT;
-                shopCRDT = (RegisterTxnLocal<ShoppingCart>) handler.get(TPCWNamingScheme.forShoppingCart(cart_id),
-                        true, RegisterVersioned.class);
+                LWWRegisterCRDT<ShoppingCart> shopCRDT;
+                shopCRDT = (LWWRegisterCRDT<ShoppingCart>) handler.get(TPCWNamingScheme.forShoppingCart(cart_id), true,
+                        LWWRegisterCRDT.class);
 
                 shopCRDT.set(shop_c);
 
             } else {
 
-                RegisterTxnLocal<ShoppingCart> shopCRDT = (RegisterTxnLocal<ShoppingCart>) handler.get(
-                        TPCWNamingScheme.forShoppingCart(cart_id), false, RegisterVersioned.class);
+                LWWRegisterCRDT<ShoppingCart> shopCRDT = (LWWRegisterCRDT<ShoppingCart>) handler.get(
+                        TPCWNamingScheme.forShoppingCart(cart_id), false, LWWRegisterCRDT.class);
                 shop_c = shopCRDT.getValue();
 
             }
 
-            RegisterTxnLocal<Item> itemCRDT = (RegisterTxnLocal<Item>) handler.get(TPCWNamingScheme.forItem(item + ""),
-                    false, RegisterVersioned.class);
+            LWWRegisterCRDT<Item> itemCRDT = (LWWRegisterCRDT<Item>) handler.get(TPCWNamingScheme.forItem(item + ""),
+                    false, LWWRegisterCRDT.class);
             Item itemObj = itemCRDT.getValue();
 
             SCLine sc_line = shop_c.getSCLine(item + "", handler);
@@ -993,10 +988,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
         pt.citi.cs.crdt.benchmarks.tpcw.entities.Address address = new Address(key, ADDR_STREET1, ADDR_STREET2,
                 ADDR_CITY, ADDR_STATE, ADDR_ZIP, country_id);
 
-        RegisterTxnLocal<Address> storedAddress;
+        LWWRegisterCRDT<Address> storedAddress;
         try {
-            storedAddress = (RegisterTxnLocal<Address>) handler.get(TPCWNamingScheme.forAddress(key), true,
-                    RegisterVersioned.class);
+            storedAddress = (LWWRegisterCRDT<Address>) handler.get(TPCWNamingScheme.forAddress(key), true,
+                    LWWRegisterCRDT.class);
         } catch (WrongTypeException e) {
             e.printStackTrace();
             return key;
@@ -1029,11 +1024,11 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void refreshSession(String C_ID) throws Exception {
 
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
-        RegisterTxnLocal<Customer> customerCRDT = (RegisterTxnLocal<Customer>) handler.get(
-                TPCWNamingScheme.forCustomer(C_ID), false, RegisterVersioned.class);
+        LWWRegisterCRDT<Customer> customerCRDT = (LWWRegisterCRDT<Customer>) handler.get(
+                TPCWNamingScheme.forCustomer(C_ID), false, LWWRegisterCRDT.class);
         Customer customer = customerCRDT.getValue();
-        RegisterTxnLocal<Address> addressCRDT = (RegisterTxnLocal<Address>) handler.get(
-                TPCWNamingScheme.forAddress(customer.getAddress()), false, RegisterVersioned.class);
+        LWWRegisterCRDT<Address> addressCRDT = (LWWRegisterCRDT<Address>) handler.get(
+                TPCWNamingScheme.forAddress(customer.getAddress()), false, LWWRegisterCRDT.class);
         Address address = addressCRDT.getValue();
         customer.setLogin(new Timestamp(System.currentTimeMillis()).toString());
         customer.setExpiration((new Timestamp(System.currentTimeMillis() + 7200000)).toString());
@@ -1056,8 +1051,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void BuyRequest(String shopping_id) throws IOException, CvRDTSerializationException, SwiftException {
 
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
-        RegisterTxnLocal<ShoppingCart> shoppingCart = (RegisterTxnLocal<ShoppingCart>) handler.get(
-                TPCWNamingScheme.forShoppingCart(shopping_id), false, RegisterVersioned.class);
+        LWWRegisterCRDT<ShoppingCart> shoppingCart = (LWWRegisterCRDT<ShoppingCart>) handler.get(
+                TPCWNamingScheme.forShoppingCart(shopping_id), false, LWWRegisterCRDT.class);
 
         ShoppingCart shop_c = shoppingCart.getValue();
         int qty = 0;
@@ -1104,13 +1099,13 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void BuyConfirm(String customer, String cart) throws NetworkException {
 
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
-        RegisterTxnLocal<ShoppingCart> obj;
+        LWWRegisterCRDT<ShoppingCart> obj;
         try {
-            obj = (RegisterTxnLocal<ShoppingCart>) handler.get(TPCWNamingScheme.forShoppingCart(cart), false,
-                    RegisterVersioned.class);
+            obj = (LWWRegisterCRDT<ShoppingCart>) handler.get(TPCWNamingScheme.forShoppingCart(cart), false,
+                    LWWRegisterCRDT.class);
 
-            RegisterTxnLocal<Customer> customerCRDT = (RegisterTxnLocal<Customer>) handler.get(
-                    TPCWNamingScheme.forCustomer(customer), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Customer> customerCRDT = (LWWRegisterCRDT<Customer>) handler.get(
+                    TPCWNamingScheme.forCustomer(customer), false, LWWRegisterCRDT.class);
 
             ShoppingCart shop_c = obj.getValue();
             Customer customerObj = customerCRDT.getValue();
@@ -1181,9 +1176,9 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
 
             Order order = new Order(key, customer_id, System.currentTimeMillis(), subTotal, tax, subTotal + ship + tax,
                     shipType, System.currentTimeMillis() + random.nextInt(604800000), status, cust_addr, ship_addr_id);
-            RegisterTxnLocal<Order> orderCRDT;
-            orderCRDT = (RegisterTxnLocal<Order>) handler.get(TPCWNamingScheme.forOrder(key), true,
-                    RegisterVersioned.class);
+            LWWRegisterCRDT<Order> orderCRDT;
+            orderCRDT = (LWWRegisterCRDT<Order>) handler.get(TPCWNamingScheme.forOrder(key), true,
+                    LWWRegisterCRDT.class);
 
             orderCRDT.set(order);
             int index = 0;
@@ -1203,8 +1198,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 order.addOrderLine(orderLine, handler);
 
                 int item_i = orderLine.OL_QTY;
-                RegisterTxnLocal<Item> itemCRDT = (RegisterTxnLocal<Item>) handler.get(
-                        TPCWNamingScheme.forItem(item_id + ""), false, RegisterVersioned.class);
+                LWWRegisterCRDT<Item> itemCRDT = (LWWRegisterCRDT<Item>) handler.get(
+                        TPCWNamingScheme.forItem(item_id + ""), false, LWWRegisterCRDT.class);
                 Item itemFromBucket = itemCRDT.getValue();
 
                 if (itemFromBucket.getI_STOCK(handler) - item_i < 10)
@@ -1219,8 +1214,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
 
             }
 
-            RegisterTxnLocal<Customer> customerCRDT = (RegisterTxnLocal<Customer>) handler.get(
-                    TPCWNamingScheme.forCustomer(customer_id), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Customer> customerCRDT = (LWWRegisterCRDT<Customer>) handler.get(
+                    TPCWNamingScheme.forCustomer(customer_id), false, LWWRegisterCRDT.class);
             Customer customer = customerCRDT.getValue();
             customer.setC_O_LAST_ID(key);
 
@@ -1238,10 +1233,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     }
 
     private void updateOrdersIndex(Order order, TxnHandle handler) throws NetworkException {
-        SetTxnLocalIndexByDate orderedOrders;
+        SetIndexByDateCRDT orderedOrders;
         try {
-            orderedOrders = handler.get(TPCWNamingScheme.forOrdersIndex(), true, SetIndexByDate.class);
-            orderedOrders.insert(order.getInfo());
+            orderedOrders = handler.get(TPCWNamingScheme.forOrdersIndex(), true, SetIndexByDateCRDT.class);
+            orderedOrders.add(order.getInfo());
         } catch (WrongTypeException e) {
             e.printStackTrace();
         } catch (NoSuchObjectException e) {
@@ -1259,8 +1254,9 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
      * @throws NetworkException
      */
     private void updateBestSeller(Item itemFromBucket, TxnHandle handler) throws NetworkException {
-        SetTxnLocalBestSellers bestSellers;
+        SetBestSellersCRDT bestSellers;
         try {
+            // FIXME: port to op-based CRDTs
             bestSellers = handler.get(TPCWNamingScheme.forBestSellers(itemFromBucket.getI_SUBJECT()), true,
                     SetBestSellers.class);
             BestSellerEntry newbs = new BestSellerEntry(itemFromBucket.getI_SUBJECT(), itemFromBucket.getI_ID(),
@@ -1279,10 +1275,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void enterCCXact(String order_id, String customer, String cc_type, long cc_number, String cc_name,
             long cc_expiry, float total, String ship_addr_id, TxnHandle handler) throws NetworkException {
 
-        RegisterTxnLocal<Address> address;
+        LWWRegisterCRDT<Address> address;
         try {
-            address = (RegisterTxnLocal<Address>) handler.get(TPCWNamingScheme.forAddress(ship_addr_id), false,
-                    RegisterVersioned.class);
+            address = (LWWRegisterCRDT<Address>) handler.get(TPCWNamingScheme.forAddress(ship_addr_id), false,
+                    LWWRegisterCRDT.class);
 
             int co_id = 0;
             if (address.getValue() != null)
@@ -1291,8 +1287,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             CCXactItem ccxactItem = new CCXactItem(cc_type, cc_number, cc_name, cc_expiry, total, cc_expiry, order_id,
                     co_id);
 
-            RegisterTxnLocal<CCXactItem> ccxactitem = (RegisterTxnLocal<CCXactItem>) handler.get(
-                    TPCWNamingScheme.forCCXactItem(order_id), true, RegisterVersioned.class);
+            LWWRegisterCRDT<CCXactItem> ccxactitem = (LWWRegisterCRDT<CCXactItem>) handler.get(
+                    TPCWNamingScheme.forCCXactItem(order_id), true, LWWRegisterCRDT.class);
         } catch (WrongTypeException e) {
             e.printStackTrace();
         } catch (NoSuchObjectException e) {
@@ -1306,10 +1302,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void OrderInquiry(String customer) throws NetworkException {
 
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
-        RegisterTxnLocal<Customer> obj;
+        LWWRegisterCRDT<Customer> obj;
         try {
-            obj = (RegisterTxnLocal<Customer>) handler.get(TPCWNamingScheme.forCustomer(customer), false,
-                    RegisterVersioned.class);
+            obj = (LWWRegisterCRDT<Customer>) handler.get(TPCWNamingScheme.forCustomer(customer), false,
+                    LWWRegisterCRDT.class);
 
             Customer customerObj = obj.getValue();
 
@@ -1318,42 +1314,42 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 return;
             }
 
-            RegisterTxnLocal<Order> orderCRDT = (RegisterTxnLocal<Order>) handler.get(
-                    TPCWNamingScheme.forOrder(customerObj.getC_O_LAST_ID()), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Order> orderCRDT = (LWWRegisterCRDT<Order>) handler.get(
+                    TPCWNamingScheme.forOrder(customerObj.getC_O_LAST_ID()), false, LWWRegisterCRDT.class);
             Order orderObj = orderCRDT.getValue();
             Collection<OrderLine> orderLines = orderObj.getOrderLines(handler);
-//            if (BULK_GET) {
-//                Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//                ids.add(TPCWNamingScheme.forOrder(customerObj.getC_O_LAST_ID()));
-//                ids.add(TPCWNamingScheme.forCCXactItem(customer));
-//
-//                for (OrderLine ol : orderLines)
-//                    ids.add(TPCWNamingScheme.forItem(ol.getOL_I_ID() + ""));
-//
-//                handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//            }
+            // if (BULK_GET) {
+            // Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+            // ids.add(TPCWNamingScheme.forOrder(customerObj.getC_O_LAST_ID()));
+            // ids.add(TPCWNamingScheme.forCCXactItem(customer));
+            //
+            // for (OrderLine ol : orderLines)
+            // ids.add(TPCWNamingScheme.forItem(ol.getOL_I_ID() + ""));
+            //
+            // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+            // }
             for (OrderLine ol : orderLines) {
-                handler.get(TPCWNamingScheme.forItem(ol.getOL_I_ID() + ""), false, RegisterVersioned.class);
+                handler.get(TPCWNamingScheme.forItem(ol.getOL_I_ID() + ""), false, LWWRegisterCRDT.class);
             }
 
-            RegisterTxnLocal<CCXactItem> ccxactsCRDT = (RegisterTxnLocal<CCXactItem>) handler.get(
-                    TPCWNamingScheme.forCCXactItem(customer), false, RegisterVersioned.class);
+            LWWRegisterCRDT<CCXactItem> ccxactsCRDT = (LWWRegisterCRDT<CCXactItem>) handler.get(
+                    TPCWNamingScheme.forCCXactItem(customer), false, LWWRegisterCRDT.class);
 
             CCXactItem ccxactsObj = ccxactsCRDT.getValue();
 
-            RegisterTxnLocal<Address> o_bill_addrCRDT = (RegisterTxnLocal<Address>) handler.get(
-                    TPCWNamingScheme.forAddress(orderObj.getO_BILL_ADDR_ID()), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Address> o_bill_addrCRDT = (LWWRegisterCRDT<Address>) handler.get(
+                    TPCWNamingScheme.forAddress(orderObj.getO_BILL_ADDR_ID()), false, LWWRegisterCRDT.class);
 
-            RegisterTxnLocal<Address> o_ship_addrCRDT = (RegisterTxnLocal<Address>) handler.get(
-                    TPCWNamingScheme.forAddress(orderObj.getO_BILL_ADDR_ID()), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Address> o_ship_addrCRDT = (LWWRegisterCRDT<Address>) handler.get(
+                    TPCWNamingScheme.forAddress(orderObj.getO_BILL_ADDR_ID()), false, LWWRegisterCRDT.class);
 
-            RegisterTxnLocal<Country> o_ship_addr_co = (RegisterTxnLocal<Country>) handler.get(
+            LWWRegisterCRDT<Country> o_ship_addr_co = (LWWRegisterCRDT<Country>) handler.get(
                     TPCWNamingScheme.forCountry(o_ship_addrCRDT.getValue().getCountry_id() + ""), false,
-                    RegisterVersioned.class);
+                    LWWRegisterCRDT.class);
 
-            RegisterTxnLocal<Country> o_bill_addr_co = (RegisterTxnLocal<Country>) handler.get(
+            LWWRegisterCRDT<Country> o_bill_addr_co = (LWWRegisterCRDT<Country>) handler.get(
                     TPCWNamingScheme.forCountry(o_bill_addrCRDT.getValue().getCountry_id() + ""), false,
-                    RegisterVersioned.class);
+                    LWWRegisterCRDT.class);
 
         } catch (WrongTypeException e) {
             e.printStackTrace();
@@ -1370,13 +1366,13 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void insertItem(String itemId, Item item, int stock) {
         try {
             TxnHandle txh = threadTransaction.get();
-            RegisterTxnLocal<Item> newItem = (RegisterTxnLocal<Item>) txh.get(TPCWNamingScheme.forItem(itemId), true,
-                    RegisterVersioned.class);
+            LWWRegisterCRDT<Item> newItem = (LWWRegisterCRDT<Item>) txh.get(TPCWNamingScheme.forItem(itemId), true,
+                    LWWRegisterCRDT.class);
 
-            SetTxnLocalString indexesCRDT = txh.get(TPCWNamingScheme.forIndex(TPCWNamingScheme.getItemsTableName()),
-                    true, SetStrings.class);
+            AddWinsSetCRDT<String> indexesCRDT = txh.get(
+                    TPCWNamingScheme.forIndex(TPCWNamingScheme.getItemsTableName()), true, AddWinsSetCRDT.class);
 
-            indexesCRDT.insert(itemId);
+            indexesCRDT.add(itemId);
 
             updateIndex(item.getI_SUBJECT(), item.getI_PUB_DATE().getTime(), item.getI_ID(), item.getI_TITLE(),
                     item.getI_AUTHOR(), txh);
@@ -1409,12 +1405,12 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 order.addOrderLine(ol, handler);
             }
 
-            RegisterTxnLocal<Order> orderCRDT = (RegisterTxnLocal<Order>) handler.get(
-                    TPCWNamingScheme.forOrder(order.getO_ID()), true, RegisterVersioned.class);
+            LWWRegisterCRDT<Order> orderCRDT = (LWWRegisterCRDT<Order>) handler.get(
+                    TPCWNamingScheme.forOrder(order.getO_ID()), true, LWWRegisterCRDT.class);
 
             for (OrderLine orderLine : orderLines) {
-                RegisterTxnLocal<Item> itemCRDT = (RegisterTxnLocal<Item>) handler.get(
-                        TPCWNamingScheme.forItem(orderLine.getOL_I_ID() + ""), false, RegisterVersioned.class);
+                LWWRegisterCRDT<Item> itemCRDT = (LWWRegisterCRDT<Item>) handler.get(
+                        TPCWNamingScheme.forItem(orderLine.getOL_I_ID() + ""), false, LWWRegisterCRDT.class);
                 Item item = itemCRDT.getValue();
 
                 // int sold = item.getI_TOTAL_SOLD(handler);
@@ -1427,19 +1423,19 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
 
             orderCRDT.set(order);
 
-            SetTxnLocalIndexByDate indexesCRDT = handler.get(TPCWNamingScheme.forOrdersIndex(), true,
-                    SetIndexByDate.class);
+            SetIndexByDateCRDT indexesCRDT = handler.get(TPCWNamingScheme.forOrdersIndex(), true,
+                    SetIndexByDateCRDT.class);
 
-            indexesCRDT.insert(order.getInfo());
+            indexesCRDT.add(order.getInfo());
 
-            RegisterTxnLocal<Customer> costumerCRDT = (RegisterTxnLocal<Customer>) handler.get(
-                    TPCWNamingScheme.forCustomer(order.getO_C_ID()), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Customer> costumerCRDT = (LWWRegisterCRDT<Customer>) handler.get(
+                    TPCWNamingScheme.forCustomer(order.getO_C_ID()), false, LWWRegisterCRDT.class);
             Customer customer = costumerCRDT.getValue();
             customer.setC_O_LAST_ID(order.getO_ID());
             costumerCRDT.set(customer);
 
-            RegisterTxnLocal<CCXactItem> ccXactCRDT = (RegisterTxnLocal<CCXactItem>) handler.get(
-                    TPCWNamingScheme.forCCXactItem(order.getO_C_ID()), true, RegisterVersioned.class);
+            LWWRegisterCRDT<CCXactItem> ccXactCRDT = (LWWRegisterCRDT<CCXactItem>) handler.get(
+                    TPCWNamingScheme.forCCXactItem(order.getO_C_ID()), true, LWWRegisterCRDT.class);
 
             ccXactCRDT.set(ccXact);
 
@@ -1455,20 +1451,20 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void buildSearchIndex(Collection<Map<String, Object>> collection) throws NetworkException {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
 
-//        if (BULK_GET) {
-//            HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//            for (Map<String, Object> item : collection) {
-//                ids.add(TPCWNamingScheme.forAuthor(item.get("I_A_ID") + ""));
-//            }
-//            handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//        }
+        // if (BULK_GET) {
+        // HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+        // for (Map<String, Object> item : collection) {
+        // ids.add(TPCWNamingScheme.forAuthor(item.get("I_A_ID") + ""));
+        // }
+        // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+        // }
         for (Map<String, Object> item : collection) {
             titleSearchIndex.insert((String) item.get("I_TITLE"), item.get("I_ID") + "");
             int authorId = (Integer) item.get("I_A_ID");
-            RegisterTxnLocal<Author> authorReg;
+            LWWRegisterCRDT<Author> authorReg;
             try {
-                authorReg = (RegisterTxnLocal<Author>) handler.get(TPCWNamingScheme.forAuthor(authorId + ""), false,
-                        RegisterVersioned.class);
+                authorReg = (LWWRegisterCRDT<Author>) handler.get(TPCWNamingScheme.forAuthor(authorId + ""), false,
+                        LWWRegisterCRDT.class);
 
                 Author author = authorReg.getValue();
                 List<String> authorItems = authorFirstNameSearchIndex.find(author.getA_FNAME());
@@ -1516,18 +1512,18 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             int count = 0;
             if (itemsOfSubject != null && itemsOfSubject.size() > 0) {
                 TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
-//                if (BULK_GET) {
-//                    HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//                    for (int i = 0; i < 50 && i < itemsOfSubject.size(); i++) {
-//                        ids.add(TPCWNamingScheme.forItem(itemsOfSubject.get(i)));
-//                    }
-//                    handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//                }
+                // if (BULK_GET) {
+                // HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+                // for (int i = 0; i < 50 && i < itemsOfSubject.size(); i++) {
+                // ids.add(TPCWNamingScheme.forItem(itemsOfSubject.get(i)));
+                // }
+                // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+                // }
                 for (String item : itemsOfSubject) {
                     if (count == 50)
                         break;
                     try {
-                        handler.get(TPCWNamingScheme.forItem(item), false, RegisterVersioned.class);
+                        handler.get(TPCWNamingScheme.forItem(item), false, LWWRegisterCRDT.class);
                         count++;
                     } catch (WrongTypeException e) {
                         e.printStackTrace();
@@ -1549,20 +1545,20 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             if (itemsPerAuthor.size() > 0) {
                 TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
 
-//                if (BULK_GET) {
-//                    HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//                    for (List<String> authorItems : itemsPerAuthor) {
-//                        if (count == 50)
-//                            break;
-//                        for (String item : authorItems) {
-//                            if (count == 50)
-//                                break;
-//                            ids.add(TPCWNamingScheme.forItem(item));
-//                            count++;
-//                        }
-//                    }
-//                    handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//                }
+                // if (BULK_GET) {
+                // HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+                // for (List<String> authorItems : itemsPerAuthor) {
+                // if (count == 50)
+                // break;
+                // for (String item : authorItems) {
+                // if (count == 50)
+                // break;
+                // ids.add(TPCWNamingScheme.forItem(item));
+                // count++;
+                // }
+                // }
+                // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+                // }
                 for (List<String> authorItems : itemsPerAuthor) {
                     if (count == 50)
                         break;
@@ -1570,7 +1566,7 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                         if (count == 50)
                             break;
                         try {
-                            handler.get(TPCWNamingScheme.forItem(item), false, RegisterVersioned.class);
+                            handler.get(TPCWNamingScheme.forItem(item), false, LWWRegisterCRDT.class);
                             count++;
                         } catch (WrongTypeException e) {
                             e.printStackTrace();
@@ -1589,19 +1585,19 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             int count = 0;
             if (itemsWithTitle.size() > 0) {
                 TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
-//                if (BULK_GET) {
-//                    HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//                    for (int i = 0; i < 50 && i < itemsWithTitle.size(); i++) {
-//                        ids.add(TPCWNamingScheme.forItem(itemsWithTitle.get(i)));
-//                    }
-//                    handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//                }
+                // if (BULK_GET) {
+                // HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+                // for (int i = 0; i < 50 && i < itemsWithTitle.size(); i++) {
+                // ids.add(TPCWNamingScheme.forItem(itemsWithTitle.get(i)));
+                // }
+                // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+                // }
                 for (String item : itemsWithTitle) {
                     if (count == 50)
                         break;
                     try {
-                        Item itemObj = (Item) handler.get(TPCWNamingScheme.forItem(item), false,
-                                RegisterVersioned.class).getValue();
+                        Item itemObj = (Item) handler.get(TPCWNamingScheme.forItem(item), false, LWWRegisterCRDT.class)
+                                .getValue();
                         count++;
                     } catch (WrongTypeException e) {
                         e.printStackTrace();
@@ -1623,17 +1619,17 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void newProducts(String field) throws NetworkException {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
         try {
-            SetTxnLocalAuthorIndex newItems = handler.get(TPCWNamingScheme.forIndex(field), true, SetAuthorIndex.class);
-//            if (BULK_GET) {
-//                HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
-//                for (AuthorIndex key : newItems.getOrderedValues()) {
-//                    ids.add(TPCWNamingScheme.forItem(key.getI_ID()));
-//                }
-//                handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
-//            }
+            SetAuthorIndexCRDT newItems = handler.get(TPCWNamingScheme.forIndex(field), true, SetAuthorIndexCRDT.class);
+            // if (BULK_GET) {
+            // HashSet<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>();
+            // for (AuthorIndex key : newItems.getOrderedValues()) {
+            // ids.add(TPCWNamingScheme.forItem(key.getI_ID()));
+            // }
+            // handler.bulkGet(ids, false, TIMEOUT_BULK_OP, null);
+            // }
             for (AuthorIndex key : newItems.getOrderedValues()) {
-                RegisterTxnLocal<Item> item = (RegisterTxnLocal<Item>) handler.get(
-                        TPCWNamingScheme.forItem(key.getI_ID()), false, RegisterVersioned.class);
+                LWWRegisterCRDT<Item> item = (LWWRegisterCRDT<Item>) handler.get(
+                        TPCWNamingScheme.forItem(key.getI_ID()), false, LWWRegisterCRDT.class);
                 item.getValue();
             }
         }
@@ -1657,8 +1653,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void BestSellers(String subject) throws NetworkException {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
         try {
-            SetTxnLocalBestSellers bestSellersSubject = handler.get(TPCWNamingScheme.forBestSellers(subject), true,
-                    SetBestSellers.class);
+            SetBestSellersCRDT bestSellersSubject = handler.get(TPCWNamingScheme.forBestSellers(subject), true,
+                    SetBestSellersCRDT.class);
 
             Set<BestSellerEntry> bestSellers = bestSellersSubject.getValue();
             PriorityQueue<BestSellerEntry> orderedBestSellers = new PriorityQueue<BestSellerEntry>(50,
@@ -1689,15 +1685,16 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
      */
     public void ItemInfo(int id) throws NetworkException {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, true);
-        RegisterTxnLocal<Item> obj;
+        LWWRegisterCRDT<Item> obj;
         try {
-            obj = (RegisterTxnLocal<Item>) handler.get(TPCWNamingScheme.forItem(id + ""), false,
-                    RegisterVersioned.class/*
-                                            * , updateListener
-                                            */);
+            obj = (LWWRegisterCRDT<Item>) handler
+                    .get(TPCWNamingScheme.forItem(id + ""), false, LWWRegisterCRDT.class/*
+                                                                                         * ,
+                                                                                         * updateListener
+                                                                                         */);
             Item item = obj.getValue();
-            RegisterTxnLocal<Author> authorObj = (RegisterTxnLocal<Author>) handler.get(
-                    TPCWNamingScheme.forAuthor(item.getI_AUTHOR() + ""), false, RegisterVersioned.class);
+            LWWRegisterCRDT<Author> authorObj = (LWWRegisterCRDT<Author>) handler.get(
+                    TPCWNamingScheme.forAuthor(item.getI_AUTHOR() + ""), false, LWWRegisterCRDT.class);
             Author author = authorObj.getValue();
 
         } catch (WrongTypeException e) {
@@ -1719,10 +1716,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void AdminChange(int item_id) throws NetworkException {
         System.out.println("ADMIN CHANGE");
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
-        RegisterTxnLocal<Item> obj;
+        LWWRegisterCRDT<Item> obj;
         try {
-            obj = (RegisterTxnLocal<Item>) handler.get(TPCWNamingScheme.forItem(item_id + ""), false,
-                    RegisterVersioned.class);
+            obj = (LWWRegisterCRDT<Item>) handler.get(TPCWNamingScheme.forItem(item_id + ""), false,
+                    LWWRegisterCRDT.class);
             Item item = obj.getValue();
             long date = item.getI_PUB_DATE().getTime();
 
@@ -1826,9 +1823,9 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             throws NetworkException {
 
         try {
-            RegisterTxnLocal<Author> authorCRDT;
-            authorCRDT = (RegisterTxnLocal<Author>) handler.get(TPCWNamingScheme.forAuthor(author_key + ""), false,
-                    RegisterVersioned.class);
+            LWWRegisterCRDT<Author> authorCRDT;
+            authorCRDT = (LWWRegisterCRDT<Author>) handler.get(TPCWNamingScheme.forAuthor(author_key + ""), false,
+                    LWWRegisterCRDT.class);
             Author author = authorCRDT.getValue();
 
             AuthorIndex authorIndex = new AuthorIndex(author.getA_FNAME(), author.getA_LNAME(), title, date, item_id
@@ -1838,7 +1835,7 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             Long new_time_stamp = Long.MAX_VALUE - d.getTime();
             String new_index_key = new_time_stamp + "." + item_id;
 
-            SetTxnLocalAuthorIndex authorIndexCRDT = handler.get(TPCWNamingScheme.forIndex(subject), true,
+            SetAuthorIndexCRDT authorIndexCRDT = handler.get(TPCWNamingScheme.forIndex(subject), true,
                     SetAuthorIndex.class);
 
             authorIndexCRDT.insert(authorIndex);
@@ -1916,7 +1913,7 @@ class TPCWCommitListener implements CommitListener {
 class TPCWUpdateListener implements ObjectUpdatesListener {
 
     @Override
-    public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+    public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, CRDT<?> previousValue) {
 
     }
 

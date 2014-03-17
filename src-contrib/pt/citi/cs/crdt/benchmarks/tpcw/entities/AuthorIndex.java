@@ -18,7 +18,7 @@ package pt.citi.cs.crdt.benchmarks.tpcw.entities;
 
 import java.util.Date;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 public class AuthorIndex implements Copyable {
 

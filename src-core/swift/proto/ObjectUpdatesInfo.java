@@ -5,8 +5,8 @@ import java.util.List;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
 import sys.net.impl.KryoLib;
 
 public class ObjectUpdatesInfo {

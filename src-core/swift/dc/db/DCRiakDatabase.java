@@ -21,7 +21,7 @@ import static sys.net.api.Networking.Networking;
 import java.io.IOException;
 import java.util.Properties;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
 
@@ -60,20 +60,21 @@ public class DCRiakDatabase implements DCNodeDatabase {
                 if (response.hasSiblings()) {
                     IRiakObject[] obj = response.getRiakObjects();
                     CRDTData<?> data = (CRDTData<?>) Networking.serializer().readObject(obj[0].getValue());
-                    data.getCrdt().init(data.getId(), data.getClock(), data.getPruneClock(), true);
                     for (int i = 1; i < obj.length; i++) {
                         CRDTData<?> t = (CRDTData<?>) Networking.serializer().readObject(obj[i].getValue());
-                        t.getCrdt().init(t.getId(), t.getClock(), t.getPruneClock(), true);
+                        // FIXME: this is an outcome of change to the op-based
+                        // model and discussions over e-mail.
+                        // It's unclear whether this should ever happen given
+                        // reliable DCDataServer.
+                        DCConstants.DCLogger
+                                .warning("DCRiakDatabase: merging a sibling in op-based model may not work!");
                         data.mergeInto(t);
                     }
-                    data.getCrdt().init(data.getId(), data.getClock(), data.getPruneClock(), true);
                     return data;
                 } else {
                     IRiakObject[] obj = response.getRiakObjects();
                     byte[] arr = obj[0].getValue();
-                    CRDTData<?> data = (CRDTData<?>) Networking.serializer().readObject(arr);
-                    data.getCrdt().init(data.getId(), data.getClock(), data.getPruneClock(), true);
-                    return data;
+                    return (CRDTData<?>) Networking.serializer().readObject(arr);
                 }
             } else
                 return null;

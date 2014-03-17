@@ -33,11 +33,12 @@ import java.util.logging.Logger;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTOperationDependencyPolicy;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.ManagedCRDT;
 import swift.dc.db.DCNodeDatabase;
 import swift.proto.DHTExecCRDT;
 import swift.proto.DHTExecCRDTReply;
@@ -211,15 +212,13 @@ class DCDataServer {
 
         if (dbServer.ramOnly()) {
 
-            IntegerVersioned i = new IntegerVersioned();
             CRDTIdentifier id = new CRDTIdentifier("e", "1");
-            i.init(id, version.clone(), version.clone(), true);
-            localPutCRDT(id, i, i.getClock(), i.getPruneClock(), ClockFactory.newClock());
+            ManagedCRDT<IntegerCRDT> i = new ManagedCRDT<IntegerCRDT>(id, new IntegerCRDT(id), version.clone(), true);
+            localPutCRDT(i);
 
-            IntegerVersioned i2 = new IntegerVersioned();
             CRDTIdentifier id2 = new CRDTIdentifier("e", "2");
-            i2.init(id2, version.clone(), version.clone(), true);
-            localPutCRDT(id2, i2, i2.getClock(), i2.getPruneClock(), ClockFactory.newClock());
+            ManagedCRDT<IntegerCRDT> i2 = new ManagedCRDT<IntegerCRDT>(id2, new IntegerCRDT(id2), version.clone(), true);
+            localPutCRDT(i2);
         }
     }
 
@@ -334,11 +333,11 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTObject getCRDT(CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed) {
+    ManagedCRDT getCRDT(CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed) {
         final StringKey key = new StringKey(id.toString());
         if (!DHT_Node.getInstance().isHandledLocally(key)) {
 
-            final AtomicReference<CRDTObject> result = new AtomicReference<CRDTObject>();
+            final AtomicReference<ManagedCRDT> result = new AtomicReference<ManagedCRDT>();
             for (;;) {
                 dhtClient.send(key, new DHTGetCRDT(id, clk, clientId, isSubscribed), new SwiftProtocolHandler() {
                     @Override
@@ -359,21 +358,26 @@ class DCDataServer {
     /**
      * Return null if CRDT does not exist
      */
-    <V extends CRDT<V>> CRDTData<V> localPutCRDT(CRDTIdentifier id, CRDT<V> crdt, CausalityClock clk,
-            CausalityClock prune, CausalityClock cltClock) {
-        lock(id);
+    <V extends CRDT<V>> CRDTData<V> localPutCRDT(ManagedCRDT<V> crdt) {
+        lock(crdt.getUID());
         try {
             @SuppressWarnings("unchecked")
-            CRDTData<V> data = (CRDTData<V>) this.getDatabaseEntry(id);
+            CRDTData<V> data = (CRDTData<V>) this.getDatabaseEntry(crdt.getUID());
             if (data.empty) {
-                data.initValue(crdt, clk, prune, cltClock);
+                data.initValue(crdt, crdt.getClock(), crdt.getPruneClock(), ClockFactory.newClock());
             } else {
+                // FIXME: this is an outcome of change to the op-based model and
+                // discussions over e-mail.
+                // It's unclear whether this should ever happen given reliable
+                // DCDataServer.
+                logger.warning("Unexpected concurrent put of the same object at the DCDataServer");
+                // TODO: this should better be encapsulated IMHO
                 data.crdt.merge(crdt);
                 // if (DCDataServer.prune) {
                 // data.prunedCrdt.merge(crdt);
                 // }
-                data.clock.merge(clk);
-                data.pruneClock.merge(prune);
+                data.clock.merge(crdt.getClock());
+                data.pruneClock.merge(crdt.getPruneClock());
                 synchronized (this.cltClock) {
                     this.cltClock.merge(cltClock);
                 }
@@ -381,23 +385,25 @@ class DCDataServer {
             setModifiedDatabaseEntry(data);
             return data;
         } finally {
-            unlock(id);
+            unlock(crdt.getUID());
         }
     }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
-            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
+    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp,
+            CausalityClock snapshotVersion, CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs,
+            Timestamp prvCltTs, CausalityClock curDCVersion) {
         CRDTIdentifier id = grp.getTargetUID();
         lock(id);
         try {
             CRDTData<?> data = localGetCRDT(id);
             if (data == null) {
                 if (!grp.hasCreationState()) {
-                    System.err.println("OUCH!!!!!!!!!!!!!!!!" + grp.getTargetUID());
+                    logger.warning("No creation state provided by client for an object that does not exist "
+                            + grp.getTargetUID());
                     return new ExecCRDTResult(false);
                 }
-                CRDT<?> crdt = grp.getCreationState().copy();
+                V creationState = grp.getCreationState();
                 // TODO: check clocks
                 CausalityClock clk = grp.getDependency();
                 if (clk == null) {
@@ -405,13 +411,10 @@ class DCDataServer {
                 } else {
                     clk = clk.clone();
                 }
-                CausalityClock prune = ClockFactory.newClock();
-                CausalityClock cltClock = ClockFactory.newClock();
-                crdt.init(id, clk, prune, true);
-                data = localPutCRDT(id, crdt, clk, prune, cltClock); // will
-                // merge if
-                // object
-                // exists
+                final ManagedCRDT<V> crdt = new ManagedCRDT<V>(grp.getTargetUID(), creationState, clk, true);
+                // FIXME: It used to say "will merge if object exists" - not so
+                // sure after the switch to op-based.
+                data = localPutCRDT(crdt);
             }
             data.pruneIfPossible();
             CausalityClock oldClock = data.clock.clone();
@@ -427,12 +430,12 @@ class DCDataServer {
             // pruning
 
             if (prvCltTs != null)
-                data.crdt.augmentWithScoutClock(prvCltTs);
+                data.crdt.augmentWithScoutClockWithoutMappings(prvCltTs);
 
             // Assumption: dependencies are checked at sequencer level, since
             // causality and dependencies are given at inter-object level.
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
-            data.crdt.augmentWithDCClock(curDCVersion);
+            data.crdt.augmentWithDCClockWithoutMappings(curDCVersion);
 
             /*
              * if (DCDataServer.prune) { if (prvCltTs != null)
@@ -473,7 +476,7 @@ class DCDataServer {
 
     }
 
-    private CRDTObject localGetCRDTObject(Endpoint remote, DHTGetCRDT req) {
+    private ManagedCRDT localGetCRDTObject(Endpoint remote, DHTGetCRDT req) {
         if (req.subscribesUpdates())
             dsPubSub.subscribe(req.getId(), remote);
         else
@@ -491,7 +494,7 @@ class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    CRDTObject localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
+    ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
         if (subscribeUpdates)
             dsPubSub.subscribe(id, suPubSub);
         else
@@ -503,7 +506,30 @@ class DCDataServer {
             if (data == null)
                 return null;
 
-            return new CRDTObject(data, version, clientId, cltClock);
+            // 1) let int clientTxs =
+            // clientTxClockService.getAndLockNumberOfCommitedTxs(clientId) //
+            // probably it could be done better, lock-free
+            // 2)
+            // let crdtCopy = retrieve(oid).copy()
+            // crdtCopy.augumentWithScoutClock(new Timestamp(clientId,
+            // clientTxs))
+            // 3) clientTxClockService.unlock(clientId)
+            // 4) return crdtCopy
+            /*
+             * if( DCDataServer.prune) { CMP_CLOCK cmp = version.compareTo(
+             * data.pruneClock); if( cmp == CMP_CLOCK.CMP_EQUALS || cmp ==
+             * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
+             * this.crdt = data.crdt.copy(); } else;
+             */
+            final ManagedCRDT crdt = data.crdt.copy();
+            Timestamp ts = null;
+            synchronized (cltClock) {
+                ts = cltClock.getLatest(clientId);
+            }
+            if (ts != null)
+                crdt.augmentWithScoutClockWithoutMappings(ts);
+
+            return crdt;
         } finally {
             unlock(id);
         }

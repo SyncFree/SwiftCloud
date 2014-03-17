@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.proto;
 
-import swift.dc.CRDTObject;
+import swift.crdt.core.ManagedCRDT;
 import sys.dht.api.DHT;
 
 /**
@@ -26,7 +26,7 @@ import sys.dht.api.DHT;
  */
 public class DHTGetCRDTReply implements DHT.Reply {
 
-    CRDTObject object;
+    ManagedCRDT object;
 
     /**
      * Needed for Kryo serialization
@@ -34,7 +34,7 @@ public class DHTGetCRDTReply implements DHT.Reply {
     DHTGetCRDTReply() {
     }
 
-    public DHTGetCRDTReply(CRDTObject object) {
+    public DHTGetCRDTReply(ManagedCRDT object) {
         this.object = object;
     }
 
@@ -46,7 +46,7 @@ public class DHTGetCRDTReply implements DHT.Reply {
             ((SwiftProtocolHandler) handler).onReceive(this);
     }
 
-    public CRDTObject getObject() {
+    public ManagedCRDT getObject() {
         return object;
     }
 

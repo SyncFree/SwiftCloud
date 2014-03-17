@@ -1,6 +1,6 @@
 package swift.pubsub;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.pubsub.PubSub.Subscriber;
 
 public interface SwiftSubscriber extends Subscriber<CRDTIdentifier> {

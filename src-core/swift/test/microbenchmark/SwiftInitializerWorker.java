@@ -18,13 +18,12 @@ package swift.test.microbenchmark;
 
 import java.util.Random;
 
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -60,7 +59,7 @@ public class SwiftInitializerWorker implements MicroBenchmarkWorker {
                 TxnHandle txh = clientServer.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION,
                         CachePolicy.STRICTLY_MOST_RECENT, false);
                 for (int j = 0; j < 50 && i < identifiers.length; j++, i++) {
-                    IntegerTxnLocal integer = (IntegerTxnLocal) txh.get(identifiers[i], true, IntegerVersioned.class);
+                    IntegerCRDT integer = (IntegerCRDT) txh.get(identifiers[i], true, IntegerCRDT.class);
                     integer.add(0);
                     // System.out.println(integer.getValue());
                 }

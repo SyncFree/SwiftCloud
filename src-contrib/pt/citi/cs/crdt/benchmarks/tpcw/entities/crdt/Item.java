@@ -22,11 +22,10 @@ import java.util.TreeMap;
 import org.uminho.gsd.benchmarks.interfaces.Entity;
 
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.TPCWNamingScheme;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.Copyable;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.Copyable;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -211,7 +210,7 @@ public class Item implements Copyable, Entity {
 
     public int getI_TOTAL_SOLD(TxnHandle txn) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        IntegerTxnLocal stock = (IntegerTxnLocal) txn.get(I_TOTAL_SOLD, true, IntegerVersioned.class);
+        IntegerCRDT stock = (IntegerCRDT) txn.get(I_TOTAL_SOLD, true, IntegerCRDT.class);
         if (stock.getValue() == null)
             stock.add(0);
         return stock.getValue();
@@ -219,22 +218,22 @@ public class Item implements Copyable, Entity {
 
     public void addI_TOTAL_SOLD(int i_TOTAL_SOLD, TxnHandle txn) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        IntegerTxnLocal stock = (IntegerTxnLocal) txn.get(I_TOTAL_SOLD, true, IntegerVersioned.class);
+        IntegerCRDT stock = (IntegerCRDT) txn.get(I_TOTAL_SOLD, true, IntegerCRDT.class);
         stock.add(i_TOTAL_SOLD);
     }
 
     public int getI_STOCK(TxnHandle txn/* , ObjectUpdatesListener updateListener */) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        IntegerTxnLocal stock = (IntegerTxnLocal) txn.get(I_STOCK, true, IntegerVersioned.class/*
-                                                                                                * ,
-                                                                                                * updateListener
-                                                                                                */);
+        IntegerCRDT stock = (IntegerCRDT) txn.get(I_STOCK, true, IntegerCRDT.class/*
+                                                                                   * ,
+                                                                                   * updateListener
+                                                                                   */);
         return stock.getValue();
     }
 
     public void addI_STOCK(int i_STOCK, TxnHandle txn) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        IntegerTxnLocal stock = (IntegerTxnLocal) txn.get(I_STOCK, true, IntegerVersioned.class);
+        IntegerCRDT stock = (IntegerCRDT) txn.get(I_STOCK, true, IntegerCRDT.class);
         stock.add(i_STOCK);
     }
 

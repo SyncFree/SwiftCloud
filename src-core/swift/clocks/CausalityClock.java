@@ -18,7 +18,7 @@ package swift.clocks;
 
 import java.io.Serializable;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 import swift.exceptions.IncompatibleTypeException;
 
 /**

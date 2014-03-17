@@ -1,5 +1,5 @@
 /*****************************************************************************
- * Copyright 2011-2012 INRIA
+ * Copyright 2011-2014 INRIA
  * Copyright 2011-2012 Universidade Nova de Lisboa
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,9 +16,12 @@
  *****************************************************************************/
 package swift.clocks;
 
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoCopyable;
@@ -37,10 +40,8 @@ import com.esotericsoftware.kryo.io.Output;
  * @author mzawirski
  */
 final public class TimestampMapping implements Copyable, KryoSerializable, KryoCopyable<TimestampMapping> {
-    /** Stable client-assigned timestamp */
-    protected Timestamp clientTimestamp;
-    /** Sorted client- and all system-assigned timestamps */
-    protected Timestamp[] timestamps;
+    /** Client timestamp followed by system-assigned timestamps */
+    protected LinkedList<Timestamp> timestamps;
 
     /**
      * USED by Kyro and copy
@@ -55,58 +56,41 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
      *            stable client timestamp to use
      */
     public TimestampMapping(Timestamp clientTimestamp) {
-        this.clientTimestamp = clientTimestamp;
-        this.timestamps = new Timestamp[] { clientTimestamp };
+        this.timestamps = new LinkedList<Timestamp>();
+        this.timestamps.add(clientTimestamp);
     }
 
-    /**
-     * Create new instance from the supplied data
-     * 
-     * @param clientTimestamp
-     *            stable client timestamp to use
-     * @param timestamps
-     *            stable system timestamps to use
-     */
-    public TimestampMapping(Timestamp clientTimestamp, Timestamp[] timestamps) {
-        this.clientTimestamp = clientTimestamp;
-        this.timestamps = Arrays.copyOf(timestamps, timestamps.length);
+    private TimestampMapping(List<Timestamp> timestamps) {
+        this.timestamps = new LinkedList<Timestamp>(timestamps);
     }
 
     /**
      * @return stable client timestamp for the transaction
      */
     public Timestamp getClientTimestamp() {
-        return clientTimestamp;
+        return timestamps.get(0);
     }
 
     /**
      * @return unmodifiable list of all timestamps assigned to the transaction
      */
-    public Timestamp[] getTimestamps() {
-        return timestamps; // smd Arrays.copyOf(...) to ensure immutability????
+    public List<Timestamp> getTimestamps() {
+        return Collections.unmodifiableList(timestamps);
     }
 
     /**
-     * @return selected system timestamp for the transaction; deterministic and
-     *         stable given the same final set of timestamp mappings
-     * @throws IllegalStateException
-     *             when there is no system timestamp defined for the transaction
+     * @return unmodifiable list of all system timestamps assigned to the
+     *         transaction
      */
-    public Timestamp getSelectedSystemTimestamp() {
-        for (final Timestamp ts : timestamps) {
-            // Pick the first non-client timestamp.
-            if (!ts.equals(clientTimestamp)) {
-                return ts;
-            }
-        }
-        throw new IllegalStateException("No system timestamp defined for this instance");
+    public List<Timestamp> getSystemTimestamps() {
+        return Collections.unmodifiableList(timestamps.subList(1, timestamps.size()));
     }
 
     /**
      * Checks whether the provided clock includes any timestamp used by this
      * update id.
      * <p>
-     * When it returns true, all subsequent calls will also yield true
+     * Property: when it returns true, all subsequent calls will also yield true
      * (timestamp mappings can only grow).
      * 
      * @param clock
@@ -133,11 +117,11 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
      *         of this update intersects with the provided clock
      */
     public boolean allSystemTimestampsIncluded(final CausalityClock clock) {
-        for (final Timestamp ts : timestamps) {
-            if (ts.equals(clientTimestamp)) {
-                continue;
-            }
-            if (!clock.includes(ts)) {
+        final Iterator<Timestamp> iter = timestamps.iterator();
+        // Skip client timestamp.
+        iter.next();
+        while (iter.hasNext()) {
+            if (!clock.includes(iter.next())) {
                 return false;
             }
         }
@@ -151,34 +135,26 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
      *            system timestamp to add
      */
     public void addSystemTimestamp(final Timestamp ts) {
-        final int idx = Arrays.binarySearch(timestamps, ts);
-        if (idx < 0) {
-            int j = (idx + 1) * -1;
-            Timestamp[] old = timestamps;
-            timestamps = Arrays.copyOf(old, old.length + 1);
-            timestamps[j] = ts;
-            if (j < old.length)
-                System.arraycopy(old, j, timestamps, j + 1, old.length - j);
-            ;
+        if (timestamps.contains(ts)) {
+            return;
         }
+        timestamps.add(ts);
     }
 
     /**
-     * Adds all provided mappings..
+     * Merges systems timestamps from the provided mapping. Idempotent.
      * 
      * @param mapping
-     *            transaction mappings to merge, must use the same client
-     *            timestamp
+     *            transaction mappings to merge with, must use the same client
+     *            timestamp; remains unchanged
      */
-    public void addSystemTimestamps(TimestampMapping otherMapping) {
-        if (!getClientTimestamp().equals(otherMapping.getClientTimestamp())) {
+    public void mergeIn(TimestampMapping otherMapping) {
+        final Iterator<Timestamp> iter = otherMapping.timestamps.iterator();
+        if (!getClientTimestamp().equals(iter.next())) {
             throw new IllegalArgumentException("Invalid mappings to merge, they use different client timestamp");
         }
-        for (final Timestamp ts : otherMapping.getTimestamps()) {
-            if (ts.equals(otherMapping.getClientTimestamp())) {
-                continue;
-            }
-            addSystemTimestamp(ts);
+        while (iter.hasNext()) {
+            addSystemTimestamp(iter.next());
         }
     }
 
@@ -186,41 +162,52 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
      * @return true when there is at least 1 system timestamp defined
      */
     public boolean hasSystemTimestamp() {
-        return timestamps.length > 1;
+        return timestamps.size() > 1;
     }
 
     @Override
     public TimestampMapping copy() {
-        return new TimestampMapping(this.clientTimestamp, this.timestamps);
+        return new TimestampMapping(this.timestamps);
     }
 
     @Override
     public String toString() {
-        return Arrays.asList(timestamps).toString();
+        return timestamps.toString();
     }
 
     @Override
     public void read(Kryo kryo, Input in) {
-        this.clientTimestamp = new Timestamp();
-        this.clientTimestamp.read(kryo, in);
         int n = in.readByte();
-        this.timestamps = new Timestamp[n];
+        this.timestamps = new LinkedList<Timestamp>();
         for (int i = 0; i < n; i++) {
-            this.timestamps[i] = new Timestamp();
-            this.timestamps[i].read(kryo, in);
+            final Timestamp ts = new Timestamp();
+            ts.read(kryo, in);
+            timestamps.add(ts);
         }
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        this.clientTimestamp.write(kryo, out);
-        out.writeByte(this.timestamps.length);
+        out.writeByte(this.timestamps.size());
         for (Timestamp i : timestamps)
             i.write(kryo, out);
     }
 
     @Override
     public TimestampMapping copy(Kryo kryo) {
-        return new TimestampMapping(this.clientTimestamp, this.timestamps);
+        return new TimestampMapping(this.timestamps);
+    }
+
+    @Override
+    public int hashCode() {
+        return timestamps.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof TimestampMapping)) {
+            return false;
+        }
+        return timestamps.equals(((TimestampMapping) obj).timestamps);
     }
 }

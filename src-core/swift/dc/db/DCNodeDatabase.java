@@ -18,7 +18,7 @@ package swift.dc.db;
 
 import java.util.Properties;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.dc.CRDTData;
 
 public interface DCNodeDatabase {

@@ -20,12 +20,11 @@ package swift.application.filesystem;
 import java.io.File;
 import java.util.Collection;
 
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.DirectoryTxnLocal;
-import swift.crdt.DirectoryVersioned;
-import swift.crdt.RegisterVersioned;
-import swift.crdt.interfaces.TxnGetterSetter;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.DirectoryCRDT;
+import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.TxnGetterSetter;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -41,8 +40,8 @@ public class FilesystemBasic implements Filesystem {
     public FilesystemBasic(TxnHandle txn, String root, String table) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         this.table = table;
-        this.root = DirectoryTxnLocal.createRootId(table, root, DirectoryVersioned.class);
-        txn.get(this.root, true, DirectoryVersioned.class);
+        this.root = DirectoryCRDT.createRootId(table, root, DirectoryCRDT.class);
+        txn.get(this.root, true, DirectoryCRDT.class);
     }
 
     // FIXME
@@ -51,19 +50,18 @@ public class FilesystemBasic implements Filesystem {
             // return LogootVersioned.class;
             return null; // LogootVersioned.class;
         }
-        return RegisterVersioned.class;
+        return LWWRegisterCRDT.class;
     }
 
     @Override
     public IFile createFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException, ClassNotFoundException {
 
-        String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
-        String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
+        String pathToParent = DirectoryCRDT.getPathToParent(new CRDTIdentifier(table, path));
+        String parent = DirectoryCRDT.getEntryName(new CRDTIdentifier(table, path));
 
-        CRDTIdentifier parentId = DirectoryTxnLocal.getCRDTIdentifier(table, pathToParent, parent,
-                DirectoryVersioned.class);
-        DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
+        CRDTIdentifier parentId = DirectoryCRDT.getCRDTIdentifier(table, pathToParent, parent, DirectoryCRDT.class);
+        DirectoryCRDT parentDir = txn.get(parentId, false, DirectoryCRDT.class);
         CRDTIdentifier fileId = parentDir.createNewEntry(fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, true, getFileClass(fname));
         Blob initialFileContent = new Blob();
@@ -75,7 +73,7 @@ public class FilesystemBasic implements Filesystem {
     public IFile readFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
 
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, getFileClass(fname));
+        CRDTIdentifier fileId = DirectoryCRDT.getCRDTIdentifier(table, path, fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, false, getFileClass(fname));
         return new FilePaged(fileContent.getValue());
     }
@@ -83,7 +81,7 @@ public class FilesystemBasic implements Filesystem {
     @Override
     public void updateFile(TxnHandle txn, String fname, String path, IFile f) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException {
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, path, fname, getFileClass(fname));
+        CRDTIdentifier fileId = DirectoryCRDT.getCRDTIdentifier(table, path, fname, getFileClass(fname));
         TxnGetterSetter<Blob> content = (TxnGetterSetter<Blob>) txn.get(fileId, false, getFileClass(fname));
         content.set(new Blob(f.getBytes()));
     }
@@ -91,64 +89,61 @@ public class FilesystemBasic implements Filesystem {
     @Override
     public void removeFile(TxnHandle txn, String fname, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException, ClassNotFoundException {
-        String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
-        String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
+        String pathToParent = DirectoryCRDT.getPathToParent(new CRDTIdentifier(table, path));
+        String parent = DirectoryCRDT.getEntryName(new CRDTIdentifier(table, path));
 
-        CRDTIdentifier parentId = DirectoryTxnLocal.getCRDTIdentifier(table, pathToParent, parent,
-                DirectoryVersioned.class);
-        DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
+        CRDTIdentifier parentId = DirectoryCRDT.getCRDTIdentifier(table, pathToParent, parent, DirectoryCRDT.class);
+        DirectoryCRDT parentDir = txn.get(parentId, false, DirectoryCRDT.class);
         parentDir.removeEntry(fname, getFileClass(fname));
     }
 
     @Override
-    public DirectoryTxnLocal createDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
+    public DirectoryCRDT createDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
-        String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
-        String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
+        String pathToParent = DirectoryCRDT.getPathToParent(new CRDTIdentifier(table, path));
+        String parent = DirectoryCRDT.getEntryName(new CRDTIdentifier(table, path));
 
-        CRDTIdentifier parentId = DirectoryTxnLocal.getCRDTIdentifier(table, pathToParent, parent,
-                DirectoryVersioned.class);
-        DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
-        CRDTIdentifier dirId = parentDir.createNewEntry(dname, DirectoryVersioned.class);
-        DirectoryTxnLocal dir = txn.get(dirId, true, DirectoryVersioned.class);
+        CRDTIdentifier parentId = DirectoryCRDT.getCRDTIdentifier(table, pathToParent, parent, DirectoryCRDT.class);
+        DirectoryCRDT parentDir = txn.get(parentId, false, DirectoryCRDT.class);
+        CRDTIdentifier dirId = parentDir.createNewEntry(dname, DirectoryCRDT.class);
+        DirectoryCRDT dir = txn.get(dirId, true, DirectoryCRDT.class);
         return dir;
     }
 
     @Override
     public void removeDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
-        String pathToParent = DirectoryTxnLocal.getPathToParent(new CRDTIdentifier(table, path));
-        String parent = DirectoryTxnLocal.getEntryName(new CRDTIdentifier(table, path));
+        String pathToParent = DirectoryCRDT.getPathToParent(new CRDTIdentifier(table, path));
+        String parent = DirectoryCRDT.getEntryName(new CRDTIdentifier(table, path));
 
-        CRDTIdentifier parentId = DirectoryTxnLocal.getCRDTIdentifier(table, pathToParent, parent,
-                DirectoryVersioned.class);
-        DirectoryTxnLocal parentDir = txn.get(parentId, false, DirectoryVersioned.class);
-        parentDir.removeEntry(dname, DirectoryVersioned.class);
+        CRDTIdentifier parentId = DirectoryCRDT.getCRDTIdentifier(table, pathToParent, parent, DirectoryCRDT.class);
+        DirectoryCRDT parentDir = txn.get(parentId, false, DirectoryCRDT.class);
+        parentDir.removeEntry(dname, DirectoryCRDT.class);
     }
 
     @Override
     public void copyFile(TxnHandle txn, String fname, String oldpath, String newpath) throws WrongTypeException,
             NoSuchObjectException, VersionNotFoundException, NetworkException, ClassNotFoundException {
-        CRDTIdentifier fileId = DirectoryTxnLocal.getCRDTIdentifier(table, oldpath, fname, getFileClass(fname));
+        CRDTIdentifier fileId = DirectoryCRDT.getCRDTIdentifier(table, oldpath, fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileContent = (TxnGetterSetter<Blob>) txn.get(fileId, false, getFileClass(fname));
 
         createFile(txn, fname, newpath);
-        CRDTIdentifier newFileId = DirectoryTxnLocal.getCRDTIdentifier(table, newpath, fname, getFileClass(fname));
+        CRDTIdentifier newFileId = DirectoryCRDT.getCRDTIdentifier(table, newpath, fname, getFileClass(fname));
         TxnGetterSetter<Blob> fileBasic = (TxnGetterSetter<Blob>) txn.get(newFileId, true, getFileClass(fname));
         fileBasic.set(fileContent.getValue());
     }
 
     @Override
-    public DirectoryTxnLocal getDirectory(TxnHandle txn, String path) throws WrongTypeException, NoSuchObjectException,
+    public DirectoryCRDT getDirectory(TxnHandle txn, String path) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        CRDTIdentifier dirId = new CRDTIdentifier(table, DirectoryTxnLocal.getDirEntry(path, DirectoryVersioned.class));
-        return (DirectoryTxnLocal) txn.get(dirId, false, DirectoryVersioned.class);
+        CRDTIdentifier dirId = new CRDTIdentifier(table, DirectoryCRDT.getDirEntry(path, DirectoryCRDT.class));
+        return (DirectoryCRDT) txn.get(dirId, false, DirectoryCRDT.class);
     }
 
     @Override
     public boolean isDirectory(TxnHandle txn, String dname, String path) throws WrongTypeException,
             VersionNotFoundException, NetworkException {
-        return getContentOfParentDirectory(txn, path, dname, DirectoryVersioned.class);
+        return getContentOfParentDirectory(txn, path, dname, DirectoryCRDT.class);
     }
 
     @Override
@@ -162,13 +157,13 @@ public class FilesystemBasic implements Filesystem {
         File fdummy = new File(path);
         CRDTIdentifier parentId;
         if ("/".equals(fdummy.getParent())) {
-            parentId = DirectoryTxnLocal.createRootId(table, fdummy.getName(), DirectoryVersioned.class);
+            parentId = DirectoryCRDT.createRootId(table, fdummy.getName(), DirectoryCRDT.class);
         } else {
-            parentId = DirectoryTxnLocal.getCRDTIdentifier(table, fdummy.getParent(), fdummy.getName(),
-                    DirectoryVersioned.class);
+            parentId = DirectoryCRDT
+                    .getCRDTIdentifier(table, fdummy.getParent(), fdummy.getName(), DirectoryCRDT.class);
         }
         try {
-            DirectoryTxnLocal parent = txn.get(parentId, false, DirectoryVersioned.class);
+            DirectoryCRDT parent = txn.get(parentId, false, DirectoryCRDT.class);
             Collection<Pair<String, Class<?>>> entries = parent.getValue();
             return entries.contains(new Pair<String, Class<?>>(name, type));
         } catch (NoSuchObjectException e) {

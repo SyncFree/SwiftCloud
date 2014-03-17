@@ -20,9 +20,9 @@ import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
 import sys.Sys;
 import sys.utils.Threading;
 

@@ -16,6 +16,7 @@
  *****************************************************************************/
 package swift.crdt;
 
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -30,85 +31,108 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TimestampSource;
 import swift.clocks.TripleTimestamp;
-import swift.crdt.interfaces.BulkGetProgressListener;
-import swift.crdt.interfaces.CRDT;
-import swift.crdt.interfaces.CRDTOperationDependencyPolicy;
-import swift.crdt.interfaces.CRDTUpdate;
-import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
-import swift.crdt.interfaces.TxnStatus;
-import swift.crdt.operations.CRDTObjectUpdatesGroup;
+import swift.crdt.core.BulkGetProgressListener;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTOperationDependencyPolicy;
+import swift.crdt.core.CRDTUpdate;
+import swift.crdt.core.ObjectUpdatesListener;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.TxnStatus;
+import swift.crdt.core.ManagedCRDT;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
+/**
+ * Fake {@link TxnHandle} relying on external objects. Can be used in isolation,
+ * to test sequential code of CRDTs and WrappedCRDT ( create instance using
+ * {@link #createIsolatedTxnTester()} or over a shared state
+ * {@link SwiftTester#beginTxn(ManagedCRDT...)}.
+ * 
+ * @author annettebieniusa, mzawirsk
+ */
 public class TxnTester implements TxnHandle {
-    // @Annette: this class is simply intended to work with a single object,
-    // isn't it? If so, maybe those are really unnecessary.
 
-    // @Marek: to test the recursive data structures, such as dictionary, I need
-    // more than one object.
-    // Therefore, I had to add the cache.
-    // Do you think it is better to provide another TxnTester for this?
+    public static TxnTester createIsolatedTxnTester() {
+        String siteId = "test-site";
+        return new TxnTester(siteId, ClockFactory.newClock(), new IncrementalTimestampGenerator(siteId).generateNew(),
+                new IncrementalTimestampGenerator("global:" + siteId).generateNew());
+    }
 
-    // @Pascal: The TxnTester is not a full txn implementation. In particular,
-    // it cannot commit anything to a data center. Hence, the register operation
-    // is not needed *on purpose*.
-
-    protected Map<CRDTIdentifier, TxnLocalCRDT<?>> cache;
-    protected Map<CRDT<?>, CRDTObjectUpdatesGroup<?>> objectOperations;
+    protected Map<CRDTIdentifier, CRDT<?>> versions;
+    protected Map<CRDTIdentifier, ManagedCRDT<?>> objects;
+    protected Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> operations;
     protected CausalityClock cc;
     protected TimestampSource<TripleTimestamp> timestampGenerator;
     protected Timestamp globalTimestamp;
     protected TimestampMapping tm;
 
-    public TxnTester(String siteId, CausalityClock cc) {
+    protected TxnTester(String siteId, CausalityClock cc, ManagedCRDT<?>... managedCrdtsToTest) {
         this(siteId, cc, new IncrementalTimestampGenerator(siteId).generateNew(), new IncrementalTimestampGenerator(
-                "global:" + siteId).generateNew());
+                "global:" + siteId).generateNew(), managedCrdtsToTest);
     }
 
-    public TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts, final Timestamp globalTs) {
-        this.cache = new HashMap<CRDTIdentifier, TxnLocalCRDT<?>>();
-        this.objectOperations = new HashMap<CRDT<?>, CRDTObjectUpdatesGroup<?>>();
+    protected TxnTester(String siteId, CausalityClock latestVersion, Timestamp ts, final Timestamp globalTs,
+            ManagedCRDT<?>... existingObjects) {
+        this.versions = new HashMap<CRDTIdentifier, CRDT<?>>();
+        this.objects = new HashMap<CRDTIdentifier, ManagedCRDT<?>>();
+        for (final ManagedCRDT<?> managedCRDT : existingObjects) {
+            objects.put(managedCRDT.getUID(), managedCRDT);
+        }
+        this.operations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.cc = latestVersion;
         this.tm = new TimestampMapping(ts);
-        this.timestampGenerator = new IncrementalTripleTimestampGenerator(tm);
+        this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
         this.globalTimestamp = globalTs;
     }
 
-    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV)
-            throws WrongTypeException, NoSuchObjectException {
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
+            NoSuchObjectException {
         return get(id, create, classOfV, null);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <V extends CRDT<V>, T extends TxnLocalCRDT<V>> T get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
             ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException {
 
         try {
-            TxnLocalCRDT<?> cached = cache.get(id);
-            if (cached == null && create) {
-                V crdt = classOfV.newInstance();
-                crdt.init(id, cc, ClockFactory.newClock(), true);
-                TxnLocalCRDT<V> localView = crdt.getTxnLocalCopy(getClock(), this);
-                cache.put(id, localView);
-                return (T) localView;
+            CRDT<?> cached = versions.get(id);
+            if (cached == null) {
+                ManagedCRDT<V> managedObject = getOrCreateVersionedCRDT(id, classOfV, create);
+                CRDT<V> localView = managedObject.getVersion(getClock(), this);
+                versions.put(id, localView);
+                return (V) localView;
             } else {
-                return (T) cached;
+                return (V) cached;
             }
         } catch (ClassCastException x) {
-            throw new WrongTypeException(x.getMessage());
+            throw new WrongTypeException(x.toString());
         } catch (InstantiationException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new WrongTypeException(e.toString());
         } catch (IllegalAccessException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new WrongTypeException(e.toString());
+        } catch (NoSuchMethodException e) {
+            throw new WrongTypeException(e.toString());
+        } catch (InvocationTargetException e) {
+            throw new RuntimeException(e.toString());
         }
+    }
 
-        return null;
-
+    protected <V extends CRDT<V>> ManagedCRDT<V> getOrCreateVersionedCRDT(CRDTIdentifier id, Class<V> classOfV,
+            boolean create) throws InstantiationException, IllegalAccessException, InvocationTargetException,
+            NoSuchMethodException, NoSuchObjectException {
+        ManagedCRDT<V> managedCRDT = (ManagedCRDT<V>) objects.get(id);
+        if (managedCRDT == null) {
+            if (!create) {
+                throw new NoSuchObjectException("Object " + id + " not found");
+            }
+            V checkpoint = classOfV.getConstructor(CRDTIdentifier.class).newInstance(id);
+            managedCRDT = new ManagedCRDT<V>(id, checkpoint, cc.clone(), true);
+            objects.put(id, managedCRDT);
+        }
+        return managedCRDT;
     }
 
     @Override
@@ -117,11 +141,12 @@ public class TxnTester implements TxnHandle {
     }
 
     public void commit(boolean globalCommit) {
-        for (final Entry<CRDT<?>, CRDTObjectUpdatesGroup<?>> entry : objectOperations.entrySet()) {
+        for (final Entry<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> entry : operations.entrySet()) {
             if (globalCommit) {
                 entry.getValue().addSystemTimestamp(globalTimestamp);
             }
-            entry.getKey().execute((CRDTObjectUpdatesGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
+            final ManagedCRDT<?> managedCRDT = objects.get(entry.getKey());
+            managedCRDT.execute((CRDTObjectUpdatesGroup) entry.getValue(), CRDTOperationDependencyPolicy.CHECK);
         }
         for (final Timestamp ts : tm.getTimestamps()) {
             cc.record(ts);
@@ -151,38 +176,28 @@ public class TxnTester implements TxnHandle {
         return null;
     }
 
-    public void updateClock(CausalityClock c) {
-        cc.merge(c);
-    }
-
     public CausalityClock getClock() {
         return this.cc.clone();
     }
 
-    // Short-cut for testing purpose
-    public <V extends CRDT<V>> void registerOperation(CRDT<V> obj, CRDTUpdate<V> op) {
-        final CRDTObjectUpdatesGroup<V> opGroup = new CRDTObjectUpdatesGroup<V>(obj.getUID(), tm, null, cc.clone());
-        opGroup.append(op);
-        objectOperations.put(obj, opGroup);
-    }
-
     @Override
     public <V extends CRDT<V>> void registerOperation(CRDTIdentifier id, CRDTUpdate<V> op) {
-        // NOP: This txn implementation does not apply updates to the underlying
-        // CRDT objects
+        CRDTObjectUpdatesGroup<V> updates = (CRDTObjectUpdatesGroup<V>) operations.get(id);
+        if (updates == null) {
+            updates = new CRDTObjectUpdatesGroup<V>(id, tm, null, cc.clone());
+            operations.put(id, updates);
+        }
+        updates.append(op);
     }
 
     @Override
-    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(Set<CRDTIdentifier> ids, boolean readOnly, long timeout,
-            BulkGetProgressListener listener) {
-        // TODO Auto-generated method stub
-        return null;
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, BulkGetProgressListener listener) {
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public Map<CRDTIdentifier, TxnLocalCRDT<?>> bulkGet(CRDTIdentifier... ids) {
-        // TODO Auto-generated method stub
-        return null;
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(CRDTIdentifier... ids) {
+        throw new UnsupportedOperationException();
     }
 
 }

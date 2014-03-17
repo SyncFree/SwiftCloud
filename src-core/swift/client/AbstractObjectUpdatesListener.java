@@ -16,10 +16,10 @@
  *****************************************************************************/
 package swift.client;
 
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.ObjectUpdatesListener;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.ObjectUpdatesListener;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.CRDT;
 
 /**
  * Base class for {@link ObjectUpdatesListener} implementations expecting
@@ -29,7 +29,7 @@ import swift.crdt.interfaces.TxnLocalCRDT;
  */
 public abstract class AbstractObjectUpdatesListener implements ObjectUpdatesListener {
     @Override
-    public abstract void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue);
+    public abstract void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, CRDT<?> previousValue);
 
     @Override
     public boolean isSubscriptionOnly() {

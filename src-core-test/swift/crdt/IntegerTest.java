@@ -21,18 +21,18 @@ import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
-import swift.clocks.ClockFactory;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.SwiftException;
 
 public class IntegerTest {
     TxnHandle txn;
-    IntegerTxnLocal i;
+    IntegerCRDT i;
 
     @Before
     public void setUp() throws SwiftException {
-        txn = new TxnTester("client1", ClockFactory.newClock());
-        i = txn.get(new CRDTIdentifier("A", "Int"), true, IntegerVersioned.class);
+        txn = TxnTester.createIsolatedTxnTester();
+        i = txn.get(new CRDTIdentifier("A", "Int"), true, IntegerCRDT.class);
     }
 
     @Test

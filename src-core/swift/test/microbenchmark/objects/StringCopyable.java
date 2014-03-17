@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.test.microbenchmark.objects;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 public class StringCopyable implements Copyable {
 

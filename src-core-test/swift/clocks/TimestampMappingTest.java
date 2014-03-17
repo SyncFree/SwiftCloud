@@ -58,13 +58,6 @@ public class TimestampMappingTest {
         clock.record(CLIENT_TIMESTAMP_A);
         assertTrue(a.anyTimestampIncluded(clock));
 
-        try {
-            a.getSelectedSystemTimestamp();
-            fail("Expected no system timestamp");
-        } catch (IllegalStateException x) {
-            // expected
-        }
-
         // try {
         // a.getTimestamps().clear();
         // fail("Expected non-updatable reference");
@@ -73,7 +66,7 @@ public class TimestampMappingTest {
         // }
 
         try {
-            a.addSystemTimestamps(b);
+            a.mergeIn(b);
             fail("Expected being unable to merge different mappings");
         } catch (IllegalArgumentException x) {
             // expected
@@ -84,7 +77,7 @@ public class TimestampMappingTest {
     public void testAddSystemTimestamp() {
         a.addSystemTimestamp(SYSTEM_TIMESTAMP_1);
         assertEquals(new HashSet<Timestamp>(Arrays.asList(new Timestamp[] { CLIENT_TIMESTAMP_A, SYSTEM_TIMESTAMP_1 })),
-                new HashSet<Timestamp>(Arrays.asList(a.getTimestamps())));
+                new HashSet<Timestamp>(a.getTimestamps()));
     }
 
     @Test
@@ -93,7 +86,7 @@ public class TimestampMappingTest {
         a.addSystemTimestamp(SYSTEM_TIMESTAMP_1);
         a.addSystemTimestamp(SYSTEM_TIMESTAMP_1);
         a.addSystemTimestamp(CLIENT_TIMESTAMP_A);
-        assertEquals(2, a.getTimestamps().length);
+        assertEquals(2, a.getTimestamps().size());
     }
 
     @Test
@@ -103,14 +96,13 @@ public class TimestampMappingTest {
         aCopy.addSystemTimestamp(SYSTEM_TIMESTAMP_1);
         aCopy.addSystemTimestamp(SYSTEM_TIMESTAMP_3);
 
-        a.addSystemTimestamps(aCopy);
+        a.mergeIn(aCopy);
         assertEquals(
                 new HashSet<Timestamp>(Arrays.asList(new Timestamp[] { CLIENT_TIMESTAMP_A, SYSTEM_TIMESTAMP_1,
-                        SYSTEM_TIMESTAMP_2, SYSTEM_TIMESTAMP_3 })),
-                new HashSet<Timestamp>(Arrays.asList(a.getTimestamps())));
+                        SYSTEM_TIMESTAMP_2, SYSTEM_TIMESTAMP_3 })), new HashSet<Timestamp>(a.getTimestamps()));
         assertEquals(
                 new HashSet<Timestamp>(Arrays.asList(new Timestamp[] { CLIENT_TIMESTAMP_A, SYSTEM_TIMESTAMP_1,
-                        SYSTEM_TIMESTAMP_3 })), new HashSet<Timestamp>(Arrays.asList(aCopy.getTimestamps())));
+                        SYSTEM_TIMESTAMP_3 })), new HashSet<Timestamp>(aCopy.getTimestamps()));
     }
 
     @Test
@@ -144,7 +136,7 @@ public class TimestampMappingTest {
     @Test
     public void testCopy() {
         a.addSystemTimestamp(CLIENT_TIMESTAMP_B);
-        assertFalse(a.getTimestamps().length == aCopy.getTimestamps().length);
+        assertFalse(a.getTimestamps().size() == aCopy.getTimestamps().size());
     }
 
     @Test
@@ -156,7 +148,5 @@ public class TimestampMappingTest {
         aCopy.addSystemTimestamp(SYSTEM_TIMESTAMP_3);
         aCopy.addSystemTimestamp(SYSTEM_TIMESTAMP_1);
         aCopy.addSystemTimestamp(SYSTEM_TIMESTAMP_2);
-
-        assertEquals(a.getSelectedSystemTimestamp(), aCopy.getSelectedSystemTimestamp());
     }
 }

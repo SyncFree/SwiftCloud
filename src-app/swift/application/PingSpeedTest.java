@@ -19,13 +19,13 @@ package swift.application;
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.IntegerCRDT;
+import swift.crdt.core.CRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -109,14 +109,14 @@ public class PingSpeedTest {
 
             timer.start();
             TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
-            IntegerTxnLocal i1 = handle.get(j, true, swift.crdt.IntegerVersioned.class);
+            IntegerCRDT i1 = handle.get(j, true, swift.crdt.IntegerCRDT.class);
             i1.add(1);
             handle.commit();
             int expected = 2;
 
             while (true) {
                 TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, false);
-                IntegerTxnLocal i = txn.get(j, false, swift.crdt.IntegerVersioned.class);
+                IntegerCRDT i = txn.get(j, false, swift.crdt.IntegerCRDT.class);
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
                     txn.commit();
@@ -146,7 +146,7 @@ public class PingSpeedTest {
             int expected = 1;
             while (true) {
                 TxnHandle handle = clientServer.beginTxn(isolationLevel, cachePolicy, false);
-                IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class);
+                IntegerCRDT i1 = handle.get(j, false, swift.crdt.IntegerCRDT.class);
                 if (i1.getValue() == expected) {
                     i1.add(1);
                     handle.commit();
@@ -167,7 +167,7 @@ public class PingSpeedTest {
     protected static void increment(SwiftSession swift, ObjectUpdatesListenerIncr1 listener) throws NetworkException,
             WrongTypeException, NoSuchObjectException, VersionNotFoundException {
         TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
-        IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class, listener);
+        IntegerCRDT i1 = handle.get(j, false, swift.crdt.IntegerCRDT.class, listener);
         i1.add(1);
         handle.commit();
     }
@@ -180,7 +180,7 @@ public class PingSpeedTest {
             int expected = 2;
             timer.start();
             TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
-            IntegerTxnLocal i = handle.get(j, true, swift.crdt.IntegerVersioned.class, new ObjectUpdatesListenerIncr1(
+            IntegerCRDT i = handle.get(j, true, swift.crdt.IntegerCRDT.class, new ObjectUpdatesListenerIncr1(
                     expected, swift, timer));
             i.add(1);
             handle.commit();
@@ -195,7 +195,7 @@ public class PingSpeedTest {
             // Need cache policy MOST_RECENT for first read
             while (true) {
                 TxnHandle handle = clientServer.beginTxn(isolationLevel, CachePolicy.MOST_RECENT, false);
-                IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class,
+                IntegerCRDT i1 = handle.get(j, false, swift.crdt.IntegerCRDT.class,
                         new ObjectUpdatesListenerIncr2(expected + 2, clientServer));
                 if (i1.getValue() == expected) {
                     i1.add(1);
@@ -223,10 +223,10 @@ public class PingSpeedTest {
         }
 
         @Override
-        public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+        public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, CRDT<?> previousValue) {
             try {
                 TxnHandle txn = swift.beginTxn(isolationLevel, cachePolicy, true);
-                IntegerTxnLocal i = txn.get(id, true, swift.crdt.IntegerVersioned.class, this);
+                IntegerCRDT i = txn.get(id, true, swift.crdt.IntegerCRDT.class, this);
                 DCConstants.DCLogger.info("PING 1 NOTIFICATION : " + i.getValue());
                 if (expected == i.getValue()) {
                     long pingTime = timer.stop();
@@ -260,10 +260,10 @@ public class PingSpeedTest {
         }
 
         @Override
-        public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+        public void onObjectUpdate(TxnHandle txn_old, CRDTIdentifier id, CRDT<?> previousValue) {
             try {
                 TxnHandle handle = swift.beginTxn(isolationLevel, cachePolicy, false);
-                IntegerTxnLocal i1 = handle.get(j, false, swift.crdt.IntegerVersioned.class, this);
+                IntegerCRDT i1 = handle.get(j, false, swift.crdt.IntegerCRDT.class, this);
                 DCConstants.DCLogger.info("PING 2 NOTIFICATION : " + i1.getValue());
                 if (i1.getValue() == expected) {
                     i1.add(1);

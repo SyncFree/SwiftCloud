@@ -16,7 +16,7 @@
  *****************************************************************************/
 package swift.application.social;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 
 public class StatusMessage {
     CRDTIdentifier from;

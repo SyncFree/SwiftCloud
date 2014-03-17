@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.dc.CRDTData;
 import sys.net.impl.KryoLib;
 import sys.scheduler.Task;
@@ -77,11 +77,7 @@ public class DCKryoFileDatabase implements DCNodeDatabase {
 
     @Override
     public synchronized CRDTData<?> read(CRDTIdentifier id) {
-        CRDTData<?> data = (CRDTData<?>) readSysData(id.getTable(), id.getKey());
-        if (data != null)
-            data.getCrdt().init(data.getId(), data.getClock(), data.getPruneClock(), true);
-
-        return data;
+        return (CRDTData<?>) readSysData(id.getTable(), id.getKey());
     }
 
     @Override

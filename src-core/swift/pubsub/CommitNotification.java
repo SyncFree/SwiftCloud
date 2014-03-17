@@ -22,7 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.dc.ExecCRDTResult;
 import swift.proto.ObjectUpdatesInfo;
 

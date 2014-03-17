@@ -4,7 +4,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;

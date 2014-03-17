@@ -51,11 +51,11 @@ import swift.clocks.ClockFactory;
 import swift.clocks.IncrementalTimestampGenerator;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampSource;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.IntegerTxnLocal;
+import swift.crdt.IntegerCRDT;
 import swift.crdt.IntegerVersioned;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -193,7 +193,7 @@ public class SwiftImplTest extends EasyMockSupport {
         swiftImpl = createSwift();
         final AbstractTxnHandle txn = swiftImpl.beginTxn("session", IsolationLevel.SNAPSHOT_ISOLATION,
                 CachePolicy.MOST_RECENT, true);
-        final IntegerTxnLocal crdtA = txn.get(idCrdtA, true, IntegerVersioned.class);
+        final IntegerCRDT crdtA = txn.get(idCrdtA, true, IntegerVersioned.class);
         assertEquals(new Integer(0), crdtA.getValue());
         crdtA.add(5);
         txn.commit();

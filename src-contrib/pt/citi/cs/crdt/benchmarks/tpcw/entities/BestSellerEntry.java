@@ -16,7 +16,7 @@
  *****************************************************************************/
 package pt.citi.cs.crdt.benchmarks.tpcw.entities;
 
-import swift.crdt.interfaces.Copyable;
+import swift.crdt.core.Copyable;
 
 public class BestSellerEntry implements Copyable {
 

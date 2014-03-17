@@ -39,14 +39,14 @@ import swift.application.swiftdoc.cs.msgs.SwiftDocRpc;
 import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.SequenceTxnLocal;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftScout;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
-import swift.crdt.interfaces.TxnLocalCRDT;
+import swift.crdt.SequenceCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftScout;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
+import swift.crdt.core.CRDT;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -164,7 +164,7 @@ public class SwiftDocServer {
 
     TxnHandle handle = null;
     CRDTIdentifier j1 = null, j2 = null;
-    SequenceTxnLocal<TextLine> doc = null;
+    SequenceCRDT<TextLine> doc = null;
 
     RpcHandle clientHandle = null;
     SwiftSession swift1 = null, swift2 = null;
@@ -181,7 +181,7 @@ public class SwiftDocServer {
     public void begin() {
         try {
             handle = swift1.beginTxn(isolationLevel, cachePolicy, false);
-            doc = (SequenceTxnLocal<TextLine>) handle.get(j1, true, swift.crdt.SequenceVersioned.class, null);
+            doc = (SequenceCRDT<TextLine>) handle.get(j1, true, swift.crdt.SequenceCRDT.class, null);
         } catch (Throwable e) {
             e.printStackTrace();
             System.exit(0);
@@ -210,8 +210,8 @@ public class SwiftDocServer {
         try {
             NotificationHandler notifier = new NotificationHandler();
             final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-            SequenceTxnLocal<TextLine> doc = (SequenceTxnLocal<TextLine>) handle.get(j2, true,
-                    swift.crdt.SequenceVersioned.class, notifier);
+            SequenceCRDT<TextLine> doc = (SequenceCRDT<TextLine>) handle.get(j2, true,
+                    swift.crdt.SequenceCRDT.class, notifier);
             handle.commit();
             notifier.onObjectUpdate(handle, j2, doc);
         } catch (Exception e) {
@@ -224,14 +224,14 @@ public class SwiftDocServer {
     class NotificationHandler extends AbstractObjectUpdatesListener {
 
         @Override
-        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, TxnLocalCRDT<?> previousValue) {
+        public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, CRDT<?> previousValue) {
             try {
                 List<TextLine> newAtoms = new ArrayList<TextLine>();
                 synchronized (serials) {
 
                     final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-                    SequenceTxnLocal<TextLine> doc = (SequenceTxnLocal<TextLine>) handle.get(j2, true,
-                            swift.crdt.SequenceVersioned.class, this);
+                    SequenceCRDT<TextLine> doc = (SequenceCRDT<TextLine>) handle.get(j2, true,
+                            swift.crdt.SequenceCRDT.class, this);
                     for (TextLine i : doc.getValue())
                         if (serials.add(i.serial())) {
                             newAtoms.add(i);

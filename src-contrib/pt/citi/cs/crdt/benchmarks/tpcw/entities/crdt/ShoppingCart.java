@@ -19,9 +19,10 @@ package pt.citi.cs.crdt.benchmarks.tpcw.entities.crdt;
 import java.util.Collection;
 
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.TPCWNamingScheme;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Copyable;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.Copyable;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -56,13 +57,13 @@ public class ShoppingCart implements Copyable {
 
     public void addSCLine(SCLine line, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalShoppingCart cart = handler.get(cartItems, true, SetShoppingCart.class);
-        cart.insert(line);
+        AddWinsSetCRDT<SCLine> cart = handler.get(cartItems, true, AddWinsSetCRDT.class);
+        cart.add(line);
     }
 
     public SCLine getSCLine(String itemID, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalShoppingCart cart = handler.get(cartItems, true, SetShoppingCart.class);
+        AddWinsSetCRDT<SCLine> cart = handler.get(cartItems, true, AddWinsSetCRDT.class);
         for (SCLine scline : cart.getValue()) {
             if ((scline.getI_ID() + "").equals(itemID))
                 return scline;
@@ -72,7 +73,7 @@ public class ShoppingCart implements Copyable {
 
     public Collection<SCLine> getSCLines(TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalShoppingCart cart = handler.get(cartItems, true, SetShoppingCart.class);
+        AddWinsSetCRDT<SCLine> cart = handler.get(cartItems, true, AddWinsSetCRDT.class);
         return cart.getValue();
 
     }
@@ -96,7 +97,7 @@ public class ShoppingCart implements Copyable {
     public float getSC_SHIP_COST(TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         float price = 3;
-        SetTxnLocalShoppingCart cart = handler.get(cartItems, true, SetShoppingCart.class);
+        AddWinsSetCRDT<SCLine> cart = handler.get(cartItems, true, AddWinsSetCRDT.class);
         for (SCLine line : cart.getValue())
             price += line.getSCL_QTY(handler);
         return price;
@@ -105,7 +106,7 @@ public class ShoppingCart implements Copyable {
     public float getSC_SUB_TOTAL(TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         float price = 0;
-        SetTxnLocalShoppingCart cart = handler.get(cartItems, true, SetShoppingCart.class);
+        AddWinsSetCRDT<SCLine> cart = handler.get(cartItems, true, AddWinsSetCRDT.class);
         for (SCLine line : cart.getValue())
             price += line.getSCL_QTY(handler) * line.getSCL_COST() * (1 - SC_C_DISCOUNT);
         return price;

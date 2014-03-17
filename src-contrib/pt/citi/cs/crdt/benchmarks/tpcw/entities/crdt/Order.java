@@ -23,9 +23,10 @@ import java.util.TreeMap;
 import org.uminho.gsd.benchmarks.interfaces.Entity;
 
 import pt.citi.cs.crdt.benchmarks.tpcw.entities.TPCWNamingScheme;
-import swift.crdt.CRDTIdentifier;
-import swift.crdt.interfaces.Copyable;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.Copyable;
+import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.VersionNotFoundException;
@@ -70,14 +71,14 @@ public class Order implements Copyable, Entity {
 
     public void addOrderLine(OrderLine line, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalOrder orderLines = handler.get(orderlines, true, SetOrder.class);
-        orderLines.insert(line);
+        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
+        orderLines.add(line);
         // TODO: update the order attributes if any
     }
 
     public OrderLine getOrderLine(String id, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalOrder orderLines = handler.get(orderlines, true, SetOrder.class);
+        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
         for (OrderLine ol : orderLines.getValue()) {
             if (ol.OL_ID == id)
                 return ol;
@@ -87,14 +88,14 @@ public class Order implements Copyable, Entity {
 
     public void setOrderLine(int id, OrderLine ol, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalOrder orderLines = handler.get(orderlines, true, SetOrder.class);
-        orderLines.insert(ol);
+        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
+        orderLines.add(ol);
 
     }
 
     public Collection<OrderLine> getOrderLines(TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        SetTxnLocalOrder orderLines = handler.get(orderlines, true, SetOrder.class);
+        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
         return orderLines.getValue();
     }
 

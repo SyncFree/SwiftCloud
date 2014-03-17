@@ -31,12 +31,11 @@ import swift.application.filesystem.FilesystemBasic;
 import swift.application.filesystem.IFile;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
-import swift.crdt.DirectoryTxnLocal;
-import swift.crdt.DirectoryVersioned;
-import swift.crdt.interfaces.CachePolicy;
-import swift.crdt.interfaces.IsolationLevel;
-import swift.crdt.interfaces.SwiftSession;
-import swift.crdt.interfaces.TxnHandle;
+import swift.crdt.DirectoryCRDT;
+import swift.crdt.core.CachePolicy;
+import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.SwiftSession;
+import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -221,12 +220,12 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
             try {
                 txn = server.beginTxn(isolationlevel, cachepolicy, true);
                 if ("/".equals(path)) {
-                    DirectoryTxnLocal root = fs.getDirectory(txn, "/" + ROOT);
+                    DirectoryCRDT root = fs.getDirectory(txn, "/" + ROOT);
                     getattrSetter.set(root.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, root.getValue()
                             .size() * NAME_LENGTH,
                             (root.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE, time, time, time);
                 } else if (fs.isDirectory(txn, fstub.getName(), fstub.getParent())) {
-                    DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
+                    DirectoryCRDT dir = fs.getDirectory(txn, remotePath);
                     getattrSetter.set(dir.hashCode(), FuseFtypeConstants.TYPE_DIR | MODE, 1, 0, 0, 0, dir.getValue()
                             .size() * NAME_LENGTH, (dir.getValue().size() * NAME_LENGTH + BLOCK_SIZE - 1) / BLOCK_SIZE,
                             time, time, time);
@@ -271,14 +270,14 @@ public class FilesystemFuse implements Filesystem3, XattrSupport {
             TxnHandle txn = null;
             try {
                 txn = server.beginTxn(isolationlevel, cachepolicy, true);
-                DirectoryTxnLocal dir = fs.getDirectory(txn, remotePath);
+                DirectoryCRDT dir = fs.getDirectory(txn, remotePath);
                 Collection<Pair<String, Class<?>>> c = dir.getValue();
                 for (Pair<String, Class<?>> entry : c) {
                     String name = entry.getFirst();
                     // TODO This needs to be adapted for links and permissions
                     int mode = MODE;
                     int ftype = FuseFtypeConstants.TYPE_FILE;
-                    if (entry.getSecond().equals(DirectoryVersioned.class)) {
+                    if (entry.getSecond().equals(DirectoryCRDT.class)) {
                         ftype = FuseFtypeConstants.TYPE_DIR;
                     }
                     filler.add(name, entry.hashCode(), ftype | mode);

@@ -17,7 +17,7 @@
 package swift.proto;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
@@ -29,6 +29,7 @@ import sys.net.api.rpc.RpcHandler;
 public class FetchObjectVersionRequest extends ClientRequest {
     protected CRDTIdentifier uid;
     protected CausalityClock version;
+    // FIXME: make these things optional? Used only by evaluation.
     protected CausalityClock clock;
     protected CausalityClock disasterDurableClock;
     protected boolean strictUnprunedVersion;

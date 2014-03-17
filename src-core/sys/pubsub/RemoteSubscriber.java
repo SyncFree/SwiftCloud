@@ -2,7 +2,7 @@ package sys.pubsub;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandler;

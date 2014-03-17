@@ -27,7 +27,7 @@ import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import swift.crdt.CRDTIdentifier;
+import swift.crdt.core.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
 import sys.utils.FileUtils;
@@ -132,10 +132,7 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
 
     @Override
     public synchronized CRDTData<?> read(CRDTIdentifier id) {
-        CRDTData<?> data = (CRDTData<?>) readSysData(id.getTable(), id.getKey());
-        if (data != null)
-            data.getCrdt().init(data.getId(), data.getClock(), data.getPruneClock(), true);
-        return data;
+        return (CRDTData<?>) readSysData(id.getTable(), id.getKey());
     }
 
     @Override
