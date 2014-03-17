@@ -714,7 +714,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             result = ClockUtils.combineCmpClock(result, partialResult);
         }
         // Test if there are more entries that have not been compared yet
-        if (vv.size() > cc.vv.size()) {
+        if (!cc.vv.keySet().containsAll(vv.keySet())) {
             result = ClockUtils.combineCmpClock(result, CMP_CLOCK.CMP_DOMINATES);
         }
         return result;

@@ -16,11 +16,14 @@
  *****************************************************************************/
 package swift.clocks;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Before;
 import org.junit.Test;
+
+import swift.clocks.CausalityClock.CMP_CLOCK;
 
 public class VersionVectorWithExceptionsTest {
 
@@ -139,6 +142,19 @@ public class VersionVectorWithExceptionsTest {
                 assertTrue(clock.includes(ts));
             }
         }
+    }
+
+    @Test
+    public void testCompareDifferentEntries() {
+        VersionVectorWithExceptions clock1 = new VersionVectorWithExceptions();
+        clock1.recordAllUntil(new Timestamp("A", 1));
+        clock1.recordAllUntil(new Timestamp("B", 2));
+
+        VersionVectorWithExceptions clock2 = new VersionVectorWithExceptions();
+        clock2.recordAllUntil(new Timestamp("B", 2));
+        clock2.recordAllUntil(new Timestamp("C", 3));
+
+        assertEquals(CMP_CLOCK.CMP_CONCURRENT, clock1.compareTo(clock2));
     }
 
 }
