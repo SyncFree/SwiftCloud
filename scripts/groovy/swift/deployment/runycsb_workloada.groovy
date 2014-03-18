@@ -23,8 +23,7 @@ Surrogates = [
 Scouts = ['localhost']
 
 Threads = 1
-WorkloadDir = "ycsb/workloads/"
-Workload  = "workloada"
+YCSBProps = "swiftycsb.properties"
 
 Duration = 120
 
@@ -39,8 +38,8 @@ pnuke(AllMachines, "java", 60)
 println "==== BUILDING JAR..."
 sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
-deployTo(AllMachines, WorkloadDir + Workload, Workload)
 deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
+deployTo(AllMachines, SwiftYCSB.genPropsFile([:], SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A).absolutePath, YCSBProps)
 
 
 SwiftYCSB.runEachAsDatacentre(Surrogates, "256m", "3096m")
@@ -51,12 +50,12 @@ println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Surrogates.get(0)
 def INIT_DB_CLIENT = Surrogates.get(0)
 
-SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, Workload, Threads)
+SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, YCSBProps, Threads)
 
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 // TODO client-DC assignment
-SwiftYCSB.runClients(Scouts, Surrogates.get(0), Workload, Threads )
+SwiftYCSB.runClients(Scouts, Surrogates.get(0), YCSBProps, Threads )
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 // TODO

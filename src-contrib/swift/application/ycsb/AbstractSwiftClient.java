@@ -30,12 +30,15 @@ public abstract class AbstractSwiftClient extends DB {
     public static final int ERROR_WRONG_TYPE = -3;
     public static final int ERROR_PRUNING_RACE = -4;
     public static final int ERROR_UNSUPPORTED = -5;
+    public static final IsolationLevel DEFAULT_ISOLATION_LEVEL = IsolationLevel.SNAPSHOT_ISOLATION;
+    public static final CachePolicy DEFAULT_CACHE_POLICY = CachePolicy.CACHED;
+    public static final ObjectUpdatesListener DEFAULT_NOTIFICATIONS_SUBSCRIBER = TxnHandle.UPDATES_SUBSCRIBER;
     public static final boolean DEFAULT_ASYNC_COMMIT = false;
 
     protected SwiftSession session;
-    protected IsolationLevel isolationLevel;
-    protected CachePolicy cachePolicy;
-    protected ObjectUpdatesListener notificationsSubscriber;
+    protected IsolationLevel isolationLevel = DEFAULT_ISOLATION_LEVEL;
+    protected CachePolicy cachePolicy = DEFAULT_CACHE_POLICY;
+    protected ObjectUpdatesListener notificationsSubscriber = DEFAULT_NOTIFICATIONS_SUBSCRIBER;
     protected boolean asyncCommit = DEFAULT_ASYNC_COMMIT;
 
     @Override
@@ -44,23 +47,42 @@ public abstract class AbstractSwiftClient extends DB {
         Sys.init();
 
         final Properties props = getProperties();
-        String hostname = props.getProperty("swiftcloud.hostname");
+        String hostname = props.getProperty("swift.hostname");
         if (hostname == null) {
             hostname = "localhost";
         }
-        String portString = props.getProperty("swiftcloud.port");
+        String portString = props.getProperty("swift.port");
         final int port;
         if (portString != null) {
             port = Integer.parseInt(portString);
         } else {
             port = DCConstants.SURROGATE_PORT;
         }
-        // FIXME: provide as options?
-        isolationLevel = IsolationLevel.SNAPSHOT_ISOLATION;
-        cachePolicy = CachePolicy.STRICTLY_MOST_RECENT;
-        notificationsSubscriber = TxnHandle.UPDATES_SUBSCRIBER;
 
-        final SwiftOptions options = new SwiftOptions(hostname, port);
+        // TODO: document properties
+        if (props.getProperty("swift.isolationLevel") != null) {
+            try {
+                isolationLevel = IsolationLevel.valueOf(props.getProperty("swift.isolationLevel"));
+            } catch (IllegalArgumentException x) {
+                System.err.println("Could not recognized isolationLevel=" + props.getProperty("swift.isolationLevel"));
+            }
+        }
+        if (props.getProperty("swift.cachePolicy") != null) {
+            try {
+                cachePolicy = CachePolicy.valueOf(props.getProperty("swift.cachePolicy"));
+            } catch (IllegalArgumentException x) {
+                System.err.println("Could not recognized cachePolicy=" + props.getProperty("swift.cachePolicy"));
+            }
+        }
+        if (props.getProperty("swift.notifications") != null) {
+            notificationsSubscriber = Boolean.getBoolean(props.getProperty("swift.notifications")) ? TxnHandle.UPDATES_SUBSCRIBER
+                    : null;
+        }
+        if (props.getProperty("swift.asyncCommit") != null) {
+            asyncCommit = Boolean.getBoolean(props.getProperty("swift.asyncCommit"));
+        }
+
+        final SwiftOptions options = new SwiftOptions(hostname, port, props);
         session = SwiftImpl.newSingleSessionInstance(options);
     }
 
