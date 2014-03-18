@@ -43,7 +43,6 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
             }
             result.put(entry.getValue(), new StringByteIterator(register.getValue()));
         }
-        txn.commit();
         return 0;
     }
 
@@ -61,7 +60,6 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
                     LWWRegisterCRDT.class, notificationsSubscriber);
             register.set(values.get(entry.getValue()).toString());
         }
-        txn.commit();
         return 0;
     }
 
@@ -83,7 +81,6 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
                     LWWRegisterCRDT.class, notificationsSubscriber);
             register.set(values.get(entry.getValue()).toString());
         }
-        txn.commit();
         return 0;
     }
 

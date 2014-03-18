@@ -30,11 +30,13 @@ public abstract class AbstractSwiftClient extends DB {
     public static final int ERROR_WRONG_TYPE = -3;
     public static final int ERROR_PRUNING_RACE = -4;
     public static final int ERROR_UNSUPPORTED = -5;
+    public static final boolean DEFAULT_ASYNC_COMMIT = false;
 
     protected SwiftSession session;
     protected IsolationLevel isolationLevel;
     protected CachePolicy cachePolicy;
     protected ObjectUpdatesListener notificationsSubscriber;
+    protected boolean asyncCommit = DEFAULT_ASYNC_COMMIT;
 
     @Override
     public void init() throws DBException {
@@ -77,7 +79,11 @@ public abstract class AbstractSwiftClient extends DB {
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, true);
-            return readImpl(txn, table, key, fields, result);
+            int res = readImpl(txn, table, key, fields, result);
+            if (res == 0) {
+                txnCommit(txn);
+            }
+            return res;
         } catch (SwiftException x) {
             return handleException(x);
         } finally {
@@ -96,7 +102,11 @@ public abstract class AbstractSwiftClient extends DB {
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
-            return updateImpl(txn, table, key, values);
+            int res = updateImpl(txn, table, key, values);
+            if (res == 0) {
+                txnCommit(txn);
+            }
+            return res;
         } catch (SwiftException x) {
             return handleException(x);
         } finally {
@@ -109,7 +119,11 @@ public abstract class AbstractSwiftClient extends DB {
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
-            return insertImpl(txn, table, key, values);
+            int res = insertImpl(txn, table, key, values);
+            if (res == 0) {
+                txnCommit(txn);
+            }
+            return res;
         } catch (SwiftException x) {
             return handleException(x);
         } finally {
@@ -135,6 +149,14 @@ public abstract class AbstractSwiftClient extends DB {
     private void tryTerminateTxn(TxnHandle txn) {
         if (txn != null && !txn.getStatus().isTerminated()) {
             txn.rollback();
+        }
+    }
+
+    private void txnCommit(TxnHandle txn) {
+        if (asyncCommit) {
+            txn.commitAsync(null);
+        } else {
+            txn.commit();
         }
     }
 

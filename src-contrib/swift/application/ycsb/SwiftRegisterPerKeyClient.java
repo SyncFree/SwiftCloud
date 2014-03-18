@@ -39,7 +39,6 @@ public class SwiftRegisterPerKeyClient extends AbstractSwiftClient {
                 result.put(field, new StringByteIterator(value.get(field)));
             }
         }
-        txn.commit();
         return 0;
     }
 
@@ -57,7 +56,6 @@ public class SwiftRegisterPerKeyClient extends AbstractSwiftClient {
         StringByteIterator.putAllAsStrings(mutableValue, values);
         register.set(mutableValue);
 
-        txn.commit();
         return 0;
     }
 
@@ -70,7 +68,6 @@ public class SwiftRegisterPerKeyClient extends AbstractSwiftClient {
         final HashMap<String, String> value = StringByteIterator.getStringMap(values);
         register.set(value);
 
-        txn.commit();
         return 0;
     }
 }
