@@ -16,6 +16,8 @@
  *****************************************************************************/
 package swift.client;
 
+import java.util.Properties;
+
 /**
  * Options for Swift scout instance.
  * 
@@ -34,34 +36,35 @@ final public class SwiftOptions {
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
-    private static final String DEFAULT_STATISTICS_FOLDER = "statistics";
+
+    public static final String DEFAULT_STATISTICS_DIR = "statistics";
     public static final boolean DEFAULT_OVERWRITE_STATISTICS_DIR = true;
     public static final boolean DEFAULT_ENABLE_STATISTICS = true;
 
-    public static final int DEFAULT_SCOUTGATEWAY_PORT = 28881;
+    public static final boolean DEFAULT_CAUSAL_NOTIFICATIONS = true;
 
     private String serverHostname;
     private int serverPort;
-    private boolean disasterSafe;
-    private boolean concurrentOpenTransactions;
-    private int maxAsyncTransactionsQueued;
-    private int timeoutMillis;
-    private int deadlineMillis;
-    private long cacheEvictionTimeMillis;
-    private int cacheSize;
-    private int notificationTimeoutMillis;
-    private int maxCommitBatchSize;
-    private String logFilename;
-    private boolean logFlushOnCommit;
-    private boolean causalNotifications;
+    private boolean disasterSafe = DEFAULT_DISASTER_SAFE;
+    private boolean concurrentOpenTransactions = DEFAULT_CONCURRENT_OPEN_TRANSACTIONS;
+    private int maxAsyncTransactionsQueued = DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED;
+    private int timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
+    private int deadlineMillis = DEFAULT_DEADLINE_MILLIS;
+    private long cacheEvictionTimeMillis = DEFAULT_CACHE_EVICTION_MILLIS;
+    private int cacheSize = DEFAULT_CACHE_SIZE;
+    private int notificationTimeoutMillis = DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
+    private int maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
+    private String logFilename = DEFAULT_LOG_FILENAME;
+    private boolean logFlushOnCommit = DEFAULT_LOG_FLUSH_ON_COMMIT;
+    private boolean causalNotifications = DEFAULT_CAUSAL_NOTIFICATIONS;
+
+    private boolean enableStatistics = DEFAULT_ENABLE_STATISTICS;
+    private boolean overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
+    private String statisticsOutputDir = DEFAULT_STATISTICS_DIR;
 
     // for kryo...
     SwiftOptions() {
     }
-
-    private boolean enableStatistics;
-    private boolean overwriteStatisticsDir;
-    private String statisticsOutputDir;
 
     /**
      * Creates a new instance with default options and provided server endpoint
@@ -71,25 +74,93 @@ final public class SwiftOptions {
      * @param serverPort
      *            TCP port of the store server
      */
-
     public SwiftOptions(String serverHostname, int serverPort) {
-        this.causalNotifications = true;
+        this(serverHostname, serverPort, new Properties());
+    }
+
+    /**
+     * Creates a new instance with default values from the properties and
+     * provided server endpoint
+     * 
+     * @param serverHostname
+     *            hostname of the store server
+     * @param serverPort
+     *            TCP port of the store server
+     */
+    public SwiftOptions(String serverHostname, int serverPort, Properties defaultValues) {
         this.serverHostname = serverHostname;
         this.serverPort = serverPort;
-        this.disasterSafe = DEFAULT_DISASTER_SAFE;
-        this.concurrentOpenTransactions = DEFAULT_CONCURRENT_OPEN_TRANSACTIONS;
-        this.maxAsyncTransactionsQueued = DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED;
-        this.timeoutMillis = DEFAULT_TIMEOUT_MILLIS;
-        this.deadlineMillis = DEFAULT_DEADLINE_MILLIS;
-        this.cacheEvictionTimeMillis = DEFAULT_CACHE_EVICTION_MILLIS;
-        this.cacheSize = DEFAULT_CACHE_SIZE;
-        this.notificationTimeoutMillis = DEFAULT_NOTIFICATION_TIMEOUT_MILLIS;
-        this.maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
-        this.logFilename = DEFAULT_LOG_FILENAME;
-        this.setLogFlushOnCommit(DEFAULT_LOG_FLUSH_ON_COMMIT);
-        this.enableStatistics = DEFAULT_ENABLE_STATISTICS;
-        this.statisticsOutputDir = DEFAULT_STATISTICS_FOLDER;
-        this.overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
+
+        final String disasterSafeString = defaultValues.getProperty("swift.disasterSafe");
+        if (disasterSafeString != null) {
+            this.disasterSafe = Boolean.parseBoolean(disasterSafeString);
+        }
+        final String concurrentOpenTransactionsString = defaultValues.getProperty("swift.concurrentOpenTransactions");
+        if (concurrentOpenTransactionsString != null) {
+            this.concurrentOpenTransactions = Boolean.parseBoolean(concurrentOpenTransactionsString);
+        }
+
+        try {
+            this.maxAsyncTransactionsQueued = Integer.parseInt(defaultValues
+                    .getProperty("swift.maxAsyncTransactionsQueued"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+
+        try {
+            this.timeoutMillis = Integer.parseInt(defaultValues.getProperty("swift.timeoutMillis"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+        try {
+            this.deadlineMillis = Integer.parseInt(defaultValues.getProperty("swift.deadlineMillis"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+        try {
+            this.cacheEvictionTimeMillis = Integer.parseInt(defaultValues.getProperty("swift.cacheEvictionTimeMillis"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+        try {
+            this.cacheSize = Integer.parseInt(defaultValues.getProperty("swift.cacheSize"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+        try {
+            this.notificationTimeoutMillis = Integer.parseInt(defaultValues
+                    .getProperty("swift.notificationTimeoutMillis"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+        try {
+            this.maxCommitBatchSize = Integer.parseInt(defaultValues.getProperty("swift.maxCommitBatchSize"));
+        } catch (NumberFormatException x) {
+            // ignore
+        }
+
+        if (defaultValues.getProperty("swift.logFilename") != null) {
+            this.logFilename = defaultValues.getProperty("swift.logFilename");
+        }
+        final String logFlushOnCommitString = defaultValues.getProperty("swift.logFlushOnCommit");
+        if (logFlushOnCommitString != null) {
+            this.logFlushOnCommit = Boolean.parseBoolean(logFlushOnCommitString);
+        }
+        final String enableStatisticsString = defaultValues.getProperty("swift.enableStatistics");
+        if (enableStatisticsString != null) {
+            this.enableStatistics = Boolean.parseBoolean(enableStatisticsString);
+        }
+        if (defaultValues.getProperty("swift.statisticsOutputDir") != null) {
+            this.statisticsOutputDir = defaultValues.getProperty("swift.statisticsOutputDir");
+        }
+        final String overwriteStatisticsDirString = defaultValues.getProperty("swift.overwriteStatisticsDir");
+        if (overwriteStatisticsDirString != null) {
+            this.overwriteStatisticsDir = Boolean.parseBoolean(overwriteStatisticsDirString);
+        }
+        final String causalNotificationsString = defaultValues.getProperty("swift.causalNotifications");
+        if (causalNotificationsString != null) {
+            this.causalNotifications = Boolean.parseBoolean(causalNotificationsString);
+        }
     }
 
     /**

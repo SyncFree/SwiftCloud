@@ -24,6 +24,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -54,10 +55,6 @@ public class SwiftSocialMain {
     protected static CachePolicy cachePolicy;
     protected static boolean subscribeUpdates;
     protected static boolean asyncCommit;
-    protected static int asyncQueueSize;
-    protected static int batchSize;
-    protected static int cacheSize;
-    protected static int cacheEvictionTimeMillis;
 
     protected static int thinkTime;
     protected static int numUsers;
@@ -70,6 +67,7 @@ public class SwiftSocialMain {
 
     protected static AtomicInteger commandsDone = new AtomicInteger(0);
     protected static AtomicInteger totalCommands = new AtomicInteger(0);
+    private static Properties props;
 
     public static void main(String[] args) {
         sys.Sys.init();
@@ -81,11 +79,7 @@ public class SwiftSocialMain {
 
         init();
 
-        SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
-        options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
-        options.setCacheSize(cacheSize);
-        options.setMaxAsyncTransactionsQueued(asyncQueueSize);
-        options.setMaxCommitBatchSize(batchSize);
+        SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT, props);
 
         DCSequencerServer.main(new String[] { "-name", dcName });
         DCServer.main(new String[] { dcName });
@@ -126,32 +120,23 @@ public class SwiftSocialMain {
 
         bufferedOutput = new PrintStream(System.out, false);
 
-        Props.parseFile("swiftsocial", bufferedOutput);
-        isolationLevel = IsolationLevel.valueOf(Props.get("swift.IsolationLevel"));
-        cachePolicy = CachePolicy.valueOf(Props.get("swift.CachePolicy"));
-        subscribeUpdates = Props.boolValue("swift.Notifications", false);
-        asyncCommit = Props.boolValue("swift.AsyncCommit", true);
-        asyncQueueSize = Props.intValue("swift.AsyncQueue", 50);
-        cacheEvictionTimeMillis = Props.intValue("swift.cacheEvictionTimeMillis", 120000);
-        cacheSize = Props.intValue("swift.CacheSize", 1024);
-        batchSize = Props.intValue("swift.BatchSize", 10);
+        props = Props.parseFile("swiftsocial", bufferedOutput);
+        isolationLevel = IsolationLevel.valueOf(Props.get(props, "swift.isolationLevel"));
+        cachePolicy = CachePolicy.valueOf(Props.get(props, "swift.cachePolicy"));
+        subscribeUpdates = Props.boolValue(props, "swift.notifications", false);
+        asyncCommit = Props.boolValue(props, "swift.asyncCommit", true);
 
-        numUsers = Props.intValue("swiftsocial.numUsers", 1000);
-        userFriends = Props.intValue("swiftsocial.userFriends", 25);
-        biasedOps = Props.intValue("swiftsocial.biasedOps", 9);
-        randomOps = Props.intValue("swiftsocial.randomOps", 1);
-        opGroups = Props.intValue("swiftsocial.opGroups", 500);
-        thinkTime = Props.intValue("swiftsocial.thinkTime", 1000);
+        numUsers = Props.intValue(props, "swiftsocial.numUsers", 1000);
+        userFriends = Props.intValue(props, "swiftsocial.userFriends", 25);
+        biasedOps = Props.intValue(props, "swiftsocial.biasedOps", 9);
+        randomOps = Props.intValue(props, "swiftsocial.randomOps", 1);
+        opGroups = Props.intValue(props, "swiftsocial.opGroups", 500);
+        thinkTime = Props.intValue(props, "swiftsocial.thinkTime", 1000);
 
     }
 
     public static SwiftSocial getSwiftSocial() {
-        final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
-        options.setCacheEvictionTimeMillis(cacheEvictionTimeMillis);
-        options.setCacheSize(cacheSize);
-        options.setMaxAsyncTransactionsQueued(asyncQueueSize);
-        options.setMaxCommitBatchSize(batchSize);
-        options.setDisasterSafe(false);
+        final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT, props);
         SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
         SwiftSocial socialClient = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);

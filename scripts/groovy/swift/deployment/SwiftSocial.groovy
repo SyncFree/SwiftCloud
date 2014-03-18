@@ -88,14 +88,14 @@ class SwiftSocial extends SwiftBase {
     }
 
     static final DEFAULT_PROPS = [
-        'swift.AsyncCommit':'true',
-        'swift.Notifications':'true',
-        'swift.CachePolicy':'CACHED',
-        'swift.IsolationLevel':'SNAPSHOT_ISOLATION',
         'swift.cacheEvictionTimeMillis':'3600000',
-        'swift.BatchSize':'10',
-        'swift.AsyncQueue':'50',
-        'swift.CacheSize':'512',
+        'swift.maxCommitBatchSize':'10',
+        'swift.maxAsyncTransactionsQueued':'50',
+        'swift.cacheSize':'512',
+        'swift.asyncCommit':'true',
+        'swift.notifications':'true',
+        'swift.cachePolicy':'CACHED',
+        'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swiftsocial.numUsers':'25000',
         'swiftsocial.userFriends':'25',
         'swiftsocial.biasedOps':'9',

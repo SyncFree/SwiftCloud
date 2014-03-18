@@ -20,6 +20,7 @@ import static sys.Sys.Sys;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -61,13 +62,13 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
                 DCSequencerServer.main(new String[] { "-name", "INIT" });
             }
 
-            Props.parseFile("swiftsocial", System.out);
+            Properties properties = Props.parseFile("swiftsocial", System.out);
             final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
             options.setConcurrentOpenTransactions(true);
 
             System.out.println("Populating db with users...");
 
-            final int numUsers = Props.intValue("swiftsocial.numUsers", 1000);
+            final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
             List<String> users = Workload.populate(numUsers);
 
             final int PARTITION_SIZE = 1000;
