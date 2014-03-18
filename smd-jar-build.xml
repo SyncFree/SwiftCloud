@@ -3,23 +3,23 @@
     <!--this file was created by Eclipse Runnable JAR Export Wizard-->
     <!--ANT 1.7 is required                                        -->
     <target name="create_run_jar">
-        <jar destfile="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/swiftcloud.jar" filesetmanifest="mergewithoutmain">
+        <jar destfile="swiftcloud.jar" filesetmanifest="mergewithoutmain">
             <manifest>
                 <attribute name="Main-Class" value="swift.application.social.SwiftSocialMain"/>
                 <attribute name="Class-Path" value="."/>
             </manifest>
-            <fileset dir="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/bin"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Applications/eclipse/plugins/org.junit_4.10.0.v4_10_0_v20120426-0900/junit.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Applications/eclipse/plugins/org.hamcrest.core_1.1.0.v20090501071000.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/db.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/riak-client-1.0.3-jar-with-dependencies.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/ssj.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/xmlpull-1.1.3.1.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/xpp3_min-1.1.4c.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/xstream-1.4.3.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/kryo-2.21-all.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/extras/diffutils-1.2.1.jar"/>
-            <zipfileset excludes="META-INF/*.SF" src="/Users/smd/Dropbox/bitbucket-git/swiftcloud-gforce/lib/core/netty-3.6.5.Final.jar"/>
+            <fileset dir="bin"/>
+<!--            <zipfileset excludes="META-INF/*.SF" src="/Applications/eclipse/plugins/org.junit_4.10.0.v4_10_0_v20120426-0900/junit.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="/Applications/eclipse/plugins/org.hamcrest.core_1.1.0.v20090501071000.jar"/>-->
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/db.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/riak-client-1.0.3-jar-with-dependencies.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/ssj.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/xmlpull-1.1.3.1.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/xpp3_min-1.1.4c.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/xstream-1.4.3.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/kryo-2.21-all.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/extras/diffutils-1.2.1.jar"/>
+            <zipfileset excludes="META-INF/*.SF" src="lib/core/netty-3.6.5.Final.jar"/>
         </jar>
     </target>
 </project>
