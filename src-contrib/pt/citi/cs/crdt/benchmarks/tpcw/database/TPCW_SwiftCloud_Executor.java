@@ -47,7 +47,6 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -96,9 +95,10 @@ import pt.citi.cs.crdt.benchmarks.tpcw.synchronization.TPCWRpc;
 import swift.client.CommitListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
+import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.IntegerCRDT;
 import swift.crdt.LWWRegisterCRDT;
-import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CachePolicy;
 import swift.crdt.core.IsolationLevel;
@@ -106,7 +106,6 @@ import swift.crdt.core.ObjectUpdatesListener;
 import swift.crdt.core.SwiftScout;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
-import swift.crdt.core.CRDT;
 import swift.exceptions.CvRDTSerializationException;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -1258,10 +1257,10 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
         try {
             // FIXME: port to op-based CRDTs
             bestSellers = handler.get(TPCWNamingScheme.forBestSellers(itemFromBucket.getI_SUBJECT()), true,
-                    SetBestSellers.class);
+                    SetBestSellersCRDT.class);
             BestSellerEntry newbs = new BestSellerEntry(itemFromBucket.getI_SUBJECT(), itemFromBucket.getI_ID(),
                     itemFromBucket.getI_TOTAL_SOLD(handler));
-            bestSellers.insert(newbs);
+            bestSellers.add(newbs);
         } catch (WrongTypeException e) {
             e.printStackTrace();
         } catch (NoSuchObjectException e) {
@@ -1836,9 +1835,9 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             String new_index_key = new_time_stamp + "." + item_id;
 
             SetAuthorIndexCRDT authorIndexCRDT = handler.get(TPCWNamingScheme.forIndex(subject), true,
-                    SetAuthorIndex.class);
+                    SetAuthorIndexCRDT.class);
 
-            authorIndexCRDT.insert(authorIndex);
+            authorIndexCRDT.add(authorIndex);
         } catch (WrongTypeException e) {
             e.printStackTrace();
         } catch (NoSuchObjectException e) {

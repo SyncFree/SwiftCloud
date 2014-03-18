@@ -18,5 +18,12 @@
 	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
 	<classpathentry kind="lib" path="lib/core/netty-3.6.5.Final.jar"/>
 	<classpathentry exported="true" kind="con" path="GROOVY_SUPPORT"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/colt.jar"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/httpclient-4.1.1.jar"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/jackson-core-asl-1.7.5.jar"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/jackson-mapper-asl-1.7.5.jar"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/log4j-1.2.13.jar"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/RadixTree-0.3.jar"/>
+	<classpathentry kind="lib" path="lib/extras/tpcw/zookeeper-3.3.6-fatjar.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
