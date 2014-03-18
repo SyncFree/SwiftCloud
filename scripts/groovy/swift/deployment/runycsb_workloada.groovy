@@ -25,7 +25,8 @@ Scouts = ['localhost']
 Threads = 1
 YCSBProps = "swiftycsb.properties"
 
-Duration = 120
+// TODO use Shepard and increase Duration?
+Duration = 0
 
 AllMachines = (Surrogates + Scouts).unique()
 
