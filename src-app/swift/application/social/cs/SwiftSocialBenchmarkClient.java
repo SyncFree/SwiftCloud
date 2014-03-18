@@ -79,7 +79,7 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         Workload.populate(numUsers);
 
         if (!shepardAddress.isEmpty())
-            new Shepard().joinHerd(shepardAddress);
+            Shepard.sheepJoinHerd(shepardAddress);
 
         // Kick off all sessions, throughput is limited by
         // concurrentSessions.

@@ -49,29 +49,7 @@ public class Shepard extends ShepardProtoHandler {
 
     private static final int PORT = 29876;
 
-    int totalSheep;
-    int grazingDuration;
-
-    RpcEndpoint endpoint;
-    List<RpcHandle> waitingSheep;
-
-    public Shepard() {
-    }
-
-    public Shepard(int duration) {
-        this.grazingDuration = duration;
-        this.waitingSheep = new ArrayList<RpcHandle>();
-        this.endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
-    }
-
-    public static void main(String[] args) {
-        sys.Sys.init();
-        int duration = Args.valueOf(args, "-duration", Integer.MAX_VALUE);
-
-        new Shepard(duration);
-    }
-
-    public void joinHerd(String shepardAddress) {
+    public static void sheepJoinHerd(String shepardAddress) {
         Endpoint shepard = Networking.resolve(shepardAddress, PORT);
         RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
         System.err.println("Contacting shepard at: " + shepardAddress);
@@ -99,6 +77,25 @@ public class Shepard extends ShepardProtoHandler {
         barrier.acquireUninterruptibly();
         Log.info(IP.localHostAddressString() + " Let's GO!!!!!");
         System.err.println(IP.localHostAddressString() + " Let's GO!!!!!");
+    }
+
+    int totalSheep;
+    int grazingDuration;
+
+    RpcEndpoint endpoint;
+    List<RpcHandle> waitingSheep;
+
+    public Shepard(int duration) {
+        this.grazingDuration = duration;
+        this.waitingSheep = new ArrayList<RpcHandle>();
+        this.endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
+    }
+
+    public static void main(String[] args) {
+        sys.Sys.init();
+        int duration = Args.valueOf(args, "-duration", Integer.MAX_VALUE);
+
+        new Shepard(duration);
     }
 
     Task releaseTask = new Task(Double.MAX_VALUE) {
