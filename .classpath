@@ -5,6 +5,7 @@
 	<classpathentry excluding="loria/" kind="src" path="src-contrib"/>
 	<classpathentry excluding="swift/application/filesystem/|swift/application/swiftset/" kind="src" path="src-app"/>
 	<classpathentry kind="src" path="src-core-bench"/>
+	<classpathentry kind="src" path="scripts/groovy"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="lib" path="lib/core/db.jar"/>
@@ -16,5 +17,6 @@
 	<classpathentry kind="lib" path="lib/core/kryo-2.21-all.jar"/>
 	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
 	<classpathentry kind="lib" path="lib/core/netty-3.6.5.Final.jar"/>
+	<classpathentry exported="true" kind="con" path="GROOVY_SUPPORT"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
