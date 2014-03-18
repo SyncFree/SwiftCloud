@@ -1,93 +1,23 @@
 package swift.deployment
 
 import java.util.concurrent.atomic.AtomicInteger
+import static swift.deployment.Tools.*
 
-
-class SwiftSocial {
-
-    static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.shepard.Shepard"
-
-    static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCServer"
-    static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCSequencerServer"
-
+class SwiftSocial extends SwiftBase {
     static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.SwiftSocialBenchmark"
-
-
     static String SCOUT_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.SwiftSocialBenchmark"
 
     static String CS_SCOUT_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkServer"
     static String CS_ENDCLIENT_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.application.social.cs.SwiftSocialBenchmarkClient"
 
-
-    static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
-        return "java " + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
-    }
-
-    static String swift_app_cmd_nostdout( String heap, String exec, String stdout, String stderr )  {
-        return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
-    }
-
-    static String sequencerCmd( String name, List servers, List otherSequencers) {
-        def res  = SEQUENCER_CMD + " -name " + name + " -servers "
-        servers.each { res += it + " "}
-        res += "-sequencers "
-        otherSequencers.each { res += it + " "}
-        return res
-    }
-
-    static String surrogateCmd( String sequencer ) {
-        def res  = SURROGATE_CMD + " -sequencer " + sequencer + " "
-        return res
-    }
-
-    static def runShepard( host, duration, pattern ) {
-        def queue = new java.util.concurrent.SynchronousQueue<?>()
-        println "==== STARTING SHEPARD @ " + host + " DURATION: " + duration
-
-        def cmd = SHEPARD_CMD + " -duration " + (int)duration + " "
-        Process proc = rsh( host, swift_app_cmd("-Xmx64m", cmd, "shep-stdout.txt", "shep-stderr.txt") );
-        Thread.start {
-            proc.errorStream.withReader {
-                String line;
-                while ( (line = it.readLine() ) != null ) {
-                    println line
-                    if( line.contains( pattern ) ) {
-                        queue.offer( proc )
-                        return true
-                    }
-                }
-            }
-        }
-        println "\nOK"
-        return queue
-    }
-
-    static void runEachAsDatacentre( List datacentres, String seqHeap, String surHeap ) {
-        println "==== STARTING DATACENTER SERVERS ===="
-
-        int i = 0;
-        datacentres.each {
-            def srv = it
-            def surrogate = srv
-            def sequencer = srv
-            def other_sequencers = datacentres.clone() - srv
-            def name = "X" + i
-            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "seq-stdout.txt", "seq-stdout.txt" ))
-            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "sur-stdout.txt", "sur-stderr.txt" ))
-            i++;
-        }
-        println "\nOK"
-    }
-
-
-    static void initDB( String client, String server, String config, String heap = "512m") {
+    static int initDB( String client, String server, String config, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
 
         def cmd = "-Dswiftsocial=" + config + " " + INITDB_CMD + " init -servers " + server + " "
-        rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "initdb-stdout.txt", "initdb-stderr.txt")).waitFor();
+        def res = rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "initdb-stdout.txt", "initdb-stderr.txt")).waitFor()
         println "OK.\n"
+        return res
     }
-
 
     static void runStandaloneScouts( List scouts, List servers, String config, String shepard, int threads, String heap ="512m" ) {
         def cmd = { host ->
@@ -157,7 +87,7 @@ class SwiftSocial {
         Parallel.rsh( clients, cmd, resHandler, true, 500000)
     }
 
-    private static final defaultProps = [
+    static final DEFAULT_PROPS = [
         'swift.AsyncCommit':'true',
         'swift.Notifications':'true',
         'swift.CachePolicy':'CACHED',
@@ -173,14 +103,4 @@ class SwiftSocial {
         'swiftsocial.opGroups':'10000',
         'swiftsocial.thinkTime':'0'
     ]
-
-    static File genPropsFile( Map props) {
-        File f = File.createTempFile("swiftsocial-", ".props")
-        PrintWriter pw = f.newPrintWriter()
-        defaultProps.each { k,v ->
-            pw.printf("%s=%s\n", k, props.get(k) ?: v );
-        }
-        pw.close()
-        return f
-    }
 }

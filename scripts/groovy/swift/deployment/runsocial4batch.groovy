@@ -36,7 +36,7 @@ pnuke(AllMachines, "java", 60)
 //    sh("ant -buildfile smd-jar-build.xml").waitFor()
 //    deployTo(AllMachines, "swiftcloud.jar")
 //    deployTo(AllMachines, "stuff/all_logging.properties", "all_logging.properties")
-deployTo(AllMachines, SwiftSocial.genPropsFile(props).absolutePath, SwiftSocial_Props)
+deployTo(AllMachines, SwiftSocial.genPropsFile(props, SwiftSocial.DEFAULT_PROPS).absolutePath, SwiftSocial_Props)
 
 
 def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
