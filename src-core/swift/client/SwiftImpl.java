@@ -695,6 +695,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     throw x;
                 }
                 fetchError = true;
+            } catch (InterruptedException x) {
+                if (fetchStrictlyRequired) {
+                    throw new NetworkException("Scout was shut down while  fetching an object: " + x.getMessage());
+                }
+                fetchError = true;
             }
             // Pass other exceptions through.
 
@@ -728,7 +733,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         while (true) {
-            fetchObjectVersion(txn, id, create, classOfV, version.clone(), true, updatesListener != null);
+            try {
+                fetchObjectVersion(txn, id, create, classOfV, version.clone(), true, updatesListener != null);
+            } catch (InterruptedException x) {
+                throw new NetworkException("Scout was shut down while  fetching an object: " + x.getMessage());
+            }
 
             try {
                 return getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener, true);
@@ -839,7 +848,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private <V extends CRDT<V>> void fetchObjectVersion(final AbstractTxnHandle txn, CRDTIdentifier id, boolean create,
             Class<V> classOfV, final CausalityClock version, final boolean strictUnprunedVersion,
             final boolean subscribeUpdates) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, InterruptedException {
         // WISHME: Add a real delta-log shipping support?
 
         fetchObjectFromScratch(txn, id, create, classOfV, version, strictUnprunedVersion, subscribeUpdates);
@@ -849,7 +858,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private <V extends CRDT<V>> void fetchObjectFromScratch(final AbstractTxnHandle txn, CRDTIdentifier id,
             boolean create, Class<V> classOfV, CausalityClock version, boolean strictUnprunedVersion,
             boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
-            NetworkException {
+            NetworkException, InterruptedException {
 
         CausalityClock clock, disasterDurableClock;
         synchronized (this) {
@@ -875,7 +884,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final AbstractTxnHandle txn,
             final FetchObjectVersionRequest fetchRequest, Class<V> classOfV, boolean create,
-            Timestamp requestedScoutVersion) throws NetworkException, NoSuchObjectException, WrongTypeException {
+            Timestamp requestedScoutVersion) throws NetworkException, NoSuchObjectException, WrongTypeException,
+            InterruptedException {
 
         synchronized (this) {
             fetchVersionsInProgress.add(fetchRequest.getVersion());
@@ -896,7 +906,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     throw new NetworkException("Fetching object version exceeded the deadline");
                 }
                 if (stopFlag) {
-                    throw new NetworkException("Fetching object version was interrupted by scout shutdown.");
+                    throw new InterruptedException("Fetching object version was interrupted by scout shutdown.");
                 }
             } while (!processFetchObjectReply(txn, fetchRequest, reply, classOfV, create, requestedScoutVersion));
         } finally {
@@ -1286,6 +1296,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
                             + x.getMessage());
+                } catch (InterruptedException x) {
+                    // Scout was closed.
                 }
             }
         });
