@@ -22,6 +22,7 @@ import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
 import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
 import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_TIMEOUT;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
+import static sys.stats.RpcStats.RpcStats;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -150,9 +151,9 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
         // System.err.println(sys.Sys.Sys.mainClass + "/%%%%%%%" + totRPCs.get()
         // );
 
-        // double t0 = Sys.timeMillis();
+        double t0 = Sys.timeMillis();
 
-        // RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+        RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
 
         // if( isServer)
         // Log.info("RPC: " + pkt.payload.getClass() + " from: " +
@@ -170,8 +171,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
             // System.out.printf("%s exec for: %s, took: %s\n",
             // sys.Sys.Sys.mainClass, pkt.payload.getClass(), Sys.timeMillis() -
             // t0);
-            // RpcStats.logRpcExecTime(pkt.payload.getClass(), Sys.timeMillis()
-            // - t0);
+            RpcStats.logRpcExecTime(pkt.payload.getClass(), Sys.timeMillis() - t0);
 
         } else
             Log.warning(sys.Sys.Sys.mainClass + " - No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);

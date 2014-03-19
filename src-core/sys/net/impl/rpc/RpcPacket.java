@@ -17,6 +17,7 @@
 package sys.net.impl.rpc;
 
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
+import static sys.stats.RpcStats.RpcStats;
 
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
@@ -134,7 +135,7 @@ final public class RpcPacket extends AbstractRpcPacket {
     private boolean sendRpcPacket(TransportConnection conn, AbstractRpcPacket handle) {
         try {
             if (conn != null && conn.send(this) || fac.conMgr.send(remote(), this)) {
-                // RpcStats.logSentRpcPacket(this, remote());
+                RpcStats.logSentRpcPacket(this, remote());
                 payload = null;
                 return true;
             } else {

@@ -24,38 +24,80 @@ import java.util.Map;
 import sys.net.api.Endpoint;
 import sys.net.impl.rpc.RpcPacket;
 import sys.scheduler.PeriodicTask;
+import sys.stats.sources.ValueSignalSource;
 import sys.utils.XmlExternalizable;
 
 public class RpcStats extends XmlExternalizable {
+    private static final double[] VALUE_BINS = new double[] {}; // new double[]
+                                                                // { 0, 10, 20,
+                                                                // 50, 100, 500,
+    // 1000, 2000, 5000 };
+
     public static double STATS_BIN_SIZE = 30.0;
 
     public double T0 = Sys.currentTime();
 
-    public Map<String, BinnedTally> rpcRTT = new HashMap<String, BinnedTally>();
-    public Map<String, BinnedTally> inMsgTraffic = new HashMap<String, BinnedTally>();
-    public Map<String, BinnedTally> outMsgTraffic = new HashMap<String, BinnedTally>();
-    public Map<String, BinnedTally> rpcExecTime = new HashMap<String, BinnedTally>();
+    private Map<String, BinnedTally> rpcRTT = new HashMap<String, BinnedTally>();
+    private Map<String, BinnedTally> inMsgTraffic = new HashMap<String, BinnedTally>();
+    private Map<String, BinnedTally> outMsgTraffic = new HashMap<String, BinnedTally>();
+    private Map<String, BinnedTally> rpcExecTime = new HashMap<String, BinnedTally>();
+
+    // New Stats.
+    private ValueSignalSource rttStats;
+    private ValueSignalSource inMsgStats;
+    private ValueSignalSource outMsgStats;
+    private ValueSignalSource msgProcessingTimeStats;
+    private Stats stats;
 
     public RpcStats() {
+        stats = new DummyStats();
+        // FIXME: this does not work (silently fails), but I'd hope it could
+        // eventually replace BinnedTally
+        // stats = StatsImpl.getInstance("rpc",
+        // StatsImpl.SAMPLING_INTERVAL_MILLIS, "statistics-rpc", true);
+        rttStats = stats.getValuesFrequencyOverTime("rpc-occurrence-rtt-ms", VALUE_BINS);
+        inMsgStats = stats.getValuesFrequencyOverTime("int-messsges-occurrence-size-bytes", VALUE_BINS);
+        outMsgStats = stats.getValuesFrequencyOverTime("out-messsges-occurrence-size-bytes", VALUE_BINS);
+        msgProcessingTimeStats = stats.getValuesFrequencyOverTime("messsge-processing-occurrence-time-ms", VALUE_BINS);
         RpcStats = this;
     }
 
     synchronized public void logSentRpcPacket(RpcPacket pkt, Endpoint dst) {
-        String type = pkt.getPayload().getClass().getName();
-        valueFor(outMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
+        try {
+            String type = pkt.getPayload().getClass().getName();
+            valueFor(outMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
+            outMsgStats.setValue(pkt.getSize());
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
     }
 
     synchronized public void logReceivedRpcPacket(RpcPacket pkt, Endpoint src) {
-        String type = pkt.getPayload().getClass().getName();
-        valueFor(inMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
+        try {
+            String type = pkt.getPayload().getClass().getName();
+            valueFor(inMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
+            inMsgStats.setValue(pkt.getSize());
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
     }
 
     synchronized public void logRpcExecTime(Class<?> cl, double time) {
-        valueFor(rpcExecTime, cl.getName(), true).tally(Sys.currentTime(), time);
+        try {
+            valueFor(rpcExecTime, cl.getName(), true).tally(Sys.currentTime(), time);
+            msgProcessingTimeStats.setValue(time);
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
     }
 
     synchronized public void logRpcRTT(Endpoint dst, double rtt) {
-        valueFor(rpcRTT, dst.toString(), true).tally(Sys.currentTime(), rtt);
+        try {
+            valueFor(rpcRTT, dst.toString(), true).tally(Sys.currentTime(), rtt);
+            rttStats.setValue(rtt);
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
     }
 
     private synchronized <K> BinnedTally valueFor(Map<K, BinnedTally> map, K key, boolean create) {
@@ -90,6 +132,7 @@ public class RpcStats extends XmlExternalizable {
                                     dlrate / 1024, ulrate / 1024, rt.totalMemory() >> 20, rt.maxMemory() >> 20);
                         }
                         RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
+                        RpcStats.stats.dump();
                     } catch (Exception x) {
                         x.printStackTrace();
                     }
