@@ -63,6 +63,7 @@ public class FetchObjectVersionReply implements RpcMessage {
         this.status = status;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
+        // TODO: use diff over here?
         this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
     }
 

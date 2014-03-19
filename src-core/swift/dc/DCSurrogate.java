@@ -249,6 +249,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             // estimatedDCStableVersionCopy);
 
             synchronized (crdt) {
+                // FIXME: can we encode a diff between all these clocks on the wire?
                 crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionCopy);
                 if (cltLastSeqNo != null)
                     crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);

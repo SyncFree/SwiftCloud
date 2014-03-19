@@ -140,6 +140,7 @@ public abstract class AbstractSwiftClient extends DB {
     public int insert(String table, String key, HashMap<String, ByteIterator> values) {
         TxnHandle txn = null;
         try {
+            // WISHME: blind updates would help here
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
             int res = insertImpl(txn, table, key, values);
             if (res == 0) {

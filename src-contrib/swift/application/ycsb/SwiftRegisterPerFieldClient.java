@@ -50,7 +50,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
     protected int updateImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         final HashMap<CRDTIdentifier, String> ids = getFieldIds(txn, table, key, values.keySet(), true);
-
+        // WISHME: would blind updates do the job here?
+       
         // Just trigger parallel reads.
         txn.bulkGet(ids.keySet(), null);
         // Then do separate reads to trigger notifications too, and update.
