@@ -903,7 +903,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         numPairs = in.readInt();
         for (int i = in.readInt(); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
-            vv.put(in.readString(), lli);
+            vv.put(in.readString().intern(), lli);
             for (int j = in.readInt(); --j >= 0;) {
                 Interval ii = new Interval();
                 ii.read(kryo, in);
@@ -917,7 +917,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         out.writeInt(numPairs);
         out.writeInt(vv.size());
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
-            out.writeString(e.getKey());
+            out.writeString(e.getKey().intern());
             LinkedList<Interval> lli = e.getValue();
             out.writeInt(lli.size());
             for (Interval ii : e.getValue())

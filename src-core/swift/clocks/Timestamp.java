@@ -124,13 +124,13 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     /************ FOR KRYO ***************/
     @Override
     public void read(Kryo kryo, Input in) {
-        this.siteid = s2s(in.readString());
+        this.siteid = in.readString().intern(); /// s2s(in.readString());
         this.counter = in.readLong();
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        out.writeString(this.siteid);
+        out.writeString(this.siteid.intern());
         out.writeLong(this.counter);
     }
 
