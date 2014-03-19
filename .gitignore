@@ -13,4 +13,5 @@ swiftcloud.pem
 /.gitignore
 statistics*
 teste/
+tmp/
 
