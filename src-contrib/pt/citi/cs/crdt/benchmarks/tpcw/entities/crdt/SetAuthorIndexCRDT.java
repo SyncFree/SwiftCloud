@@ -30,7 +30,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.AbstractAddWinsSetCRDT;
 import swift.crdt.AddWinsUtils;
-import swift.crdt.SetAddUpdate;
+import swift.crdt.AddWinsSetAddUpdate;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
@@ -62,7 +62,7 @@ public class SetAuthorIndexCRDT extends AbstractAddWinsSetCRDT<AuthorIndex, SetA
         cachedIndex = null;
         TripleTimestamp ts = nextTimestamp();
         final Set<TripleTimestamp> overwrittenInstances = AddWinsUtils.add(elems, e, ts);
-        registerLocalOperation(new SetAddUpdate<AuthorIndex, SetAuthorIndexCRDT>(e, ts, overwrittenInstances));
+        registerLocalOperation(new AddWinsSetAddUpdate<AuthorIndex, SetAuthorIndexCRDT>(e, ts, overwrittenInstances));
     }
 
     /**

@@ -21,31 +21,33 @@ import java.util.Set;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTUpdate;
 
-public class SetAddUpdate<V, T extends AbstractAddWinsSetCRDT<V, T>> implements CRDTUpdate<T> {
-    protected V val;
-    protected TripleTimestamp instance;
+public class AddWinsSetRemoveUpdate<V, T extends AbstractAddWinsSetCRDT<V, T>> implements CRDTUpdate<T> {
+    private V val;
     // WISHME: represent it more efficiently using vectors if possible.
     // That would require some substantial API chances, since it's not as easy
     // as using dependenceClock (for example, it can be overapproximated), there
     // are holes in here as well.
-    protected Set<TripleTimestamp> overwrittenAdds;
+    private Set<TripleTimestamp> removedInstances;
 
     // required for kryo
-    public SetAddUpdate() {
+    public AddWinsSetRemoveUpdate() {
     }
 
-    public SetAddUpdate(V val, TripleTimestamp instance, Set<TripleTimestamp> overwrittenAdds) {
-        this.instance = instance;
+    public AddWinsSetRemoveUpdate(V val, Set<TripleTimestamp> ids) {
         this.val = val;
-        this.overwrittenAdds = overwrittenAdds;
+        this.removedInstances = ids;
     }
 
     public V getVal() {
         return this.val;
     }
 
+    public Set<TripleTimestamp> getIds() {
+        return this.removedInstances;
+    }
+
     @Override
     public void applyTo(T crdt) {
-        crdt.applyAdd(val, instance, overwrittenAdds);
+        crdt.applyRemove(val, removedInstances);
     }
 }

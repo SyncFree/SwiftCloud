@@ -16,23 +16,28 @@
  *****************************************************************************/
 package swift.crdt;
 
+import java.util.Set;
+
 import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTUpdate;
-import swift.crdt.core.Copyable;
 
-public class RegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
+public class AddWinsSetAddUpdate<V, T extends AbstractAddWinsSetCRDT<V, T>> implements CRDTUpdate<T> {
     protected V val;
-    protected long registerTimestamp;
-    protected TripleTimestamp tiebreakingTimestamp;
+    protected TripleTimestamp instance;
+    // WISHME: represent it more efficiently using vectors if possible.
+    // That would require some substantial API chances, since it's not as easy
+    // as using dependenceClock (for example, it can be overapproximated), there
+    // are holes in here as well.
+    protected Set<TripleTimestamp> overwrittenAdds;
 
     // required for kryo
-    public RegisterUpdate() {
+    public AddWinsSetAddUpdate() {
     }
 
-    public RegisterUpdate(long registerTimestamp, TripleTimestamp tiebreakingTimestamp, V val) {
-        this.registerTimestamp = registerTimestamp;
-        this.tiebreakingTimestamp = tiebreakingTimestamp;
+    public AddWinsSetAddUpdate(V val, TripleTimestamp instance, Set<TripleTimestamp> overwrittenAdds) {
+        this.instance = instance;
         this.val = val;
+        this.overwrittenAdds = overwrittenAdds;
     }
 
     public V getVal() {
@@ -40,7 +45,7 @@ public class RegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
     }
 
     @Override
-    public void applyTo(LWWRegisterCRDT<V> register) {
-        register.applySet(registerTimestamp, tiebreakingTimestamp, val);
+    public void applyTo(T crdt) {
+        crdt.applyAdd(val, instance, overwrittenAdds);
     }
 }

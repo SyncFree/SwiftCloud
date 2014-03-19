@@ -73,13 +73,13 @@ public abstract class AbstractAddWinsSetCRDT<V, T extends AbstractAddWinsSetCRDT
     public void add(final V element) {
         final TripleTimestamp ts = nextTimestamp();
         final Set<TripleTimestamp> existingInstances = AddWinsUtils.add(getElementsInstances(), element, ts);
-        registerLocalOperation(new SetAddUpdate<V, T>(element, ts, existingInstances));
+        registerLocalOperation(new AddWinsSetAddUpdate<V, T>(element, ts, existingInstances));
     }
 
     public void remove(V element) {
         Set<TripleTimestamp> removedInstances = AddWinsUtils.remove(getElementsInstances(), element);
         if (removedInstances != null) {
-            registerLocalOperation(new SetRemoveUpdate<V, T>(element, removedInstances));
+            registerLocalOperation(new AddWinsSetRemoveUpdate<V, T>(element, removedInstances));
         }
     }
 

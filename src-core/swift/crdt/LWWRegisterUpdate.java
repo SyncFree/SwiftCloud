@@ -16,38 +16,30 @@
  *****************************************************************************/
 package swift.crdt;
 
-import java.util.Set;
-
 import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTUpdate;
 
-public class SetRemoveUpdate<V, T extends AbstractAddWinsSetCRDT<V, T>> implements CRDTUpdate<T> {
-    private V val;
-    // WISHME: represent it more efficiently using vectors if possible.
-    // That would require some substantial API chances, since it's not as easy
-    // as using dependenceClock (for example, it can be overapproximated), there
-    // are holes in here as well.
-    private Set<TripleTimestamp> removedInstances;
+public class LWWRegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
+    protected V val;
+    protected long registerTimestamp;
+    protected TripleTimestamp tiebreakingTimestamp;
 
     // required for kryo
-    public SetRemoveUpdate() {
+    public LWWRegisterUpdate() {
     }
 
-    public SetRemoveUpdate(V val, Set<TripleTimestamp> ids) {
+    public LWWRegisterUpdate(long registerTimestamp, TripleTimestamp tiebreakingTimestamp, V val) {
+        this.registerTimestamp = registerTimestamp;
+        this.tiebreakingTimestamp = tiebreakingTimestamp;
         this.val = val;
-        this.removedInstances = ids;
     }
 
     public V getVal() {
         return this.val;
     }
 
-    public Set<TripleTimestamp> getIds() {
-        return this.removedInstances;
-    }
-
     @Override
-    public void applyTo(T crdt) {
-        crdt.applyRemove(val, removedInstances);
+    public void applyTo(LWWRegisterCRDT<V> register) {
+        register.applySet(registerTimestamp, tiebreakingTimestamp, val);
     }
 }

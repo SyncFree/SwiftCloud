@@ -31,9 +31,9 @@ import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.IntegerCRDT;
 import swift.crdt.IntegerUpdate;
 import swift.crdt.LWWRegisterCRDT;
-import swift.crdt.RegisterUpdate;
-import swift.crdt.SetAddUpdate;
-import swift.crdt.SetRemoveUpdate;
+import swift.crdt.LWWRegisterUpdate;
+import swift.crdt.AddWinsSetAddUpdate;
+import swift.crdt.AddWinsSetRemoveUpdate;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
@@ -99,7 +99,7 @@ public class KryoCRDTUtils {
         // registerable.register(SetStrings.class, 0x63);
         // registerable.register(SetVersioned.class, 0x64);
         registerable.register(IntegerCRDT.class, 0x6D);
-        
+
         registerable.register(ClientRequest.class, 0x70);
         registerable.register(CommitUpdatesRequest.class, 0x71);
         registerable.register(CommitUpdatesReply.class, 0x72);
@@ -113,14 +113,14 @@ public class KryoCRDTUtils {
         registerable.register(LatestKnownClockRequest.class, 0x7F);
         registerable.register(LatestKnownClockReply.class, 0x80);
 
-        registerable.register(UnsubscribeUpdatesRequest.class, 0x84);
+        registerable.register(UnsubscribeUpdatesRequest.class, 0x81);
 
-        registerable.register(CRDTObjectUpdatesGroup.class, 0x85);
-        registerable.register(AddWinsSetCRDT.class, 0x86);
-        registerable.register(IntegerUpdate.class, 0x87);
-        registerable.register(RegisterUpdate.class, 0x88);
-        registerable.register(SetAddUpdate.class, 0x89);
-        registerable.register(SetRemoveUpdate.class, 0x8A);
+        registerable.register(CRDTObjectUpdatesGroup.class, 0x82);
+        registerable.register(AddWinsSetCRDT.class, 0x83);
+        registerable.register(IntegerUpdate.class, 0x84);
+        registerable.register(LWWRegisterUpdate.class, 0x85);
+        registerable.register(AddWinsSetAddUpdate.class, 0x86);
+        registerable.register(AddWinsSetRemoveUpdate.class, 0x87);
 
         registerable.register(CommitTSRequest.class, 0x8B);
         registerable.register(CommitTSReply.class, 0x8C);

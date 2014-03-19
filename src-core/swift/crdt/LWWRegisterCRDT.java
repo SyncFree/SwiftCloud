@@ -63,7 +63,7 @@ public class LWWRegisterCRDT<V> extends BaseCRDT<LWWRegisterCRDT<V>> implements 
     public void set(V v) {
         val = v;
         TripleTimestamp ts = nextTimestamp();
-        registerLocalOperation(new RegisterUpdate<V>(++timestamp, ts, v));
+        registerLocalOperation(new LWWRegisterUpdate<V>(++timestamp, ts, v));
     }
 
     @Override
