@@ -1,6 +1,5 @@
 package swift.deployment
 
-import swift.deployment.Tools
 import static swift.deployment.Tools.*
 
 class SwiftBase {
@@ -72,8 +71,8 @@ class SwiftBase {
     static File genPropsFile(Map props, Map defaultProps = []) {
         File f = File.createTempFile("swif-", ".props")
         PrintWriter pw = f.newPrintWriter()
-        defaultProps.each { k,v ->
-            pw.printf("%s=%s\n", k, props.get(k) ?: v );
+        (defaultProps.keySet() + props.keySet()).unique().each { k ->
+            pw.printf("%s=%s\n", k, props.get(k) ? props.get(k) : defaultProps.get(k) );
         }
         pw.close()
         return f
