@@ -51,6 +51,10 @@ public class DummyStats implements Stats {
     }
 
     @Override
-    public void outputAndDispose() throws IOException {
+    public void dump() throws IOException {
+    }
+
+    @Override
+    public void terminate() {
     }
 }

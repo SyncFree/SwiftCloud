@@ -428,7 +428,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 logger.warning("Stopping while there are pending transactions!");
 
                 try {
-                    stats.outputAndDispose();
+                    stats.dump();
+                    stats.terminate();
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -453,7 +454,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         cacheStats.printAndReset();
 
         try {
-            stats.outputAndDispose();
+            stats.dump();
+            stats.terminate();
         } catch (IOException e) {
             logger.warning("Couldn't write statistics file: cause: " + e);
         }

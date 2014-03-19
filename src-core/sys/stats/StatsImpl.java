@@ -39,10 +39,8 @@ import sys.stats.sources.PollingBasedValueProvider;
 import sys.stats.sources.ValueSignalSource;
 
 /**
- * Collects statistics for different types of sources over time. Enables
- * collecting values opportunistically, or periodically, with different
- * semantics. Class is intended to use as a singleton, which requires special
- * attention to re-use of names.
+ * Implementations of statistics collecting model Class is intended to use as a
+ * singleton, which requires special attention to re-use of names.
  * 
  * @author balegas
  * 
@@ -58,7 +56,7 @@ public final class StatsImpl implements Stats {
     private Map<String, Pair<FixedRateValueOverTime, PollingBasedValueProvider>> pollingProviders;
     private Map<String, Pair<Integer, Long>> pollingUpdates;
     private int maxSamplingInterval;
-    private boolean terminate = true;
+    private volatile boolean terminate = true;
 
     private Thread pollWorker;
 
@@ -107,7 +105,8 @@ public final class StatsImpl implements Stats {
             stats.init(samplingInterval);
             statisticsByName.put(name, stats);
         } else {
-            logger.log(Level.WARNING, "Stats " + name + " already initialized ignoring output folder and sampling interval");
+            logger.log(Level.WARNING, "Stats " + name
+                    + " already initialized ignoring output folder and sampling interval");
         }
         return stats;
     }
@@ -175,101 +174,8 @@ public final class StatsImpl implements Stats {
         pollWorker.start();
     }
 
-    /**
-     * Writes the gathered statistics to the output folder since the creation of
-     * the statistics manager. Probe names with ":" are split and created in
-     * sub-folders accordingly
-     * 
-     * @throws IOException
-     */
     @Override
-    public void outputAndDispose() throws IOException {
-        terminate = true;
-        dump();
-
-    }
-
-    /**
-     * Returns a CounterSignalSource with the given name and value 0, or an
-     * already existing one with the current value.
-     * 
-     * @param statName
-     *            the name of the counter
-     * @return CounterSignalSource
-     */
-    @Override
-    public CounterSignalSource getCountingSourceForStat(String statName) {
-        CounterOverTime cs = null;
-        synchronized (countigSources) {
-            cs = countigSources.get(statName);
-            if (cs == null) {
-                cs = new CounterOverTime(maxSamplingInterval, statName);
-                countigSources.put(statName, cs);
-            } else {
-                logger.log(Level.FINE, "CounterSignalSource " + statName + " already initialized");
-
-            }
-        }
-        return cs;
-    }
-
-    /**
-     * Returns an empty ValueSignalSource with the given name, or an already
-     * existing one with the gathered values, ignoring the requested bins.
-     * 
-     * @param statName
-     *            the name of the ValueSignalSource
-     * @param valueBins
-     *            an array containing the values to store the frequency. Values
-     *            in-between are assigned to the greatest specified.
-     * @return CounterSignalSource
-     */
-    @Override
-    public ValueSignalSource getValuesFrequencyOverTime(String statName, double... valueBins) {
-
-        HistogramOverTime hist = null;
-        synchronized (valuesFrequencySource) {
-            hist = valuesFrequencySource.get(statName);
-            if (hist == null) {
-                Arrays.sort(valueBins);
-                hist = new HistogramOverTime(StatsConstants.histogramTimeFrequency, valueBins, statName);
-                valuesFrequencySource.put(statName, hist);
-            } else {
-                logger.log(Level.FINE, "ValueSignalSource " + statName + " already initialized ignoring value bins");
-            }
-        }
-        return hist;
-    }
-
-    /**
-     * Assigns a new polling based statistics gatherer to this statistics
-     * manager
-     * 
-     * @param statName
-     *            the name of the polling based value provider
-     * @param provider
-     *            the implementation of the provider
-     * @param frequency
-     */
-    @Override
-    public void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider, int frequency) {
-        Pair<FixedRateValueOverTime, PollingBasedValueProvider> ps = null;
-        synchronized (pollingProviders) {
-            ps = pollingProviders.get(statName);
-            if (ps == null) {
-
-                Pair<FixedRateValueOverTime, PollingBasedValueProvider> p = new Pair<FixedRateValueOverTime, PollingBasedValueProvider>(
-                        new FixedRateValueOverTime(maxSamplingInterval, statName), provider);
-                pollingProviders.put(statName, p);
-                pollingUpdates.put(statName, new Pair<Integer, Long>(frequency, System.currentTimeMillis()));
-            } else {
-                logger.log(Level.FINE, "PollingBasedValueProvider " + statName + " already initialized");
-
-            }
-        }
-    }
-
-    private void dump() throws IOException {
+    public void dump() throws IOException {
         File dir;
         if (!overwriteDir) {
             AtomicInteger suffixCounter = new AtomicInteger();
@@ -320,6 +226,65 @@ public final class StatsImpl implements Stats {
                 BufferedFileDumper statsOutput = createFile(dir, pollingValues.getKey() + "-poll");
                 statsOutput.output(pollingValues.getValue().getFirst());
                 statsOutput.close();
+            }
+        }
+    }
+
+    @Override
+    public void terminate() {
+        terminate = true;
+    }
+
+    @Override
+    public CounterSignalSource getCountingSourceForStat(String statName) {
+        CounterOverTime cs = null;
+        synchronized (countigSources) {
+            cs = countigSources.get(statName);
+            if (cs == null) {
+                cs = new CounterOverTime(maxSamplingInterval, statName);
+                countigSources.put(statName, cs);
+            } else {
+                logger.log(Level.FINE, "CounterSignalSource " + statName + " already initialized");
+
+            }
+        }
+        return cs;
+    }
+
+    @Override
+    public ValueSignalSource getValuesFrequencyOverTime(String statName, double... valueBins) {
+
+        if (valueBins == null || valueBins.length == 0) {
+            valueBins = new double[] {Double.MAX_VALUE};
+        }
+        HistogramOverTime hist = null;
+        synchronized (valuesFrequencySource) {
+            hist = valuesFrequencySource.get(statName);
+            if (hist == null) {
+                Arrays.sort(valueBins);
+                hist = new HistogramOverTime(StatsConstants.histogramTimeFrequency, valueBins, statName);
+                valuesFrequencySource.put(statName, hist);
+            } else {
+                logger.log(Level.FINE, "ValueSignalSource " + statName + " already initialized ignoring value bins");
+            }
+        }
+        return hist;
+    }
+
+    @Override
+    public void registerPollingBasedValueProvider(String statName, PollingBasedValueProvider provider, int frequency) {
+        Pair<FixedRateValueOverTime, PollingBasedValueProvider> ps = null;
+        synchronized (pollingProviders) {
+            ps = pollingProviders.get(statName);
+            if (ps == null) {
+
+                Pair<FixedRateValueOverTime, PollingBasedValueProvider> p = new Pair<FixedRateValueOverTime, PollingBasedValueProvider>(
+                        new FixedRateValueOverTime(maxSamplingInterval, statName), provider);
+                pollingProviders.put(statName, p);
+                pollingUpdates.put(statName, new Pair<Integer, Long>(frequency, System.currentTimeMillis()));
+            } else {
+                logger.log(Level.FINE, "PollingBasedValueProvider " + statName + " already initialized");
+
             }
         }
     }

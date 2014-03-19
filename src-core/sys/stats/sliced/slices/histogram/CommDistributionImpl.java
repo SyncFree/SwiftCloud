@@ -40,7 +40,8 @@ public class CommDistributionImpl implements Histogram, SlicedStatistics<CommDis
         }
         if (Double.MAX_VALUE > values[values.length - 1])
             countLessThan.add(new Pair<Double, Integer>(Double.MAX_VALUE, 0));
-        this.max = values[values.length - 1];
+        this.max = countLessThan.size() >= 2 ? countLessThan.get(countLessThan.size() - 2).getFirst()
+                : Double.MIN_VALUE;
     }
 
     public void addValue(double value) {

@@ -30,11 +30,13 @@ public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributio
         HistogramOutput {
 
     private double[] commValues;
-    private double max = Double.MIN_VALUE;
+    private double max;
 
     public HistogramOverTime(long timeSlice, double[] commValues, String sourceName) {
         super(timeSlice, new CommDistributionImpl(sourceName, commValues));
         this.commValues = commValues;
+        // TODO: Fix in case commValues = { Double.MAX_VALUE} is passed
+        this.max = commValues[commValues.length - 1];
     }
 
     @Override
@@ -73,10 +75,11 @@ public class HistogramOverTime extends GenericStatisticsOverTime<CommDistributio
     @Override
     public String getHistogramBinValues() {
         char ds = StatsConstants.VS;
-        String header = "TIME" + ds + "BETWEEN_-INF_" + commValues[0];
-        for (int i = 1; i < commValues.length; i++)
-            header += ds + "BETWEEN_" + commValues[i - 1] + "_" + commValues[i];
-        header += +ds + "BETWEEN_" + commValues[commValues.length - 1] + "_" + max;
+        String header = "TIME" + ds + "OCURRENCES_VALUE_-INF_TO_" + (int) (commValues.length == 1 ? max : commValues[0]);
+        for (int i = 1; i < commValues.length; i++) {
+            header += ds + "VALUE_" + (int) commValues[i - 1] + "_TO_"
+                    + (int) (i == commValues.length - 1 ? max : commValues[i]);
+        }
         return header;
     }
 }

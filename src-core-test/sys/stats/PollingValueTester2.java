@@ -58,7 +58,8 @@ public class PollingValueTester2 {
         assertEquals(5, v.getY().intValue());
 
         try {
-            stats.outputAndDispose();
+            stats.dump();
+            stats.terminate();
         } catch (IOException e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
