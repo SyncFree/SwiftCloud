@@ -22,15 +22,16 @@ import org.junit.Test;
 
 public class TimestampTest {
 
-    @Test
-    public void cloneTest() {
-        IncrementalTimestampGenerator gen = new IncrementalTimestampGenerator("s1");
-        Timestamp t1 = gen.generateNew();
-        Timestamp t2 = t1.clone();
-
-        assertTrue(t1.equals(t2));
-        assertTrue(t1.includes(t2));
-    }
+    // @Test
+    // public void cloneTest() {
+    // IncrementalTimestampGenerator gen = new
+    // IncrementalTimestampGenerator("s1");
+    // Timestamp t1 = gen.generateNew();
+    // Timestamp t2 = t1.clone();
+    //
+    // assertTrue(t1.equals(t2));
+    // assertTrue(t1.includes(t2));
+    // }
 
     @Test
     public void diffIdsTest() {

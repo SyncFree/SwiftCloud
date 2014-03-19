@@ -877,9 +877,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // Record and drop scout's entry from the requested clock (efficiency?).
         final Timestamp requestedScoutVersion = version.getLatest(scoutId);
         version.drop(this.scoutId);
-        // FIXME: remove measurement-related data?
+        // FIXME: bring back measurement-related data?
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, id, version,
-                strictUnprunedVersion, clock, disasterDurableClock, subscribeUpdates);
+                strictUnprunedVersion, subscribeUpdates);
 
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create, requestedScoutVersion);
     }
@@ -1432,7 +1432,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
                 operationsGroups.add(group.withDependencyClock(optimizedDependencyClock));
             }
-            requests.add(new CommitUpdatesRequest(scoutId, txn.getClientTimestamp(), txn.getUpdatesDependencyClock(),
+            requests.add(new CommitUpdatesRequest(scoutId, txn.getClientTimestamp(), optimizedDependencyClock,
                     operationsGroups));
         }
 

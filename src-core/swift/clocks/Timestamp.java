@@ -88,10 +88,6 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
         return "(" + siteid + "," + counter + ")";
     }
 
-    public Timestamp clone() {
-        return new Timestamp(this.siteid, this.counter);
-    }
-
     /**
      * Compares two timestamps, possibly of different dimensions. This
      * implementations compares only common dimensions and then looks at siteId.

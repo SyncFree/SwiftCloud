@@ -43,7 +43,7 @@ public class DottedVersionVector implements CausalityClock {
     protected DottedVersionVector(DottedVersionVector v) {
         vv = new TreeMap<String, Long>(v.vv);
         if (v.ts != null) {
-            ts = v.ts.clone();
+            ts = v.ts;
         }
     }
 
