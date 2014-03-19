@@ -4,7 +4,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 class Parallel {
-    static String ACCOUNT = "fctple_SwiftCloud"
+    static String ACCOUNT = "ubuntu"
 
     static Executor threads = Executors.newFixedThreadPool(48)
 

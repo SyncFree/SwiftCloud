@@ -10,7 +10,7 @@ class SwiftYCSB extends SwiftBase {
     static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
 
-        def cmd = "-Dswiftcloud.hostname=" + server + " " + INITDB_CMD + " -load -s -P " + config + " -threads " + threads +" "
+        def cmd = INITDB_CMD + " -load -s -P " + config + " -p swift.hostname=" + server + " -threads " + threads +" "
         def res = rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "initdb-stdout.txt", "initdb-stderr.txt")).waitFor()
         println "OK.\n"
         return res
@@ -20,7 +20,7 @@ class SwiftYCSB extends SwiftBase {
         def cmd = { host ->
             // TODO: support multiple clients properly
             // String partition = scouts.indexOf( host ) + "/" + scouts.size()
-            def res = "nohup java -Xmx" + heap + " -Dswift.hostname=" + server + " " + YCSB_CMD + " -t -s -P " + config + " -threads " + threads +" "
+            def res = "nohup java -Xmx" + heap + " " + YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + server + " -threads " + threads +" "
             res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
             return res;
         }
