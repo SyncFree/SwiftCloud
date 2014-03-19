@@ -27,6 +27,8 @@ import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.clocks.VersionVectorWithExceptions;
+import swift.crdt.AddOnlySetCRDT;
+import swift.crdt.AddOnlySetUpdate;
 import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.IntegerCRDT;
 import swift.crdt.IntegerUpdate;
@@ -121,6 +123,8 @@ public class KryoCRDTUtils {
         registerable.register(LWWRegisterUpdate.class, 0x85);
         registerable.register(AddWinsSetAddUpdate.class, 0x86);
         registerable.register(AddWinsSetRemoveUpdate.class, 0x87);
+        registerable.register(AddOnlySetCRDT.class, 0x88);
+        registerable.register(AddOnlySetUpdate.class, 0x89);
 
         registerable.register(CommitTSRequest.class, 0x8B);
         registerable.register(CommitTSReply.class, 0x8C);
