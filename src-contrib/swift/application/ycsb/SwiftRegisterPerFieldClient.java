@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.AddOnlySetCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
@@ -19,7 +19,7 @@ import com.yahoo.ycsb.StringByteIterator;
 /**
  * SwiftCloud YCSB client based on Last Writer Wins register and Set. Each
  * fields is represented as LWW register and a set of fields for a key is
- * repesented as Add-Wins Set. Every operation runs within a single synchronous
+ * repesented as Add-only Set. Every operation runs within a single synchronous
  * transaction.
  * 
  * @author mzawirsk
@@ -67,7 +67,7 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
     protected int insertImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        AddWinsSetCRDT<String> fieldsInfo = txn.get(new CRDTIdentifier(table, key), true, AddWinsSetCRDT.class,
+        AddOnlySetCRDT<String> fieldsInfo = txn.get(new CRDTIdentifier(table, key), true, AddOnlySetCRDT.class,
                 notificationsSubscriber);
         for (final String field : values.keySet()) {
             fieldsInfo.add(field);
@@ -90,8 +90,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         if (fields == null) {
             // Retrieve information on fields.
             @SuppressWarnings("unchecked")
-            final AddWinsSetCRDT<String> fieldsInfo = txn.get(new CRDTIdentifier(table, key), create,
-                    AddWinsSetCRDT.class, notificationsSubscriber);
+            final AddOnlySetCRDT<String> fieldsInfo = txn.get(new CRDTIdentifier(table, key), create,
+                    AddOnlySetCRDT.class, notificationsSubscriber);
             fields = fieldsInfo.getValue();
         }
         final HashMap<CRDTIdentifier, String> ids = new HashMap<CRDTIdentifier, String>(fields.size(), 2.0f);
