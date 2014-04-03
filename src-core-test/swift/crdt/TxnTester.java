@@ -37,10 +37,10 @@ import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.CRDTUpdate;
+import swift.crdt.core.ManagedCRDT;
 import swift.crdt.core.ObjectUpdatesListener;
 import swift.crdt.core.TxnHandle;
 import swift.crdt.core.TxnStatus;
-import swift.crdt.core.ManagedCRDT;
 import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.WrongTypeException;
 
@@ -77,14 +77,16 @@ public class TxnTester implements TxnHandle {
             ManagedCRDT<?>... existingObjects) {
         this.versions = new HashMap<CRDTIdentifier, CRDT<?>>();
         this.objects = new HashMap<CRDTIdentifier, ManagedCRDT<?>>();
-        for (final ManagedCRDT<?> managedCRDT : existingObjects) {
-            objects.put(managedCRDT.getUID(), managedCRDT);
-        }
         this.operations = new HashMap<CRDTIdentifier, CRDTObjectUpdatesGroup<?>>();
         this.cc = latestVersion;
         this.tm = new TimestampMapping(ts);
         this.timestampGenerator = new IncrementalTripleTimestampGenerator(ts);
         this.globalTimestamp = globalTs;
+        for (final ManagedCRDT<?> managedCRDT : existingObjects) {
+            objects.put(managedCRDT.getUID(), managedCRDT);
+            operations
+                    .put(managedCRDT.getUID(), new CRDTObjectUpdatesGroup(managedCRDT.getUID(), tm, null, cc.clone()));
+        }
     }
 
     public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV) throws WrongTypeException,
