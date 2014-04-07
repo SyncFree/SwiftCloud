@@ -21,7 +21,7 @@ import java.util.Set;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTUpdate;
 
-public class ReleaseSharedLockUpdate implements CRDTUpdate<SharedLockCRDT> {
+public class ReleaseOwnershipUpdate implements CRDTUpdate<SharedLockCRDT> {
 
     private String requesterId;
     private LockType type;
@@ -29,10 +29,10 @@ public class ReleaseSharedLockUpdate implements CRDTUpdate<SharedLockCRDT> {
     private String parentId;
 
     // required for kryo
-    public ReleaseSharedLockUpdate() {
+    public ReleaseOwnershipUpdate() {
     }
 
-    public ReleaseSharedLockUpdate(String requesterId, String parentId, LockType type, Set<TripleTimestamp> timestamps) {
+    public ReleaseOwnershipUpdate(String requesterId, String parentId, LockType type, Set<TripleTimestamp> timestamps) {
         this.requesterId = requesterId;
         this.parentId = parentId;
         this.type = type;

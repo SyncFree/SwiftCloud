@@ -87,8 +87,10 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         return false;
     }
 
-    private boolean canReleaseOwnership(String requesterId, String parentId, LockType type) {
-        if (requesterId.equals(parentId) && isOwner(requesterId, type)) {
+    private boolean canReleaseOwnership(String parentId, LockType type) {
+        if (active.get(parentId) != null) {
+            return false;
+        } else if (isOwner(parentId, type)) {
             return true;
         } else {
             return false;
@@ -104,7 +106,7 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
 
     public boolean getOwnership(String parentId, String requesterId, LockType type) {
         if (canGetOwnership(requesterId, parentId, type)) {
-            GetSharedLockUpdate op = new GetSharedLockUpdate(requesterId, parentId, type, nextTimestamp());
+            GetOwnershipUpdate op = new GetOwnershipUpdate(requesterId, parentId, type, nextTimestamp());
             applyGetOwnership(op);
             registerLocalOperation(op);
             return true;
@@ -112,14 +114,14 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         return false;
     }
 
-    public boolean releaseOwnership(String parentId, String requesterId, LockType type) {
-        if (canReleaseOwnership(requesterId, parentId, type)) {
-            Set<TripleTimestamp> removeTs = sharedOwners.get(requesterId);
+    public boolean releaseOwnership(String ownerId, LockType type) {
+        if (canReleaseOwnership(ownerId, type)) {
+            Set<TripleTimestamp> removeTs = sharedOwners.get(ownerId);
             // Treat
             if (removeTs == null) {
                 removeTs = new HashSet<TripleTimestamp>();
             }
-            ReleaseSharedLockUpdate op = new ReleaseSharedLockUpdate(requesterId, parentId, type,
+            ReleaseOwnershipUpdate op = new ReleaseOwnershipUpdate(ownerId, ownerId, type,
                     new HashSet<TripleTimestamp>(removeTs));
             applyReleaseOwnership(op);
             registerLocalOperation(op);
@@ -128,14 +130,35 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         return false;
     }
 
-    protected void applyGetOwnership(GetSharedLockUpdate op) {
+    public boolean lock(String ownerId, LockType type) {
+        if (isOwner(ownerId, type)
+                && (!type.equals(LockType.WRITE_EXCLUSIVE) || (type.equals(LockType.WRITE_EXCLUSIVE) && active
+                        .get(ownerId) == null))) {
+            AcquireLockUpdate op = new AcquireLockUpdate(ownerId, type);
+            applyAcquireLock(op);
+            registerLocalOperation(op);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean unlock(String ownerId, LockType type) {
+        if (isOwner(ownerId, type) && active.containsKey(ownerId)) {
+            ReleaseLockUpdate op = new ReleaseLockUpdate(ownerId, type);
+            applyReleaseLock(op);
+            registerLocalOperation(op);
+            return true;
+        }
+        return false;
+    }
+
+    protected void applyGetOwnership(GetOwnershipUpdate op) {
         // Check if the pre-condition of getOwnership is still valid
         if (!canGetOwnership(op.getRequesterId(), op.getParentId(), op.getType()))
             throw new IncompatibleLockException("Can't get ownership on downstream! op: " + op + " current: " + this);
         else if (op.getType().equals(LockType.WRITE_EXCLUSIVE)) {
             owner = op.getRequesterId();
-        } else if (!op.getParentId().equals(owner) && op.getType().equals(LockType.READ_SHARED)
-                || op.getType().equals(LockType.WRITE_SHARED)) {
+        } else if (op.getType().equals(LockType.READ_SHARED) || op.getType().equals(LockType.WRITE_SHARED)) {
             Set<TripleTimestamp> tsRequester = sharedOwners.get(op.getRequesterId());
             if (tsRequester == null) {
                 tsRequester = new HashSet<TripleTimestamp>();
@@ -146,10 +169,11 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         type = op.getType();
     }
 
-    public void applyReleaseOwnership(ReleaseSharedLockUpdate op) {
+    public void applyReleaseOwnership(ReleaseOwnershipUpdate op) {
         // Check if everything is all right again
         if (!op.getType().equals(type))
-            throw new IncompatibleLockException("Request release of an old lock" + op + " current: " + this);
+            throw new IncompatibleLockException("Request to release ownership for a different type" + op + " current: "
+                    + this);
         if (op.getType().equals(LockType.WRITE_EXCLUSIVE)) {
             type = LockType.WRITE_SHARED;
         } else {
@@ -158,6 +182,29 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
             if (ts.size() == 0) {
                 sharedOwners.remove(op.getRequesterId());
             }
+        }
+    }
+
+    public void applyAcquireLock(AcquireLockUpdate op) {
+        if (!op.getType().equals(type))
+            throw new IncompatibleLockException("Request to use a lock with different type" + op + " current: " + this);
+        Integer activeUsers = active.get(op.getOwnerId());
+        if (activeUsers == null)
+            active.put(op.getOwnerId(), 1);
+        else
+            active.put(op.getOwnerId(), activeUsers + 1);
+    }
+
+    public void applyReleaseLock(ReleaseLockUpdate op) {
+        if (!op.getType().equals(type))
+            throw new IncompatibleLockException("Request to release a lock with different type" + op + " current: "
+                    + this);
+        Integer activeUsers = active.get(op.getOwnerId());
+        activeUsers = activeUsers - 1;
+        if (activeUsers > 0) {
+            active.put(op.getOwnerId(), activeUsers);
+        } else {
+            active.remove(op.getOwnerId());
         }
     }
 
