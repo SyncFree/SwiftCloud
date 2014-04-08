@@ -44,7 +44,7 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
     public SharedLockCRDT(CRDTIdentifier id, String owner) {
         super(id);
         this.owner = owner;
-        this.type = LockType.WRITE_SHARED;
+        this.type = LockType.ALLOW;
         this.sharedOwners = new HashMap<String, Set<TripleTimestamp>>();
         this.active = new HashMap<String, Integer>();
     }
@@ -76,7 +76,7 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
      * Returns true if the siteId is able to get the lock on requestType
      */
     private boolean canGetOwnership(String requesterId, String parentId, LockType requestType) {
-        if (type.equals(LockType.WRITE_EXCLUSIVE)) {
+        if (type.equals(LockType.EXCLUSIVE_ALLOW)) {
             return false;
         }
         if (parentId.equals(owner) && sharedOwners.isEmpty()) {
@@ -132,7 +132,7 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
 
     public boolean lock(String ownerId, LockType type) {
         if (isOwner(ownerId, type)
-                && (!type.equals(LockType.WRITE_EXCLUSIVE) || (type.equals(LockType.WRITE_EXCLUSIVE) && active
+                && (!type.equals(LockType.EXCLUSIVE_ALLOW) || (type.equals(LockType.EXCLUSIVE_ALLOW) && active
                         .get(ownerId) == null))) {
             AcquireLockUpdate op = new AcquireLockUpdate(ownerId, type);
             applyAcquireLock(op);
@@ -156,9 +156,9 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         // Check if the pre-condition of getOwnership is still valid
         if (!canGetOwnership(op.getRequesterId(), op.getParentId(), op.getType()))
             throw new IncompatibleLockException("Can't get ownership on downstream! op: " + op + " current: " + this);
-        else if (op.getType().equals(LockType.WRITE_EXCLUSIVE)) {
+        else if (op.getType().equals(LockType.EXCLUSIVE_ALLOW)) {
             owner = op.getRequesterId();
-        } else if (op.getType().equals(LockType.READ_SHARED) || op.getType().equals(LockType.WRITE_SHARED)) {
+        } else if (op.getType().equals(LockType.FORBID) || op.getType().equals(LockType.ALLOW)) {
             Set<TripleTimestamp> tsRequester = sharedOwners.get(op.getRequesterId());
             if (tsRequester == null) {
                 tsRequester = new HashSet<TripleTimestamp>();
@@ -174,8 +174,8 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         if (!op.getType().equals(type))
             throw new IncompatibleLockException("Request to release ownership for a different type" + op + " current: "
                     + this);
-        if (op.getType().equals(LockType.WRITE_EXCLUSIVE)) {
-            type = LockType.WRITE_SHARED;
+        if (op.getType().equals(LockType.EXCLUSIVE_ALLOW)) {
+            type = LockType.ALLOW;
         } else {
             Set<TripleTimestamp> ts = sharedOwners.get(op.getRequesterId());
             ts.removeAll(op.getTimestamps());

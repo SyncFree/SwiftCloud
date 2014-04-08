@@ -114,37 +114,37 @@ public class SharedLockConcurrencyTest {
 
     @Test
     public void requestReceiveTest() {
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_EXCLUSIVE, lock1, swift1), true);
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_SHARED, lock1, swift1), false);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.EXCLUSIVE_ALLOW, lock1, swift1), true);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.ALLOW, lock1, swift1), false);
         swift2.merge(lock2, lock1, swift1);
-        assertEquals(getLatestVersion(lock2, swift2.beginTxn()).getValue(), LockType.WRITE_EXCLUSIVE);
-        assertEquals(registerReleaseTxn(siteA, LockType.WRITE_SHARED, lock2, swift2), false);
-        assertEquals(registerReleaseTxn(siteB, LockType.WRITE_EXCLUSIVE, lock2, swift2), true);
+        assertEquals(getLatestVersion(lock2, swift2.beginTxn()).getValue(), LockType.EXCLUSIVE_ALLOW);
+        assertEquals(registerReleaseTxn(siteA, LockType.ALLOW, lock2, swift2), false);
+        assertEquals(registerReleaseTxn(siteB, LockType.EXCLUSIVE_ALLOW, lock2, swift2), true);
         swift1.merge(lock1, lock2, swift2);
-        assertEquals(getLatestVersion(lock1, swift1.beginTxn()).getValue(), LockType.WRITE_SHARED);
+        assertEquals(getLatestVersion(lock1, swift1.beginTxn()).getValue(), LockType.ALLOW);
 
     }
 
     @Test
     public void SharedLockWithMergeTest() {
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.READ_SHARED, lock1, swift1), true);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.FORBID, lock1, swift1), true);
         swift2.merge(lock2, lock1, swift1);
-        assertEquals(registerLockTxn(siteB, LockType.READ_SHARED, lock2, swift2), true);
+        assertEquals(registerLockTxn(siteB, LockType.FORBID, lock2, swift2), true);
     }
 
     @Test
     public void SharedLockReleaseMergeTest() {
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.READ_SHARED, lock1, swift1), true);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.FORBID, lock1, swift1), true);
         swift2.merge(lock2, lock1, swift1);
-        assertEquals(registerLockTxn(siteB, LockType.READ_SHARED, lock2, swift2), true);
-        assertEquals(registerReleaseTxn(siteB, LockType.READ_SHARED, lock2, swift2), false);
-        assertEquals(registerUnlockTxn(siteA, LockType.READ_SHARED, lock1, swift1), false);
-        assertEquals(registerUnlockTxn(siteB, LockType.READ_SHARED, lock2, swift2), true);
-        assertEquals(registerReleaseTxn(siteB, LockType.READ_SHARED, lock2, swift2), true);
-        assertEquals(registerGrantTxn(siteB, siteB, LockType.WRITE_SHARED, lock1, swift1), false);
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_SHARED, lock1, swift1), false);
+        assertEquals(registerLockTxn(siteB, LockType.FORBID, lock2, swift2), true);
+        assertEquals(registerReleaseTxn(siteB, LockType.FORBID, lock2, swift2), false);
+        assertEquals(registerUnlockTxn(siteA, LockType.FORBID, lock1, swift1), false);
+        assertEquals(registerUnlockTxn(siteB, LockType.FORBID, lock2, swift2), true);
+        assertEquals(registerReleaseTxn(siteB, LockType.FORBID, lock2, swift2), true);
+        assertEquals(registerGrantTxn(siteB, siteB, LockType.ALLOW, lock1, swift1), false);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.ALLOW, lock1, swift1), false);
         swift1.merge(lock1, lock2, swift2);
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_SHARED, lock1, swift1), true);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.ALLOW, lock1, swift1), true);
 
     }
 

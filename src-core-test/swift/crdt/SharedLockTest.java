@@ -112,48 +112,48 @@ public class SharedLockTest {
 
     @Test
     public void initTest() {
-        assertEquals(getLatestVersion(lock, swift1.beginTxn()).getValue(), LockType.WRITE_SHARED);
+        assertEquals(getLatestVersion(lock, swift1.beginTxn()).getValue(), LockType.ALLOW);
     }
 
     @Test
     public void requestReleaseExclusiveTest() {
-        assertEquals(registerGrantTxn(siteA, siteA, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(registerReleaseTxn(siteA, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(getLatestVersion(lock, swift1.beginTxn()).getValue(), LockType.WRITE_SHARED);
+        assertEquals(registerGrantTxn(siteA, siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(registerReleaseTxn(siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(getLatestVersion(lock, swift1.beginTxn()).getValue(), LockType.ALLOW);
     }
 
     @Test
     public void requestReleaseExclusiveFailTest() {
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(registerReleaseTxn(siteB, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(getLatestVersion(lock, swift1.beginTxn()).getValue(), LockType.WRITE_SHARED);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(registerReleaseTxn(siteB, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(getLatestVersion(lock, swift1.beginTxn()).getValue(), LockType.ALLOW);
     }
 
     @Test
     public void SharedToExclusiveTest() {
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(registerGrantTxn(siteA, siteC, LockType.READ_SHARED, lock, swift1), false);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(registerGrantTxn(siteA, siteC, LockType.FORBID, lock, swift1), false);
     }
 
     @Test
     public void SharedToSharedFailTest() {
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.WRITE_SHARED, lock, swift1), true);
-        assertEquals(registerGrantTxn(siteA, siteB, LockType.READ_SHARED, lock, swift1), false);
-        assertEquals(registerGrantTxn(siteA, siteA, LockType.READ_SHARED, lock, swift1), false);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.ALLOW, lock, swift1), true);
+        assertEquals(registerGrantTxn(siteA, siteB, LockType.FORBID, lock, swift1), false);
+        assertEquals(registerGrantTxn(siteA, siteA, LockType.FORBID, lock, swift1), false);
     }
 
     @Test
     public void LockTest() {
-        assertEquals(registerLockTxn(siteA, LockType.WRITE_SHARED, lock, swift1), true);
-        assertEquals(registerLockTxn(siteA, LockType.WRITE_SHARED, lock, swift1), true);
+        assertEquals(registerLockTxn(siteA, LockType.ALLOW, lock, swift1), true);
+        assertEquals(registerLockTxn(siteA, LockType.ALLOW, lock, swift1), true);
     }
 
     @Test
     public void ExclusiveLockTest() {
-        assertEquals(registerGrantTxn(siteA, siteA, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(registerLockTxn(siteA, LockType.WRITE_EXCLUSIVE, lock, swift1), true);
-        assertEquals(registerLockTxn(siteA, LockType.WRITE_EXCLUSIVE, lock, swift1), false);
-        assertEquals(registerLockTxn(siteB, LockType.WRITE_EXCLUSIVE, lock, swift1), false);
+        assertEquals(registerGrantTxn(siteA, siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(registerLockTxn(siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
+        assertEquals(registerLockTxn(siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), false);
+        assertEquals(registerLockTxn(siteB, LockType.EXCLUSIVE_ALLOW, lock, swift1), false);
     }
 
 }
