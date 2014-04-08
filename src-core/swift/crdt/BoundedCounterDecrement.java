@@ -2,19 +2,23 @@ package swift.crdt;
 
 import swift.crdt.core.CRDTUpdate;
 
-public class LowerBoundCounterIncrement implements CRDTUpdate<LowerBoundCounterCRDT> {
+public class BoundedCounterDecrement<T extends BoundedCounterCRDT<T>> implements CRDTUpdate<T> {
 
     private int amount;
     private String siteId;
 
-    public LowerBoundCounterIncrement(String siteId, int amount) {
+    public BoundedCounterDecrement() {
+
+    }
+
+    public BoundedCounterDecrement(String siteId, int amount) {
         this.amount = amount;
         this.siteId = siteId;
     }
 
     @Override
-    public void applyTo(LowerBoundCounterCRDT crdt) {
-        crdt.applyInc(this);
+    public void applyTo(T crdt) {
+        crdt.applyDec(this);
     }
 
     protected int getAmount() {

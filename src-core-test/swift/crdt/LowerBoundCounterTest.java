@@ -33,7 +33,6 @@ public class LowerBoundCounterTest {
     private LowerBoundCounterCRDT counter;
     private int initialValue = 10;
 
-    @SuppressWarnings("unchecked")
     @Before
     public void setUp() throws SwiftException {
         txn = TxnTester.createIsolatedTxnTester();

@@ -21,11 +21,10 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import swift.clocks.CausalityClock;
-import swift.crdt.core.BaseCRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
-public class LowerBoundCounterCRDT extends BaseCRDT<LowerBoundCounterCRDT> {
+public class LowerBoundCounterCRDT extends BoundedCounterCRDT<LowerBoundCounterCRDT> {
 
     private Map<String, Map<String, Integer>> permissions;
     private Map<String, Integer> decrements;
@@ -110,7 +109,8 @@ public class LowerBoundCounterCRDT extends BaseCRDT<LowerBoundCounterCRDT> {
     }
 
     public boolean increment(int amount, String siteId) {
-        LowerBoundCounterIncrement update = new LowerBoundCounterIncrement(siteId, amount);
+        BoundedCounterIncrement<LowerBoundCounterCRDT> update = new BoundedCounterIncrement<LowerBoundCounterCRDT>(
+                siteId, amount);
         applyInc(update);
         registerLocalOperation(update);
         return true;
@@ -118,7 +118,8 @@ public class LowerBoundCounterCRDT extends BaseCRDT<LowerBoundCounterCRDT> {
 
     public boolean decrement(int amount, String siteId) {
         if (availableSiteId(siteId) >= amount) {
-            LowerBoundCounterDecrement update = new LowerBoundCounterDecrement(siteId, amount);
+            BoundedCounterDecrement<LowerBoundCounterCRDT> update = new BoundedCounterDecrement<LowerBoundCounterCRDT>(
+                    siteId, amount);
             applyDec(update);
             registerLocalOperation(update);
             return true;
@@ -143,7 +144,8 @@ public class LowerBoundCounterCRDT extends BaseCRDT<LowerBoundCounterCRDT> {
 
     public boolean transfer(int amount, String originId, String targetId) {
         if (availableSiteId(originId) >= amount) {
-            LowerBoundCounterTransfer update = new LowerBoundCounterTransfer(originId, targetId, amount);
+            BoundedCounterTransfer<LowerBoundCounterCRDT> update = new BoundedCounterTransfer<LowerBoundCounterCRDT>(
+                    originId, targetId, amount);
             applyTransfer(update);
             registerLocalOperation(update);
             return true;
@@ -151,21 +153,21 @@ public class LowerBoundCounterCRDT extends BaseCRDT<LowerBoundCounterCRDT> {
         return false;
     }
 
-    protected void applyDec(LowerBoundCounterDecrement decUpdate) {
+    public void applyDec(BoundedCounterDecrement<LowerBoundCounterCRDT> decUpdate) {
         checkExistsPermissionPair(decUpdate.getSiteId(), decUpdate.getSiteId());
         decrements.put(decUpdate.getSiteId(), decUpdate.getAmount());
         val -= decUpdate.getAmount();
 
     }
 
-    public void applyInc(LowerBoundCounterIncrement incUpdate) {
+    public void applyInc(BoundedCounterIncrement<LowerBoundCounterCRDT> incUpdate) {
         checkExistsPermissionPair(incUpdate.getSiteId(), incUpdate.getSiteId());
         Map<String, Integer> sitePermissions = permissions.get(incUpdate.getSiteId());
         sitePermissions.put(incUpdate.getSiteId(), sitePermissions.get(incUpdate.getSiteId()) + incUpdate.getAmount());
         val += incUpdate.getAmount();
     }
 
-    public void applyTransfer(LowerBoundCounterTransfer transferUpdate) {
+    public void applyTransfer(BoundedCounterTransfer<LowerBoundCounterCRDT> transferUpdate) {
         checkExistsPermissionPair(transferUpdate.getOriginId(), transferUpdate.getTargetId());
         Map<String, Integer> targetPermissions = permissions.get(transferUpdate.getOriginId());
         targetPermissions.put(transferUpdate.getTargetId(), targetPermissions.get(transferUpdate.getTargetId())

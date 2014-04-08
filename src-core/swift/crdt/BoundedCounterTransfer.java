@@ -2,19 +2,23 @@ package swift.crdt;
 
 import swift.crdt.core.CRDTUpdate;
 
-public class LowerBoundCounterTransfer implements CRDTUpdate<LowerBoundCounterCRDT> {
+public class BoundedCounterTransfer<T extends BoundedCounterCRDT<T>> implements CRDTUpdate<T> {
 
     private String originId, targetId;
     private int amount;
 
-    public LowerBoundCounterTransfer(String originId, String targetId, int amount) {
+    public BoundedCounterTransfer() {
+
+    }
+
+    public BoundedCounterTransfer(String originId, String targetId, int amount) {
         this.originId = originId;
         this.targetId = targetId;
         this.amount = amount;
     }
 
     @Override
-    public void applyTo(LowerBoundCounterCRDT crdt) {
+    public void applyTo(T crdt) {
         crdt.applyTransfer(this);
 
     }
