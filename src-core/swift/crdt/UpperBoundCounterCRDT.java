@@ -24,56 +24,56 @@ import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
-public class LowerBoundCounterCRDT extends BoundedCounterCRDT<LowerBoundCounterCRDT> {
+public class UpperBoundCounterCRDT extends BoundedCounterCRDT<UpperBoundCounterCRDT> {
 
     // For kryo
-    public LowerBoundCounterCRDT() {
+    public UpperBoundCounterCRDT() {
     }
 
-    public LowerBoundCounterCRDT(CRDTIdentifier id) {
+    public UpperBoundCounterCRDT(CRDTIdentifier id) {
         this(id, 0);
     }
 
-    public LowerBoundCounterCRDT(CRDTIdentifier id, int initVal) {
+    public UpperBoundCounterCRDT(CRDTIdentifier id, int initVal) {
         super(id, initVal);
     }
 
-    public LowerBoundCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal,
+    public UpperBoundCounterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, int initVal,
             Map<String, Map<String, Integer>> permissions, Map<String, Integer> decrements) {
         super(id, txn, clock, initVal, permissions, decrements);
     }
 
     @Override
-    public LowerBoundCounterCRDT copy() {
+    public UpperBoundCounterCRDT copy() {
         Map<String, Map<String, Integer>> permCopy = new HashMap<String, Map<String, Integer>>(permissions);
         for (Entry<String, Map<String, Integer>> entry : permissions.entrySet()) {
             permCopy.put(entry.getKey(), new HashMap<String, Integer>(entry.getValue()));
         }
-        return new LowerBoundCounterCRDT(id, txn, clock, initVal, permCopy, new HashMap<String, Integer>(delta));
+        return new UpperBoundCounterCRDT(id, txn, clock, initVal, permCopy, new HashMap<String, Integer>(delta));
     }
 
     public boolean increment(int amount, String siteId) {
-        BoundedCounterIncrement<LowerBoundCounterCRDT> update = new BoundedCounterIncrement<LowerBoundCounterCRDT>(
-                siteId, amount);
-        applyInc(update);
-        registerLocalOperation(update);
-        return true;
-    }
-
-    public boolean decrement(int amount, String siteId) {
         if (availableSiteId(siteId) >= amount) {
-            BoundedCounterDecrement<LowerBoundCounterCRDT> update = new BoundedCounterDecrement<LowerBoundCounterCRDT>(
+            BoundedCounterIncrement<UpperBoundCounterCRDT> update = new BoundedCounterIncrement<UpperBoundCounterCRDT>(
                     siteId, amount);
-            applyDec(update);
+            applyInc(update);
             registerLocalOperation(update);
             return true;
         }
         return false;
     }
 
+    public boolean decrement(int amount, String siteId) {
+        BoundedCounterDecrement<UpperBoundCounterCRDT> update = new BoundedCounterDecrement<UpperBoundCounterCRDT>(
+                siteId, amount);
+        applyDec(update);
+        registerLocalOperation(update);
+        return true;
+    }
+
     public boolean transfer(int amount, String originId, String targetId) {
         if (availableSiteId(originId) >= amount) {
-            BoundedCounterTransfer<LowerBoundCounterCRDT> update = new BoundedCounterTransfer<LowerBoundCounterCRDT>(
+            BoundedCounterTransfer<UpperBoundCounterCRDT> update = new BoundedCounterTransfer<UpperBoundCounterCRDT>(
                     originId, targetId, amount);
             applyTransfer(update);
             registerLocalOperation(update);
@@ -82,17 +82,16 @@ public class LowerBoundCounterCRDT extends BoundedCounterCRDT<LowerBoundCounterC
         return false;
     }
 
-    protected void applyDec(BoundedCounterDecrement<LowerBoundCounterCRDT> decUpdate) {
+    protected void applyDec(BoundedCounterDecrement<UpperBoundCounterCRDT> decUpdate) {
         checkExistsPermissionPair(decUpdate.getSiteId(), decUpdate.getSiteId());
-        delta.put(decUpdate.getSiteId(), decUpdate.getAmount());
+        Map<String, Integer> sitePermissions = permissions.get(decUpdate.getSiteId());
+        sitePermissions.put(decUpdate.getSiteId(), sitePermissions.get(decUpdate.getSiteId()) + decUpdate.getAmount());
         val -= decUpdate.getAmount();
-
     }
 
-    protected void applyInc(BoundedCounterIncrement<LowerBoundCounterCRDT> incUpdate) {
+    protected void applyInc(BoundedCounterIncrement<UpperBoundCounterCRDT> incUpdate) {
         checkExistsPermissionPair(incUpdate.getSiteId(), incUpdate.getSiteId());
-        Map<String, Integer> sitePermissions = permissions.get(incUpdate.getSiteId());
-        sitePermissions.put(incUpdate.getSiteId(), sitePermissions.get(incUpdate.getSiteId()) + incUpdate.getAmount());
+        delta.put(incUpdate.getSiteId(), incUpdate.getAmount());
         val += incUpdate.getAmount();
     }
 
