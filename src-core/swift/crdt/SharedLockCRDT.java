@@ -18,6 +18,7 @@ package swift.crdt;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -34,6 +35,7 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
     private LockType type;
     private Map<String, Set<TripleTimestamp>> sharedOwners;
     private Map<String, Integer> active;
+    private PreferenceListPolicy policy;
 
     // TODO: Does it need to track WRITE_EXCLUSIVE versions? apparently not.
 
@@ -209,6 +211,22 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
         } else {
             active.remove(op.getOwnerId());
         }
+    }
+
+    protected String getPrimaryOwner() {
+        return owner;
+    }
+
+    protected Set<String> getCurrentOwners() {
+        return sharedOwners.keySet();
+    }
+
+    public void setPreferredListPolicy(PreferenceListPolicy policy) {
+        this.policy = policy;
+    }
+
+    public List<String> getPreferenceList() {
+        return policy.getPreferenceList(this);
     }
 
 }
