@@ -149,6 +149,11 @@ public class SharedLockTest {
     }
 
     @Test
+    public void GetAndLockTest() {
+        assertEquals(registerLockTxn(siteA, LockType.FORBID, lock, swift1), true);
+    }
+
+    @Test
     public void ExclusiveLockTest() {
         assertEquals(registerGrantTxn(siteA, siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);
         assertEquals(registerLockTxn(siteA, LockType.EXCLUSIVE_ALLOW, lock, swift1), true);

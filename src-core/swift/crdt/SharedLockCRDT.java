@@ -138,6 +138,9 @@ public class SharedLockCRDT extends BaseCRDT<SharedLockCRDT> {
             applyAcquireLock(op);
             registerLocalOperation(op);
             return true;
+        } else if (canGetOwnership(ownerId, ownerId, type)) {
+            getOwnership(ownerId, ownerId, type);
+            return lock(ownerId, type);
         }
         return false;
     }
