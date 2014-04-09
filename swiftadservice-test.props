@@ -1,0 +1,15 @@
+swift.AsyncCommit=true
+swift.Notifications=true
+swift.CachePolicy=CACHED
+swift.IsolationLevel=REPEATABLE_READS
+swift.cacheEvictionTimeMillis=5000000
+swift.BatchSize=10
+swift.AsyncQueue=50
+swift.CacheSize=512
+
+swiftadservice.numUsers=500
+swiftadservice.userFriends=25
+swiftadservice.biasedOps=9
+swiftadservice.randomOps=1
+swiftadservice.opGroups=10000
+swiftadservice.thinkTime=1
