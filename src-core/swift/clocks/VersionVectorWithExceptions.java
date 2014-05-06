@@ -478,10 +478,10 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     }
 
     /**
-     * Merge this clock with the given c clock.
+     * Intersect this clock with the given c clock.
      * 
      * @param c
-     *            Clock to merge to
+     *            Clock to intersect with
      * @return Returns one of the following, based on the initial value of
      *         clocks:<br>
      *         CMP_EQUALS : if clocks were equal; <br>
@@ -509,7 +509,6 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 numPairs = numPairs - e.getValue().size();
                 it.remove();
                 result = ClockUtils.combineCmpClock(result, CMP_CLOCK.CMP_DOMINATES);
-                break;
             }
         }
         return result;
