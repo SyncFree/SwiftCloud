@@ -3,9 +3,9 @@ swift.Notifications=true
 swift.CachePolicy=CACHED
 swift.IsolationLevel=REPEATABLE_READS
 swift.cacheEvictionTimeMillis=5000000
-swift.BatchSize=10
-swift.AsyncQueue=50
-swift.CacheSize=512
+swift.batchSize=10
+swift.asyncQueue=50
+swift.cacheSize=512
 
 swiftsocial.numUsers=500
 swiftsocial.userFriends=25
