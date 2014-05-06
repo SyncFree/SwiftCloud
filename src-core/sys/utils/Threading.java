@@ -2,8 +2,10 @@ package sys.utils;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A collection of convenience methods for dealing with threads.
@@ -11,7 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author smduarte (smd@fct.unl.pt)
  * 
  */
-public class Threading {
+final public class Threading {
 
     protected Threading() {
     }
@@ -117,33 +119,6 @@ public class Threading {
         }
     }
 
-    public static class LockManager {
-
-        /**
-         * Returns an object "value" (rather than any instance) to serve as a
-         * monitor. Leaks memory...
-         * 
-         * @param o
-         * @return
-         */
-        synchronized public Object lockFor(Object o) {
-
-            Object res = locks.get(o);
-            if (res == null) {
-                res = o;
-                locks.put(res, counter.incrementAndGet());
-            }
-            return res;
-        }
-
-        synchronized public void freeLockFor(Object o) {
-            locks.remove(o);
-        }
-
-        AtomicInteger counter = new AtomicInteger(0);
-        Map<Object, Object> locks = new HashMap<Object, Object>();
-    }
-
     synchronized public static void dumpAllThreadsTraces() {
         Map<Thread, StackTraceElement[]> traces = Thread.getAllStackTraces();
         loop: for (StackTraceElement[] trace : traces.values()) {
@@ -171,4 +146,39 @@ public class Threading {
             }
         };
     }
+
+    static public void awaitTermination(ExecutorService pool, int seconds) {
+        try {
+            pool.shutdown();
+            pool.awaitTermination(seconds, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static void lock(Object id) {
+        ReentrantLock lock;
+        synchronized (locks) {
+            lock = locks.get(id);
+            if (lock == null)
+                locks.put(id, lock = new ReentrantLock(true));
+        }
+        lock.lock();
+    }
+
+    public static void unlock(Object id) {
+        ReentrantLock lock;
+        do {
+            synchronized (locks) {
+                lock = locks.get(id);
+                if (lock == null) {
+                    Threading.sleep(100);
+                    throw new RuntimeException("Unbalanced unlock for :" + id);
+                }
+            }
+        } while (lock == null);
+        lock.unlock();
+    }
+
+    static Map<Object, ReentrantLock> locks = new HashMap<Object, ReentrantLock>();
 }
