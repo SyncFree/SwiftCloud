@@ -815,6 +815,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // TODO: Discuss. This is a very aggressive caching mode.
         }
 
+        // FIXME: why is this correct? 
         if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && options.assumeAtomicCausalNotifications()
                 && txn.cachePolicy == CachePolicy.CACHED)
             clock.intersect(crdt.getClock());
