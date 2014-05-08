@@ -39,7 +39,8 @@ public class SwiftAdvertisementTest {
         SwiftAdservice client = new SwiftAdservice(clientServer, IsolationLevel.SNAPSHOT_ISOLATION,
                 CachePolicy.STRICTLY_MOST_RECENT, false, false, "localhost");
 
-        client.addAd("Ad", 100);
+        // Marek: commented it out to avoid compilation error.
+        // client.addAd("Ad", 100);
         client.viewAd("Ad");
 
         clientServer.stopScout(true);
