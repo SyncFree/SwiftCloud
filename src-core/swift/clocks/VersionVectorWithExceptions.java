@@ -794,7 +794,13 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     @Override
     public boolean hasExceptions() {
+        // FIXME: I suppose numPairs <= vv.size() should always hold?
+        // Somehow, this is not always the case...
         return vv.size() != numPairs;
+    }
+
+    public int getNumPairs() {
+        return numPairs;
     }
 
     @Override

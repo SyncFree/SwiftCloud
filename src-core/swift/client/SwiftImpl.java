@@ -56,12 +56,12 @@ import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.CachePolicy;
 import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.ManagedCRDT;
 import swift.crdt.core.ObjectUpdatesListener;
 import swift.crdt.core.SwiftScout;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.crdt.core.TxnStatus;
-import swift.crdt.core.ManagedCRDT;
 import swift.dc.DCConstants;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -966,6 +966,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
+            // stats.getValuesFrequencyOverTime("crdt-clock-intervals", new
+            // double[] { 1, 2, 4, 8, 16, 32, 64, 128, 256 })
+            // .setValue(((VersionVectorWithExceptions)
+            // crdt.getClock()).getNumPairs());
+            // stats.getValuesFrequencyOverTime("dc-clock-intervals", new
+            // double[] { 1, 2, 4, 8, 16, 32, 64, 128, 256 })
+            // .setValue(((VersionVectorWithExceptions)
+            // fetchReply.getEstimatedCommittedVersion()).getNumPairs());
 
             break;
         default:
