@@ -39,7 +39,8 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
      * password and date of birth Uses a fixed, pre-determined random seed to
      * ensure every site generates the same user db.
      */
-    public static List<String> populate(int numUsers) {
+    public static void generateUsers(int numUsers) {
+        System.out.println("Generating users and user data...");
         Random rg = new Random(6L);
         for (int i = 0; i < numUsers; i++) {
             byte[] tmp = new byte[6];
@@ -51,7 +52,6 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
             users.add(user);
             userData.add(userLine);
         }
-        return userData;
     }
 
     /*
@@ -256,7 +256,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
     public static void main(String[] args) throws Exception {
 
-        Workload.populate(25000);
+        Workload.generateUsers(25000);
 
         Workload res = Workload.doMixed(0, 25, 9, 1, 2, 10);
         System.out.println(res.size());

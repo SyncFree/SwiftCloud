@@ -51,7 +51,7 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
         dcName = ClosestDomain.closest2Domain(servers, site);
         System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
-        SwiftSocialMain.init();
+        SwiftSocialMain.setProperties();
 
         // // Override SwiftSocial.props cache size with cmd line option...
         // int cache = Args.valueOf(args, "-cache", -1);

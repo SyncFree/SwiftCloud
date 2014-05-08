@@ -50,9 +50,13 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
 
     public static void main(String[] args) {
 
-        final String command = args[0];
+        String command = "";
+        if (args.length == 0) {
+            exitWithUsage();
+        }
+        command = args[0];
+        
         sys.Sys.init();
-
         if (command.equals("init")) {
 
             dcName = Args.valueOf(args, "-servers", "localhost");
@@ -66,19 +70,18 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
             options.setConcurrentOpenTransactions(true);
 
-            System.out.println("Populating db with users...");
-
+            // Initializing DB with users
             final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
-            List<String> users = Workload.populate(numUsers);
+            Workload.generateUsers(numUsers);
 
             final int PARTITION_SIZE = 1000;
-            int partitions = users.size() / PARTITION_SIZE + (users.size() % PARTITION_SIZE > 0 ? 1 : 0);
+            int partitions = Workload.users.size() / PARTITION_SIZE + (Workload.users.size() % PARTITION_SIZE > 0 ? 1 : 0);
             ExecutorService pool = Executors.newFixedThreadPool(4);
 
             final AtomicInteger counter = new AtomicInteger(0);
             for (int i = 0; i < partitions; i++) {
                 int lo = i * PARTITION_SIZE, hi = (i + 1) * PARTITION_SIZE;
-                final List<String> partition = users.subList(lo, Math.min(hi, users.size()));
+                final List<String> partition = Workload.users.subList(lo, Math.min(hi, Workload.users.size()));
                 pool.execute(new Runnable() {
                     public void run() {
                         SwiftSocialMain.initUsers(options, partition, counter, numUsers);
@@ -95,7 +98,9 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             Threading.sleep(5000);
             System.out.println("\nFinished populating db with users.");
         }
-        if (command.equals("run")) {
+        
+        
+        else if (command.equals("run")) {
 
             // IO.redirect("stdout.txt", "stderr.txt");
             System.err.println(IP.localHostname() + "/ starting...");
@@ -111,7 +116,7 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
 
             System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
 
-            SwiftSocialMain.init();
+            SwiftSocialMain.setProperties();
 
             bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
             bufferedOutput.printf(";\tsite=%s\n", site);
@@ -120,7 +125,7 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             bufferedOutput.printf(";\tShepard=%s\n", shepard);
             bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
-            List<String> users = Workload.populate(SwiftSocialMain.numUsers);
+            Workload.generateUsers(SwiftSocialMain.numUsers);
 
             if (!shepard.isEmpty())
                 Shepard.sheepJoinHerd(shepard);
@@ -170,6 +175,10 @@ public class SwiftSocialBenchmark extends SwiftSocialMain {
             }
             System.err.println("Session threads completed.");
         }
+        else {
+            exitWithUsage();
+        }
+
         System.exit(0);
     }
 

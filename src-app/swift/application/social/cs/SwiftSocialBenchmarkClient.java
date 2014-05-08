@@ -54,7 +54,7 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         }
         sys.Sys.init();
 
-        init();
+        setProperties();
 
         final String shepardAddress = Args.valueOf(args, "-shepard", "");
         int concurrentSessions = Args.valueOf(args, "-threads", 1);
@@ -76,7 +76,7 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         bufferedOutput.printf(";\tShepard=%s\n", shepardAddress);
         bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
-        Workload.populate(numUsers);
+        Workload.generateUsers(numUsers);
 
         if (!shepardAddress.isEmpty())
             Shepard.sheepJoinHerd(shepardAddress);
@@ -110,7 +110,7 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
         System.exit(0);
     }
 
-    private static void runClientSession(final int sessionId, final Workload commands, boolean loop4ever) {
+    public static void runClientSession(final int sessionId, final Workload commands, boolean loop4ever) {
 
         RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
