@@ -36,7 +36,7 @@ public enum CachePolicy {
     MOST_RECENT,
     /**
      * Reuse object from the local cache whenever possible, yielding possibly
-     * stale versions. Minimises connections with server. Fail if cache does not
+     * stale versions. Minimizes connections with server. Fail if cache does not
      * contain compatible version.
      */
     CACHED;

@@ -10,7 +10,7 @@ public class Props {
 
     public static Properties parseFile(String propName, PrintStream out) {
         try {
-            final Properties props = new Properties();
+            final Properties props = new Properties();            
             String filename = System.getProperty(propName);
             if (filename != null) {
                 BufferedReader br = new BufferedReader(new FileReader(filename));

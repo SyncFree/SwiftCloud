@@ -71,7 +71,7 @@ import sys.utils.Threading;
  * A transaction is first locally committed with a client timestamp, and then
  * globally committed with a stable system timestamp assigned by server to
  * facilitate efficient timestamps summary. The mapping between these timestamps
- * is defined within a TimestamMapping object of the transaction.
+ * is defined within a TimestampMapping object of the transaction.
  * <p>
  * This base implementation primarily keeps track of transaction states and
  * updates on objects.

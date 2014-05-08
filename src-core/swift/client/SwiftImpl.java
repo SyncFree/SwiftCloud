@@ -1340,6 +1340,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
     }
 
+    
+    // Txn is committed globally if it is not read-only, if it contains updates and if it has not been cancelled
     private boolean requiresGlobalCommit(AbstractTxnHandle txn) {
         if (txn.isReadOnly()) {
             return false;
@@ -1358,13 +1360,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         assertRunning();
         txn.markLocallyCommitted();
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("transaction " + txn.getTimestampMapping() + " commited locally");
+            logger.info("transaction " + txn.getTimestampMapping() + " committed locally");
         }
 
         if (requiresGlobalCommit(txn)) {
 
             lastLocallyCommittedTxnClock.record(txn.getClientTimestamp());
-            for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
+            for (final CRDTObjectUpdatesGroup<?> opsGroup : txn.getAllUpdates()) {
                 final CRDTIdentifier id = opsGroup.getTargetUID();
                 applyLocalObjectUpdates(objectsCache.getWithoutTouch(id), txn);
                 // Look if there is any other session to notify.
@@ -1373,8 +1375,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 if (sessionsSubs != null) {
                     for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
                         if (subscription.txn == txn) {
-                            // Add this update transaction timestamp to
-                            // readVersion to exclude self-notifications.
+                            // Add this update transaction timestamp to readVersion to exclude self-notifications.
                             for (final Timestamp ts : txn.getTimestampMapping().getTimestamps()) {
                                 subscription.readVersion.record(ts);
                             }
@@ -1437,24 +1438,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     operationsGroups));
         }
 
+        // Send batched updates and wait for reply of server 
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), new BatchCommitUpdatesRequest(
                 scoutId, requests));
 
-        // final AtomicReference<BatchCommitUpdatesReply> rep = new
-        // AtomicReference<BatchCommitUpdatesReply>();
-        // localEndpoint.send(serverEndpoint(), new
-        // BatchCommitUpdatesRequest(scoutId, requests),
-        // new SwiftProtocolHandler() {
-        // protected void onReceive(RpcHandle conn, BatchCommitUpdatesReply r) {
-        // rep.set(r);
-        // System.err.println("Got commit reply...");
-        // Threading.synchronizedNotifyAllOn(rep);
-        // }
-        // });
-        //
-        // Threading.synchronizedWaitOn(rep);
-        // BatchCommitUpdatesReply batchReply = rep.get();
-
+        // TODO Add here statistics for meta-data overhead?
+        
         if (batchReply == null) {
             // FIXME with new RPC API null is just a timeout??
             throw new IllegalStateException("Fatal error: server returned null on commit");
@@ -1496,7 +1485,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     break;
                 case INVALID_OPERATION:
                     throw new IllegalStateException("DC replied to commit request with INVALID_OPERATION");
-                    // break;
                 default:
                     throw new UnsupportedOperationException("unknown commit status: " + reply.getStatus());
                 }
@@ -1513,7 +1501,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 // Subscribe updates for newly created objects if they were
                 // requested. It can be done only at this stage once the objects
                 // are in the store.
-                for (final CRDTObjectUpdatesGroup opsGroup : txn.getAllUpdates()) {
+                for (final CRDTObjectUpdatesGroup<?> opsGroup : txn.getAllUpdates()) {
                     final boolean subscriptionsExist = objectSessionsUpdateSubscriptions.containsKey(opsGroup
                             .getTargetUID());
                     if (subscriptionsExist && opsGroup.hasCreationState()) {
@@ -1534,7 +1522,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 this.wait();
             } catch (InterruptedException e) {
                 if (stopFlag && !stopGracefully) {
-                    throw new IllegalStateException("Scout stopped in non-graceful manner, transaction not commited");
+                    throw new IllegalStateException("Scout stopped in non-graceful manner, transaction not committed");
                 }
             }
         }
@@ -1635,7 +1623,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 batchSizeOnCommitStats.setValue(transactionsToCommit.size());
                 if (stopFlag && (transactionsToCommit.isEmpty() || !stopGracefully)) {
                     if (!transactionsToCommit.isEmpty()) {
-                        logger.warning("Scout ungraceful stop, some transactions may not globally committed");
+                        logger.warning("Scout ungraceful stop, some transactions may not have globally committed");
                     }
                     return;
                 }
