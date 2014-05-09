@@ -863,12 +863,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
             NetworkException, InterruptedException {
 
-        CausalityClock clock, disasterDurableClock;
-        synchronized (this) {
-            clock = committedVersion.clone();
-            disasterDurableClock = committedDisasterDurableVersion.clone();
-        }
-
         // TODO Q: what is this?
         if (subscribeUpdates)
             suPubSub.subscribe(id, suPubSub);
