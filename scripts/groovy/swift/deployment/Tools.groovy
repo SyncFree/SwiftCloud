@@ -5,7 +5,7 @@ class Tools {
 
     static int DEBUG = 5;
 
-    static String USERNAME = 'ubuntu' // "fctple_SwiftCloud"
+    static String USERNAME = 'fctple_SwiftCloud'
     static String HOMEDIR = "/home/" + USERNAME + "/"
 
     static void Debug(int level, msg ) {
