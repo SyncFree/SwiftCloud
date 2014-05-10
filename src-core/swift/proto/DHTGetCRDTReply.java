@@ -17,14 +17,16 @@
 package swift.proto;
 
 import swift.crdt.core.ManagedCRDT;
-import sys.dht.api.DHT;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * 
  * @author preguica
  * 
  */
-public class DHTGetCRDTReply implements DHT.Reply {
+public class DHTGetCRDTReply implements RpcMessage {
 
     ManagedCRDT object;
 
@@ -38,12 +40,18 @@ public class DHTGetCRDTReply implements DHT.Reply {
         this.object = object;
     }
 
+    // @Override
+    // public void deliverTo( RpcHandler conn, DHT.ReplyHandler handler) {
+    // System.err.println("Delivering to:" + handler.getClass());
+    // if (conn.expectingReply())
+    // ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    // else
+    // ((SwiftProtocolHandler) handler).onReceive(this);
+    // }
+
     @Override
-    public void deliverTo(DHT.Handle conn, DHT.ReplyHandler handler) {
-        if (conn.expectingReply())
-            ((SwiftProtocolHandler) handler).onReceive(conn, this);
-        else
-            ((SwiftProtocolHandler) handler).onReceive(this);
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(this);
     }
 
     public ManagedCRDT getObject() {

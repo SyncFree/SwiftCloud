@@ -19,15 +19,16 @@ package swift.proto;
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
-import swift.dc.DHTDataNode;
-import sys.dht.api.DHT;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * Object for executing operations in a crdt
  * 
  * @author preguica
  */
-public class DHTExecCRDT implements DHT.Message {
+public class DHTExecCRDT implements RpcMessage {
 
     CRDTObjectUpdatesGroup<?> grp;
     CausalityClock curDCVersion;
@@ -54,9 +55,15 @@ public class DHTExecCRDT implements DHT.Message {
         this.curDCVersion = curDCVersion;
     }
 
+    // @Override
+    // public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler
+    // handler) {
+    // ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
+    // }
+
     @Override
-    public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler handler) {
-        ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
     public CRDTObjectUpdatesGroup<?> getGrp() {
@@ -86,5 +93,4 @@ public class DHTExecCRDT implements DHT.Message {
     public CausalityClock getCurDCVersion() {
         return curDCVersion;
     }
-
 }

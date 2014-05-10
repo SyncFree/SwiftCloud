@@ -16,45 +16,24 @@
  *****************************************************************************/
 package swift.proto;
 
-import java.util.List;
-
-import swift.pubsub.CommitNotification;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
 /**
  * Scout request to update its subscriptions.
  * 
  * @author smduarte
  */
-public class UpdatesNotification implements RpcMessage {
-
-    protected int seqN;
-    protected CommitNotification[] records;
+public class PubSubHandshake extends ClientRequest {
 
     /**
      * For Kryo, do NOT use.
      */
-    UpdatesNotification() {
+    PubSubHandshake() {
     }
 
-    public UpdatesNotification(int seqN, List<CommitNotification> records) {
-        this.seqN = seqN;
-        this.records = records.toArray(new CommitNotification[records.size()]);
-    }
-
-    public UpdatesNotification(int seqN, CommitNotification record) {
-        this.seqN = seqN;
-        this.records = new CommitNotification[] { record };
-    }
-
-    public int seqN() {
-        return seqN;
-    }
-
-    public CommitNotification[] getRecords() {
-        return records;
+    public PubSubHandshake(String clientId) {
+        super(clientId);
     }
 
     @Override

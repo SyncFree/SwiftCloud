@@ -39,7 +39,7 @@ final public class SwiftOptions {
 
     public static final String DEFAULT_STATISTICS_DIR = "statistics";
     public static final boolean DEFAULT_OVERWRITE_STATISTICS_DIR = true;
-    public static final boolean DEFAULT_ENABLE_STATISTICS = true;
+    public static final boolean DEFAULT_ENABLE_STATISTICS = false;
 
     public static final boolean DEFAULT_CAUSAL_NOTIFICATIONS = true;
 

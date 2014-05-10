@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.client;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -29,13 +28,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
-import swift.clocks.TimestampMapping;
 import swift.crdt.core.CRDTIdentifier;
-import swift.crdt.core.CRDTObjectUpdatesGroup;
-import swift.crdt.core.CRDTOperationDependencyPolicy;
-import swift.crdt.core.TxnHandle;
 import swift.crdt.core.ManagedCRDT;
 
 /**
@@ -121,6 +115,7 @@ class LRUObjectsCache {
         Entry e = new Entry(object, txnSerial);
         entries.put(object.getUID(), e);
         shadowEntries.put(object.getUID(), e);
+
     }
 
     /**

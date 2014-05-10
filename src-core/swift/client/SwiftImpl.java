@@ -56,12 +56,12 @@ import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.CachePolicy;
 import swift.crdt.core.IsolationLevel;
+import swift.crdt.core.ManagedCRDT;
 import swift.crdt.core.ObjectUpdatesListener;
 import swift.crdt.core.SwiftScout;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.crdt.core.TxnStatus;
-import swift.crdt.core.ManagedCRDT;
 import swift.dc.DCConstants;
 import swift.exceptions.NetworkException;
 import swift.exceptions.NoSuchObjectException;
@@ -257,7 +257,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     // TODO Q: what is the semantics/role w.r.t. to
     // objectSessionsUpdateSubscriptions?
-    private final ScoutPubSubService suPubSub;
+    private final ScoutPubSubService scoutPubSub;
 
     private final SwiftOptions options;
 
@@ -267,6 +267,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private CounterSignalSource ongoingObjectFetchesStats;
     private ValueSignalSource batchSizeOnCommitStats;
+
+    SortedSet<CRDTIdentifier> notified = new TreeSet<CRDTIdentifier>();
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
             final SwiftOptions options) {
@@ -311,37 +313,34 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         localEndpoint.setHandler(new SwiftProtocolHandler());
 
-        this.suPubSub = new ScoutPubSubService(scoutId, localEndpoint, serverEndpoint()) {
+        this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint()) {
             public void onNotification(final UpdateNotification update) {
                 applyObjectUpdates(update.info);
+                System.err.println("SwiftImpl--------->>>>>" + update.info.getId() + "/" + update.info.getNewClock());
             }
 
             public void onNotification(final SnapshotNotification n) {
-                // WISHME: replace with stats/logging?
-                // System.err.println(n.timestamp());
-                final CMP_CLOCK cmp;
+
                 synchronized (SwiftImpl.this) {
+                    System.err.println("@@@@@@@@@@@@@@@@" + causalSnapshot);
                     causalSnapshot.merge(n.snapshotClock());
-                    cmp = causalSnapshot.compareTo(getGlobalCommittedVersion(false));
-                }
-                // TODO Q: What's the difference between causalNotification and
-                // committedVersion?
-                // This is an ad-hoc hack to address liveness of uncommitted
-                // notifications:
-                if (cmp.is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_CONCURRENT)) {
-                    executorService.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            getDCClockEstimates();
-                        }
-                    });
+                    committedVersion.merge(causalSnapshot);
+                    committedDisasterDurableVersion.merge(causalSnapshot);
+
+                    // Causalsnapshot is notified when it is dominated
+                    // by the minimum of all the
+                    // surrogate DC version
+                    // estimates. For correctness, it is also delivered to the
+                    // client after the updates
+                    // that caused it.
+                    objectsCache.augmentAllWithDCCausalClockWithoutMappings(causalSnapshot);
                 }
             }
         };
 
         this.objectsCache.setEvictionListener(new EvictionListener() {
             public void onEviction(CRDTIdentifier id) {
-                suPubSub.unsubscribe(id);
+                scoutPubSub.unsubscribe(id);
             }
         });
 
@@ -783,6 +782,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener, boolean justFetched)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
 
+        // System.err.println("---->" + id + "      " + clock);
+
         ManagedCRDT<V> crdt;
         try {
             crdt = (ManagedCRDT<V>) objectsCache.getAndTouch(id);
@@ -797,8 +798,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // Set the requested clock to the latest committed version including
             // prior scout's transactions (the most recent thing we would like
             // to read).
+
             clock = getGlobalCommittedVersion(true);
             clock.merge(lastLocallyCommittedTxnClock);
+
             if (concurrentOpenTransactions && !txn.isReadOnly()) {
                 // Make sure we do not introduce cycles in dependencies. Include
                 // only transactions with lower timestamp in the snapshot,
@@ -870,9 +873,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         // TODO Q: what is this?
         if (subscribeUpdates)
-            suPubSub.subscribe(id, suPubSub);
+            scoutPubSub.subscribe(id, scoutPubSub);
         else
-            subscribeUpdates = suPubSub.isSubscribed(id);
+            subscribeUpdates = scoutPubSub.isSubscribed(id);
 
         // Record and drop scout's entry from the requested clock (efficiency?).
         final Timestamp requestedScoutVersion = version.getLatest(scoutId);

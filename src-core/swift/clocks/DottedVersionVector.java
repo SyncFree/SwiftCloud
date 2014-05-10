@@ -440,4 +440,14 @@ public class DottedVersionVector implements CausalityClock {
     public Object copy() {
         return new DottedVersionVector(this);
     }
+
+    // @Override
+    // public CausalityClock retain(String siteId) {
+    // throw new RuntimeException("Not implemented...");
+    // }
+    //
+    // @Override
+    // public CausalityClock retain(CausalityClock cc) {
+    // throw new RuntimeException("Not implemented...");
+    // }
 }

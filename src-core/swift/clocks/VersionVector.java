@@ -380,4 +380,15 @@ public class VersionVector implements CausalityClock {
     public Object copy() {
         return new VersionVector(this);
     }
+
+    // @Override
+    // public CausalityClock retain(String siteId) {
+    // throw new RuntimeException("Not implemented...");
+    // }
+    //
+    // @Override
+    // public CausalityClock retain(CausalityClock cc) {
+    // throw new RuntimeException("Not implemented...");
+    // }
+
 }

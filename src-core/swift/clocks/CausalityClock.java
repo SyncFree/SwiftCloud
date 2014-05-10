@@ -198,4 +198,9 @@ public interface CausalityClock extends Serializable, Copyable {
      * @return true if there are exceptions
      */
     boolean hasExceptions();
+
+    // CausalityClock retain(String siteId);
+    //
+    // CausalityClock retain(CausalityClock cc);
+
 }
