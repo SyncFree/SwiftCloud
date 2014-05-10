@@ -58,12 +58,15 @@ public class DHT_ClientStub implements DHT {
 
     @Override
     public void send(final Key key, final DHT.Message msg) {
-        this.send(dhtEndpoint.get(), new DHT_Request(key, msg), DHT_CLIENT_TIMEOUT);
+        this.request(dhtEndpoint.get(), new DHT_Request(key, msg), DHT_CLIENT_TIMEOUT);
     }
 
     @Override
     public void send(final Key key, final DHT.Message msg, final DHT.ReplyHandler handler) {
-        DHT_RequestReply reply = this.send(dhtEndpoint.get(), new DHT_Request(key, msg, true), DHT_CLIENT_TIMEOUT);
+        System.err.println("dht sending to" + key);
+
+        DHT_RequestReply reply = this.request(dhtEndpoint.get(), new DHT_Request(key, msg, true), DHT_CLIENT_TIMEOUT);
+        System.err.println("dht send returned..." + reply);
         if (reply != null)
             if (reply.payload != null)
                 reply.payload.deliverTo(new DHT_Handle(null, false), handler);
@@ -73,12 +76,12 @@ public class DHT_ClientStub implements DHT {
 
     @Override
     public void send(final Key key, final DHT.Message msg, int timeout) {
-        this.send(dhtEndpoint.get(), new DHT_Request(key, msg), timeout);
+        this.request(dhtEndpoint.get(), new DHT_Request(key, msg), timeout);
     }
 
     @Override
     public void send(final Key key, final DHT.Message msg, final DHT.ReplyHandler handler, int timeout) {
-        DHT_RequestReply reply = this.send(dhtEndpoint.get(), new DHT_Request(key, msg, true), timeout);
+        DHT_RequestReply reply = this.request(dhtEndpoint.get(), new DHT_Request(key, msg, true), timeout);
         if (reply != null)
             if (reply.payload != null)
                 reply.payload.deliverTo(new DHT_Handle(null, false), handler);
@@ -99,15 +102,16 @@ public class DHT_ClientStub implements DHT {
     }
 
     public DHT_RequestReply send(final Endpoint dst, final DHT_Request req) {
-        return send(dst, req, DHT_CLIENT_TIMEOUT);
+        return request(dst, req, DHT_CLIENT_TIMEOUT);
     }
 
-    public DHT_RequestReply send(final Endpoint dst, final DHT_Request req, int timeout) {
+    public DHT_RequestReply request(final Endpoint dst, final DHT_Request req, int timeout) {
         final AtomicReference<DHT_RequestReply> ref = new AtomicReference<DHT_RequestReply>(null);
         for (int i = 0; ref.get() == null && i < DHT_CLIENT_RETRIES; i++) {
-            myEndpoint.send(dhtEndpoint.get(), req, new DHT_StubHandler() {
+            myEndpoint.send(dst, req, new DHT_StubHandler() {
 
                 public void onFailure(RpcHandle handle) {
+                    Thread.dumpStack();
                 }
 
                 public void onReceive(final RpcHandle handle, final DHT_RequestReply reply) {
@@ -115,12 +119,14 @@ public class DHT_ClientStub implements DHT {
                 }
 
                 public void onReceive(final RpcHandle handle, final DHT_ResolveKeyReply reply) {
+                    Thread.dumpStack();
                     dhtEndpoint.set(reply.endpoint);
                     Log.finest(String.format("Got redirection for key: %s to %s", req.key, reply.endpoint));
                 }
 
             }, timeout);
         }
+        System.err.println("DHT.request--->" + ref.get());
         return ref.get();
     }
 

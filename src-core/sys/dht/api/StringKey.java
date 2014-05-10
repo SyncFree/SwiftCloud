@@ -60,6 +60,10 @@ public class StringKey implements DHT.Key {
         }
     }
 
+    public String toString() {
+        return key + "->" + longHashValue();
+    }
+
     static {
         try {
             digest = java.security.MessageDigest.getInstance("MD5");

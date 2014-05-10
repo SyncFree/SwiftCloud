@@ -47,7 +47,9 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
     private static Logger Log = Logger.getLogger(CatadupaNode.class.getName());
 
-    protected DB db;
+    private DB db;
+    protected OrdinalDB odb;
+
     Task sequencerTask, repairTask;
 
     public double lastSequencerRun = Double.NEGATIVE_INFINITY;
@@ -64,6 +66,7 @@ public class CatadupaNode extends LocalNode implements MembershipListener {
 
     public void init() {
         db = new DB(this);
+        odb = new OrdinalDB(db);
 
         Log.finer("I am " + db.self);
 

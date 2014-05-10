@@ -25,6 +25,7 @@ import sys.RpcServices;
 import sys.dht.DHT_Node;
 import sys.dht.api.DHT;
 import sys.dht.api.DHT.Handle;
+import sys.dht.api.DHT.ReplyHandler;
 import sys.dht.catadupa.CatadupaNode;
 import sys.dht.catadupa.Node;
 import sys.dht.discovery.Discovery;
@@ -76,23 +77,19 @@ public class DHT_NodeImpl extends CatadupaNode {
 
     @Override
     public void onNodeAdded(Node n) {
-        ordinalKey = super.db.ordinalKey();
-        Log.finest("Catadupa added:" + n + "; ordKey:" + ordinalKey);
+        Log.finest("Catadupa added:" + n + "; key:" + n.key);
     }
 
     @Override
     public void onNodeRemoved(Node n) {
-        ordinalKey = super.db.ordinalKey();
-        Log.finest("Catadupa removed:" + n + "; ordKey:" + ordinalKey);
+        Log.finest("Catadupa removed:" + n + "; key:" + n.key);
     }
 
     protected Node resolveNextHop(final DHT.Key key) {
         long key2key = key.longHashValue() % (1L << Config.NODE_KEY_LENGTH);
-        Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()));
-        // System.err.println(String.format("Hashing %s (%s) @ %s DB:%s", key,
-        // key2key, self.key, db.nodeKeys()) + "---" +
-        // RpcFactoryImpl.rpcCounter.get());
-        for (Node i : super.db.nodes(key2key))
+        Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, odb.nodeKeys()));
+
+        for (Node i : super.odb.nodes(key2key))
             if (i.isOnline())
                 return i;
 
@@ -125,7 +122,11 @@ public class DHT_NodeImpl extends CatadupaNode {
 
         @Override
         public void onReceive(RpcHandle handle, DHT_Request req) {
+            Thread.dumpStack();
+
             Node nextHop = resolveNextHop(req.key);
+            System.err.println(self.key + "   Got request for: " + req.key + " next hop: " + nextHop + "/ "
+                    + req.redirected);
             if (nextHop != null && nextHop.key != self.key && !req.redirected) {
                 // handle.reply( new DHT_ResolveKeyReply(req.key,
                 // nextHop.endpoint) ) ;
@@ -139,6 +140,18 @@ public class DHT_NodeImpl extends CatadupaNode {
                     handle.reply(new DHT_RequestReply(null));
             }
         }
+    }
+
+}
+
+class FOO implements DHT.Reply {
+
+    FOO() {
+    }
+
+    @Override
+    public void deliverTo(Handle conn, ReplyHandler handler) {
+        Thread.dumpStack();
     }
 
 }

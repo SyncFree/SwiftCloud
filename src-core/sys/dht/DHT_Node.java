@@ -18,9 +18,11 @@ package sys.dht;
 
 import static sys.Sys.Sys;
 
+import java.util.Set;
 import java.util.logging.Logger;
 
 import sys.dht.api.DHT;
+import sys.dht.catadupa.Node;
 import sys.dht.discovery.Discovery;
 import sys.dht.impl.DHT_ClientStub;
 import sys.dht.impl.DHT_NodeImpl;
@@ -36,8 +38,17 @@ public class DHT_Node extends DHT_NodeImpl {
         super.init();
     }
 
-    public boolean isHandledLocally(final DHT.Key key) {
-        return super.resolveNextHop(key).key == self.key;
+    public static Set<Long> nodeKeys() {
+        return getInstance().odb.nodeKeys();
+    }
+
+    static public boolean isHandledLocally(final DHT.Key key) {
+        return singleton.resolveNextHop(key).key == singleton.self.key;
+    }
+
+    static public Endpoint resolveKey(final DHT.Key key) {
+        Node nextHop = singleton.resolveNextHop(key);
+        return nextHop.key == singleton.self.key ? null : nextHop.endpoint;
     }
 
     synchronized public static DHT getStub() {

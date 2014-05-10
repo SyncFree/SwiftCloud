@@ -40,6 +40,7 @@ public class DHT_Handle implements DHT.Handle {
 
     @Override
     public boolean reply(Reply msg) {
+        System.err.println("replying to:" + handle.remoteEndpoint() + " msg: " + msg);
         return handle.reply(new DHT_RequestReply(msg)).succeeded();
     }
 

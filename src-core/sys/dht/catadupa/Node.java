@@ -53,6 +53,11 @@ public class Node {
         key = locator2key(endpoint.gid());
     }
 
+    public Node(long key, Endpoint endpoint) {
+        this.endpoint = endpoint;
+        this.key = key;
+    }
+
     @Override
     public int hashCode() {
         return (int) ((key >>> 32) ^ key);
@@ -76,7 +81,7 @@ public class Node {
 
     @Override
     public String toString() {
-        return "" + key; // + " -> " + endpoint ;
+        return "" + key + " -> " + endpoint;
     }
 
     private static long locator2key(Object locator) {

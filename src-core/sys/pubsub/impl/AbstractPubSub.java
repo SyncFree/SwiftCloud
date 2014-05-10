@@ -29,10 +29,17 @@ import sys.pubsub.PubSub.Subscriber;
 
 public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Publisher<T, Notifyable<T>> {
 
-    final Map<Object, Set<Subscriber<T>>> subscribers;
+    protected final String id;
+    protected final Map<T, Set<Subscriber<T>>> subscribers;
 
-    protected AbstractPubSub() {
-        subscribers = new HashMap<Object, Set<Subscriber<T>>>();
+    protected AbstractPubSub(String id) {
+        this.id = id;
+        this.subscribers = new HashMap<T, Set<Subscriber<T>>>();
+    }
+
+    @Override
+    public String id() {
+        return id;
     }
 
     @Override
@@ -98,7 +105,8 @@ public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Pub
     }
 
     @Override
-    synchronized public boolean isSubscribed(Object key) {
+    synchronized public boolean isSubscribed(T key) {
         return subscribers.containsKey(key);
     }
+
 }

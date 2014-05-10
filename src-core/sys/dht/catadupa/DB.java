@@ -45,9 +45,9 @@ public class DB {
 
     private static Logger Log = Logger.getLogger(DB.class.getName());
 
-    final long KEY_RANGE = 1L << Config.NODE_KEY_LENGTH;
-    final long MAX_KEY = (1L << Config.NODE_KEY_LENGTH) - 1L;
-    final long SLICE_RANDOM_OFFSET = new Random(100).nextLong() >>> 10;
+    static final long KEY_RANGE = 1L << Config.NODE_KEY_LENGTH;
+    static final long MAX_KEY = (1L << Config.NODE_KEY_LENGTH) - 1L;
+    static final long SLICE_RANDOM_OFFSET = new Random(100).nextLong() >>> 10;
 
     CRDTRuntime rt;
     final Node self;
@@ -120,6 +120,7 @@ public class DB {
     }
 
     synchronized public void merge(CatadupaCastPayload m) {
+        clock().record((LVV.TS) m.timestamp);
         membership.add(m.data, m.timestamp);
         mergeNodes(m.data);
     }
@@ -145,6 +146,7 @@ public class DB {
                 owner.onNodeRemoved(i);
             }
         }
+        owner.odb.populate();
     }
 
     public Set<Long> nodeKeys() {

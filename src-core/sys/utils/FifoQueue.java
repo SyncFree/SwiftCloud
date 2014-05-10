@@ -20,13 +20,11 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 public class FifoQueue<T> {
-    Long nextKey = -1L;
+    Long nextKey = 1L;
 
     SortedMap<Long, T> queue = new TreeMap<Long, T>();
 
     synchronized public void offer(long seqN, T val) {
-        if (nextKey < 0L)
-            nextKey = seqN;
 
         queue.put(seqN, val);
 
@@ -38,5 +36,9 @@ public class FifoQueue<T> {
     }
 
     public void process(T val) {
+    }
+
+    synchronized public String toString() {
+        return nextKey + ":" + queue.keySet().toString();
     }
 }

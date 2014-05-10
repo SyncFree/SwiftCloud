@@ -43,6 +43,6 @@ public interface NetworkingConstants {
     static final int RPC_CONNECTION_RETRY_DELAY = 250;
 
     static final int DHT_CLIENT_RETRIES = 3;
-    static final int DHT_CLIENT_TIMEOUT = 100;
+    static final int DHT_CLIENT_TIMEOUT = 250;
 
 }
