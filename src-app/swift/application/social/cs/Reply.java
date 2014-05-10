@@ -14,30 +14,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package swift.application.adservice;
+package swift.application.social.cs;
 
-import swift.crdt.core.CRDTIdentifier;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
-/**
- * Provides methods for generating CRDT Identifiers based on the class and type
- * of object.
- * 
- * @author annettebieniusa
- * 
- */
+public class Reply implements RpcMessage {
 
-public class NamingScheme {
+    String payload;
 
-    public static CRDTIdentifier forAd(String adTitle) {
-        return new CRDTIdentifier("ads", adTitle);
+    Reply() {
     }
 
-    public static CRDTIdentifier forViewCount(String adTitle) {
-        return new CRDTIdentifier("ads_count", adTitle);
+    public Reply(String payload) {
+        this.payload = payload;
     }
 
-    public static CRDTIdentifier forCategory(String category) {
-        return new CRDTIdentifier("ads_category", category);
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
     }
 
 }

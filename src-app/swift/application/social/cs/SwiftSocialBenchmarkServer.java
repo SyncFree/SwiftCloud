@@ -22,9 +22,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import swift.application.social.SwiftSocial;
+import swift.application.social.SwiftSocialApp;
 import swift.application.social.SwiftSocialBenchmark;
-import swift.application.social.SwiftSocialMain;
+import swift.application.social.SwiftSocialOps;
 import sys.ec2.ClosestDomain;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcHandle;
@@ -47,11 +47,16 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
         String partitions = Args.valueOf(args, "-partitions", "1/1");
         int site = Integer.valueOf(partitions.split("/")[0]);
 
-        List<String> servers = Args.subList(args, "-servers");
-        dcName = ClosestDomain.closest2Domain(servers, site);
-        System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
+        List<String> servers = Args.subList(args, "-servers", "localhost");
 
-        SwiftSocialMain.init();
+        String server = ClosestDomain.closest2Domain(servers, site);
+
+        System.err.println(IP.localHostAddress() + " connecting to: " + server);
+
+        final SwiftSocialApp app = new SwiftSocialApp();
+        app.init(new String[] { "-servers", server });
+
+        app.populateWorkloadFromConfig(); // Populate properties...
 
         // // Override SwiftSocial.props cache size with cmd line option...
         // int cache = Args.valueOf(args, "-cache", -1);
@@ -65,12 +70,10 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
             public void onReceive(final RpcHandle handle, final Request m) {
                 String cmdLine = m.payload;
                 String sessionId = handle.remoteEndpoint().toString();
-                SwiftSocial socialClient = getSession(sessionId);
+                SwiftSocialOps socialClient = getSession(sessionId, app);
                 try {
-                    System.out.println(cmdLine);
-                    SwiftSocialMain.runCommandLine(socialClient, cmdLine);
-                    System.out.println("OK");
-                    handle.reply(new Request("OK"));
+                    app.runCommandLine(socialClient, cmdLine);
+                    handle.reply(new Reply("OK"));
                 } catch (Exception x) {
                     handle.reply(new Request("ERROR"));
                     x.printStackTrace();
@@ -81,13 +84,13 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
         System.err.println("SwiftSocial Server Ready...");
     }
 
-    static SwiftSocial getSession(String sessionId) {
-        SwiftSocial res = sessions.get(sessionId);
+    static SwiftSocialOps getSession(String sessionId, SwiftSocialApp app) {
+        SwiftSocialOps res = sessions.get(sessionId);
         if (res == null)
-            sessions.put(sessionId, res = SwiftSocialMain.getSwiftSocial());
+            sessions.put(sessionId, res = app.getSwiftSocial());
 
         return res;
     }
 
-    static Map<String, SwiftSocial> sessions = new ConcurrentHashMap<String, SwiftSocial>();
+    static Map<String, SwiftSocialOps> sessions = new ConcurrentHashMap<String, SwiftSocialOps>();
 }

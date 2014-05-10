@@ -21,6 +21,7 @@ import sys.utils.Args;
 public class ClosestDomain {
 
     public static String closest2Domain(List<String> candidates, int site) {
+
         System.err.println("Choosing server from: " + candidates);
         String res = null;
         double bestRTT = Double.MAX_VALUE / 2;

@@ -16,8 +16,6 @@
  *****************************************************************************/
 package swift.application.social;
 
-import static sys.Sys.Sys;
-
 import java.io.PrintStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -25,11 +23,7 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
@@ -38,10 +32,9 @@ import swift.crdt.core.IsolationLevel;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
-import swift.dc.DCSequencerServer;
-import swift.dc.DCServer;
 import swift.exceptions.SwiftException;
 import sys.utils.Args;
+import sys.utils.Progress;
 import sys.utils.Props;
 import sys.utils.Threading;
 
@@ -49,78 +42,34 @@ import sys.utils.Threading;
  * Executing SwiftSocial operations, based on data model of WaltSocial prototype
  * [Sovran et al. SOSP 2011].
  */
-public class SwiftSocialMain {
-    protected static String dcName;
-    protected static IsolationLevel isolationLevel;
-    protected static CachePolicy cachePolicy;
-    protected static boolean subscribeUpdates;
-    protected static boolean asyncCommit;
+public class SwiftSocialApp {
+    protected String server;
+    protected IsolationLevel isolationLevel;
+    protected CachePolicy cachePolicy;
+    protected boolean subscribeUpdates;
+    protected boolean asyncCommit;
 
-    protected static int thinkTime;
-    protected static int numUsers;
-    protected static int userFriends;
-    protected static int biasedOps;
-    protected static int randomOps;
-    protected static int opGroups;
+    protected int thinkTime;
+    protected int numUsers;
+    protected int userFriends;
+    protected int biasedOps;
+    protected int randomOps;
+    protected int opGroups;
 
-    protected static PrintStream bufferedOutput;
+    protected PrintStream bufferedOutput;
 
-    protected static AtomicInteger commandsDone = new AtomicInteger(0);
-    protected static AtomicInteger totalCommands = new AtomicInteger(0);
-    private static Properties props;
+    protected AtomicInteger commandsDone = new AtomicInteger(0);
+    protected AtomicInteger totalCommands = new AtomicInteger(0);
+    private Properties props;
 
-    public static void main(String[] args) {
-        sys.Sys.init();
-
-        Logger.getLogger("swift").setLevel(Level.WARNING);
-        // Logger.getLogger("sys").setLevel(Level.ALL);
-
-        dcName = args.length == 0 ? "localhost" : args[0];
-
-        init();
-
-        SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT, props);
-
-        DCSequencerServer.main(new String[] { "-name", dcName });
-        DCServer.main(new String[] { dcName });
-
-        Props.parseFile("swiftsocial", bufferedOutput);
-
-        System.out.println("Initializing Users...");
-
-        List<String> users = Workload.populate(numUsers);
-
-        initUsers(options, users, new AtomicInteger(), numUsers);
-
-        System.out.println("Waiting for 3 seconds...");
-
-        int concurrentSessions = Args.valueOf(args, "-sessions", 1);
-
-        Threading.sleep(3000);
-        final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions,
-                Threading.factory("Client"));
-
-        System.err.println("Spawning session threads.");
-        for (int i = 0; i < concurrentSessions; i++) {
-            final int sessionId = i;
-            final Workload commands = Workload.doMixed(0, userFriends, biasedOps, randomOps, opGroups, 1);
-            sessionsExecutor.execute(new Runnable() {
-                public void run() {
-                    // Randomize startup to avoid clients running all at the
-                    // same time; causes problems akin to DDOS symptoms.
-                    Threading.sleep(Sys.rg.nextInt(1000));
-                    runClientSession(sessionId, commands, false);
-                }
-            });
-        }
-
+    public void init(String[] args) {
+        server = Args.valueOf(args, "-servers", "localhost");
     }
 
-    public static void init() {
+    public List<String> populateWorkloadFromConfig() {
 
-        bufferedOutput = new PrintStream(System.out, false);
+        props = Props.parseFile("swiftsocial", bufferedOutput, "swiftsocial-test.props");
 
-        props = Props.parseFile("swiftsocial", bufferedOutput);
         isolationLevel = IsolationLevel.valueOf(Props.get(props, "swift.isolationLevel"));
         cachePolicy = CachePolicy.valueOf(Props.get(props, "swift.cachePolicy"));
         subscribeUpdates = Props.boolValue(props, "swift.notifications", false);
@@ -133,18 +82,25 @@ public class SwiftSocialMain {
         opGroups = Props.intValue(props, "swiftsocial.opGroups", 500);
         thinkTime = Props.intValue(props, "swiftsocial.thinkTime", 1000);
 
+        return Workload.populate(numUsers);
     }
 
-    public static SwiftSocial getSwiftSocial() {
-        final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT, props);
+    public Workload getWorkloadFromConfig(int site, int numberOfSites) {
+        if (props == null)
+            populateWorkloadFromConfig();
+        return Workload.doMixed(site, userFriends, biasedOps, randomOps, opGroups, numberOfSites);
+    }
+
+    public SwiftSocialOps getSwiftSocial() {
+        final SwiftOptions options = new SwiftOptions(server, DCConstants.SURROGATE_PORT, props);
         SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
-        SwiftSocial socialClient = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
+        SwiftSocialOps socialClient = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
         return socialClient;
     }
 
-    static void runClientSession(final int sessionId, final Workload commands, boolean loop4Ever) {
-        final SwiftSocial socialClient = getSwiftSocial();
+    void runClientSession(final int sessionId, final Workload commands, boolean loop4Ever) {
+        final SwiftSocialOps socialClient = getSwiftSocial();
 
         totalCommands.addAndGet(commands.size());
         final long sessionStartTime = System.currentTimeMillis();
@@ -173,7 +129,7 @@ public class SwiftSocialMain {
         bufferedOutput.flush();
     }
 
-    public static Commands runCommandLine(SwiftSocial socialClient, String cmdLine) {
+    public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
         String[] toks = cmdLine.split(";");
         final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
         switch (cmd) {
@@ -221,12 +177,10 @@ public class SwiftSocialMain {
         return cmd;
     }
 
-    static String progressMsg = "";
-
-    public static void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {
+    public void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {
         try {
             SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(swiftOptions);
-            SwiftSocial client = new SwiftSocial(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
+            SwiftSocialOps client = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                     asyncCommit);
 
             TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
@@ -234,12 +188,6 @@ public class SwiftSocialMain {
             // Initialize user data
             List<String> userData = users;
             for (String line : userData) {
-
-                String msg = String.format("Initialization:%.0f%%", 100.0 * counter.incrementAndGet() / total);
-                if (!msg.equals(progressMsg)) {
-                    progressMsg = msg;
-                    System.out.println(progressMsg);
-                }
                 // Divide into smaller transactions.
                 if (txnSize >= 100) {
                     txn.commit();
@@ -258,6 +206,7 @@ public class SwiftSocialMain {
                     System.err.println("Could not parse the birthdate: " + toks[4]);
                 }
                 client.registerUser(txn, toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
+                System.out.printf("\rDone: %s", Progress.percentage(counter.incrementAndGet(), total));
             }
             if (!txn.getStatus().isTerminated()) {
                 txn.commit();
