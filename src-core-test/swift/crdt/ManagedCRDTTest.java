@@ -19,6 +19,7 @@ package swift.crdt;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -100,8 +101,8 @@ public class ManagedCRDTTest {
                 mapping, null, dependency);
         for (int i = 0; i < elements.length; i++) {
             final Set<TripleTimestamp> emptySet = Collections.emptySet();
-            group.append(new AddWinsSetAddUpdate<Integer, AddWinsSetCRDT<Integer>>(elements[i], generator.generateNew(),
-                    emptySet));
+            group.append(new AddWinsSetAddUpdate<Integer, AddWinsSetCRDT<Integer>>(elements[i],
+                    generator.generateNew(), emptySet));
         }
         return group;
     }
@@ -309,7 +310,7 @@ public class ManagedCRDTTest {
 
         a.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
         b.execute(groupY2, CRDTOperationDependencyPolicy.CHECK);
-        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copy();
+        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock());
         a.merge(b);
 
         assertEquals(2, a.getInternalLog().size());
@@ -334,7 +335,7 @@ public class ManagedCRDTTest {
         a.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
         a.execute(groupY2, CRDTOperationDependencyPolicy.CHECK);
         b.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
-        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copy();
+        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock());
         a.merge(b);
 
         assertEquals(2, a.getInternalLog().size());
@@ -355,7 +356,7 @@ public class ManagedCRDTTest {
                 ClockFactory.newClock(), 1);
 
         a.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
-        final ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copy();
+        final ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock());
         a.merge(aCopy);
         a.merge(aCopy);
 
@@ -517,5 +518,34 @@ public class ManagedCRDTTest {
                 new Timestamp("site", 1)), creationStateRef.get(), ClockFactory.newClock()),
                 CRDTOperationDependencyPolicy.CHECK);
         assertTrue(unregisteredObject.isRegisteredInStore());
+    }
+
+    @Test
+    public void testCopyWithRestrictedVersioning() {
+        a.execute(createUpdatesGroup("X", ClockFactory.newClock(), 1), CRDTOperationDependencyPolicy.CHECK);
+        final CausalityClock origPruneClock = a.getClock().clone();
+        a.prune(origPruneClock, true);
+        a.execute(createUpdatesGroup("Y", ClockFactory.newClock(), 2), CRDTOperationDependencyPolicy.CHECK);
+        final CausalityClock noVersioningClock = a.getClock().clone();
+        a.execute(createUpdatesGroup("Z", ClockFactory.newClock(), 3), CRDTOperationDependencyPolicy.CHECK);
+        final CausalityClock origClock = a.getClock().clone();
+
+        final ManagedCRDT<AddWinsSetCRDT<Integer>> copy = a.copyWithRestrictedVersioning(noVersioningClock);
+
+        // Assert no side-effect on the original;
+        assertEquals(CMP_CLOCK.CMP_EQUALS, origClock.compareTo(a.getClock()));
+        assertEquals(CMP_CLOCK.CMP_EQUALS, origPruneClock.compareTo(a.getPruneClock()));
+        assertEquals(ID, a.getUID());
+        assertEquals(2, a.getUpdatesTimestampMappingsSince(origPruneClock).size());
+        assertTrue(a.isRegisteredInStore());
+
+        // Asserts on copy
+        assertEquals(CMP_CLOCK.CMP_EQUALS, origClock.compareTo(copy.getClock()));
+        assertEquals(CMP_CLOCK.CMP_EQUALS, noVersioningClock.compareTo(copy.getPruneClock()));
+        assertEquals(ID, copy.getUID());
+        assertEquals(1, copy.getUpdatesTimestampMappingsSince(noVersioningClock).size());
+        assertNotSame(a.getUpdatesTimestampMappingsSince(noVersioningClock).get(0), copy
+                .getUpdatesTimestampMappingsSince(noVersioningClock).get(0));
+        assertTrue(copy.isRegisteredInStore());
     }
 }

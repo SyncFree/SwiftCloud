@@ -390,9 +390,8 @@ class DCDataServer {
     }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp,
-            CausalityClock snapshotVersion, CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs,
-            Timestamp prvCltTs, CausalityClock curDCVersion) {
+    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
+            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
         CRDTIdentifier id = grp.getTargetUID();
         lock(id);
         try {
@@ -521,7 +520,16 @@ class DCDataServer {
              * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
              * this.crdt = data.crdt.copy(); } else;
              */
-            final ManagedCRDT crdt = data.crdt.copy();
+
+            // Bandwidth optimization: prune as much as possible before sending.
+            final ManagedCRDT crdt = data.crdt.copyWithRestrictedVersioning(version);
+            // FIXME: when failing over between DCs, notifications for the
+            // same update may reach the client with two different DC
+            // timestamps.
+            // To avoid duplicates, the notifications/fetch from a target
+            // DC, need to filter out duplicates when necessary, which
+            // happens only by side-effect of an implementation as of
+            // 497a60a.
             Timestamp ts = null;
             synchronized (cltClock) {
                 ts = cltClock.getLatest(clientId);

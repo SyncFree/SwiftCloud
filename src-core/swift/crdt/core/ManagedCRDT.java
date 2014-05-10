@@ -46,7 +46,8 @@ import swift.clocks.TimestampMapping;
  * @param <V>
  *            type of operation-based CRDT
  */
-public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
+public class ManagedCRDT<V extends CRDT<V>> {
+    // TODO: make costly assertion checks optional.
     private static final long serialVersionUID = 1L;
 
     private static <V extends CRDT<V>> Map<Timestamp, CRDTObjectUpdatesGroup<V>> getTimestampToUpdatesMap(
@@ -201,17 +202,14 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
      * merged into the clock of an object if checkVersionClock is disabled.
      * 
      * @param pruningPoint
-     *            clock up to which data clean-up is performed; without
-     *            exceptions
+     *            clock that represents updates to clean-up for versioning
+     *            purposes (merged with existing pruningPoint)
      * @param checkVersionClock
      *            when true, pruningPoint is checked against {@link #getClock()}
-     * @throws IllegalStateException
-     *             when the provided clock is not greater than or equal to the
-     *             existing pruning point
      * @throws IllegalArgumentException
-     *             provided clock has disallowed exceptions or checkVersionClock
-     *             has been specified and {@link #getClock()} is concurrent or
-     *             dominated by pruningPoint
+     *             provided checkVersionClock has been specified and
+     *             {@link #getClock()} is concurrent or dominated by
+     *             pruningPoint
      */
     public void prune(CausalityClock pruningPoint, boolean checkVersionClock) {
         if (checkVersionClock && clock.compareTo(pruningPoint).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
@@ -241,7 +239,7 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
      * invariants.
      * <p>
      * IMPLEMENTATION ASSUMPTION: the incoming crdt pruneClock may miss scout's
-     * local timestamps, but not the clock should not miss them.
+     * local timestamps, but the clock should not miss them.
      * 
      * @param crdt
      *            object state to merge with; unmodified
@@ -485,17 +483,30 @@ public class ManagedCRDT<V extends CRDT<V>> implements Copyable {
         return result;
     }
 
-    @Override
-    public ManagedCRDT<V> copy() {
+    /**
+     * @param versioningLowerBound
+     *            events contained in this clock (restricted to object's
+     *            version) won't be available for versioning
+     * @return a deep copy of the object for replication purposes, with
+     *         restricted versioning
+     */
+    public ManagedCRDT<V> copyWithRestrictedVersioning(final CausalityClock versioningLowerBound) {
         final ManagedCRDT<V> result = new ManagedCRDT<V>();
         result.id = id;
         result.clock = clock.clone();
-        result.pruneClock = pruneClock.clone();
+
+        result.pruneClock = versioningLowerBound.clone();
+        result.pruneClock.intersect(result.clock);
+        result.pruneClock.merge(pruneClock);
         result.registeredInStore = registeredInStore;
         result.checkpoint = checkpoint.copy();
         result.strippedLog = new LinkedList<CRDTObjectUpdatesGroup<V>>();
-        for (final CRDTObjectUpdatesGroup<V> u : strippedLog) {
-            result.strippedLog.add(u.strippedWithCopiedTimestampMappings());
+        for (final CRDTObjectUpdatesGroup<V> updates : strippedLog) {
+            if (updates.anyTimestampIncluded(result.pruneClock)) {
+                updates.applyTo(result.checkpoint);
+            } else {
+                result.strippedLog.add(updates.strippedWithCopiedTimestampMappings());
+            }
         }
         return result;
     }
