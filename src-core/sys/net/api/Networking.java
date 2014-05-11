@@ -16,6 +16,7 @@
  *****************************************************************************/
 package sys.net.api;
 
+import sys.Sys;
 import sys.net.api.rpc.RpcFactory;
 
 /**
@@ -26,8 +27,12 @@ import sys.net.api.rpc.RpcFactory;
  */
 abstract public class Networking {
 
+    static {
+        Sys.init();
+    }
+
     public enum TransportProvider {
-        DEFAULT, NIO_TCP, OIO_TCP, NETTY_IO_TCP, NETTY_IO_WS
+        DEFAULT, OIO_TCP, NETTY_IO_TCP
     }
 
     /**
@@ -123,10 +128,6 @@ abstract public class Networking {
      */
     abstract public Serializer serializer();
 
-    protected Networking() {
-        Networking = this;
-    }
-
     /**
      * Sets the default transport provider...
      * 
@@ -138,10 +139,13 @@ abstract public class Networking {
     /**
      * Upon proper initialization should point the an instance implementation.
      * 
-     * Intended for use with static import that allow instance methods that
-     * mimic the use of static class methods. It should be possible to
-     * initialize with a different implementation, such as one meant for
-     * simulated environment.
+     * Intended for use with static import, to mimic the use of static class
+     * methods. It should be possible to initialize with different types of
+     * implementation, such as one meant for simulated environment.
      */
     public static Networking Networking;
+
+    protected Networking() {
+        Networking = this;
+    }
 }

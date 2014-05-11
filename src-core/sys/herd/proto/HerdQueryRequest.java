@@ -14,27 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.impl.msgs;
+package sys.herd.proto;
 
-import sys.dht.api.DHT;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class DHT_ReplyReply implements RpcMessage {
+public class HerdQueryRequest implements RpcMessage {
 
-    public DHT.Reply payload;
-
-    DHT_ReplyReply() {
-    }
-
-    public DHT_ReplyReply(DHT.Reply payload) {
-        this.payload = payload;
+    public HerdQueryRequest() {
     }
 
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        ((DHT_StubHandler) handler).onReceive(handle, this);
+        ((ShepardProtoHandler) handler).onReceive(handle, this);
     }
 
 }

@@ -1,6 +1,6 @@
 /*****************************************************************************
- * Copyright 2011-2012 INRIA
- * Copyright 2011-2012 Universidade Nova de Lisboa
+ * Copyright 2011-2014 INRIA
+ * Copyright 2011-2014 Universidade Nova de Lisboa
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa;
-
-import static sys.dht.catadupa.Config.Config;
+package sys.dht;
 
 import java.math.BigInteger;
 import java.util.Random;
@@ -29,6 +27,9 @@ import sys.net.api.Endpoint;
  * 
  */
 public class Node {
+
+    static final int NODE_KEY_LENGTH = 10;
+    public static final long MAX_KEY = (1L << NODE_KEY_LENGTH) - 1L;
 
     public long key;
     public Endpoint endpoint;
@@ -85,20 +86,6 @@ public class Node {
     }
 
     private static long locator2key(Object locator) {
-        return new BigInteger(Config.NODE_KEY_LENGTH, new Random((Long) locator)).longValue();
-    }
-}
-
-class DeadNode extends Node {
-
-    public DeadNode(Node other) {
-        key = other.key;
-        endpoint = other.endpoint;
-        datacenter = other.datacenter;
-    }
-
-    @Override
-    public boolean isOnline() {
-        return false;
+        return new BigInteger(NODE_KEY_LENGTH, new Random((Long) locator)).longValue();
     }
 }

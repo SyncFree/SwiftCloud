@@ -14,24 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa.crdts.time;
+package sys.herd.proto;
 
-import java.io.Serializable;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
-/**
- * Common base interface for timestamps.
- * <p>
- */
-public interface Timestamp extends Serializable, Comparable<Timestamp> {
+public class GrazingRequest implements RpcMessage {
 
-    public String siteId();
+    public GrazingRequest() {
+    }
 
-    public Timestamp clone();
-
-    public int size();
-
-    public void recordIn(CausalityClock<?, ?> clock);
-
-    public boolean includedIn(CausalityClock<?, ?> clock);
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((ShepardProtoHandler) handler).onReceive(handle, this);
+    }
 
 }

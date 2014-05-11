@@ -14,12 +14,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa;
+package sys.dht;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+
+import sys.herd.Herd;
+import sys.net.api.Endpoint;
 
 /**
  * 
@@ -28,28 +32,46 @@ import java.util.TreeMap;
  */
 public class OrdinalDB {
 
-    final long MAX_KEY = DB.MAX_KEY;
-
-    final DB db;
+    Node self;
     SortedMap<Long, Node> k2n = new TreeMap<Long, Node>();
 
-    public OrdinalDB(DB db) {
-        this.db = db;
+    public OrdinalDB populate(Herd herd, Endpoint endpoint) {
+        k2n.clear();
+
+        int total = herd.sheep().size();
+
+        SortedMap<Long, Node> tmp = new TreeMap<Long, Node>();
+
+        for (Endpoint i : herd.sheep()) {
+            Node n = new Node(i, herd.dc());
+            tmp.put(n.key, n);
+        }
+
+        int order = 0;
+        for (Node i : tmp.values()) {
+            long key = (Node.MAX_KEY / total) * order++;
+            k2n.put(key, new Node(key, i.endpoint));
+        }
+
+        for (Node i : k2n.values())
+            if (i.endpoint.equals(endpoint)) {
+                self = i;
+                break;
+            }
+
+        return this;
     }
 
-    void populate() {
-        k2n.clear();
-        int t = db.nodeKeys().size();
-
-        int o = 0;
-        for (Node j : db.nodes(0L)) {
-            long key = (MAX_KEY / t) * o++;
-            k2n.put(key, new Node(key, j.endpoint));
-        }
+    public Node self() {
+        return self;
     }
 
     public Set<Long> nodeKeys() {
         return k2n.keySet();
+    }
+
+    public Collection<Node> nodes() {
+        return k2n.values();
     }
 
     public Iterable<Node> nodes(long key) {

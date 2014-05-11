@@ -14,44 +14,36 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa;
+package sys.herd.proto;
 
-import static sys.Sys.Sys;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
+public class GrazingGranted implements RpcMessage {
 
-/**
- * 
- * @author smd
- * 
- * @param <T>
- */
-public class RandomList<T> extends ArrayList<T> {
+    int duration;
+    int when;
 
-    public RandomList() {
+    public GrazingGranted() {
     }
 
-    public RandomList(Collection<? extends T> c) {
-        super(c);
+    public GrazingGranted(int duration, int when) {
+        this.duration = duration;
+        this.when = when;
     }
 
-    public RandomList(Iterator<? extends T> it) {
-        for (; it.hasNext();)
-            add(it.next());
+    public int duration() {
+        return duration;
     }
 
-    public T randomElement() {
-        return isEmpty() ? null : get(Sys.rg.nextInt(super.size()));
+    public int when() {
+        return when;
     }
 
-    public T removeRandomElement() {
-        return isEmpty() ? null : remove(Sys.rg.nextInt(super.size()));
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((ShepardProtoHandler) handler).onReceive(this);
     }
 
-    /**
-	 * 
-	 */
-    private static final long serialVersionUID = 1L;
 }

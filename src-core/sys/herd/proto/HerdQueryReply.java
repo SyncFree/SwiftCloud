@@ -14,26 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa.crdts;
+package sys.herd.proto;
 
-import java.io.Serializable;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
-/**
- * Interface for Convergent Replicated Data Types (CvRDTs) supporting
- * (type-invariant) merge function.
- * 
- * @author annettebieniusa butcheredBy smd
- * 
- * @param <V>
- *            CvRDT type implementing the interface
- * 
- */
-public interface CvRDT<V> extends Serializable {
+public class HerdQueryReply implements RpcMessage {
 
-    void merge(V other);
+    public HerdQueryReply() {
+    }
 
-    // <C extends CausalityClock<C>> void merge(V that,
-    // CausalityClock<C> thisClock, CausalityClock<C> thatClock)
-    // throws IncompatibleTypeException;
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((ShepardProtoHandler) handler).onReceive(handle, this);
+    }
 
 }

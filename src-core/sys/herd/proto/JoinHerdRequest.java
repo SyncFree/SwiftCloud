@@ -1,6 +1,6 @@
 /*****************************************************************************
- * Copyright 2011-2012 INRIA
- * Copyright 2011-2012 Universidade Nova de Lisboa
+ * Copyright 2011-2014 INRIA
+ * Copyright 2011-2014 Universidade Nova de Lisboa
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,31 +14,42 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa.msgs;
+package sys.herd.proto;
 
-import sys.dht.catadupa.Range;
+import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class CatadupaCast implements RpcMessage {
+public class JoinHerdRequest implements RpcMessage {
 
-    public int level;
-    public Range range;
-    public long rootKey;
-    public CatadupaCastPayload payload;
+    String dc;
+    String herd;
+    Endpoint endpoint;
 
-    CatadupaCast() {
+    public JoinHerdRequest() {
     }
 
-    public CatadupaCast(final int level, final long rootKey, final Range range, final CatadupaCastPayload payload) {
-        this.level = level;
-        this.payload = payload;
-        this.rootKey = rootKey;
-        this.range = range.clone();
+    public JoinHerdRequest(String dc, String herd, Endpoint endpoint) {
+        this.dc = dc;
+        this.herd = herd;
+        this.endpoint = endpoint;
     }
 
+    @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        ((CatadupaHandler) handler).onReceive(handle, this);
+        ((HerdProtoHandler) handler).onReceive(handle, this);
+    }
+
+    public String dc() {
+        return dc;
+    }
+
+    public String herd() {
+        return herd;
+    }
+
+    public Endpoint sheep() {
+        return endpoint;
     }
 }

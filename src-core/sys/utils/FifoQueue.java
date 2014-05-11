@@ -25,7 +25,6 @@ public class FifoQueue<T> {
     SortedMap<Long, T> queue = new TreeMap<Long, T>();
 
     synchronized public void offer(long seqN, T val) {
-
         queue.put(seqN, val);
 
         Long headKey;

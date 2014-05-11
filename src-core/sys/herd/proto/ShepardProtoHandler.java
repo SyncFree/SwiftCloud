@@ -14,26 +14,33 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa.msgs;
+package sys.herd.proto;
 
-import sys.dht.catadupa.Node;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class JoinRequest implements RpcMessage {
+public class ShepardProtoHandler implements RpcHandler {
 
-    public Node node;
-
-    public JoinRequest() {
+    @Override
+    public void onReceive(RpcMessage m) {
     }
 
-    public JoinRequest(final Node self) {
-        this.node = self;
+    @Override
+    public void onReceive(RpcHandle handle, RpcMessage m) {
     }
 
-    public void deliverTo(RpcHandle call, RpcHandler handler) {
-        ((CatadupaHandler) handler).onReceive(call, this);
+    @Override
+    public void onFailure(RpcHandle handle) {
     }
 
+    public void onReceive(RpcHandle client, GrazingRequest q) {
+    }
+
+    public void onReceive(GrazingGranted p) {
+    }
+
+    public void onReceive(GrazingAccepted p) {
+        System.err.println("Request Accepted from Shepard!!!");
+    }
 }

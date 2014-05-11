@@ -14,26 +14,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *****************************************************************************/
-package sys.dht.catadupa.msgs;
+package sys.herd.proto;
 
-import sys.dht.catadupa.crdts.time.LVV;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class DbMergeRequest implements RpcMessage {
+public class GrazingAccepted implements RpcMessage {
 
-    public LVV clock;
-
-    DbMergeRequest() {
+    public GrazingAccepted() {
     }
 
-    public DbMergeRequest(final LVV clock) {
-        this.clock = clock.clone();
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((ShepardProtoHandler) handler).onReceive(this);
     }
-
-    public void deliverTo(final RpcHandle handle, final RpcHandler handler) {
-        ((CatadupaHandler) handler).onReceive(handle, this);
-    }
-
 }
