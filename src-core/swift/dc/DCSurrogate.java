@@ -16,6 +16,7 @@
  *****************************************************************************/
 package swift.dc;
 
+import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
 import java.util.Collections;
@@ -262,7 +263,6 @@ public class DCSurrogate extends SwiftProtocolHandler {
                 // FIXME: can we encode a diff between all these clocks on the
                 // wire?
                 crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionCopy);
-                crdt.getClock().intersect(estimatedDCStableVersionCopy);
 
                 if (cltLastSeqNo != null)
                     crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
@@ -504,7 +504,6 @@ public class DCSurrogate extends SwiftProtocolHandler {
         public void onNotification(final UpdateNotification update) {
 
             super.onNotification(new SwiftNotification(update));
-
             new Task(0) {
                 public void run() {
                     doSnapshotNotification(update);
@@ -516,20 +515,27 @@ public class DCSurrogate extends SwiftProtocolHandler {
             Timestamp ts = n.timestamp();
             if (!summary.record(ts)) {
 
-                SnapshotNotification sn = new SnapshotNotification(n.srcId, n.key(), ts, n.info.getNewClock());
-                snapshots.put(ts, sn);
+                snapshots.put(ts, n.info.getNewClock());
 
                 CausalityClock minDcVersion = suPubSub.minDcVersion();
 
-                for (Iterator<SnapshotNotification> it = snapshots.values().iterator(); it.hasNext();) {
-                    SnapshotNotification s = it.next();
-                    if (minDcVersion.includes(s.timestamp())
-                            && minDcVersion.compareTo(s.snapshotClock()).is(CMP_CLOCK.CMP_DOMINATES,
-                                    CMP_CLOCK.CMP_EQUALS)) {
-                        it.remove();
+                boolean updated = false;
+                for (Iterator<Map.Entry<Timestamp, CausalityClock>> it = snapshots.entrySet().iterator(); it.hasNext();) {
+                    Map.Entry<Timestamp, CausalityClock> e = it.next();
 
-                        super.onNotification(new SwiftNotification(sn));
+                    if (minDcVersion.includes(e.getKey())
+                            && minDcVersion.compareTo(e.getValue()).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+                        snapshot.merge(e.getValue());
+                        updated = true;
+                        it.remove();
                     }
+                }
+                if (updated && Sys.timeMillis() > (lastNotification + NOTIFICATION_RATE)) {
+
+                    super.onNotification(new SwiftNotification(new SnapshotNotification(snapshot,
+                            getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy())));
+
+                    lastNotification = Sys.timeMillis();
                 }
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("MinDcVersion: " + minDcVersion + " SNAPSHOTS:" + snapshots);
@@ -542,9 +548,12 @@ public class DCSurrogate extends SwiftProtocolHandler {
             }
         }
 
+        static final long NOTIFICATION_RATE = 1000;
+        long lastNotification = 0L;
+        CausalityClock snapshot = ClockFactory.newClock();
         CausalityClock summary = ClockFactory.newClock();
-        SortedMap<Timestamp, SnapshotNotification> snapshots = Collections
-                .synchronizedSortedMap(new TreeMap<Timestamp, SnapshotNotification>());
+        SortedMap<Timestamp, CausalityClock> snapshots = Collections
+                .synchronizedSortedMap(new TreeMap<Timestamp, CausalityClock>());
 
     }
 
