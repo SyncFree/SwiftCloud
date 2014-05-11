@@ -65,6 +65,7 @@ import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.SwiftNotification;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
+import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -115,14 +116,16 @@ public class DCSurrogate extends SwiftProtocolHandler {
 
         initData(props);
 
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info("Server ready...");
+        }
+
+        DHT_Node.init(siteId, "surrogates", srvEndpoint4Clients.localEndpoint(), sequencerEndpoint);
         new PeriodicTask(0.0, 0.1) {
             public void run() {
                 updateEstimatedDCVersion();
             }
         };
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("Server ready...");
-        }
     }
 
     private void initData(Properties props) {
@@ -509,10 +512,9 @@ public class DCSurrogate extends SwiftProtocolHandler {
             };
         }
 
-        void doSnapshotNotification(UpdateNotification n) {
+        synchronized void doSnapshotNotification(UpdateNotification n) {
             Timestamp ts = n.timestamp();
             if (!summary.record(ts)) {
-                System.err.println("§§§§§§ " + ts + "    " + n.info.getNewClock());
 
                 SnapshotNotification sn = new SnapshotNotification(n.srcId, n.key(), ts, n.info.getNewClock());
                 snapshots.put(ts, sn);

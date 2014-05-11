@@ -50,6 +50,7 @@ import swift.proto.LatestKnownClockRequest;
 import swift.proto.SeqCommitUpdatesReply;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
+import sys.herd.Herd;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
@@ -115,6 +116,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         this.props = props;
         init();
         initDB(props);
+
     }
 
     protected synchronized CausalityClock receivedMessagesCopy() {
@@ -280,6 +282,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 logger.info("Sequencer ready...");
             }
         }
+
+        Herd.joinHerd(siteId, "sequencers", srvEndpoint.localEndpoint(), srvEndpoint.localEndpoint());
     }
 
     private boolean upgradeToPrimary() {
@@ -675,6 +679,13 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 props.setProperty(args[i].substring(6), args[++i]);
             }
         }
+
+        try {
+            Herd.initServer();
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
+
         new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup, props).start();
     }
 

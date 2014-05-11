@@ -48,13 +48,13 @@ public class DCServer {
     }
 
     protected void init() {
-
     }
 
     public void startSurrogServer(String siteId, int port4Clients, int port4Sequencers) {
         Sys.init();
 
         Endpoint sequencer = Networking.resolve(sequencerHost, SEQUENCER_PORT);
+
         server = new DCSurrogate(siteId, port4Clients, port4Sequencers, sequencer, props);
     }
 

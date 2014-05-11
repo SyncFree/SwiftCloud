@@ -53,13 +53,11 @@ import swift.pubsub.DataServerPubSubService;
 import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.UpdateNotification;
 import sys.dht.DHT_Node;
-import sys.dht.api.StringKey;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.RemoteEndpoint;
-import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
 
 /**
@@ -90,8 +88,10 @@ class DCDataServer {
     ExecutorService executor = Executors.newCachedThreadPool();
 
     RpcEndpoint dhtEndpoint;
+    DCSurrogate surrogate;
 
     DCDataServer(DCSurrogate surrogate, Properties props, SurrogatePubSubService suPubSub) {
+        this.surrogate = surrogate;
         this.localSurrogateId = surrogate.getId();
         this.dsPubSub = new DataServerPubSubService(localSurrogateId, executor, surrogate);
         this.suPubSub = suPubSub;
@@ -101,11 +101,6 @@ class DCDataServer {
         initStore();
         initData(props);
         initDHT();
-        new PeriodicTask(1.0, 1.0) {
-            public void run() {
-                System.err.println(DHT_Node.nodeKeys());
-            }
-        };
 
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Data server ready...");
@@ -182,7 +177,6 @@ class DCDataServer {
     }
 
     void initDHT() {
-        DHT_Node.start();
 
         dhtEndpoint = Networking.rpcConnect().toDefaultService();
         Networking.rpcBind(DHT_PORT).toService(0, new SwiftProtocolHandler() {
@@ -328,7 +322,7 @@ class DCDataServer {
     }
 
     Endpoint resolve(CRDTIdentifier id) {
-        return DHT_Node.resolveKey(new StringKey(id.toString()));
+        return DHT_Node.resolveKey(id.toString());
     }
 
     /**
@@ -339,7 +333,7 @@ class DCDataServer {
     <V extends CRDT<V>> ExecCRDTResult execCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
             CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
 
-        Endpoint dst = DHT_Node.resolveKey(new StringKey(grp.getTargetUID().toString()));
+        Endpoint dst = DHT_Node.resolveKey(grp.getTargetUID().toString());
         if (dst == null)
             return localExecCRDT(grp, snapshotVersion, trxVersion, txTs, cltTs, prvCltTs, curDCVersion);
         else {
@@ -365,7 +359,7 @@ class DCDataServer {
      * @return null if cannot fulfill request
      */
     ManagedCRDT getCRDT(final CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed) {
-        Endpoint dst = DHT_Node.resolveKey(new StringKey(id.toString()));
+        Endpoint dst = DHT_Node.resolveKey(id.toString());
         if (dst == null)
             return localGetCRDTObject(id, clk, clientId, isSubscribed);
         else {
@@ -485,8 +479,9 @@ class DCDataServer {
             ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, oldClock, data.clock.clone(), data.pruneClock.clone(),
                     grp);
 
-            // published.add(id);
-            System.err.println(">>>>>>>>>>>>>   PUBLISH:     " + id + "  >>>>  " + txTs);
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info(">>>>>>>>>>>>>   PUBLISH:     " + id + "  >>>>  " + txTs);
+            }
             dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), txTs, info));
 
             return new ExecCRDTResult(true, id, info);
