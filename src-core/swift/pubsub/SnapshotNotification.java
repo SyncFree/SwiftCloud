@@ -10,10 +10,12 @@ import sys.pubsub.PubSub.Notifyable;
 
 public class SnapshotNotification implements Notifyable<CRDTIdentifier> {
 
-    String clientId;
-    CRDTIdentifier id;
-    Timestamp timestamp;
+    transient String clientId;
+    transient CRDTIdentifier id;
+    transient Timestamp timestamp;
     CausalityClock snapshotClock;
+    CausalityClock estimatedDCVersion;
+    CausalityClock estimatedDCStableVersion;
 
     SnapshotNotification() {
     }
@@ -25,6 +27,13 @@ public class SnapshotNotification implements Notifyable<CRDTIdentifier> {
         this.id = id;
     }
 
+    public SnapshotNotification(CausalityClock snapshotClock, CausalityClock estimatedDCVersion,
+            CausalityClock estimatedDCStableVersion) {
+        this.snapshotClock = snapshotClock;
+        this.estimatedDCVersion = estimatedDCVersion;
+        this.estimatedDCStableVersion = estimatedDCStableVersion;
+    }
+
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
         ((SwiftSubscriber) pubsub).onNotification(this);
@@ -33,6 +42,14 @@ public class SnapshotNotification implements Notifyable<CRDTIdentifier> {
     @Override
     public Object src() {
         return clientId;
+    }
+
+    public CausalityClock estimatedDCVersion() {
+        return estimatedDCVersion;
+    }
+
+    public CausalityClock estimatedDCStableVersion() {
+        return estimatedDCStableVersion;
     }
 
     public CausalityClock snapshotClock() {

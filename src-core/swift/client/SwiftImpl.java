@@ -86,6 +86,7 @@ import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
 import swift.utils.TransactionsLog;
+import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.impl.KryoLib;
@@ -322,10 +323,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             public void onNotification(final SnapshotNotification n) {
 
                 synchronized (SwiftImpl.this) {
-                    System.err.println("@@@@@@@@@@@@@@@@" + causalSnapshot);
+                    System.err.println(Thread.currentThread() + " @@@@@@@@@@@@@@@@" + causalSnapshot + "/"
+                            + Sys.Sys.currentTime());
+
                     causalSnapshot.merge(n.snapshotClock());
-                    committedVersion.merge(causalSnapshot);
-                    committedDisasterDurableVersion.merge(causalSnapshot);
+                    committedVersion.merge(n.estimatedDCVersion());
+                    committedDisasterDurableVersion.merge(n.estimatedDCStableVersion());
 
                     // Causalsnapshot is notified when it is dominated
                     // by the minimum of all the
