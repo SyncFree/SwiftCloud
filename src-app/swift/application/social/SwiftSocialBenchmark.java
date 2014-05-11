@@ -33,8 +33,8 @@ import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import sys.ec2.ClosestDomain;
+import sys.herd.Shepard;
 import sys.scheduler.PeriodicTask;
-import sys.shepard.Shepard;
 import sys.utils.Args;
 import sys.utils.IP;
 import sys.utils.Progress;
@@ -161,7 +161,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             DCSequencerServer.main(new String[] { "-name", "X0" });
             DCServer.main(new String[] { "-servers", "localhost" });
 
-            args = new String[] { "-servers", "localhost", "-threads", "1" };
+            args = new String[] { "-servers", "localhost", "-threads", "3" };
 
             instance.initDB(args);
             instance.doBenchmark(args);
