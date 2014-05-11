@@ -1125,7 +1125,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         for (final CRDTObjectUpdatesGroup<?> op : ops) {
-            final boolean newUpdate = crdt.execute(op, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
+            final boolean newUpdate = crdt.execute(op, CRDTOperationDependencyPolicy.IGNORE);
             final String updatesScoutId = op.getClientTimestamp().getIdentifier();
             if (!updatesScoutId.equals(scoutId)) {
                 crdt.discardScoutClock(updatesScoutId);

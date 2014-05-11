@@ -28,7 +28,7 @@ public class ObjectUpdatesInfo {
         this.oldClock = oldClock;
         this.newClock = newClock;
         this.updates = new ArrayList<CRDTObjectUpdatesGroup<?>>();
-        updates.add(update);
+        updates.add(update.strippedWithCopiedTimestampMappings());
         this.pruneClock = pruneClock;
     }
 
