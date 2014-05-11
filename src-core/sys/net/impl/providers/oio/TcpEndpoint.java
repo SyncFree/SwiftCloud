@@ -255,7 +255,6 @@ final class KryoInputBuffer {
         while (buffer.hasRemaining() && ch.read(buffer) > 0)
             ;
 
-        sys.Sys.Sys.startWatch("rcv");
         if (buffer.hasRemaining())
             return -1;
 
