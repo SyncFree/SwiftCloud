@@ -11,7 +11,7 @@ def __ = onControlC({
 
 Sequencers = ["planetlab-4.imperial.ac.uk"]
 
-Surrogates = ["planetlab-1.imperial.ac.uk","planetlab-2.imperial.ac.uk", "planetlab-3.imperial.ac.uk"]
+Surrogates = ["planetlab-2.imperial.ac.uk", "planetlab-3.imperial.ac.uk"]
 
 PlanetLab_PT = [
     "planetlab1.di.fct.unl.pt",
@@ -22,7 +22,7 @@ Scouts = (PlanetLab_PT).unique()
 
 ShepardAddr = Surrogates.get(0)
 
-def Threads = 5
+def Threads = 3
 def Duration = 60
 def SwiftSocial_Props = "swiftsocial-test.props"
 
@@ -51,7 +51,7 @@ SwiftSocial.runEachAsSequencer(Sequencers, Surrogates, "256m")
 SwiftSocial.runEachAsSurrogate(Surrogates, Sequencers[0], "512m")
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
-Sleep(10)
+Sleep(20)
 
 
 println "==== INITIALIZING DATABASE ===="

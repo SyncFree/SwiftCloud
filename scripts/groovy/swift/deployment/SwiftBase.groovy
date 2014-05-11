@@ -5,7 +5,7 @@ import static swift.deployment.Tools.*
 class SwiftBase {
     static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCServer"
     static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCSequencerServer"
-    static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.shepard.Shepard"
+    static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.herd.Shepard"
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
         return "java " + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
@@ -45,8 +45,6 @@ class SwiftBase {
 
         surrogates.each { host ->
             rshC(host, swift_app_cmd_nostdout( "-Xms"+heap, surrogateCmd( sequencer ), "sur-stdout.txt", "sur-stderr.txt" ))
-            if( surrogates.indexOf( host ) == 0 )
-            	Sleep(10);
         }
         println "\nOK"
     }
