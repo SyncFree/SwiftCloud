@@ -13,13 +13,15 @@ import sys.pubsub.PubSubNotification;
 public class SwiftNotification extends PubSubNotification<CRDTIdentifier> {
 
     long seqN;
+    String src;
     CausalityClock dcVersion;
 
     SwiftNotification() {
     }
 
-    public SwiftNotification(CausalityClock dcVersion, Notifyable<CRDTIdentifier> payload) {
+    public SwiftNotification(String src, CausalityClock dcVersion, Notifyable<CRDTIdentifier> payload) {
         super(payload);
+        this.src = src;
         this.dcVersion = dcVersion;
     }
 
@@ -27,14 +29,19 @@ public class SwiftNotification extends PubSubNotification<CRDTIdentifier> {
         super(payload);
     }
 
-    public SwiftNotification(long seqN, CausalityClock dcVersion, Notifyable<CRDTIdentifier> payload) {
+    public SwiftNotification(long seqN, String src, CausalityClock dcVersion, Notifyable<CRDTIdentifier> payload) {
         super(payload);
+        this.src = src;
         this.seqN = seqN;
         this.dcVersion = dcVersion;
     }
 
     SwiftNotification clone(long seqN) {
-        return new SwiftNotification(seqN, dcVersion, payload());
+        return new SwiftNotification(seqN, src, dcVersion, payload());
+    }
+
+    public String src() {
+        return src;
     }
 
     public CausalityClock dcVersion() {

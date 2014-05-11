@@ -45,7 +45,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("SwiftNotification payload = " + evt.payload());
                 }
-                fifoQueues.queueFor(evt.timestamp().getIdentifier(), new SwiftProtocolHandler() {
+                fifoQueues.queueFor(evt.src(), new SwiftProtocolHandler() {
                     public void onReceive(RpcHandle nil, SwiftNotification evt2) {
 
                         final String surrogateId = evt2.timestamp().getIdentifier();
@@ -61,8 +61,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("PubSubHandshake client = " + request.getClientId() + " @ " + conn.remoteEndpoint());
                 }
-                System.err.println("##### PubSubHandshake client = " + request.getClientId() + " @ "
-                        + conn.remoteEndpoint());
+                logger.info("##### PubSubHandshake client = " + request.getClientId() + " @ " + conn.remoteEndpoint());
                 surrogate.getSession(request.getClientId()).setClientEndpoint(conn.remoteEndpoint());
             }
 

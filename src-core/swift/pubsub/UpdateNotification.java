@@ -14,7 +14,6 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier> {
     public String srcId;
     public Timestamp timestamp;
     public ObjectUpdatesInfo info;
-    transient public SwiftNotification wrapper;
 
     UpdateNotification() {
     }
