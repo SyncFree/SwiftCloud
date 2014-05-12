@@ -32,7 +32,7 @@ abstract public class Networking {
     }
 
     public enum TransportProvider {
-        DEFAULT, OIO_TCP, NETTY_IO_TCP
+        DEFAULT, OIO_TCP, NETTY_IO_TCP, LZ4_OIO_TCP
     }
 
     /**
