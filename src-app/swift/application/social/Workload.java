@@ -21,23 +21,21 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-
 import com.thoughtworks.xstream.core.util.Base64Encoder;
 
 abstract public class Workload implements Iterable<String>, Iterator<String> {
 
-    static List<String> users = new ArrayList<String>();
-    static List<String> userData = new ArrayList<String>();
-
-    protected Workload() {
-    }
-
+    /** List of user names */
+    private static List<String> users = new ArrayList<String>();
+    /** List of command line operations to generate user data */
+    private static List<String> userData = new ArrayList<String>();
+    /** Size of workload, i.e. number of operations */
     abstract public int size();
 
-    /*
-     * Generates random user names and other (non used) attributes such as
-     * password and date of birth Uses a fixed, pre-determined random seed to
-     * ensure every site generates the same user db.
+    /**
+     * Generates random user names and other (dummy, not semantically used) attributes such as
+     * password and date of birth.
+     * Uses a fixed, pre-determined random seed to ensure every site works on the same user data.
      */
     public static void generateUsers(int numUsers) {
         System.out.println("Generating users and user data...");
@@ -46,20 +44,20 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
             byte[] tmp = new byte[6];
             rg.nextBytes(tmp);
             Base64Encoder enc = new Base64Encoder();
-            String user = enc.encode(tmp);
 
+            String user = enc.encode(tmp);
             String userLine = String.format("usr_add;%s;passwd;\"%s %sson\";01/01/01;\"\";", user, user, user);
             users.add(user);
             userData.add(userLine);
         }
     }
 
-    /*
+    /**
      * Represents an abstract command the user performs. Each command has a
-     * frequency/probability and need to be formatted into a command line.
+     * frequency/probability and needs to be formatted into a command line.
      */
     static abstract class Operation {
-        int frequency;
+        private int frequency;
 
         Operation freq(int f) {
             this.frequency = f;
@@ -73,12 +71,11 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-    /*
+    /**
      * Status operation.
      */
     static class Status extends Operation {
         String[] activities = new String[] { "Running Experiments", "Drinking Coffee", "Sleeping" };
-
         @Override
         String doLine(Random rg, String user, List<String> dummy) {
             int index = rg.nextInt(activities.length);
@@ -86,12 +83,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-    /*
-     * Posts a message. Target is a randomly chosen from a list of candidates
+    /**
+     * Posts a message. Target is a randomly chosen user from a list of candidates
      * (eg. friends).
      */
     static class Post extends Operation {
-
+        @Override
         public String doLine(Random rg, String user, List<String> candidates) {
             int index = rg.nextInt(candidates.size());
             String recipient = candidates.get(index);
@@ -99,11 +96,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-    /*
-     * Reads messages and events of a user. Target is a randomly chosen from a
+    /**
+     * Reads messages and events of a user. Target is a randomly chosen user from a
      * list of candidates (eg. allusers).
      */
     static class Read extends Operation {
+        @Override
         public String doLine(Random rg, String user, List<String> candidates) {
             int index = rg.nextInt(candidates.size());
             String peer = candidates.get(index);
@@ -111,11 +109,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-    /*
+    /**
      * Befriends a user. Target is randomly chosen from a list of candidates
      * (eg. allusers).
      */
     static class Friend extends Operation {
+        @Override
         public String doLine(Random rg, String user, List<String> candidates) {
             int index = rg.nextInt(candidates.size());
             String peer = candidates.get(index);
@@ -123,11 +122,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-    /*
+    /**
      * Reads all friends of a user. Target is randomly chosen from a list of
      * candidates (eg. friends).
      */
     static class SeeFriends extends Operation {
+        @Override
         public String doLine(Random rg, String user, List<String> candidates) {
             int index = rg.nextInt(candidates.size());
             String peer = candidates.get(index);
@@ -135,47 +135,51 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-    /*
+    /**
      * Login. Signals start of session.
      */
     static class Login extends Operation {
+        @Override
         public String doLine(Random rg, String user, List<String> dummy) {
             return String.format("login;%s;passwd;", user);
         }
     }
 
-    /*
+    /**
      * Logout. Signals end of session.
      */
     static class Logout extends Operation {
+        @Override
         public String doLine(Random rg, String user, List<String> dummy) {
             return String.format("logout;%s;", user);
         }
     }
 
-    /*
-     * Not used...
+
+    /** Defines the set of available operations and their frequency. Frequencies need to add up to 100. */
+    private static Operation[] ops = new Operation[] { new Status().freq(5), new Post().freq(5), new Read().freq(80),
+            new Friend().freq(2), new SeeFriends().freq(8) };
+
+    private static AtomicInteger doMixedCounter = new AtomicInteger(7);
+
+    /** 
+     * Generates a workload with a mixture of operations. 
+     * The workload represents a session for some randomly chosen user.
+     * Each session starts with a login and ends with a logout operations for this user.
+     * @param site from which to chose the user from, randomly chosen if site < 0
+     * @param friends_per_user number of friends per user
+     * @param ops_biased number of ops chosen with a bias to increase data locality
+     * @param ops_random number of randomly chosen ops
+     * @param ops_groups number of operation groups to generate 
+     * @param number_of_sites number of user partitions
+     * @return workload represented as an iterable collection of operations
      */
-    static class Mixed extends Operation {
-        public String doLine(Random rg, String user, List<String> friends) {
-            return "" + 0;
-        }
-    }
-
-    static Operation[] ops = new Operation[] { new Status().freq(5), new Post().freq(5), new Read().freq(80),
-            new Friend().freq(2), new SeeFriends().freq(8), new Mixed().freq(0) };
-
-    static AtomicInteger doMixedCounter = new AtomicInteger(7);
-
     static public Workload doMixed(int site, int friends_per_user, final int ops_biased, final int ops_random,
-            final int opsGroups, int number_of_sites) {
-        final Random rg = new Random(doMixedCounter.addAndGet(13 + site)); // Each
-        // workload
-        // has its
-        // own
-        // seed...
+            final int ops_groups, int number_of_sites) {
+       // Each workload has its own seed...
+        final Random rg = new Random(doMixedCounter.addAndGet(13 + site)); 
+  
         // Pick a user at random from this site's user partition
-
         site = site < 0 ? rg.nextInt(number_of_sites) : site; // fix site
         int partitionSize = users.size() / number_of_sites;
         final String user = users.get(rg.nextInt(partitionSize) + partitionSize * site);
@@ -185,7 +189,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         for (int i = 0; i < friends_per_user; i++)
             friends.add(users.get(rg.nextInt(users.size())));
 
-        // Generate the biased operations, according to their frequency
+        // Generate 100 biased operations, according to their frequency
         final List<String> mix = new ArrayList<String>();
         for (Operation i : ops)
             for (int j = 0; j < i.frequency; j++)
@@ -200,6 +204,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
             int groupCounter = 0;
             Iterator<String> it = null;
 
+            // operation groups are generated on the fly
             void refill() {
                 ArrayList<String> group = new ArrayList<String>();
 
@@ -207,7 +212,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
                 if (groupCounter == 0)
                     group.add(new Login().doLine(rg, user, null));
 
-                if (groupCounter < opsGroups) {
+                if (groupCounter < ops_groups) {
 
                     // append biased operations, those targeting the user's
                     // friends
@@ -218,8 +223,11 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
                     for (int i = 0; i < ops_random; i++)
                         group.add(new Read().doLine(rg, user, users));
                 }
+                
+                groupCounter++;
+                
                 // last group ends with logout
-                if (++groupCounter == opsGroups)
+                if (groupCounter == ops_groups)
                     group.add(new Logout().doLine(rg, user, null));
 
                 it = group.iterator();
@@ -240,11 +248,12 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
 
             @Override
             public void remove() {
-                throw new RuntimeException("On demand worload generation; remove is not supported...");
+                throw new RuntimeException("On demand workload generation; remove is not supported...");
             }
-
+            
+            @Override
             public int size() {
-                return 2 + opsGroups * (ops_biased + ops_random);
+                return 2 + ops_groups * (ops_biased + ops_random);
             }
 
         };
@@ -255,13 +264,18 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
     }
 
     public static void main(String[] args) throws Exception {
-
-        Workload.generateUsers(25000);
-
-        Workload res = Workload.doMixed(0, 25, 9, 1, 2, 10);
-        System.out.println(res.size());
+        int numUsers = 25000;
+        Workload.generateUsers(numUsers);
+        System.out.println("Generated " + numUsers + " users");
+        
+        Workload res = Workload.doMixed(0, 25, 9, 2, 2, 10);
+        System.out.println("Generated " + res.size() + " operations");
         for (String i : res)
             System.out.println(i);
 
+    }
+
+    public static List<String> getUserData() {
+        return userData;
     }
 }

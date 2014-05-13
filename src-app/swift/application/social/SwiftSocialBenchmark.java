@@ -65,17 +65,16 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         System.out.println("Populating db with users...");
 
         final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
-
         Workload.generateUsers(numUsers);
 
         final int PARTITION_SIZE = 1000;
-        int partitions = Workload.userData.size() / PARTITION_SIZE + (Workload.userData.size() % PARTITION_SIZE > 0 ? 1 : 0);
+        int partitions = numUsers / PARTITION_SIZE + (numUsers % PARTITION_SIZE > 0 ? 1 : 0);
         ExecutorService pool = Executors.newFixedThreadPool(4);
 
         final AtomicInteger counter = new AtomicInteger(0);
         for (int i = 0; i < partitions; i++) {
             int lo = i * PARTITION_SIZE, hi = (i + 1) * PARTITION_SIZE;
-            final List<String> partition = Workload.userData.subList(lo, Math.min(hi, Workload.userData.size()));
+            final List<String> partition = Workload.getUserData().subList(lo, Math.min(hi, numUsers));
             pool.execute(new Runnable() {
                 public void run() {
                     SwiftSocialBenchmark.super.initUsers(options, partition, counter, numUsers);
