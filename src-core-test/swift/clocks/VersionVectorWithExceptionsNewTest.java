@@ -36,8 +36,6 @@ public class VersionVectorWithExceptionsNewTest {
     private Timestamp tsB1;
     private Timestamp tsB2;
     private Timestamp tsB3;
-    private Timestamp tsB4;
-    private Timestamp tsB5;
 
     @Before
     public void setUp() {
@@ -54,8 +52,6 @@ public class VersionVectorWithExceptionsNewTest {
         tsB1 = siteBGen.generateNew();
         tsB2 = siteBGen.generateNew();
         tsB3 = siteBGen.generateNew();
-        tsB4 = siteBGen.generateNew();
-        tsB5 = siteBGen.generateNew();
     }
 
     @Test
