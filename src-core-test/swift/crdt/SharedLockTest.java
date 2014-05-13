@@ -31,7 +31,6 @@ import swift.exceptions.WrongTypeException;
 public class SharedLockTest {
     private ManagedCRDT<SharedLockCRDT> lock;
     private String siteA = "A", siteB = "B", siteC = "C";
-    private TxnTester txn;
     private SwiftTester swift1;
 
     private SharedLockCRDT getLatestVersion(ManagedCRDT<SharedLockCRDT> l, TxnTester txn) {
@@ -87,6 +86,7 @@ public class SharedLockTest {
         return result;
     }
 
+    //FIXME Where is this method to be used?
     private boolean registerUnlockTxn(String parentId, LockType type, ManagedCRDT<SharedLockCRDT> c, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn(c);
         boolean result = false;

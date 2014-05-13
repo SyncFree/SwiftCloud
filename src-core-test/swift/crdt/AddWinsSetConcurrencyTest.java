@@ -43,6 +43,7 @@ public class AddWinsSetConcurrencyTest {
     private void registerSingleAddTxn(int value, ManagedCRDT<AddWinsSetCRDT<Integer>> i, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn(i);
         try {
+            @SuppressWarnings("unchecked")
             final AddWinsSetCRDT<Integer> set = txn.get(i.getUID(), false, AddWinsSetCRDT.class);
             set.add(value);
         } catch (WrongTypeException e) {
@@ -57,6 +58,7 @@ public class AddWinsSetConcurrencyTest {
     private void registerSingleRemoveTxn(int value, ManagedCRDT<AddWinsSetCRDT<Integer>> i, SwiftTester swift) {
         final TxnTester txn = swift.beginTxn(i);
         try {
+            @SuppressWarnings("unchecked")
             final AddWinsSetCRDT<Integer> set = txn.get(i.getUID(), false, AddWinsSetCRDT.class);
             set.remove(value);
         } catch (WrongTypeException e) {

@@ -125,6 +125,7 @@ public class TxnTester implements TxnHandle {
     protected <V extends CRDT<V>> ManagedCRDT<V> getOrCreateVersionedCRDT(CRDTIdentifier id, Class<V> classOfV,
             boolean create) throws InstantiationException, IllegalAccessException, InvocationTargetException,
             NoSuchMethodException, NoSuchObjectException {
+        @SuppressWarnings("unchecked")
         ManagedCRDT<V> managedCRDT = (ManagedCRDT<V>) objects.get(id);
         if (managedCRDT == null) {
             if (!create) {

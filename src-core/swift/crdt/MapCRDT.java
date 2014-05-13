@@ -35,8 +35,6 @@ import swift.crdt.core.TxnHandle;
  * @param <V>
  */
 public class MapCRDT<K, V> extends BaseCRDT<MapCRDT<K, V>> {
-
-    private static final long serialVersionUID = 1L;
     protected Map<K, Map<V, Set<TripleTimestamp>>> keysToElementsInstances;
 
     // Kryo
@@ -87,7 +85,7 @@ public class MapCRDT<K, V> extends BaseCRDT<MapCRDT<K, V>> {
 
     @Override
     public MapCRDT<K, V> copy() {
-        return new MapCRDT(id, txn, clock, keysToElementsInstances);
+        return new MapCRDT<K,V>(id, txn, clock, keysToElementsInstances);
     }
 
 }

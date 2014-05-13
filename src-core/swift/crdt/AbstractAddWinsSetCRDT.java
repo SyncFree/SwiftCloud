@@ -38,8 +38,7 @@ import swift.utils.PrettyPrint;
  *            type of concrete implementation
  */
 public abstract class AbstractAddWinsSetCRDT<V, T extends AbstractAddWinsSetCRDT<V, T>> extends BaseCRDT<T> {
-    private static final long serialVersionUID = 1L;
-
+    
     // Kryo
     protected AbstractAddWinsSetCRDT() {
     }

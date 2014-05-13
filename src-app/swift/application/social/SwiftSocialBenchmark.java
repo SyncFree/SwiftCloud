@@ -26,7 +26,6 @@ import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.Logger;
 
 import swift.client.SwiftOptions;
 import swift.dc.DCConstants;

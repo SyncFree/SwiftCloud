@@ -457,6 +457,7 @@ public class ManagedCRDTTest {
                 fail();
             }
 
+            @SuppressWarnings("unchecked")
             @Override
             public <V extends CRDT<V>> void registerObjectCreation(CRDTIdentifier id, V creationState) {
                 creationStateRef.set((AddWinsSetCRDT<Integer>) creationState);
