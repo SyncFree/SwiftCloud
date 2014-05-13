@@ -27,7 +27,7 @@ public class NanoTimeCollector {
     private long time;
     private long duration;
     private long total;
-    private int iterations;
+    private long iterations;
 
     public NanoTimeCollector() {
         duration = 0;
@@ -37,24 +37,23 @@ public class NanoTimeCollector {
     }
 
     /**
-     * . Starts the timer
+     * Starts the timer
      */
     public void start() {
         time = System.currentTimeMillis();
     }
 
     /**
-     * Returns in the duration since timer start. Additionally, total duration
+     * Returns the duration since last timer start. Additionally, total duration
      * gets accumulated, and number of iterations increased.
      * 
      * @return duration since last timer start
      */
     public long stop() {
-        time = System.currentTimeMillis() - time;
-        duration += time;
-        total += time;
+        duration = System.currentTimeMillis() - time;
+        total += duration;
         iterations++;
-        return time;
+        return duration;
     }
 
     /**
@@ -87,6 +86,6 @@ public class NanoTimeCollector {
      * @return average duration of all measured timer intervals
      */
     public long getAverage() {
-        return total / (long) iterations;
+        return total / iterations;
     }
 }
