@@ -16,26 +16,20 @@
  *****************************************************************************/
 package swift.application.social.cs;
 
+import static java.lang.System.exit;
 import static sys.net.api.Networking.Networking;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import swift.application.social.Commands;
 import swift.application.social.SwiftSocialBenchmark;
-import swift.application.social.SwiftSocialMain;
-import swift.application.social.Workload;
-import sys.ec2.ClosestDomain;
+import swift.application.social.SwiftSocialOps;
+import swift.dc.DCSequencerServer;
+import swift.dc.DCServer;
 import sys.net.api.Endpoint;
-import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.shepard.Shepard;
 import sys.utils.Args;
-import sys.utils.IP;
-import sys.utils.Threading;
 
 /**
  * Benchmark of SwiftSocial, based on data model derived from WaltSocial
@@ -46,106 +40,75 @@ import sys.utils.Threading;
  */
 public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
 
-    static Endpoint socialServer;
+    Endpoint server;
 
-    public static void main(String[] args) {
-        if (args.length < 3) {
-            System.err.println("wrong number of parameters...i know not very helpful...");
-        }
-        sys.Sys.init();
 
-        setProperties();
-
-        final String shepardAddress = Args.valueOf(args, "-shepard", "");
-        int concurrentSessions = Args.valueOf(args, "-threads", 1);
-
-        String partitions = Args.valueOf(args, "-partition", "0/1");
-        int site = Integer.valueOf(partitions.split("/")[0]);
-        int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
-
-        List<String> servers = Args.subList(args, "-servers");
-        String server = ClosestDomain.closest2Domain(servers, site);
-
-        int instances = Args.valueOf(args, "-instances", 1);
-        socialServer = Networking.resolve(server, SwiftSocialBenchmarkServer.SCOUT_PORT + (site % instances));
-
-        bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
-        bufferedOutput.printf(";\tsite=%s\n", site);
-        bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
-        bufferedOutput.printf(";\tSurrogate=%s\n", server);
-        bufferedOutput.printf(";\tShepard=%s\n", shepardAddress);
-        bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
-
-        Workload.generateUsers(numUsers);
-
-        if (!shepardAddress.isEmpty())
-            Shepard.sheepJoinHerd(shepardAddress);
-
-        // Kick off all sessions, throughput is limited by
-        // concurrentSessions.
-
-        final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions);
-        System.err.println("Spawning session threads.");
-        for (int i = 0; i < concurrentSessions; i++) {
-            final int sessionId = i;
-            final Workload commands = Workload
-                    .doMixed(site, userFriends, biasedOps, randomOps, opGroups, numberOfSites);
-
-            sessionsExecutor.execute(new Runnable() {
-                public void run() {
-                    Threading.sleep(new java.util.Random().nextInt(10000));
-                    boolean loop4ever = !shepardAddress.isEmpty();
-                    runClientSession(sessionId, commands, loop4ever);
-                }
-            });
-        }
-        // Wait for all sessions.
-        sessionsExecutor.shutdown();
-        try {
-            sessionsExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-        System.err.println("Session threads completed.");
-        System.exit(0);
+    public void init(String[] args) {
+        int port = SwiftSocialBenchmarkServer.SCOUT_PORT + Args.valueOf(args, "-instance", 0);
+        server = Networking.resolve(Args.valueOf(args, "-servers", "localhost"), port);
     }
 
-    public static void runClientSession(final int sessionId, final Workload commands, boolean loop4ever) {
+    @Override
+    public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
+        String[] toks = cmdLine.split(";");
+        final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+        switch (cmd) {
+        case LOGIN:
+        case LOGOUT:
+        case READ:
+        case SEE_FRIENDS:
+        case FRIEND:
+        case STATUS:
+        case POST:
+            Reply reply = endpointFor(socialClient).request(server, new Request(cmdLine));
 
-        RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
+            break;
+        default:
+            System.err.println("Can't parse command line :" + cmdLine);
+            System.err.println("Exiting...");
+            System.exit(1);
+        }
+        return cmd;
+    }
 
-        totalCommands.addAndGet(commands.size());
-        final long sessionStartTime = System.currentTimeMillis();
-        final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
+    Map<SwiftSocialOps, RpcEndpoint> endpoints = new ConcurrentHashMap<SwiftSocialOps, RpcEndpoint>();
 
-        bufferedOutput.println(initSessionLog);
-        do
-            for (String cmdLine : commands) {
-                String[] toks = cmdLine.split(";");
-                final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
-                final long txnStartTime = System.currentTimeMillis();
-                endpoint.send(socialServer, new Request(cmdLine), new RequestHandler() {
-                    public void onReceive(Request m) {
-                        final long now = System.currentTimeMillis();
-                        final long txnExecTime = now - txnStartTime;
-                        String log;
-                        if (m.payload.equals("OK")) {
-                            log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, now);
-                        } else {
-                            log = String.format("%d,%s,%d,%d", sessionId, "ERROR", txnExecTime, now);
-                        }
-                        bufferedOutput.println(log);
-                        commandsDone.incrementAndGet();
-                    }
-                });
-                Threading.sleep(SwiftSocialMain.thinkTime);
-            }
-        while (loop4ever);
+    RpcEndpoint endpointFor(SwiftSocialOps session) {
+        RpcEndpoint res = endpoints.get(session);
+        if (res == null)
+            endpoints.put(session, res = Networking.rpcConnect().toDefaultService());
+        return res;
+    }
 
-        final long now = System.currentTimeMillis();
-        final long sessionExecTime = now - sessionStartTime;
-        bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
-        bufferedOutput.flush();
-        System.err.println("> " + IP.localHostname() + " all sessions completed...");
+    public static void main(String[] args) {
+        sys.Sys.init();
+
+        SwiftSocialBenchmarkClient client = new SwiftSocialBenchmarkClient();
+        if (args.length == 0) {
+
+            DCSequencerServer.main(new String[] { "-name", "X0" });
+
+            args = new String[] { "-servers", "localhost", "-threads", "1" };
+
+            DCServer.main(args);
+            SwiftSocialBenchmarkServer.main(args);
+
+            client.init(args);
+            client.initDB(args);
+            client.doBenchmark(args);
+            exit(0);
+        }
+
+        if (args[0].equals("-init")) {
+            client.init(args);
+            client.initDB(args);
+            exit(0);
+        }
+
+       if (args[0].equals("-run")) {
+            client.init(args);
+            client.doBenchmark(args);
+            exit(0);
+        }
     }
 }

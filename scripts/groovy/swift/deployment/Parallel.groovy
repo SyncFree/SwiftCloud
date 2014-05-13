@@ -4,7 +4,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 class Parallel {
-    static String ACCOUNT = "ubuntu"
+    static String ACCOUNT = "fctple_SwiftCloud"
 
     static Executor threads = Executors.newFixedThreadPool(48)
 
@@ -19,6 +19,9 @@ class Parallel {
                                 String.format("%s@%s", ACCOUNT, it),
                                 cmd.call(it)
                             ]
+                            
+                            println cmdline
+                            
                             Process proc = new ProcessBuilder(cmdline).redirectErrorStream(true).start()
                             Thread.startDaemon {
                                 proc.inputStream.eachLine { if( ! ignoreIO ) println it }

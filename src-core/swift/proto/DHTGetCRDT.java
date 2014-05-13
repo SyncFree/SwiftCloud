@@ -18,15 +18,16 @@ package swift.proto;
 
 import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTIdentifier;
-import swift.dc.DHTDataNode;
-import sys.dht.api.DHT;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * Object for getting a crdt
  * 
  * @author preguica
  */
-public class DHTGetCRDT implements DHT.Message {
+public class DHTGetCRDT implements RpcMessage {
 
     String clientId;
     CRDTIdentifier id;
@@ -59,9 +60,15 @@ public class DHTGetCRDT implements DHT.Message {
         return subscribeUpdates;
     }
 
+    // @Override
+    // public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler
+    // handler) {
+    // ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
+    // }
+
     @Override
-    public void deliverTo(DHT.Handle conn, DHT.Key key, DHT.MessageHandler handler) {
-        ((DHTDataNode.RequestHandler) handler).onReceive(conn, key, this);
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
     public String getCltId() {

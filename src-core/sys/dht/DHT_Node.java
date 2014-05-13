@@ -16,60 +16,72 @@
  *****************************************************************************/
 package sys.dht;
 
-import static sys.Sys.Sys;
-
+import java.math.BigInteger;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Set;
 import java.util.logging.Logger;
 
-import sys.dht.api.DHT;
-import sys.dht.discovery.Discovery;
-import sys.dht.impl.DHT_ClientStub;
-import sys.dht.impl.DHT_NodeImpl;
+import sys.herd.Herd;
 import sys.net.api.Endpoint;
-import sys.utils.Threading;
 
-public class DHT_Node extends DHT_NodeImpl {
+public class DHT_Node {
     private static Logger Log = Logger.getLogger("sys.dht");
 
-    public static final String DHT_ENDPOINT = "DHT_ENDPOINT";
+    static Node self;
+    static OrdinalDB db;
 
     protected DHT_Node() {
-        super.init();
     }
 
-    public boolean isHandledLocally(final DHT.Key key) {
-        return super.resolveNextHop(key).key == self.key;
+    public static void init(String dc, String herd, Endpoint selfEndpoint, Endpoint shepard) {
+        Herd.joinHerd(dc, herd, selfEndpoint, shepard);
+
+        int delay = 10;
+        System.err.printf("Waiting %s seconds for <%s, %s> membership to settle...", delay, dc, herd);
+        Herd h = Herd.getHerd(dc, herd, delay);
+        db = new OrdinalDB().populate(h, selfEndpoint);
+        self = db.self();
+        System.err.printf("Found %d node(s): %s\n", db.nodes().size(), db.nodes());
     }
 
-    synchronized public static DHT getStub() {
-        if (clientStub == null) {
-            String name = DHT_ENDPOINT + Sys.getDatacenter();
-            Endpoint dhtEndpoint = Discovery.lookup(name, 5000);
-            if (dhtEndpoint != null) {
-                clientStub = new DHT_ClientStub(dhtEndpoint);
-            } else {
-                Log.severe("Failed to discovery DHT access endpoint...");
-                return null;
-            }
+    public static Set<Long> nodeKeys() {
+        return db.nodeKeys();
+    }
+
+    static public boolean isHandledLocally(final String key) {
+        return resolveNextHop(key).key == self.key;
+    }
+
+    static public Endpoint resolveKey(final String key) {
+        return resolveNextHop(key).endpoint;
+    }
+
+    static Node resolveNextHop(String key) {
+        long key2key = longHashValue(key) & Node.MAX_KEY;
+        Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()));
+
+        for (Node i : db.nodes(key2key))
+            if (i.isOnline())
+                return i;
+
+        return self;
+    }
+
+    static public long longHashValue(String key) {
+        synchronized (digest) {
+            digest.reset();
+            digest.update(key.getBytes());
+            return new BigInteger(1, digest.digest()).longValue() >>> 1;
         }
-        return clientStub;
     }
 
-    public static void setHandler(DHT.MessageHandler handler) {
-        serverStub.setHandler(handler);
-    }
-
-    public static void start() {
-        if (singleton == null) {
-            singleton = new DHT_Node();
+    private static MessageDigest digest;
+    static {
+        try {
+            digest = java.security.MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
         }
-        while (!singleton.isReady())
-            Threading.sleep(50);
     }
-
-    synchronized public static DHT_Node getInstance() {
-        start();
-        return singleton;
-    }
-
-    private static DHT_Node singleton;
 }

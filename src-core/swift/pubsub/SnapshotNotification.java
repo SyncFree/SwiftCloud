@@ -7,35 +7,49 @@ import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
-import sys.pubsub.PubSub.Subscriber;
 
 public class SnapshotNotification implements Notifyable<CRDTIdentifier> {
 
-    String clientId;
-    Timestamp timestamp;
-    Set<CRDTIdentifier> uids;
+    transient String clientId;
+    transient CRDTIdentifier id;
+    transient Timestamp timestamp;
     CausalityClock snapshotClock;
+    CausalityClock estimatedDCVersion;
+    CausalityClock estimatedDCStableVersion;
 
     SnapshotNotification() {
     }
 
-    public SnapshotNotification(String clientId, Set<CRDTIdentifier> uids, Timestamp timestamp,
-            CausalityClock snapshotClock) {
+    public SnapshotNotification(String clientId, CRDTIdentifier id, Timestamp timestamp, CausalityClock snapshotClock) {
         this.snapshotClock = snapshotClock;
         this.timestamp = timestamp;
         this.clientId = clientId;
-        this.uids = uids;
+        this.id = id;
+    }
+
+    public SnapshotNotification(CausalityClock snapshotClock, CausalityClock estimatedDCVersion,
+            CausalityClock estimatedDCStableVersion) {
+        this.snapshotClock = snapshotClock;
+        this.estimatedDCVersion = estimatedDCVersion;
+        this.estimatedDCStableVersion = estimatedDCStableVersion;
     }
 
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
-        for (Subscriber<CRDTIdentifier> i : pubsub.subscribers(uids))
-            ((SwiftSubscriber) i).onNotification(this);
+        ((SwiftSubscriber) pubsub).onNotification(this);
     }
 
     @Override
     public Object src() {
         return clientId;
+    }
+
+    public CausalityClock estimatedDCVersion() {
+        return estimatedDCVersion;
+    }
+
+    public CausalityClock estimatedDCStableVersion() {
+        return estimatedDCStableVersion;
     }
 
     public CausalityClock snapshotClock() {
@@ -44,5 +58,19 @@ public class SnapshotNotification implements Notifyable<CRDTIdentifier> {
 
     public Timestamp timestamp() {
         return timestamp;
+    }
+
+    @Override
+    public CRDTIdentifier key() {
+        return null;
+    }
+
+    public String toString() {
+        return snapshotClock.toString();
+    }
+
+    @Override
+    public Set<CRDTIdentifier> keys() {
+        return null;
     }
 }

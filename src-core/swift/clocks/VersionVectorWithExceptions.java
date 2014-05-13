@@ -929,4 +929,21 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 ii.write(kryo, out);
         }
     }
+
+    // @Override
+    // public CausalityClock retain(String siteId) {
+    // Set<String> x = new HashSet<String>();
+    // x.add(siteId);
+    // this.vv.keySet().retainAll(x);
+    // this.numPairs = -1; // TODO: fix this...
+    // return this;
+    // }
+    //
+    // @Override
+    // public CausalityClock retain(CausalityClock cc) {
+    // vv.keySet().retainAll(((VersionVectorWithExceptions) cc).vv.keySet());
+    // this.numPairs = -1; // TODO: fix this...
+    // return this;
+    // }
+
 }

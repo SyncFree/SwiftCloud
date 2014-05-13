@@ -16,15 +16,19 @@
  *****************************************************************************/
 package swift.dc;
 
+import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -35,9 +39,9 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
+import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
-import swift.crdt.core.CRDT;
 import swift.crdt.core.ManagedCRDT;
 import swift.proto.BatchCommitUpdatesReply;
 import swift.proto.BatchCommitUpdatesRequest;
@@ -56,46 +60,48 @@ import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
-import swift.proto.UnsubscribeUpdatesReply;
-import swift.proto.UnsubscribeUpdatesRequest;
+import swift.pubsub.RemoteSwiftSubscriber;
 import swift.pubsub.SnapshotNotification;
 import swift.pubsub.SurrogatePubSubService;
+import swift.pubsub.SwiftNotification;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
-import sys.RpcServices;
+import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.pubsub.RemoteSubscriber;
+import sys.scheduler.PeriodicTask;
 //import swift.client.proto.FastRecentUpdatesReply;
 //import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 //import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
 //import swift.client.proto.FastRecentUpdatesRequest;
+import sys.scheduler.Task;
 
 /**
  * Class to handle the requests from clients.
  * 
  * @author preguica
  */
-class DCSurrogate extends SwiftProtocolHandler {
+public class DCSurrogate extends SwiftProtocolHandler {
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
+    String siteId;
     String surrogateId;
     RpcEndpoint srvEndpoint4Clients;
     RpcEndpoint srvEndpoint4Sequencer;
 
     Endpoint sequencerServerEndpoint;
     RpcEndpoint cltEndpoint4Sequencer;
-    RpcEndpoint endpoint4PubSub;
 
     DCDataServer dataServer;
     CausalityClock estimatedDCVersion; // estimate of current DC state
     CausalityClock estimatedDCStableVersion; // estimate of current DC state
 
-    SurrogatePubSubService suPubSub;
+    public SurrogatePubSubService suPubSub;
     ExecutorService executor = Executors.newCachedThreadPool();
 
-    DCSurrogate(int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
+    DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
+        this.siteId = siteId;
         this.surrogateId = "s" + System.nanoTime();
 
         this.sequencerServerEndpoint = sequencerEndpoint;
@@ -103,19 +109,24 @@ class DCSurrogate extends SwiftProtocolHandler {
         this.srvEndpoint4Clients = Networking.rpcBind(port4Clients).toDefaultService();
         this.srvEndpoint4Sequencer = Networking.rpcBind(port4Sequencers).toDefaultService();
 
-        this.endpoint4PubSub = srvEndpoint4Clients.getFactory().toService(RpcServices.PUBSUB.ordinal(), this);
-
         srvEndpoint4Clients.setHandler(this);
         srvEndpoint4Sequencer.setHandler(this);
 
-        suPubSub = new SurrogatePubSubService(executor, endpoint4PubSub);
-        dataServer = new DCDataServer(this, props, endpoint4PubSub, suPubSub);
+        suPubSub = new SurrogatePubSubService(executor, this);
+        dataServer = new DCDataServer(this, props, suPubSub);
 
         initData(props);
 
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Server ready...");
         }
+
+        DHT_Node.init(siteId, "surrogates", srvEndpoint4Clients.localEndpoint(), sequencerEndpoint);
+        new PeriodicTask(0.0, 0.1) {
+            public void run() {
+                updateEstimatedDCVersion();
+            }
+        };
     }
 
     private void initData(Properties props) {
@@ -125,19 +136,19 @@ class DCSurrogate extends SwiftProtocolHandler {
         // HACK HACK
         CausalityClock clk = (CausalityClock) dataServer.dbServer.readSysData("SYS_TABLE", "CURRENT_CLK");
         if (clk != null) {
-            System.err.println("SURROGATE CLK:" + clk);
+            logger.info("SURROGATE CLK:" + clk);
             estimatedDCVersion.merge(clk);
             estimatedDCStableVersion.merge(clk);
         }
 
-        System.err.println("EstimatedDCVersion: " + estimatedDCVersion);
+        logger.info("EstimatedDCVersion: " + estimatedDCVersion);
     }
 
-    String getId() {
+    public String getId() {
         return surrogateId;
     }
 
-    CausalityClock getEstimatedDCVersionCopy() {
+    public CausalityClock getEstimatedDCVersionCopy() {
         synchronized (estimatedDCVersion) {
             return estimatedDCVersion.clone();
         }
@@ -192,7 +203,7 @@ class DCSurrogate extends SwiftProtocolHandler {
         }
 
         if (request.hasSubscription())
-            getSession(request.getClientId(), conn).subscribe(request.getUid());
+            getSession(request.getClientId()).subscribe(request.getUid());
 
         conn.reply(handleFetchVersionRequest(conn, request));
     }
@@ -210,7 +221,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
                     + request.getUid());
         }
-        final ClientSession session = getSession(request.getClientId(), conn);
+        final ClientSession session = getSession(request.getClientId());
 
         final Timestamp cltLastSeqNo = session.getLastSeqNo();
 
@@ -249,8 +260,10 @@ class DCSurrogate extends SwiftProtocolHandler {
             // estimatedDCStableVersionCopy);
 
             synchronized (crdt) {
-                // FIXME: can we encode a diff between all these clocks on the wire?
+                // FIXME: can we encode a diff between all these clocks on the
+                // wire?
                 crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionCopy);
+
                 if (cltLastSeqNo != null)
                     crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
                 final FetchObjectVersionReply.FetchStatus status = (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
@@ -270,7 +283,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             logger.info("CommitUpdatesRequest client = " + request.getClientId() + ":ts=" + request.getCltTimestamp()
                     + ":nops=" + request.getObjectUpdateGroups().size());
         }
-        final ClientSession session = getSession(request.getClientId(), conn);
+        final ClientSession session = getSession(request.getClientId());
         if (logger.isLoggable(Level.INFO)) {
             logger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
@@ -377,14 +390,14 @@ class DCSurrogate extends SwiftProtocolHandler {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
                 }
-                CommitUpdatesReply commitReply = new CommitUpdatesReply(reply.getCurrVersion(), txTs);
+                // Set<CRDTIdentifier> uids = new HashSet<CRDTIdentifier>();
+                // for (CRDTObjectUpdatesGroup<?> i : ops)
+                // uids.add(i.getTargetUID());
+                //
+                // suPubSub.publish(new SnapshotNotification(req.getClientId(),
+                // uids, txTs, reply.getCurrVersion()));
 
-                Set<CRDTIdentifier> uids = new HashSet<CRDTIdentifier>();
-                for (CRDTObjectUpdatesGroup<?> i : ops)
-                    uids.add(i.getTargetUID());
-                suPubSub.publish(new SnapshotNotification(req.getClientId(), uids, txTs, reply.getCurrVersion()));
-
-                return commitReply;
+                return new CommitUpdatesReply(reply.getCurrVersion(), txTs);
             }
         }
         return new CommitUpdatesReply();
@@ -396,7 +409,7 @@ class DCSurrogate extends SwiftProtocolHandler {
             logger.info("CommitUpdatesRequest client = " + request.getClientId() + ":batch size="
                     + request.getCommitRequests().size());
         }
-        final ClientSession session = getSession(request.getClientId(), conn);
+        final ClientSession session = getSession(request.getClientId());
         if (logger.isLoggable(Level.INFO)) {
             logger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
@@ -430,7 +443,7 @@ class DCSurrogate extends SwiftProtocolHandler {
         }
         executor.execute(new Runnable() {
             public void run() {
-                ClientSession session = getSession("Sequencer", null);
+                ClientSession session = getSession("Sequencer");
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
                 CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
                 doOneCommit(session, request, snapshotClock);
@@ -458,22 +471,18 @@ class DCSurrogate extends SwiftProtocolHandler {
         }
     }
 
-    @Override
-    public void onReceive(RpcHandle handle, UnsubscribeUpdatesRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("UnsubscribeUpdatesRequest client = " + request.getClientId());
-        }
-        getSession(request.getClientId(), handle).unsubscribe(request.getUnSubscriptions());
-        handle.reply(new UnsubscribeUpdatesReply(request.getId()));
-    }
-
-    class ClientSession extends RemoteSubscriber implements SwiftSubscriber {
+    public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
         final String clientId;
         Timestamp lastSeqNo;
 
-        ClientSession(String clientId, RpcHandle handle) {
-            super(clientId, endpoint4PubSub, handle.remoteEndpoint());
+        ClientSession(String clientId) {
+            super(clientId, suPubSub.endpoint());
             this.clientId = clientId;
+        }
+
+        public ClientSession setClientEndpoint(Endpoint remote) {
+            super.setRemote(remote);
+            return this;
         }
 
         Timestamp getLastSeqNo() {
@@ -484,31 +493,74 @@ class DCSurrogate extends SwiftProtocolHandler {
             this.lastSeqNo = cltTs;
         }
 
-        void subscribe(CRDTIdentifier key) {
+        public void subscribe(CRDTIdentifier key) {
             suPubSub.subscribe(key, this);
         }
 
-        void unsubscribe(Set<CRDTIdentifier> keys) {
+        public void unsubscribe(Set<CRDTIdentifier> keys) {
             suPubSub.unsubscribe(keys, this);
         }
 
-        @Override
-        public void onNotification(UpdateNotification update) {
-            super.onNotification(update);
+        public void onNotification(final UpdateNotification update) {
+
+            super.onNotification(new SwiftNotification(update));
+            new Task(0) {
+                public void run() {
+                    doSnapshotNotification(update);
+                }
+            };
         }
 
-        @Override
-        public void onNotification(SnapshotNotification snapshot) {
-            super.onNotification(snapshot);
+        synchronized void doSnapshotNotification(UpdateNotification n) {
+            Timestamp ts = n.timestamp();
+            if (!summary.record(ts)) {
+
+                snapshots.put(ts, n.info.getNewClock());
+
+                CausalityClock minDcVersion = suPubSub.minDcVersion();
+
+                boolean updated = false;
+                for (Iterator<Map.Entry<Timestamp, CausalityClock>> it = snapshots.entrySet().iterator(); it.hasNext();) {
+                    Map.Entry<Timestamp, CausalityClock> e = it.next();
+
+                    if (minDcVersion.includes(e.getKey())
+                            && minDcVersion.compareTo(e.getValue()).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
+                        snapshot.merge(e.getValue());
+                        updated = true;
+                        it.remove();
+                    }
+                }
+                if (updated && Sys.timeMillis() > (lastNotification + NOTIFICATION_RATE)) {
+
+                    super.onNotification(new SwiftNotification(new SnapshotNotification(snapshot,
+                            getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy())));
+
+                    lastNotification = Sys.timeMillis();
+                }
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("MinDcVersion: " + minDcVersion + " SNAPSHOTS:" + snapshots);
+                }
+            } else {
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("Skipping redundant causal notification for: " + ts);
+                }
+
+            }
         }
+
+        static final long NOTIFICATION_RATE = 1000;
+        long lastNotification = 0L;
+        CausalityClock snapshot = ClockFactory.newClock();
+        CausalityClock summary = ClockFactory.newClock();
+        SortedMap<Timestamp, CausalityClock> snapshots = Collections
+                .synchronizedSortedMap(new TreeMap<Timestamp, CausalityClock>());
+
     }
 
-    synchronized public ClientSession getSession(String clientId, RpcHandle handle) {
+    synchronized public ClientSession getSession(String clientId) {
         ClientSession session = sessions.get(clientId);
-        if (session == null) {
-            session = new ClientSession(clientId, handle);
-            sessions.put(clientId, session);
-        }
+        if (session == null)
+            sessions.put(clientId, session = new ClientSession(clientId));
         return session;
     }
 

@@ -105,6 +105,7 @@ final public class RpcPacket extends AbstractRpcPacket {
                 try {
                     pkt.reply = pkt.queue.poll(timeout, TimeUnit.MILLISECONDS);
                 } catch (Exception x) {
+                    x.printStackTrace();
                 }
                 if (pkt.reply != null)
                     pkt.reply.payload.deliverTo(pkt.reply, pkt.handler);
@@ -147,6 +148,8 @@ final public class RpcPacket extends AbstractRpcPacket {
                 return false;
             }
         } catch (Throwable t) {
+            t.printStackTrace();
+
             failed = true;
             failureCause = t;
 
@@ -190,7 +193,7 @@ final public class RpcPacket extends AbstractRpcPacket {
     @SuppressWarnings("unchecked")
     @Override
     public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
-        RpcHandle reply = send(dst, m, RpcHandler.NONE);
+        RpcHandle reply = send(dst, m, RpcHandler.NONE, Integer.MAX_VALUE);
         // System.err.printf("RTT for: %s  = %s\n", m, reply.rtt());
         if (!reply.failed()) {
             reply = reply.getReply();

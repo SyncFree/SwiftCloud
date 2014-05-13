@@ -7,9 +7,9 @@ swift.batchSize=10
 swift.asyncQueue=50
 swift.cacheSize=512
 
-swiftsocial.numUsers=500
+swiftsocial.numUsers=100
 swiftsocial.userFriends=25
 swiftsocial.biasedOps=9
 swiftsocial.randomOps=1
 swiftsocial.opGroups=10000
-swiftsocial.thinkTime=1
+swiftsocial.thinkTime=10

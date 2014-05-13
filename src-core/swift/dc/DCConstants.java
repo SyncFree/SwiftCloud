@@ -31,6 +31,8 @@ public class DCConstants {
     public static final int SURROGATE_PORT = 29999;
     public static final int SURROGATE_PORT_FOR_SEQUENCERS = 29996;
 
+    public static final int PUBSUB_PORT = 30003;
+
     public static final long INTERSEQ_RETRY = 5000; // period for retyring
                                                     // re-sending data between
                                                     // sequencers

@@ -22,9 +22,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 
-import sys.dht.api.StringKey;
-import sys.dht.impl.msgs.DHT_Request;
-import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.rpc.RpcPacket;
 
@@ -108,10 +105,6 @@ public class KryoLib {
 
         register(RpcPacket.class, 0x22);
         register(InitiatorInfo.class, 0x23);
-        register(DHT_Request.class, 0x24);
-        register(DHT_RequestReply.class, 0x25);
-        register(StringKey.class, 0x26);
-
     }
 
     static class _Registration implements Comparable<_Registration> {

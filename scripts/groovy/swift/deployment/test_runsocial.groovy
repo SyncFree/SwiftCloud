@@ -9,31 +9,29 @@ def __ = onControlC({
     System.exit(0);
 })
 
-Surrogates = ["planet1.zib.de",]
+Sequencers = ["planetlab-4.imperial.ac.uk"]
+
+Surrogates = ["planetlab-2.imperial.ac.uk", "planetlab-3.imperial.ac.uk"]
 
 PlanetLab_PT = [
-    "planetlab1.fct.ualg.pt",
-    "planetlab2.fct.ualg.pt",
     "planetlab1.di.fct.unl.pt",
     "planetlab2.di.fct.unl.pt"
 ]
 
 Scouts = (PlanetLab_PT).unique()
-//Scouts = (PlanetLab_ASIA_RAW).unique()
 
 ShepardAddr = Surrogates.get(0)
 
-def Threads = 1
+def Threads = 3
 def Duration = 60
 def SwiftSocial_Props = "swiftsocial-test.props"
 
 
-AllMachines = (Surrogates + Scouts + ShepardAddr).unique()
+AllMachines = (Sequencers + Surrogates + Scouts + ShepardAddr).unique()
 
 dumpTo(AllMachines, "/tmp/nodes.txt")
 
 pnuke(AllMachines, "java", 60)
-//System.exit(0)
 
 println "==== BUILDING JAR..."
 
@@ -48,10 +46,12 @@ deployTo(AllMachines, SwiftSocial_Props)
 
 def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
-SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "512m")
+SwiftSocial.runEachAsSequencer(Sequencers, Surrogates, "256m")
+
+SwiftSocial.runEachAsSurrogate(Surrogates, Sequencers[0], "512m")
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
-Sleep(10)
+Sleep(20)
 
 
 println "==== INITIALIZING DATABASE ===="
@@ -62,7 +62,7 @@ SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
-Sleep(10)
+Sleep(20)
 
 
 SwiftSocial.runStandaloneScouts( Scouts, Surrogates, SwiftSocial_Props, ShepardAddr, Threads )
@@ -72,7 +72,7 @@ shep.take()
 
 Countdown( "Remaining: ", Duration + 30)
 
-//pnuke(AllMachines, "java", 60)
+pnuke(AllMachines, "java", 60)
 
 def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') + System.currentTimeMillis()
 def dstFile = String.format("1pc-results-swiftsocial-DC-%s-SC-%s-TH-%s.log", Surrogates.size(), Scouts.size(), Threads)
@@ -84,6 +84,8 @@ exec([
     "-c",
     "wc " + dstDir + "/*/*"
 ]).waitFor()
+
+
 System.exit(0)
 
 //pssh -t 120 -i -h nodes.txt "ping -a -q -c 10 ec2-107-20-2-64.compute-1.amazonaws.com" | grep mdev | sed "s/\/ //g" | awk '{print $4}' | sed "s/\// /g" | awk '{ print $2 }' | sort

@@ -420,13 +420,18 @@ public class ManagedCRDT<V extends CRDT<V>> {
             // calls getVersion exactly once.
             txn.registerObjectCreation(id, (V) checkpoint.copy());
         }
-
         final V version = (V) checkpoint.copyWith(txn, versionClock.clone());
         for (final CRDTObjectUpdatesGroup<V> updates : strippedLog) {
             if (updates.anyTimestampIncluded(versionClock)) {
                 updates.applyTo(version);
             }
         }
+        // String x = versionClock.toString();
+        // if (x.length() > 300) {
+        // System.err.println(this.getUID() + "   CRDT:    " + this.getClock());
+        // System.err.println("ARG:     " + versionClock);
+        // Thread.dumpStack();
+        // }
         return version;
     }
 

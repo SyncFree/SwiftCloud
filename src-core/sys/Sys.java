@@ -23,9 +23,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import swift.utils.KryoCRDTUtils;
-import sys.dht.DHT_Node;
-import sys.dht.api.DHT;
-import sys.dht.catadupa.KryoCatadupa;
 import sys.net.impl.NetworkingImpl;
 import sys.scheduler.Task;
 import sys.scheduler.TaskScheduler;
@@ -35,6 +32,10 @@ public class Sys {
     public static Logger SysLog = Logger.getLogger(Sys.class.getName());
 
     private static final double NANOSECOND = 1e-9;
+
+    static {
+        init();
+    }
 
     public Random rg;
     public TaskScheduler scheduler;
@@ -82,7 +83,6 @@ public class Sys {
         rg = new Random();
         scheduler = new TaskScheduler();
         scheduler.start();
-        KryoCatadupa.init();
         KryoCRDTUtils.init();
 
         // NetworkingImpl.Networking.setDefaultProvider(
@@ -96,10 +96,6 @@ public class Sys {
 
     public String getDatacenter() {
         return datacenter;
-    }
-
-    public DHT getDHT_ClientStub() {
-        return DHT_Node.getStub();
     }
 
     synchronized public static void init() {

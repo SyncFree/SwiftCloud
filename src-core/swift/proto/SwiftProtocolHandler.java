@@ -18,20 +18,17 @@ package swift.proto;
 
 import java.util.logging.Logger;
 
-import sys.dht.api.DHT;
-import sys.dht.api.DHT.Handle;
-import sys.dht.api.DHT.Reply;
+import swift.pubsub.SwiftNotification;
 import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
-import sys.pubsub.PubSubNotification;
 
 /**
  * 
  * @author smduarte
  * 
  */
-public class SwiftProtocolHandler extends AbstractRpcHandler implements DHT.ReplyHandler {
+public class SwiftProtocolHandler extends AbstractRpcHandler {
     private static Logger logger = Logger.getLogger(SwiftProtocolHandler.class.getName());
 
     protected void onReceive(RpcHandle conn, UnsubscribeUpdatesReply request) {
@@ -102,7 +99,8 @@ public class SwiftProtocolHandler extends AbstractRpcHandler implements DHT.Repl
         Thread.dumpStack();
     }
 
-    protected void onReceive(DHT.Handle conn, DHTExecCRDTReply reply) {
+    // For the pseudo DHT------------------------------
+    protected void onReceive(RpcHandle conn, DHTExecCRDT request) {
         Thread.dumpStack();
     }
 
@@ -110,7 +108,7 @@ public class SwiftProtocolHandler extends AbstractRpcHandler implements DHT.Repl
         Thread.dumpStack();
     }
 
-    protected void onReceive(DHT.Handle conn, DHTGetCRDTReply reply) {
+    protected void onReceive(RpcHandle conn, DHTGetCRDT request) {
         Thread.dumpStack();
     }
 
@@ -118,32 +116,22 @@ public class SwiftProtocolHandler extends AbstractRpcHandler implements DHT.Repl
         Thread.dumpStack();
     }
 
-    public void onReceive(RpcHandle conn, PubSubNotification notification) {
+    public void onReceive(RpcHandle conn, PubSubHandshake request) {
+        Thread.dumpStack();
+    }
+
+    public void onReceive(RpcHandle handle, SwiftNotification notification) {
         Thread.dumpStack();
     }
 
     @Override
     public void onReceive(RpcMessage m) {
-        System.err.println("-------------------->" + getClass());
         logger.warning("unhandled RPC message " + m);
+        Thread.dumpStack();
     }
 
     @Override
     public void onReceive(RpcHandle handle, RpcMessage m) {
         logger.warning("unhandled RPC message " + m);
-    }
-
-    @Override
-    public void onReceive(Reply m) {
-        logger.warning("unhandled DHT message " + m);
-    }
-
-    @Override
-    public void onReceive(Handle conn, Reply m) {
-        logger.warning("unhandled DHT message " + m);
-    }
-
-    @Override
-    public void onFailure() {
     }
 }

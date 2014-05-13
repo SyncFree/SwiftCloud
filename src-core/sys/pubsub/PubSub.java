@@ -18,25 +18,36 @@ package sys.pubsub;
 
 import java.util.Set;
 
+import swift.clocks.Timestamp;
+
 public interface PubSub<T> {
 
     interface Notifyable<T> {
 
         Object src();
 
+        T key();
+
+        Set<T> keys();
+
+        Timestamp timestamp();
+
         void notifyTo(PubSub<T> pubsub);
     }
 
     interface Subscriber<T> {
 
-        void onNotification(final Notifyable<T> info);
+        String id();
 
+        void onNotification(final Notifyable<T> info);
     }
 
     interface Publisher<T, P extends Notifyable<T>> {
 
         void publish(P info);
     }
+
+    String id();
 
     boolean subscribe(T key, Subscriber<T> handler);
 

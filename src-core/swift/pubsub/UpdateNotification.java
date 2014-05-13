@@ -1,5 +1,8 @@
 package swift.pubsub;
 
+import java.util.Set;
+
+import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.proto.ObjectUpdatesInfo;
 import sys.pubsub.PubSub;
@@ -8,27 +11,50 @@ import sys.pubsub.PubSub.Subscriber;
 
 public class UpdateNotification implements Notifyable<CRDTIdentifier> {
 
-    public String clientId;
+    public String srcId;
+    public Timestamp timestamp;
     public ObjectUpdatesInfo info;
 
     UpdateNotification() {
     }
 
-    public UpdateNotification(String clientId, ObjectUpdatesInfo info) {
+    public UpdateNotification(String srcId, Timestamp ts, ObjectUpdatesInfo info) {
         this.info = info;
-        this.clientId = clientId;
+        this.srcId = srcId;
+        this.timestamp = ts;
     }
 
-    int n = 0;
+    public UpdateNotification(String srcId, Timestamp ts, Timestamp suTs, ObjectUpdatesInfo info) {
+        this.info = info;
+        this.srcId = srcId;
+    }
 
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
         for (Subscriber<CRDTIdentifier> i : pubsub.subscribers(info.getId(), true))
-            ((SwiftSubscriber) i).onNotification(this);
+            try {
+                ((SwiftSubscriber) i).onNotification(this);
+            } finally {
+            }
     }
 
     @Override
     public Object src() {
-        return clientId;
+        return srcId;
+    }
+
+    @Override
+    public CRDTIdentifier key() {
+        return info.getId();
+    }
+
+    @Override
+    public Set<CRDTIdentifier> keys() {
+        return null;
+    }
+
+    @Override
+    public Timestamp timestamp() {
+        return timestamp;
     }
 }
