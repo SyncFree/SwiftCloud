@@ -1,7 +1,7 @@
 swift.AsyncCommit=true
 swift.Notifications=true
 swift.CachePolicy=CACHED
-swift.IsolationLevel=REPEATABLE_READS
+swift.IsolationLevel=SNAPSHOT_ISOLATION
 swift.cacheEvictionTimeMillis=5000000
 swift.batchSize=10
 swift.asyncQueue=50
