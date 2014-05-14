@@ -132,7 +132,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
             public void run() {
                 if (isServer) {
                     double elapsed = Sys.currentTime() - T0;
-                    System.err.printf("%s RPC/s:%.1f\n", Sys.mainClass, totRPCs.get() / elapsed);
+                    Log.info(String.format("%s RPC/s:%.1f\n", Sys.mainClass, totRPCs.get() / elapsed));
                     if (elapsed > 10.0) {
                         T0 = Sys.currentTime();
                         totRPCs.set(0);

@@ -49,8 +49,8 @@ public class KryoLib {
             else
                 res.register(i.cl, i.id);
 
-        // res.setInstantiatorStrategy(new StdInstantiatorStrategy());
         res.setReferences(false);
+        res.setAsmEnabled(true);
         return res;
     }
 

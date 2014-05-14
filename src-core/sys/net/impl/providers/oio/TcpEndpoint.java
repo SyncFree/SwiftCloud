@@ -134,6 +134,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                         int msgSize = inBuf.msgSize;
                         Sys.downloadedBytes.addAndGet(msgSize);
                         incomingBytesCounter.addAndGet(msgSize);
+                        msg.setSize(msgSize);
                     }
                     msg.deliverTo(this, TcpEndpoint.this.handler);
                 }
@@ -278,6 +279,7 @@ final class KryoInputBuffer {
     public <T> T readClassAndObject(SocketChannel ch) throws Exception {
         if (readFrom(ch) > 0) {
             in.setPosition(0);
+            // KryoLib.kryo().reset();
             return (T) KryoLib.kryo().readClassAndObject(in);
         } else
             throw new RuntimeException("Channel closed...");
@@ -329,6 +331,7 @@ final class KryoOutputBuffer {
     public int writeClassAndObject(Object object, SocketChannel ch) throws Exception {
         reset();
         out.setPosition(4);
+        // KryoLib.kryo().reset();
         KryoLib.kryo().writeClassAndObject(out, object);
         int length = out.position();
 
