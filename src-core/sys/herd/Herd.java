@@ -46,6 +46,7 @@ import sys.utils.Threading;
 public class Herd extends HerdProtoHandler {
     private static Logger Log = Logger.getLogger(Herd.class.getName());
 
+    private static boolean inited = false;
     private static final int PORT = 29777;
 
     String dc;
@@ -108,22 +109,26 @@ public class Herd extends HerdProtoHandler {
     }
 
     static public void initServer() {
-        Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new HerdProtoHandler() {
-            public void onReceive(RpcHandle conn, JoinHerdRequest r) {
-                // System.err.println("Got join:" + r.dc() + "  " + r.herd() +
-                // " " + r.sheep());
+        if (!inited) {
+            Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new HerdProtoHandler() {
+                public void onReceive(RpcHandle conn, JoinHerdRequest r) {
+                    // System.err.println("Got join:" + r.dc() + "  " + r.herd()
+                    // +
+                    // " " + r.sheep());
 
-                JoinHerdReply reply;
-                synchronized (herds) {
-                    if (getHerd(r.dc(), r.herd()).sheep.add(r.sheep())) {
-                        lastChange = System.currentTimeMillis();
+                    JoinHerdReply reply;
+                    synchronized (herds) {
+                        if (getHerd(r.dc(), r.herd()).sheep.add(r.sheep())) {
+                            lastChange = System.currentTimeMillis();
+                        }
+                        reply = new JoinHerdReply(age(), herds);
                     }
-                    reply = new JoinHerdReply(age(), herds);
+                    conn.reply(reply);
                 }
-                conn.reply(reply);
-            }
-        });
-        Log.info("Started Herd server @ " + IP.localHostAddressString());
+            });
+            Log.info("Started Herd server @ " + IP.localHostAddressString());
+            inited = true;
+        }
     }
 
     static Map<String, Herd> getHerds(String dc) {
