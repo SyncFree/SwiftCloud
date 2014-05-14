@@ -31,6 +31,9 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -98,6 +101,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
     CausalityClock estimatedDCStableVersion; // estimate of current DC state
 
     public SurrogatePubSubService suPubSub;
+
     ExecutorService executor = Executors.newCachedThreadPool();
 
     DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
@@ -346,16 +350,35 @@ public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         int pos = 0;
-        boolean txnOK = true;
-        final ExecCRDTResult[] results = new ExecCRDTResult[ops.size()];
-        for (CRDTObjectUpdatesGroup<?> i : ops) {
-            // TODO: must make this concurrent to be fast
-            results[pos] = execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy);
-            txnOK = txnOK && results[pos].isResult();
-            synchronized (estimatedDCVersion) {
-                estimatedDCVersion.merge(i.getDependency());
+        final AtomicBoolean txnOK = new AtomicBoolean(true);
+        final AtomicReferenceArray<ExecCRDTResult> results = new AtomicReferenceArray<ExecCRDTResult>(ops.size());
+
+        if (ops.size() > 2) { // do multiple execCRDTs in parallel
+            final Semaphore s = new Semaphore(ops.size());
+            for (final CRDTObjectUpdatesGroup<?> i : ops) {
+                final int j = pos++;
+                executor.execute(new Runnable() {
+                    public void run() {
+                        results.set(j,
+                                execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));
+                        txnOK.compareAndSet(true, results.get(j).isResult());
+                        synchronized (estimatedDCVersion) {
+                            estimatedDCVersion.merge(i.getDependency());
+                        }
+                        s.release();
+                    }
+                });
             }
-            pos++;
+            s.acquireUninterruptibly();
+        } else {
+            for (final CRDTObjectUpdatesGroup<?> i : ops) {
+                results.set(pos, execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));
+                txnOK.compareAndSet(true, results.get(pos).isResult());
+                synchronized (estimatedDCVersion) {
+                    estimatedDCVersion.merge(i.getDependency());
+                }
+                pos++;
+            }
         }
 
         // TODO: handle failure
@@ -363,7 +386,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
         CommitTSReply reply;
         do {
             reply = cltEndpoint4Sequencer.request(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs,
-                    estimatedDCVersionCopy, txnOK, ops, req.disasterSafe(), session.clientId));
+                    estimatedDCVersionCopy, txnOK.get(), ops, req.disasterSafe(), session.clientId));
 
             if (reply == null)
                 System.err.printf("------------>REPLY FROM SEQUENCER NULL for: %s, who:%s\n", txTs, session.clientId);
@@ -385,7 +408,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
                 dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", estimatedDCVersion);
             }
 
-            if (txnOK && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+            if (txnOK.get() && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
                 }
