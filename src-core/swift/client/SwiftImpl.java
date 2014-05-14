@@ -317,14 +317,17 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint()) {
             public void onNotification(final UpdateNotification update) {
                 applyObjectUpdates(update.info);
-                System.err.println("SwiftImpl--------->>>>>" + update.info.getId() + "/" + update.info.getNewClock());
+                if (logger.isLoggable(Level.FINE)) {
+                    logger.fine(update.info.getId() + "/" + update.info.getNewClock());
+                }
             }
 
             public void onNotification(final SnapshotNotification n) {
 
                 synchronized (SwiftImpl.this) {
-                    System.err.println(Thread.currentThread() + " @@@@@@@@@@@@@@@@" + causalSnapshot + "/"
-                            + Sys.Sys.currentTime());
+                    if (logger.isLoggable(Level.FINE)) {
+                        logger.fine(causalSnapshot + "/" + Sys.Sys.currentTime());
+                    }
 
                     causalSnapshot.merge(n.snapshotClock());
                     committedVersion.merge(n.estimatedDCVersion());
@@ -821,7 +824,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // TODO: Discuss. This is a very aggressive caching mode.
         }
 
-        // FIXME: why is this correct? 
+        // FIXME: why is this correct?
         if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && options.assumeAtomicCausalNotifications()
                 && txn.cachePolicy == CachePolicy.CACHED)
             clock.intersect(crdt.getClock());
@@ -1348,8 +1351,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
     }
 
-    
-    // Txn is committed globally if it is not read-only, if it contains updates and if it has not been cancelled
+    // Txn is committed globally if it is not read-only, if it contains updates
+    // and if it has not been cancelled
     private boolean requiresGlobalCommit(AbstractTxnHandle txn) {
         if (txn.isReadOnly()) {
             return false;
@@ -1383,7 +1386,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 if (sessionsSubs != null) {
                     for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
                         if (subscription.txn == txn) {
-                            // Add this update transaction timestamp to readVersion to exclude self-notifications.
+                            // Add this update transaction timestamp to
+                            // readVersion to exclude self-notifications.
                             for (final Timestamp ts : txn.getTimestampMapping().getTimestamps()) {
                                 subscription.readVersion.record(ts);
                             }
@@ -1446,12 +1450,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     operationsGroups));
         }
 
-        // Send batched updates and wait for reply of server 
+        // Send batched updates and wait for reply of server
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), new BatchCommitUpdatesRequest(
                 scoutId, requests));
 
         // TODO Add here statistics for meta-data overhead?
-        
+
         if (batchReply == null) {
             // FIXME with new RPC API null is just a timeout??
             throw new IllegalStateException("Fatal error: server returned null on commit");
