@@ -932,17 +932,21 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         final ManagedCRDT<V> crdt;
 
         {
-            Map<String, Object> staleReadInfo = fetchReply.staleReadsInfo;
-            if (staleReadInfo != null && staleReadInfo.size() > 0) {
-                long serial = txn == null ? -1 : txn.getSerial();
-                long rtt = sys.Sys.Sys.timeMillis() - (Long) staleReadInfo.get("timestamp");
-                Object diff1 = staleReadInfo.get("Diff1-scout-normal-vs-scout-stable");
-                Object diff2 = staleReadInfo.get("Diff2-dc-normal-vs-scout-stable");
-                Object diff3 = staleReadInfo.get("Diff3-dc-normal-vs-dc-stable");
-                // TODO: replace with stats?
-                System.out.printf("SYS, GET, %s, %s, %s, %s, %s, %s\n", serial, rtt, request.getUid(), diff1, diff2,
-                        diff3);
-            }
+            // Map<String, Object> staleReadInfo = fetchReply.staleReadsInfo;
+            // if (staleReadInfo != null && staleReadInfo.size() > 0) {
+            // long serial = txn == null ? -1 : txn.getSerial();
+            // long rtt = sys.Sys.Sys.timeMillis() - (Long)
+            // staleReadInfo.get("timestamp");
+            // Object diff1 =
+            // staleReadInfo.get("Diff1-scout-normal-vs-scout-stable");
+            // Object diff2 =
+            // staleReadInfo.get("Diff2-dc-normal-vs-scout-stable");
+            // Object diff3 = staleReadInfo.get("Diff3-dc-normal-vs-dc-stable");
+            // // TODO: replace with stats?
+            // System.out.printf("SYS, GET, %s, %s, %s, %s, %s, %s\n", serial,
+            // rtt, request.getUid(), diff1, diff2,
+            // diff3);
+            // }
         }
 
         switch (fetchReply.getStatus()) {

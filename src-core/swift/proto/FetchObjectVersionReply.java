@@ -16,8 +16,6 @@
  *****************************************************************************/
 package swift.proto;
 
-import java.util.Map;
-
 import swift.clocks.CausalityClock;
 import swift.crdt.core.ManagedCRDT;
 import sys.net.api.rpc.RpcHandle;
@@ -50,7 +48,7 @@ public class FetchObjectVersionReply implements RpcMessage {
     protected CausalityClock estimatedLatestKnownClock;
     protected CausalityClock estimatedDisasterDurableLatestKnownClock;
 
-    public Map<String, Object> staleReadsInfo;
+    // public Map<String, Object> staleReadsInfo;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     FetchObjectVersionReply() {
@@ -67,14 +65,17 @@ public class FetchObjectVersionReply implements RpcMessage {
         this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
     }
 
-    public FetchObjectVersionReply(FetchStatus status, ManagedCRDT<?> crdt, CausalityClock estimatedLatestKnownClock,
-            CausalityClock estimatedDisasterDurableLatestKnownClock, Map<String, Object> staleReadsInfo) {
-
-        this(status, crdt, estimatedLatestKnownClock, estimatedDisasterDurableLatestKnownClock);
-
-        // EVALUATION
-        this.staleReadsInfo = staleReadsInfo;
-    }
+    // public FetchObjectVersionReply(FetchStatus status, ManagedCRDT<?> crdt,
+    // CausalityClock estimatedLatestKnownClock,
+    // CausalityClock estimatedDisasterDurableLatestKnownClock, Map<String,
+    // Object> staleReadsInfo) {
+    //
+    // this(status, crdt, estimatedLatestKnownClock,
+    // estimatedDisasterDurableLatestKnownClock);
+    //
+    // // EVALUATION
+    // this.staleReadsInfo = staleReadsInfo;
+    // }
 
     /**
      * @return status code of the reply

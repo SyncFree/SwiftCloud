@@ -251,7 +251,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
             // if (cltLastSeqNo != null)
             // crdt.augmentWithScoutClock(cltLastSeqNo);
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
-                    estimatedDCVersionCopy, estimatedDCStableVersionCopy, null);
+                    estimatedDCVersionCopy, estimatedDCStableVersionCopy);
         } else {
 
             // for evaluating stale reads
@@ -271,8 +271,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/" + request.getUid());
                 }
-                return new FetchObjectVersionReply(status, crdt, estimatedDCVersionCopy, estimatedDCStableVersionCopy,
-                        null);
+                return new FetchObjectVersionReply(status, crdt, estimatedDCVersionCopy, estimatedDCStableVersionCopy);
             }
         }
     }

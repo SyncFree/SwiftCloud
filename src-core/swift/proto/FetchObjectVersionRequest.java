@@ -28,10 +28,11 @@ import sys.net.api.rpc.RpcHandler;
  */
 public class FetchObjectVersionRequest extends ClientRequest {
     protected CRDTIdentifier uid;
+    // TODO: could be derived from client's session?
     protected CausalityClock version;
     // FIXME: make these things optional? Used only by evaluation.
-    protected CausalityClock clock;
-    protected CausalityClock disasterDurableClock;
+    // protected CausalityClock clock;
+    // protected CausalityClock disasterDurableClock;
     protected boolean strictUnprunedVersion;
 
     protected boolean subscribe;
@@ -54,17 +55,19 @@ public class FetchObjectVersionRequest extends ClientRequest {
         this.strictUnprunedVersion = strictUnprunedVersion;
     }
 
-    public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            final boolean strictUnprunedVersion, CausalityClock clock, CausalityClock disasterDurableClock,
-            boolean subscribe) {
-        super(clientId);
-        this.uid = uid;
-        this.clock = clock;
-        this.version = version;
-        this.subscribe = subscribe;
-        this.strictUnprunedVersion = strictUnprunedVersion;
-        this.disasterDurableClock = disasterDurableClock;
-    }
+    // public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid,
+    // CausalityClock version,
+    // final boolean strictUnprunedVersion, CausalityClock clock, CausalityClock
+    // disasterDurableClock,
+    // boolean subscribe) {
+    // super(clientId);
+    // this.uid = uid;
+    // this.clock = clock;
+    // this.version = version;
+    // this.subscribe = subscribe;
+    // this.strictUnprunedVersion = strictUnprunedVersion;
+    // this.disasterDurableClock = disasterDurableClock;
+    // }
 
     public boolean hasSubscription() {
         return subscribe;
@@ -102,7 +105,8 @@ public class FetchObjectVersionRequest extends ClientRequest {
      *         candidate
      */
     public CausalityClock getClock() {
-        return clock;
+        return null;
+        // return clock;
     }
 
     /**
@@ -111,6 +115,8 @@ public class FetchObjectVersionRequest extends ClientRequest {
      *         of the store
      */
     public CausalityClock getDistasterDurableClock() {
-        return disasterDurableClock;
+        return null;
+        // return disasterDurableClock;
+    }
     }
 }
