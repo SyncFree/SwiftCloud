@@ -108,8 +108,8 @@ public class Herd extends HerdProtoHandler {
         };
     }
 
-    static public void initServer() {
-        if (!inited) {
+    synchronized static public void initServer() {
+        try {
             Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new HerdProtoHandler() {
                 public void onReceive(RpcHandle conn, JoinHerdRequest r) {
                     // System.err.println("Got join:" + r.dc() + "  " + r.herd()
@@ -127,7 +127,8 @@ public class Herd extends HerdProtoHandler {
                 }
             });
             Log.info("Started Herd server @ " + IP.localHostAddressString());
-            inited = true;
+        } catch (Exception x) {
+            Log.info("Herd is already running???");
         }
     }
 
