@@ -19,15 +19,12 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.ByteBufferOutput;
-
-import swift.crdt.core.CRDTObjectUpdatesGroup;
-import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
 /**
  * Server confirmation for a batch of committed updates, with information on
@@ -37,7 +34,7 @@ import sys.net.impl.KryoLib;
  * @see BatchCommitUpdatesRequest
  * @see CommitUpdatesReply
  */
-public class BatchCommitUpdatesReply implements RpcMessage, MetadataMeasure {
+public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
     protected List<CommitUpdatesReply> replies;
 
     /**
@@ -68,13 +65,17 @@ public class BatchCommitUpdatesReply implements RpcMessage, MetadataMeasure {
         // ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
+
     @Override
-    public MetadataSizeSample getMetadataSizeSample() {
-        final Kryo kryo = KryoLib.getKryoInstance();
-        ByteBufferOutput buffer = new ByteBufferOutput();
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final ByteBufferOutput buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
-        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, 0, 0);
+        collector.recordStats(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }

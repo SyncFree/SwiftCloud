@@ -30,7 +30,7 @@ import com.esotericsoftware.kryo.io.ByteBufferOutput;
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionRequest extends ClientRequest implements MetadataMeasure {
+public class FetchObjectVersionRequest extends ClientRequest implements MetadataSamplable {
     protected CRDTIdentifier uid;
     // TODO: could be derived from client's session?
     protected CausalityClock version;
@@ -124,13 +124,16 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     }
 
     @Override
-    public MetadataSizeSample getMetadataSizeSample() {
-        final Kryo kryo = KryoLib.getKryoInstance();
-        ByteBufferOutput buffer = new ByteBufferOutput();
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final ByteBufferOutput buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
 
-        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, 0, 0);
+        collector.recordStats(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }

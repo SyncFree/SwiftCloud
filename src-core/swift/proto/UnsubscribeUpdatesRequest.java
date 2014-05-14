@@ -35,7 +35,7 @@ import sys.net.impl.KryoLib;
  * 
  * @author smduarte
  */
-public class UnsubscribeUpdatesRequest extends ClientRequest implements MetadataMeasure {
+public class UnsubscribeUpdatesRequest extends ClientRequest implements MetadataSamplable {
 
     protected long id;
     protected Collection<CRDTIdentifier> unsubscriptions;
@@ -66,12 +66,16 @@ public class UnsubscribeUpdatesRequest extends ClientRequest implements Metadata
     }
 
     @Override
-    public MetadataSizeSample getMetadataSizeSample() {
-        final Kryo kryo = KryoLib.getKryoInstance();
-        ByteBufferOutput buffer = new ByteBufferOutput();
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final ByteBufferOutput buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
-        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, 0, 0);
+        // TODO: we should really get this from the wire rather than recompute
+        collector.recordStats(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }

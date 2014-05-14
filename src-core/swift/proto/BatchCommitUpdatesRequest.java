@@ -35,7 +35,7 @@ import com.esotericsoftware.kryo.io.ByteBufferOutput;
  * 
  * @author mzawirski
  */
-public class BatchCommitUpdatesRequest extends ClientRequest implements MetadataMeasure {
+public class BatchCommitUpdatesRequest extends ClientRequest implements MetadataSamplable {
     protected LinkedList<CommitUpdatesRequest> commitRequests;
 
     /**
@@ -72,9 +72,12 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
     }
 
     @Override
-    public MetadataSizeSample getMetadataSizeSample() {
-        final Kryo kryo = KryoLib.getKryoInstance();
-        ByteBufferOutput buffer = new ByteBufferOutput();
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final ByteBufferOutput buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
@@ -102,7 +105,6 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
             }
         }
         valuesSize = buffer.position();
-
-        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, updatesSize, valuesSize);
+        collector.recordStats(getClass().getSimpleName(), totalSize, updatesSize, valuesSize);
     }
 }

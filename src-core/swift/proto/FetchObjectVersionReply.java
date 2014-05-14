@@ -32,7 +32,7 @@ import com.esotericsoftware.kryo.io.ByteBufferOutput;
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionReply implements RpcMessage, MetadataMeasure {
+public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
     public enum FetchStatus {
         /**
          * The reply contains requested version.
@@ -122,9 +122,12 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataMeasure {
     }
 
     @Override
-    public MetadataSizeSample getMetadataSizeSample() {
-        final Kryo kryo = KryoLib.getKryoInstance();
-        ByteBufferOutput buffer = new ByteBufferOutput();
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final ByteBufferOutput buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
@@ -144,6 +147,6 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataMeasure {
             buffer.clear();
         }
 
-        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, versionSize, valueSize);
+        collector.recordStats(getClass().getSimpleName(), totalSize, versionSize, valueSize);
     }
 }

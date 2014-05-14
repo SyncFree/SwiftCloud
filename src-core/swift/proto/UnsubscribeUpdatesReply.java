@@ -16,11 +16,15 @@
  *****************************************************************************/
 package swift.proto;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
+
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+import sys.net.impl.KryoLib;
 
-public class UnsubscribeUpdatesReply implements RpcMessage {
+public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
 
     protected long id;
 
@@ -38,5 +42,19 @@ public class UnsubscribeUpdatesReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final ByteBufferOutput buffer = collector.getKryoBuffer();
+
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+        // TODO: we should really get this from the wire rather than recompute
+        collector.recordStats(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }
