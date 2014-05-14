@@ -52,19 +52,22 @@ public class CommitUpdatesReply implements RpcMessage {
         INVALID_OPERATION
     }
 
-    protected CommitStatus status;
     protected List<Timestamp> commitTimestamps;
     protected CausalityClock commitClock;
+
+    /**
+     * Create a reply with invalid status..
+     */
+    public CommitUpdatesReply() {
+    }
 
     /**
      * Create a reply with known commit system timestamps.
      * 
      * @param systemTimestamps
      */
-    public CommitUpdatesReply(CausalityClock commitClock, Timestamp... systemTimestamps) {
-        this.status = CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS;
+    public CommitUpdatesReply(Timestamp... systemTimestamps) {
         this.commitTimestamps = new LinkedList<Timestamp>(Arrays.asList(systemTimestamps));
-        this.commitClock = commitClock;
     }
 
     /**
@@ -73,22 +76,20 @@ public class CommitUpdatesReply implements RpcMessage {
      * @param commitClock
      */
     public CommitUpdatesReply(CausalityClock commitClock) {
-        this.status = CommitStatus.COMMITTED_WITH_KNOWN_CLOCK_RANGE;
         this.commitClock = commitClock;
-    }
-
-    /**
-     * Create a reply with invalid status..
-     */
-    public CommitUpdatesReply() {
-        this.status = CommitStatus.INVALID_OPERATION;
     }
 
     /**
      * @return commit status
      */
     public CommitStatus getStatus() {
-        return status;
+        if (commitTimestamps != null) {
+            return CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS;
+        } else if (commitClock != null) {
+            return CommitStatus.COMMITTED_WITH_KNOWN_CLOCK_RANGE;
+        } else {
+            return CommitStatus.INVALID_OPERATION;
+        }
     }
 
     /**

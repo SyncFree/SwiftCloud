@@ -397,7 +397,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
                 // suPubSub.publish(new SnapshotNotification(req.getClientId(),
                 // uids, txTs, reply.getCurrVersion()));
 
-                return new CommitUpdatesReply(reply.getCurrVersion(), txTs);
+                return new CommitUpdatesReply(txTs);
             }
         }
         return new CommitUpdatesReply();
