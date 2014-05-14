@@ -37,4 +37,10 @@ public class BoundedCounterIncrement<T extends BoundedCounterCRDT<T>> implements
         this.siteId = siteId;
     }
 
+    @Override
+    public Object getValueWithoutMetadata() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

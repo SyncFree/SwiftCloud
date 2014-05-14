@@ -42,4 +42,9 @@ public class LWWRegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
     public void applyTo(LWWRegisterCRDT<V> register) {
         register.applySet(registerTimestamp, tiebreakingTimestamp, val);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return val;
+    }
 }

@@ -50,4 +50,9 @@ public class AddWinsSetRemoveUpdate<V, T extends AbstractAddWinsSetCRDT<V, T>> i
     public void applyTo(T crdt) {
         crdt.applyRemove(val, removedInstances);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return val;
+    }
 }

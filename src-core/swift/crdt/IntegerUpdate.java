@@ -37,4 +37,9 @@ public class IntegerUpdate implements CRDTUpdate<IntegerCRDT> {
     public void applyTo(IntegerCRDT crdt) {
         crdt.applyAdd(delta);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return delta;
+    }
 }

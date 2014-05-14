@@ -29,4 +29,11 @@ public interface CRDTUpdate<V extends CRDT<V>> {
      *            object where operation is applied
      */
     void applyTo(V crdt);
+
+    /**
+     * @return estimated size of pure "value" in the update, as opposed to
+     *         metadata; for PERFORMANCE MEASUREMENTS purposes only, return null
+     *         if in doubt
+     */
+    Object getValueWithoutMetadata();
 }
