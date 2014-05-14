@@ -19,8 +19,14 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
 /**
  * Client batch request to commit a a sequence of transactions. Transactions
@@ -29,7 +35,7 @@ import sys.net.api.rpc.RpcHandler;
  * 
  * @author mzawirski
  */
-public class BatchCommitUpdatesRequest extends ClientRequest {
+public class BatchCommitUpdatesRequest extends ClientRequest implements MetadataMeasure {
     protected LinkedList<CommitUpdatesRequest> commitRequests;
 
     /**
@@ -65,4 +71,38 @@ public class BatchCommitUpdatesRequest extends ClientRequest {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
+    @Override
+    public MetadataSizeSample getMetadataSizeSample() {
+        final Kryo kryo = KryoLib.getKryoInstance();
+        ByteBufferOutput buffer = new ByteBufferOutput();
+
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+        buffer.clear();
+
+        int updatesSize = 0;
+        for (final CommitUpdatesRequest req : commitRequests) {
+            for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
+                group.getCreationState();
+                for (final CRDTUpdate<?> op : group.getOperations()) {
+                    kryo.writeObject(buffer, op);
+                }
+            }
+        }
+        updatesSize = buffer.position();
+        buffer.clear();
+
+        int valuesSize = 0;
+        for (final CommitUpdatesRequest req : commitRequests) {
+            for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
+                group.getCreationState();
+                for (final CRDTUpdate<?> op : group.getOperations()) {
+                    kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                }
+            }
+        }
+        valuesSize = buffer.position();
+
+        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, updatesSize, valuesSize);
+    }
 }

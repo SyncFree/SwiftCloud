@@ -19,9 +19,15 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
+
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+import sys.net.impl.KryoLib;
 
 /**
  * Server confirmation for a batch of committed updates, with information on
@@ -31,7 +37,7 @@ import sys.net.api.rpc.RpcMessage;
  * @see BatchCommitUpdatesRequest
  * @see CommitUpdatesReply
  */
-public class BatchCommitUpdatesReply implements RpcMessage {
+public class BatchCommitUpdatesReply implements RpcMessage, MetadataMeasure {
     protected List<CommitUpdatesReply> replies;
 
     /**
@@ -60,5 +66,15 @@ public class BatchCommitUpdatesReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         // ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public MetadataSizeSample getMetadataSizeSample() {
+        final Kryo kryo = KryoLib.getKryoInstance();
+        ByteBufferOutput buffer = new ByteBufferOutput();
+
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }

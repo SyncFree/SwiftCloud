@@ -17,17 +17,22 @@
 package swift.proto;
 
 import swift.clocks.CausalityClock;
+import swift.crdt.core.CRDT;
 import swift.crdt.core.ManagedCRDT;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
 /**
  * Server reply to object version fetch request.
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionReply implements RpcMessage {
+public class FetchObjectVersionReply implements RpcMessage, MetadataMeasure {
     public enum FetchStatus {
         /**
          * The reply contains requested version.
@@ -114,5 +119,31 @@ public class FetchObjectVersionReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         // ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public MetadataSizeSample getMetadataSizeSample() {
+        final Kryo kryo = KryoLib.getKryoInstance();
+        ByteBufferOutput buffer = new ByteBufferOutput();
+
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+        buffer.clear();
+
+        int versionSize = 0;
+        int valueSize = 0;
+        if (crdt != null) {
+            // TODO: be more precise w.r.t version
+            final CRDT version = crdt.getLatestVersion(null);
+            kryo.writeObject(buffer, version);
+            versionSize = buffer.position();
+            buffer.clear();
+
+            kryo.writeObject(buffer, version.getValue());
+            valueSize = buffer.position();
+            buffer.clear();
+        }
+
+        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, versionSize, valueSize);
     }
 }

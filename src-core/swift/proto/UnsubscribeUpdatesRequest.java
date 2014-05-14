@@ -21,16 +21,21 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
+
+import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import sys.net.impl.KryoLib;
 
 /**
  * Scout request to update its subscriptions.
  * 
  * @author smduarte
  */
-public class UnsubscribeUpdatesRequest extends ClientRequest {
+public class UnsubscribeUpdatesRequest extends ClientRequest implements MetadataMeasure {
 
     protected long id;
     protected Collection<CRDTIdentifier> unsubscriptions;
@@ -58,5 +63,15 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public MetadataSizeSample getMetadataSizeSample() {
+        final Kryo kryo = KryoLib.getKryoInstance();
+        ByteBufferOutput buffer = new ByteBufferOutput();
+
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }

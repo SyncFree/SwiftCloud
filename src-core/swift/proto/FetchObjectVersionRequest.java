@@ -20,13 +20,17 @@ import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
 /**
  * Client request to fetch a particular version of an object.
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionRequest extends ClientRequest {
+public class FetchObjectVersionRequest extends ClientRequest implements MetadataMeasure {
     protected CRDTIdentifier uid;
     // TODO: could be derived from client's session?
     protected CausalityClock version;
@@ -118,5 +122,15 @@ public class FetchObjectVersionRequest extends ClientRequest {
         return null;
         // return disasterDurableClock;
     }
+
+    @Override
+    public MetadataSizeSample getMetadataSizeSample() {
+        final Kryo kryo = KryoLib.getKryoInstance();
+        ByteBufferOutput buffer = new ByteBufferOutput();
+
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+
+        return new MetadataSizeSample(getClass().getSimpleName(), totalSize, 0, 0);
     }
 }
