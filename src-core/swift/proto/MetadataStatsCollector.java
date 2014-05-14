@@ -3,7 +3,8 @@ package swift.proto;
 import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.ByteBufferOutput;
+import com.esotericsoftware.kryo.io.Output;
+import com.esotericsoftware.kryo.io.UnsafeMemoryOutput;
 
 /**
  * A collector of metadata statistics.
@@ -12,9 +13,9 @@ import com.esotericsoftware.kryo.io.ByteBufferOutput;
  */
 public class MetadataStatsCollector {
     private boolean enabled;
-    private ThreadLocal<ByteBufferOutput> kryoBuffer = new ThreadLocal<ByteBufferOutput>() {
-        protected ByteBufferOutput initialValue() {
-            return new ByteBufferOutput(1 << 20);
+    private ThreadLocal<UnsafeMemoryOutput> kryoBuffer = new ThreadLocal<UnsafeMemoryOutput>() {
+        protected UnsafeMemoryOutput initialValue() {
+            return new UnsafeMemoryOutput(1 << 20);
         }
     };
 
@@ -36,8 +37,8 @@ public class MetadataStatsCollector {
      * @return a thread-local cleared kryo buffer that can be used to compute
      *         the size of messages
      */
-    public ByteBufferOutput getKryoBuffer() {
-        ByteBufferOutput buffer = kryoBuffer.get();
+    public Output getKryoBuffer() {
+        Output buffer = kryoBuffer.get();
         buffer.clear();
         return buffer;
     }

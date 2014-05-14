@@ -20,10 +20,9 @@ import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.ByteBufferOutput;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Client request to fetch a particular version of an object.
@@ -129,7 +128,7 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
             return;
         }
         final Kryo kryo = collector.getKryo();
-        final ByteBufferOutput buffer = collector.getKryoBuffer();
+        final Output buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();

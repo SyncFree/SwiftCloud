@@ -24,7 +24,7 @@ import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.ByteBufferOutput;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Server confirmation for a batch of committed updates, with information on
@@ -65,14 +65,13 @@ public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
         // ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
-
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
         if (!collector.isEnabled()) {
             return;
         }
         final Kryo kryo = collector.getKryo();
-        final ByteBufferOutput buffer = collector.getKryoBuffer();
+        final Output buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();

@@ -16,13 +16,12 @@
  *****************************************************************************/
 package swift.proto;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.ByteBufferOutput;
-
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
 public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
 
@@ -50,7 +49,7 @@ public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
             return;
         }
         final Kryo kryo = collector.getKryo();
-        final ByteBufferOutput buffer = collector.getKryoBuffer();
+        final Output buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();

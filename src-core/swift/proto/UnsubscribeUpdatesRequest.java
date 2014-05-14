@@ -21,14 +21,12 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.ByteBufferOutput;
-
-import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.impl.KryoLib;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Scout request to update its subscriptions.
@@ -71,7 +69,7 @@ public class UnsubscribeUpdatesRequest extends ClientRequest implements Metadata
             return;
         }
         final Kryo kryo = collector.getKryo();
-        final ByteBufferOutput buffer = collector.getKryoBuffer();
+        final Output buffer = collector.getKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
