@@ -10,6 +10,7 @@ import java.util.TreeSet;
 
 import swift.crdt.core.CRDTIdentifier;
 import swift.dc.DCConstants;
+import swift.proto.MetadataStatsCollector;
 import swift.proto.PubSubHandshake;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
@@ -30,9 +31,13 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
 
     final Task updater;
     final FifoQueue<SwiftNotification> fifoQueue;
+    private MetadataStatsCollector statsCollector;
 
-    public ScoutPubSubService(final String clientId, final Endpoint surrogate) {
+    public ScoutPubSubService(final String clientId, final Endpoint surrogate,
+            final MetadataStatsCollector statsCollector) {
         super(clientId);
+
+        this.statsCollector = statsCollector;
 
         // process incoming events observing source fifo order...
         this.fifoQueue = new FifoQueue<SwiftNotification>() {
@@ -60,12 +65,14 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
 
     private void updateSurrogatePubSub() {
         final Set<CRDTIdentifier> uset = new HashSet<CRDTIdentifier>(unsubscriptions);
-        endpoint.send(suPubSub, new UnsubscribeUpdatesRequest(-1L, super.id(), uset), new SwiftProtocolHandler() {
+        final UnsubscribeUpdatesRequest request = new UnsubscribeUpdatesRequest(-1L, super.id(), uset);
+        request.recordMetadataSample(statsCollector);
+        endpoint.send(suPubSub, request, new SwiftProtocolHandler() {
             public void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {
                 unsubscriptions.removeAll(uset);
+                ack.recordMetadataSample(statsCollector);
             }
         }, 0);
-
     }
 
     // TODO Q: no synchronization required for these two methods??

@@ -77,6 +77,7 @@ import swift.proto.FetchObjectVersionReply.FetchStatus;
 import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
+import swift.proto.MetadataStatsCollector;
 import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.ScoutPubSubService;
@@ -265,6 +266,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // TODO: track stable global commits
     private Stats stats;
     private final CoarseCacheStats cacheStats;
+    private MetadataStatsCollector metadataStatsCollector;
 
     private CounterSignalSource ongoingObjectFetchesStats;
     private ValueSignalSource batchSizeOnCommitStats;
@@ -314,7 +316,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         localEndpoint.setHandler(new SwiftProtocolHandler());
 
-        this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint()) {
+        this.metadataStatsCollector = new MetadataStatsCollector(options.isComputeMetadataStatistics());
+
+        this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint(), metadataStatsCollector) {
             public void onNotification(final UpdateNotification update) {
                 applyObjectUpdates(update.info);
                 if (logger.isLoggable(Level.FINE)) {
@@ -914,6 +918,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 if (stopFlag) {
                     throw new InterruptedException("Fetching object version was interrupted by scout shutdown.");
                 }
+
+                // TODO: record request only once in case of retry?
+                fetchRequest.recordMetadataSample(metadataStatsCollector);
+                reply.recordMetadataSample(metadataStatsCollector);
+
             } while (!processFetchObjectReply(txn, fetchRequest, reply, classOfV, create, requestedScoutVersion));
         } finally {
             synchronized (this) {
@@ -1455,8 +1464,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         // Send batched updates and wait for reply of server
-        BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), new BatchCommitUpdatesRequest(
-                scoutId, requests));
+        final BatchCommitUpdatesRequest commitRequest = new BatchCommitUpdatesRequest(scoutId, requests);
+        BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), commitRequest);
+        commitRequest.recordMetadataSample(metadataStatsCollector);
+        batchReply.recordMetadataSample(metadataStatsCollector);
 
         // TODO Add here statistics for meta-data overhead?
 

@@ -41,6 +41,8 @@ final public class SwiftOptions {
     public static final boolean DEFAULT_OVERWRITE_STATISTICS_DIR = true;
     public static final boolean DEFAULT_ENABLE_STATISTICS = false;
 
+    public static final boolean DEFAULT_COMPUTE_METADATA_STATISTICS = false;
+
     public static final boolean DEFAULT_CAUSAL_NOTIFICATIONS = true;
 
     private String serverHostname;
@@ -61,6 +63,8 @@ final public class SwiftOptions {
     private boolean enableStatistics = DEFAULT_ENABLE_STATISTICS;
     private boolean overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
     private String statisticsOutputDir = DEFAULT_STATISTICS_DIR;
+
+    private boolean computeMetadataStatistics = DEFAULT_COMPUTE_METADATA_STATISTICS;
 
     // for kryo...
     SwiftOptions() {
@@ -160,6 +164,11 @@ final public class SwiftOptions {
         final String causalNotificationsString = defaultValues.getProperty("swift.causalNotifications");
         if (causalNotificationsString != null) {
             this.causalNotifications = Boolean.parseBoolean(causalNotificationsString);
+        }
+
+        final String writeMetadataStatisticsString = defaultValues.getProperty("swift.computeMetadataStatistics");
+        if (writeMetadataStatisticsString != null) {
+            this.computeMetadataStatistics = Boolean.parseBoolean(writeMetadataStatisticsString);
         }
     }
 
@@ -401,5 +410,17 @@ final public class SwiftOptions {
 
     public void setEnableStatistics(boolean enableStatistics) {
         this.enableStatistics = enableStatistics;
+    }
+
+    /**
+     * @return when true, scout computes metadata statistics, and writes them to
+     *         STDOUT
+     */
+    public boolean isComputeMetadataStatistics() {
+        return computeMetadataStatistics;
+    }
+
+    public void setComputeMetadataStatistics(boolean computeMetadataStatistics) {
+        this.computeMetadataStatistics = computeMetadataStatistics;
     }
 }
