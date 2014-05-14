@@ -32,7 +32,7 @@ final public class SwiftOptions {
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 5 * 1000;
 
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
-    public static final int DEFAULT_CACHE_SIZE = 100000;
+    public static final int DEFAULT_CACHE_SIZE = 512;
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
