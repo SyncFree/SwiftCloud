@@ -96,6 +96,7 @@ class SwiftSocial extends SwiftBase {
         'swift.notifications':'true',
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
+        'swift.computeMetadataStatistics':'false',
         'swiftsocial.numUsers':'25000',
         'swiftsocial.userFriends':'25',
         'swiftsocial.biasedOps':'9',
