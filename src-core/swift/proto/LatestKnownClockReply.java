@@ -16,6 +16,9 @@
  *****************************************************************************/
 package swift.proto;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
+
 import swift.clocks.CausalityClock;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
@@ -26,7 +29,7 @@ import sys.net.api.rpc.RpcMessage;
  * 
  * @author mzawirski
  */
-public class LatestKnownClockReply implements RpcMessage {
+public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
     private CausalityClock clock;
     private CausalityClock disasterDurableClock;
 
@@ -61,5 +64,20 @@ public class LatestKnownClockReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         // smd ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final Output buffer = collector.getKryoBuffer();
+
+        // TODO: capture from the wire, rather than recompute here
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+
+        collector.recordStats(this, totalSize, 0, 0);
     }
 }

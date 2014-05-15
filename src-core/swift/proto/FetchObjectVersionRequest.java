@@ -130,9 +130,10 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
         final Kryo kryo = collector.getKryo();
         final Output buffer = collector.getKryoBuffer();
 
+        // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
 
-        collector.recordStats(getClass().getSimpleName(), totalSize, 0, 0);
+        collector.recordStats(this, totalSize, 0, 0);
     }
 }

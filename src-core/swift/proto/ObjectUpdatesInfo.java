@@ -14,7 +14,10 @@ public class ObjectUpdatesInfo {
     protected boolean dirty;
     protected CRDTIdentifier id;
     protected CausalityClock oldClock;
+    // TODO: remove newClock given SnapshotNotificaton?
     protected CausalityClock newClock;
+    // TODO: get rid of from here or sent only periodically?
+    // e.g. every random() % 100 == 0 updates?
     protected CausalityClock pruneClock;
     protected List<CRDTObjectUpdatesGroup<?>> updates;
 

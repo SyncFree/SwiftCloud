@@ -4,13 +4,21 @@ import java.util.Set;
 
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
+import swift.proto.MetadataSamplable;
+import swift.proto.MetadataStatsCollector;
 import swift.proto.ObjectUpdatesInfo;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 import sys.pubsub.PubSub.Subscriber;
 
-public class UpdateNotification implements Notifyable<CRDTIdentifier> {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
+public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataSamplable {
+
+    // TODO: lots of redundant things on the wire?
     public String srcId;
     public Timestamp timestamp;
     public ObjectUpdatesInfo info;
@@ -56,5 +64,40 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier> {
     @Override
     public Timestamp timestamp() {
         return timestamp;
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final Output buffer = collector.getKryoBuffer();
+
+        // TODO: get it from the write, rather than recompute
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+        buffer.clear();
+
+        int updatesSize = 0;
+        for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
+            for (final CRDTUpdate<?> op : group.getOperations()) {
+                kryo.writeObject(buffer, op);
+            }
+        }
+        updatesSize = buffer.position();
+        buffer.clear();
+
+        int valuesSize = 0;
+        for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
+            if (group.hasCreationState()) {
+                kryo.writeObject(buffer, group.getCreationState());
+            }
+            for (final CRDTUpdate<?> op : group.getOperations()) {
+                kryo.writeObject(buffer, op.getValueWithoutMetadata());
+            }
+        }
+        valuesSize = buffer.position();
+        collector.recordStats(this, totalSize, updatesSize, valuesSize);
     }
 }

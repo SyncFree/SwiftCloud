@@ -16,6 +16,9 @@
  *****************************************************************************/
 package swift.proto;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
+
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
@@ -25,7 +28,7 @@ import sys.net.api.rpc.RpcHandler;
  * 
  * @author mzawirski
  */
-public class LatestKnownClockRequest extends ClientRequest {
+public class LatestKnownClockRequest extends ClientRequest implements MetadataSamplable {
 
     /**
      * Constructor for Kryo serialization.
@@ -40,5 +43,20 @@ public class LatestKnownClockRequest extends ClientRequest {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getKryo();
+        final Output buffer = collector.getKryoBuffer();
+
+        // TODO: capture from the wire, rather than recompute here
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+
+        collector.recordStats(this, totalSize, 0, 0);
     }
 }

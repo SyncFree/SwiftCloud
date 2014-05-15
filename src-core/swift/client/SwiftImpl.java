@@ -320,6 +320,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint(), metadataStatsCollector) {
             public void onNotification(final UpdateNotification update) {
+                update.recordMetadataSample(metadataStatsCollector);
                 applyObjectUpdates(update.info);
                 if (logger.isLoggable(Level.FINE)) {
                     logger.fine(update.info.getId() + "/" + update.info.getNewClock());
@@ -327,6 +328,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
 
             public void onNotification(final SnapshotNotification n) {
+                n.recordMetadataSample(metadataStatsCollector);
 
                 synchronized (SwiftImpl.this) {
                     if (logger.isLoggable(Level.FINE)) {
@@ -492,8 +494,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     private boolean getDCClockEstimates() {
-        LatestKnownClockReply reply = localEndpoint.request(serverEndpoint(), new LatestKnownClockRequest(scoutId));
+        LatestKnownClockRequest request = new LatestKnownClockRequest(scoutId);
+        LatestKnownClockReply reply = localEndpoint.request(serverEndpoint(), request);
+
         if (reply != null) {
+            reply.recordMetadataSample(metadataStatsCollector);
             reply.getDistasterDurableClock().intersect(reply.getClock());
             updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock());
             return true;
@@ -1467,7 +1472,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         final BatchCommitUpdatesRequest commitRequest = new BatchCommitUpdatesRequest(scoutId, requests);
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), commitRequest);
         commitRequest.recordMetadataSample(metadataStatsCollector);
-        batchReply.recordMetadataSample(metadataStatsCollector);
 
         // TODO Add here statistics for meta-data overhead?
 
@@ -1475,6 +1479,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // FIXME with new RPC API null is just a timeout??
             throw new IllegalStateException("Fatal error: server returned null on commit");
         }
+        batchReply.recordMetadataSample(metadataStatsCollector);
         if (batchReply != null && batchReply.getReplies().size() != requests.size()) {
             throw new IllegalStateException("Fatal error: server returned " + batchReply.getReplies().size() + " for "
                     + requests.size() + " commit requests!");

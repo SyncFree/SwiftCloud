@@ -1,5 +1,6 @@
 package swift.proto;
 
+import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -51,11 +52,11 @@ public class MetadataStatsCollector {
     }
 
     /**
-     * Records a stats sample. Assumption: totalSize >= objectOrUpdateSize >=
-     * objectOrUpdateValueSize
+     * Records a stats sample for a message. Assumption: totalSize >=
+     * objectOrUpdateSize >= objectOrUpdateValueSize
      * 
-     * @param messageName
-     *            name of the message
+     * @param message
+     *            message that the stats concern
      * @param totalSize
      *            total size of the encoded message
      * @param objectOrUpdateSize
@@ -65,12 +66,12 @@ public class MetadataStatsCollector {
      *            total size of the value carried in the object version or the
      *            update (e.g., value of a counter)
      */
-    public void recordStats(String messageName, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize) {
+    public void recordStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize) {
         // TODO: we should intercept totalSize at the serialization time rather
         // than forcing re-serialization for measurements purposes
         if (isEnabled()) {
-            System.out.printf("MetadataSample,%s,%d,%d,%d\n", messageName, totalSize, objectOrUpdateSize,
-                    objectOrUpdateValueSize);
+            System.out.printf("MetadataSample,%s,%d,%d,%d\n", message.getClass().getSimpleName(), totalSize,
+                    objectOrUpdateSize, objectOrUpdateValueSize);
         }
     }
 }

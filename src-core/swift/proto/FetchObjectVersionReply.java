@@ -146,6 +146,6 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
             buffer.clear();
         }
 
-        collector.recordStats(getClass().getSimpleName(), totalSize, versionSize, valueSize);
+        collector.recordStats(this, totalSize, versionSize, valueSize);
     }
 }
