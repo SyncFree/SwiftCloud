@@ -1,0 +1,30 @@
+SwiftCloud: fault-tolerant causal+ consistent replicated database with client-side access
+
+=== About ===
+SwiftCloud is a research prototype of the system originally described in the
+Inria tech report: http://hal.inria.fr/hal-00870225
+
+TODO
+
+=== Crash course ===
+TODO
+
+=== Example applications ===
+TODO
+
+=== Running scripts ===
+Deployment scripts are written in Groovy.
+The scripts are in scripts/groovy/deployment directory, both deployment classes
+definitions (such as SwiftBase.groovy, SwiftSocial.groovy etc.) and concrete
+experiment instances (runsocial.groovy etc.).
+
+To run the scripts, you need:
+(1) groovy and ant installed on your machine, and
+(2) deployment keys, located in an archive on gforge, in your swiftcloud/
+directory,
+(3) groovy pointing out to scripts/groovy as the classpath.
+
+For example, to run swiftsocial experiment, execute the following command:
+groovy -cp scripts/groovy scripts/groovy/swift/deployment/runsocial.groovy 
+
+TODO
