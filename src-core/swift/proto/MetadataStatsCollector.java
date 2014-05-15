@@ -1,55 +1,22 @@
 package swift.proto;
 
-import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.KryoLib;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.io.UnsafeMemoryOutput;
 
-/**
- * A collector of metadata statistics.
- * 
- * @author mzawirski
- */
-public class MetadataStatsCollector {
-    private boolean enabled;
-    private ThreadLocal<UnsafeMemoryOutput> kryoBuffer = new ThreadLocal<UnsafeMemoryOutput>() {
-        protected UnsafeMemoryOutput initialValue() {
-            return new UnsafeMemoryOutput(1 << 20);
-        }
-    };
+public interface MetadataStatsCollector {
 
-    /**
-     * Creates a collector.
-     * 
-     * @param enabled
-     *            true if the collection is active
-     */
-    public MetadataStatsCollector(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    public boolean isEnabled() {
-        return enabled;
-    }
+    public abstract boolean isEnabled();
 
     /**
      * @return a thread-local cleared kryo buffer that can be used to compute
      *         the size of messages
      */
-    public Output getKryoBuffer() {
-        Output buffer = kryoBuffer.get();
-        buffer.clear();
-        return buffer;
-    }
+    public abstract Output getKryoBuffer();
 
     /**
      * @return a Kryo instance that can be used to compute the size of messages
      */
-    public Kryo getKryo() {
-        return KryoLib.kryo();
-    }
+    public abstract Kryo getKryo();
 
     /**
      * Records a stats sample for a message. Assumption: totalSize >=
@@ -66,12 +33,6 @@ public class MetadataStatsCollector {
      *            total size of the value carried in the object version or the
      *            update (e.g., value of a counter)
      */
-    public void recordStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize) {
-        // TODO: we should intercept totalSize at the serialization time rather
-        // than forcing re-serialization for measurements purposes
-        if (isEnabled()) {
-            System.out.printf("MetadataSample,%s,%d,%d,%d\n", message.getClass().getSimpleName(), totalSize,
-                    objectOrUpdateSize, objectOrUpdateValueSize);
-        }
-    }
+    public abstract void recordStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize);
+
 }

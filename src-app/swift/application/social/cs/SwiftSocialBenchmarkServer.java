@@ -87,7 +87,7 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
     static SwiftSocialOps getSession(String sessionId, SwiftSocialApp app) {
         SwiftSocialOps res = sessions.get(sessionId);
         if (res == null)
-            sessions.put(sessionId, res = app.getSwiftSocial());
+            sessions.put(sessionId, res = app.getSwiftSocial(sessionId));
 
         return res;
     }

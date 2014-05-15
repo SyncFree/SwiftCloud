@@ -18,6 +18,10 @@ package swift.client;
 
 import java.util.Properties;
 
+import swift.proto.DummyMetadataStatsCollector;
+import swift.proto.MetadataStatsCollector;
+import swift.proto.MetadataStatsCollectorImpl;
+
 /**
  * Options for Swift scout instance.
  * 
@@ -64,7 +68,8 @@ final public class SwiftOptions {
     private boolean overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
     private String statisticsOutputDir = DEFAULT_STATISTICS_DIR;
 
-    private boolean computeMetadataStatistics = DEFAULT_COMPUTE_METADATA_STATISTICS;
+    // Disabled by default
+    private MetadataStatsCollector metadataStatsCollector = null;
 
     // for kryo...
     SwiftOptions() {
@@ -166,9 +171,11 @@ final public class SwiftOptions {
             this.causalNotifications = Boolean.parseBoolean(causalNotificationsString);
         }
 
-        final String writeMetadataStatisticsString = defaultValues.getProperty("swift.computeMetadataStatistics");
-        if (writeMetadataStatisticsString != null) {
-            this.computeMetadataStatistics = Boolean.parseBoolean(writeMetadataStatisticsString);
+        final String computeMetadataStatistics = defaultValues.getProperty("swift.computeMetadataStatistics");
+        if (computeMetadataStatistics != null) {
+            if (Boolean.parseBoolean(computeMetadataStatistics)) {
+                metadataStatsCollector = new MetadataStatsCollectorImpl("unspecified-id", System.out);
+            }
         }
     }
 
@@ -416,11 +423,23 @@ final public class SwiftOptions {
      * @return when true, scout computes metadata statistics, and writes them to
      *         STDOUT
      */
-    public boolean isComputeMetadataStatistics() {
-        return computeMetadataStatistics;
+    public boolean hasMetadataStatsCollector() {
+        return metadataStatsCollector != null;
     }
 
-    public void setComputeMetadataStatistics(boolean computeMetadataStatistics) {
-        this.computeMetadataStatistics = computeMetadataStatistics;
+    public void setMetadataStatsCollector(MetadataStatsCollector metadataStatsCollector) {
+        this.metadataStatsCollector = metadataStatsCollector;
+    }
+
+    /**
+     * @return implementation of metadata stats collector or a dummy one if the
+     *         collection is disabled ({@link #hasMetadataStatsCollector()} ==
+     *         false)
+     */
+    public MetadataStatsCollector getMetadataStatsCollector() {
+        if (metadataStatsCollector == null) {
+            return new DummyMetadataStatsCollector();
+        }
+        return metadataStatsCollector;
     }
 }

@@ -24,6 +24,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.core.CachePolicy;
@@ -32,6 +33,7 @@ import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.exceptions.SwiftException;
+import swift.proto.MetadataStatsCollectorImpl;
 import sys.utils.Args;
 import sys.utils.Progress;
 import sys.utils.Props;
@@ -92,16 +94,19 @@ public class SwiftSocialApp {
         return Workload.doMixed(site, userFriends, biasedOps, randomOps, opGroups, numberOfSites);
     }
 
-    public SwiftSocialOps getSwiftSocial() {
+    public SwiftSocialOps getSwiftSocial(final String sessionId) {
         final SwiftOptions options = new SwiftOptions(server, DCConstants.SURROGATE_PORT, props);
+        if (options.hasMetadataStatsCollector()) {
+            options.setMetadataStatsCollector(new MetadataStatsCollectorImpl(sessionId, bufferedOutput));
+        }
         SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
         SwiftSocialOps socialClient = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
         return socialClient;
     }
 
-    void runClientSession(final int sessionId, final Workload commands, boolean loop4Ever) {
-        final SwiftSocialOps socialClient = getSwiftSocial();
+    void runClientSession(final String sessionId, final Workload commands, boolean loop4Ever) {
+        final SwiftSocialOps socialClient = getSwiftSocial(sessionId);
 
         totalCommands.addAndGet(commands.size());
         final long sessionStartTime = System.currentTimeMillis();
@@ -114,7 +119,7 @@ public class SwiftSocialApp {
                 Commands cmd = runCommandLine(socialClient, cmdLine);
                 long txnEndTime = System.currentTimeMillis();
                 final long txnExecTime = txnEndTime - txnStartTime;
-                final String log = String.format("%d,%s,%d,%d", sessionId, cmd, txnExecTime, txnEndTime);
+                final String log = String.format("%s,%s,%d,%d", sessionId, cmd, txnExecTime, txnEndTime);
                 bufferedOutput.println(log);
 
                 Threading.sleep(thinkTime);
@@ -126,11 +131,11 @@ public class SwiftSocialApp {
 
         final long now = System.currentTimeMillis();
         final long sessionExecTime = now - sessionStartTime;
-        bufferedOutput.println(String.format("%d,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
+        bufferedOutput.println(String.format("%s,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
         bufferedOutput.flush();
     }
 
-   public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
+    public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
         String[] toks = cmdLine.split(";");
         final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
         switch (cmd) {
@@ -178,7 +183,7 @@ public class SwiftSocialApp {
         return cmd;
     }
 
-   public void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {
+    public void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {
         try {
             SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(swiftOptions);
             SwiftSocialOps client = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
@@ -219,7 +224,4 @@ public class SwiftSocialApp {
         }
     }
 
-
-
 }
-

@@ -78,6 +78,7 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
+import swift.proto.MetadataStatsCollectorImpl;
 import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.ScoutPubSubService;
@@ -261,8 +262,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // objectSessionsUpdateSubscriptions?
     private final ScoutPubSubService scoutPubSub;
 
-    private final SwiftOptions options;
-
     // TODO: track stable global commits
     private Stats stats;
     private final CoarseCacheStats cacheStats;
@@ -272,10 +271,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private ValueSignalSource batchSizeOnCommitStats;
 
     SortedSet<CRDTIdentifier> notified = new TreeSet<CRDTIdentifier>();
+    private final boolean assumeAtomicCausalNotifications;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
             final SwiftOptions options) {
-        this.options = KryoLib.copy(options);
         this.scoutId = generateScoutId();
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
@@ -285,6 +284,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.localEndpoint = localEndpoint;
         this.serverEndpoints = serverEndpoints;
         this.objectsCache = objectsCache;
+        this.assumeAtomicCausalNotifications = options.assumeAtomicCausalNotifications();
 
         if (options.isEnableStatistics()) {
             this.stats = StatsImpl.getInstance("scout-" + scoutId, StatsImpl.SAMPLING_INTERVAL_MILLIS,
@@ -293,6 +293,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             this.stats = new DummyStats();
         }
         this.cacheStats = new CoarseCacheStats(stats);
+
+        this.metadataStatsCollector = options.getMetadataStatsCollector();
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
@@ -315,8 +317,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.executorService = Executors.newFixedThreadPool(8, Threading.factory("Client"));
 
         localEndpoint.setHandler(new SwiftProtocolHandler());
-
-        this.metadataStatsCollector = new MetadataStatsCollector(options.isComputeMetadataStatistics());
 
         this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint(), metadataStatsCollector) {
             public void onNotification(final UpdateNotification update) {
@@ -518,7 +518,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             final CausalityClock snapshotClock;
             // TODO Q: is this flag really respected everywhere or should the
             // whole code assume only one option?
-            if (options.assumeAtomicCausalNotifications() && cachePolicy == CachePolicy.CACHED) {
+            if (assumeAtomicCausalNotifications && cachePolicy == CachePolicy.CACHED) {
                 snapshotClock = getGlobalCommittedVersion(true);
                 snapshotClock.merge(causalSnapshot);
             } else {
@@ -834,7 +834,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         // FIXME: why is this correct?
-        if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && options.assumeAtomicCausalNotifications()
+        if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION && assumeAtomicCausalNotifications
                 && txn.cachePolicy == CachePolicy.CACHED)
             clock.intersect(crdt.getClock());
 

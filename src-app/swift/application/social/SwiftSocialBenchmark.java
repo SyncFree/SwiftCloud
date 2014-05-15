@@ -128,7 +128,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
                     // Randomize startup to avoid clients running all at the
                     // same time; causes problems akin to DDOS symptoms.
                     Threading.sleep(Sys.rg.nextInt(1000));
-                    SwiftSocialBenchmark.super.runClientSession(sessionId, commands, false);
+                    SwiftSocialBenchmark.super.runClientSession(Integer.toString(sessionId), commands, false);
                 }
             });
         }
