@@ -463,16 +463,12 @@ class DCDataServer {
 
             setModifiedDatabaseEntry(data);
 
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
-                        + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
-            }
             synchronized (this.cltClock) {
                 this.cltClock.recordAllUntil(cltTs);
-            }
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
-                        + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
+                            + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
+                }
             }
 
             ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, oldClock, data.clock.clone(), data.pruneClock.clone(),

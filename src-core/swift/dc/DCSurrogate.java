@@ -29,9 +29,12 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.logging.Level;
@@ -102,7 +105,8 @@ public class DCSurrogate extends SwiftProtocolHandler {
 
     public SurrogatePubSubService suPubSub;
 
-    ExecutorService executor = Executors.newCachedThreadPool();
+    ThreadPoolExecutor crdtExecutor;
+    Executor generalExecutor = Executors.newCachedThreadPool();
 
     DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
         this.siteId = siteId;
@@ -116,8 +120,12 @@ public class DCSurrogate extends SwiftProtocolHandler {
         srvEndpoint4Clients.setHandler(this);
         srvEndpoint4Sequencer.setHandler(this);
 
-        suPubSub = new SurrogatePubSubService(executor, this);
+        suPubSub = new SurrogatePubSubService(generalExecutor, this);
         dataServer = new DCDataServer(this, props, suPubSub);
+
+        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(512);
+        crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, workQueue);
+        crdtExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
         initData(props);
 
@@ -357,15 +365,18 @@ public class DCSurrogate extends SwiftProtocolHandler {
             final Semaphore s = new Semaphore(ops.size());
             for (final CRDTObjectUpdatesGroup<?> i : ops) {
                 final int j = pos++;
-                executor.execute(new Runnable() {
+                crdtExecutor.execute(new Runnable() {
                     public void run() {
-                        results.set(j,
-                                execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));
-                        txnOK.compareAndSet(true, results.get(j).isResult());
-                        synchronized (estimatedDCVersion) {
-                            estimatedDCVersion.merge(i.getDependency());
+                        try {
+                            results.set(j,
+                                    execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));
+                            txnOK.compareAndSet(true, results.get(j).isResult());
+                            synchronized (estimatedDCVersion) {
+                                estimatedDCVersion.merge(i.getDependency());
+                            }
+                        } finally {
+                            s.release();
                         }
-                        s.release();
                     }
                 });
             }
@@ -389,7 +400,8 @@ public class DCSurrogate extends SwiftProtocolHandler {
                     estimatedDCVersionCopy, txnOK.get(), ops, req.disasterSafe(), session.clientId));
 
             if (reply == null)
-                System.err.printf("------------>REPLY FROM SEQUENCER NULL for: %s, who:%s\n", txTs, session.clientId);
+                logger.severe(String.format("------------>REPLY FROM SEQUENCER NULL for: %s, who:%s\n", txTs,
+                        session.clientId));
 
         } while (reply == null);
 
@@ -463,7 +475,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("SeqCommitUpdatesRequest timestamp = " + request.getTimestamp() + ";clt="
                     + request.getCltTimestamp());
         }
-        executor.execute(new Runnable() {
+        generalExecutor.execute(new Runnable() {
             public void run() {
                 ClientSession session = getSession("Sequencer");
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
