@@ -83,7 +83,6 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         final int totalSize = buffer.position();
         buffer.clear();
 
-        int updatesSize = 0;
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 for (final CRDTUpdate<?> op : group.getOperations()) {
@@ -91,10 +90,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                 }
             }
         }
-        updatesSize = buffer.position();
+        final int updatesSize = buffer.position();
         buffer.clear();
 
-        int valuesSize = 0;
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 if (group.hasCreationState()) {
@@ -105,7 +103,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                 }
             }
         }
-        valuesSize = buffer.position();
+        final int valuesSize = buffer.position();
         collector.recordStats(this, totalSize, updatesSize, valuesSize);
     }
 }

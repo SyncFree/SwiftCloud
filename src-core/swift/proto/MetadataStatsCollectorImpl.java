@@ -31,6 +31,7 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     public MetadataStatsCollectorImpl(final String scoutId, PrintStream stream) {
         this.scoutId = scoutId;
         this.stream = stream;
+        this.stream.println("; metadata stats format: <session_id>,_MESSAGE,<message_name>,<total_message_size>,<version_or_update_size>,<value_size>");
     }
 
     @Override
@@ -55,7 +56,7 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
         // TODO: we should intercept totalSize at the serialization time rather
         // than forcing re-serialization for measurements purposes
         if (isEnabled()) {
-            stream.printf("%s,MetadataSample,%s,%d,%d,%d\n", scoutId, message.getClass().getSimpleName(), totalSize,
+            stream.printf("%s,_MESSAGE,%s,%d,%d,%d\n", scoutId, message.getClass().getSimpleName(), totalSize,
                     objectOrUpdateSize, objectOrUpdateValueSize);
         }
     }

@@ -79,16 +79,14 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         final int totalSize = buffer.position();
         buffer.clear();
 
-        int updatesSize = 0;
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
             for (final CRDTUpdate<?> op : group.getOperations()) {
                 kryo.writeObject(buffer, op);
             }
         }
-        updatesSize = buffer.position();
+        final int updatesSize = buffer.position();
         buffer.clear();
 
-        int valuesSize = 0;
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
             if (group.hasCreationState()) {
                 kryo.writeObject(buffer, group.getCreationState());
@@ -97,7 +95,7 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
                 kryo.writeObject(buffer, op.getValueWithoutMetadata());
             }
         }
-        valuesSize = buffer.position();
+        final int valuesSize = buffer.position();
         collector.recordStats(this, totalSize, updatesSize, valuesSize);
     }
 }
