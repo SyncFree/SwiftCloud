@@ -11,12 +11,12 @@ public interface MetadataStatsCollector {
      * @return a thread-local cleared kryo buffer that can be used to compute
      *         the size of messages
      */
-    public abstract Output getKryoBuffer();
+    public abstract Output getFreshKryoBuffer();
 
     /**
      * @return a Kryo instance that can be used to compute the size of messages
      */
-    public abstract Kryo getKryo();
+    public abstract Kryo getFreshKryo();
 
     /**
      * Records a stats sample for a message. Assumption: totalSize >=

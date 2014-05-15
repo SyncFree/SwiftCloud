@@ -75,14 +75,15 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         if (!collector.isEnabled()) {
             return;
         }
-        final Kryo kryo = collector.getKryo();
-        final Output buffer = collector.getKryoBuffer();
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
 
         // TODO: get it from the write, rather than recompute
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
-        buffer.clear();
 
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 for (final CRDTUpdate<?> op : group.getOperations()) {
@@ -91,8 +92,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
             }
         }
         final int updatesSize = buffer.position();
-        buffer.clear();
 
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 if (group.hasCreationState()) {

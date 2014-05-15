@@ -49,7 +49,6 @@ public class KryoLib {
             else
                 res.register(i.cl, i.id);
 
-        res.setReferences(false);
         res.setAsmEnabled(true);
         return res;
     }
@@ -154,11 +153,26 @@ public class KryoLib {
     private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
         @Override
         protected Kryo initialValue() {
-            return getKryoInstance();
+            final Kryo kryo = getKryoInstance();
+            kryo.setAutoReset(true);
+            return kryo;
+        }
+    };
+
+    private static final ThreadLocal<Kryo> kryoWithoutReset = new ThreadLocal<Kryo>() {
+        @Override
+        protected Kryo initialValue() {
+            final Kryo kryo = getKryoInstance();
+            kryo.setAutoReset(false);
+            return kryo;
         }
     };
 
     public static Kryo kryo() {
         return kryo.get();
+    }
+
+    public static Kryo kryoWithoutAutoreset() {
+        return kryoWithoutReset.get();
     }
 }

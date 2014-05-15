@@ -16,12 +16,12 @@ public class DummyMetadataStatsCollector implements MetadataStatsCollector {
     }
 
     @Override
-    public Output getKryoBuffer() {
+    public Output getFreshKryoBuffer() {
         return null;
     }
 
     @Override
-    public Kryo getKryo() {
+    public Kryo getFreshKryo() {
         return null;
     }
 
