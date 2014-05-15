@@ -125,8 +125,8 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
         if (!collector.isEnabled()) {
             return;
         }
-        final Kryo kryo = collector.getKryo();
-        final Output buffer = collector.getKryoBuffer();
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
@@ -136,14 +136,18 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
         int valueSize = 0;
         if (crdt != null) {
             // TODO: be more precise w.r.t version
+            kryo = collector.getFreshKryo();
+            buffer = collector.getFreshKryoBuffer();
+            kryo.writeObject(buffer, crdt.getUID());
             final CRDT version = crdt.getLatestVersion(null);
             kryo.writeObject(buffer, version);
             versionSize = buffer.position();
-            buffer.clear();
 
+            kryo = collector.getFreshKryo();
+            buffer = collector.getFreshKryoBuffer();
+            kryo.writeObject(buffer, crdt.getUID());
             kryo.writeObject(buffer, version.getValue());
             valueSize = buffer.position();
-            buffer.clear();
         }
 
         collector.recordStats(this, totalSize, versionSize, valueSize);

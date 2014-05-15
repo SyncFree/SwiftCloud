@@ -50,13 +50,11 @@ public class LatestKnownClockRequest extends ClientRequest implements MetadataSa
         if (!collector.isEnabled()) {
             return;
         }
-        final Kryo kryo = collector.getKryo();
-        final Output buffer = collector.getKryoBuffer();
+        final Kryo kryo = collector.getFreshKryo();
+        final Output buffer = collector.getFreshKryoBuffer();
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        final int totalSize = buffer.position();
-
-        collector.recordStats(this, totalSize, 0, 0);
+        collector.recordStats(this, buffer.position(), 0, 0);
     }
 }

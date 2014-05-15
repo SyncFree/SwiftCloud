@@ -336,8 +336,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     }
 
                     causalSnapshot.merge(n.snapshotClock());
-                    committedVersion.merge(n.estimatedDCVersion());
-                    committedDisasterDurableVersion.merge(n.estimatedDCStableVersion());
+                    updateCommittedVersions(n.estimatedDCVersion(), n.estimatedDCStableVersion());
 
                     // Causalsnapshot is notified when it is dominated
                     // by the minimum of all the

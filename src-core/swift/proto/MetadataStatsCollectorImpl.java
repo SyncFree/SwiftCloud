@@ -15,7 +15,7 @@ import com.esotericsoftware.kryo.io.UnsafeMemoryOutput;
  */
 public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     private String scoutId;
-    private ThreadLocal<UnsafeMemoryOutput> kryoBuffer = new ThreadLocal<UnsafeMemoryOutput>() {
+    private ThreadLocal<UnsafeMemoryOutput> freshKryoBuffer = new ThreadLocal<UnsafeMemoryOutput>() {
         protected UnsafeMemoryOutput initialValue() {
             return new UnsafeMemoryOutput(1 << 20);
         }
@@ -31,7 +31,8 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     public MetadataStatsCollectorImpl(final String scoutId, PrintStream stream) {
         this.scoutId = scoutId;
         this.stream = stream;
-        this.stream.println("; metadata stats format: <session_id>,_MESSAGE,<message_name>,<total_message_size>,<version_or_update_size>,<value_size>");
+        this.stream
+                .println("; metadata stats format: <session_id>,_MESSAGE,<message_name>,<total_message_size>,<version_or_update_size>,<value_size>");
     }
 
     @Override
@@ -40,15 +41,17 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     }
 
     @Override
-    public Output getKryoBuffer() {
-        Output buffer = kryoBuffer.get();
+    public Output getFreshKryoBuffer() {
+        Output buffer = freshKryoBuffer.get();
         buffer.clear();
         return buffer;
     }
 
     @Override
-    public Kryo getKryo() {
-        return KryoLib.kryo();
+    public Kryo getFreshKryo() {
+        final Kryo kryo = KryoLib.kryoWithoutAutoreset();
+        kryo.reset();
+        return kryo;
     }
 
     @Override
