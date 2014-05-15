@@ -54,7 +54,7 @@ public class Herd extends HerdProtoHandler {
     Set<Endpoint> sheep;
 
     static long lastChange = System.currentTimeMillis();
-    static Map<String, Map<String, Herd>> herds = new HashMap<String, Map<String, Herd>>();
+    volatile static Map<String, Map<String, Herd>> herds = new HashMap<String, Map<String, Herd>>();
 
     Herd() {
     }
@@ -90,46 +90,54 @@ public class Herd extends HerdProtoHandler {
         final Endpoint shepard = Networking.resolve(shepardAddress.getHost(), PORT);
         final RpcEndpoint sock = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
-        Log.info("Contacting shepard at: " + shepardAddress + " to join: " + herd);
+        Log.info(IP.localHostname() + " Contacting shepard at: " + shepard + " to join: " + herd);
 
         new PeriodicTask(2.0, 1.0) {
             public void run() {
-                sock.send(shepard, new JoinHerdRequest(dc, herd, endpoint), new HerdProtoHandler() {
-                    public void onReceive(JoinHerdReply r) {
-                        herds = r.herds();
-                        lastChange = System.currentTimeMillis() - r.age();
-                        Log.info(String.format("Received Herd information: lastChange : [%.1f s] ago, data: %s\n",
-                                age() / 1000.0, herds));
+                try {
+                    sock.send(shepard, new JoinHerdRequest(dc, herd, endpoint), new HerdProtoHandler() {
+                        public void onReceive(JoinHerdReply r) {
+                            herds = r.herds();
+                            lastChange = System.currentTimeMillis() - r.age();
+                            Log.info(String.format("Received Herd information: lastChange : [%.1f s] ago, data: %s\n",
+                                    age() / 1000.0, herds));
 
-                        Threading.synchronizedNotifyAllOn(herds);
-                    }
-                }, 0);
+                            Threading.synchronizedNotifyAllOn(herds);
+                        }
+                    }, 0);
+                } catch (Exception x) {
+                    Log.warning("Cannot connect to shepard at: " + shepard + " to join: " + herd);
+                }
             }
         };
     }
 
     synchronized static public void initServer() {
-        try {
-            Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new HerdProtoHandler() {
-                public void onReceive(RpcHandle conn, JoinHerdRequest r) {
-                    // System.err.println("Got join:" + r.dc() + "  " + r.herd()
-                    // +
-                    // " " + r.sheep());
+        if (!inited)
+            try {
+                Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new HerdProtoHandler() {
+                    public void onReceive(RpcHandle conn, JoinHerdRequest r) {
+                        // System.err.println("Got join:" + r.dc() + "  " +
+                        // r.herd()
+                        // +
+                        // " " + r.sheep());
 
-                    JoinHerdReply reply;
-                    synchronized (herds) {
-                        if (getHerd(r.dc(), r.herd()).sheep.add(r.sheep())) {
-                            lastChange = System.currentTimeMillis();
+                        JoinHerdReply reply;
+                        synchronized (herds) {
+                            if (getHerd(r.dc(), r.herd()).sheep.add(r.sheep())) {
+                                lastChange = System.currentTimeMillis();
+                            }
+                            reply = new JoinHerdReply(age(), herds);
                         }
-                        reply = new JoinHerdReply(age(), herds);
+                        conn.reply(reply);
                     }
-                    conn.reply(reply);
-                }
-            });
-            Log.info("Started Herd server @ " + IP.localHostAddressString());
-        } catch (Exception x) {
-            Log.info("Herd is already running???");
-        }
+                });
+                Log.info(IP.localHostname() + " Started Herd server @ " + IP.localHostAddressString());
+                inited = true;
+            } catch (Exception x) {
+                // Log.warning(IP.localHostname() +
+                // " Herd is already running???");
+            }
     }
 
     static Map<String, Herd> getHerds(String dc) {
@@ -159,4 +167,7 @@ public class Herd extends HerdProtoHandler {
         }
     }
 
+    static {
+        initServer();
+    }
 }
