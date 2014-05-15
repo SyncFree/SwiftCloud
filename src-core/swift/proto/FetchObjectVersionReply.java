@@ -138,12 +138,14 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
             // TODO: be more precise w.r.t version
             kryo = collector.getFreshKryo();
             buffer = collector.getFreshKryoBuffer();
+            kryo.writeObject(buffer, crdt.getUID());
             final CRDT version = crdt.getLatestVersion(null);
             kryo.writeObject(buffer, version);
             versionSize = buffer.position();
 
             kryo = collector.getFreshKryo();
             buffer = collector.getFreshKryoBuffer();
+            kryo.writeObject(buffer, crdt.getUID());
             kryo.writeObject(buffer, version.getValue());
             valueSize = buffer.position();
         }

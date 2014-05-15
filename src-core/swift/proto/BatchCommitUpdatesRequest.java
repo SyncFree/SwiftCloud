@@ -86,6 +86,10 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         buffer = collector.getFreshKryoBuffer();
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
+                if (group.hasCreationState()) {
+                    kryo.writeObject(buffer, group.getCreationState());
+                }
+                kryo.writeObject(buffer, group.getTargetUID());
                 for (final CRDTUpdate<?> op : group.getOperations()) {
                     kryo.writeObject(buffer, op);
                 }
@@ -100,6 +104,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                 if (group.hasCreationState()) {
                     kryo.writeObject(buffer, group.getCreationState());
                 }
+                kryo.writeObject(buffer, group.getTargetUID());
                 for (final CRDTUpdate<?> op : group.getOperations()) {
                     kryo.writeObject(buffer, op.getValueWithoutMetadata());
                 }

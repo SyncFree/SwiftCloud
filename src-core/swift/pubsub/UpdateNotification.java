@@ -80,7 +80,16 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
+        if (info.getId() != null) {
+            kryo.writeObject(buffer, info.getId());
+        }
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
+            if (group.hasCreationState()) {
+                kryo.writeObject(buffer, group.getCreationState());
+            }
+            if (group.getTargetUID() != null) {
+                kryo.writeObject(buffer, group.getTargetUID());
+            }
             for (final CRDTUpdate<?> op : group.getOperations()) {
                 kryo.writeObject(buffer, op);
             }
@@ -92,6 +101,9 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
             if (group.hasCreationState()) {
                 kryo.writeObject(buffer, group.getCreationState());
+            }
+            if (group.getTargetUID() != null) {
+                kryo.writeObject(buffer, group.getTargetUID());
             }
             for (final CRDTUpdate<?> op : group.getOperations()) {
                 kryo.writeObject(buffer, op.getValueWithoutMetadata());
