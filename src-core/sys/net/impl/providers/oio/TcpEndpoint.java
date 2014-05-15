@@ -138,12 +138,15 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                     }
                     msg.deliverTo(this, TcpEndpoint.this.handler);
                 }
-            } catch (Throwable t) {
-                if (Log.isLoggable(Level.INFO))
-                    t.printStackTrace();
-                Log.log(Level.FINEST, "Exception in connection to: " + remote, t);
-                cause = t;
+            } catch (RuntimeException x) {
+            } catch (IOException x) {
+                Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
+                cause = x;
                 handler.onFailure(this);
+            } catch (Throwable t) {
+                Log.severe(t.getMessage());
+                t.printStackTrace();
+                cause = t;
             }
             isBroken = true;
             IO.close(socket);
@@ -161,7 +164,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 if (Log.isLoggable(Level.INFO))
                     t.printStackTrace();
 
-                Log.log(Level.INFO, "Exception in connection to: " + remote, t);
+                Log.warning("Exception in connection to: " + remote + " " + t.getMessage());
 
                 cause = t;
                 isBroken = true;
@@ -195,8 +198,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             inBuf = new KryoInputBuffer();
             outBuf = new KryoOutputBuffer();
             workers.execute(this);
-            // Threading.newThread("incoming-tcp-channel-reader:" + local +
-            // " <-> " + remote, true, this).start();
         }
     }
 
@@ -220,13 +221,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 cause = x;
                 isBroken = true;
                 IO.close(socket);
-                throw x;
+                Log.warning("Cannot connect to: " + remote + " " + x.getMessage());
+                if (Log.isLoggable(Level.INFO))
+                    x.printStackTrace();
             }
             this.send(new InitiatorInfo(localEndpoint));
             handler.onConnect(this);
             workers.execute(this);
-            // Threading.newThread("outgoing-tcp-channel-reader:" + local +
-            // " <-> " + remote, true, this).start();
         }
     }
 }
