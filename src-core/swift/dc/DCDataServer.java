@@ -162,20 +162,21 @@ final class DCDataServer {
                                                            // endpoint for each
                                                            // request...
         final AtomicReference<Object> result = new AtomicReference<Object>(req);
-
         for (; result.get() == req;) {
-            dhtEndpoint.send(dst, req, new SwiftProtocolHandler() {
-                public void onReceive(DHTExecCRDTReply reply) {
-                    result.set(reply.getResult());
-                    Threading.synchronizedNotifyAllOn(result);
-                }
+            synchronized (result) {
+                dhtEndpoint.send(dst, req, new SwiftProtocolHandler() {
+                    public void onReceive(DHTExecCRDTReply reply) {
+                        result.set(reply.getResult());
+                        Threading.synchronizedNotifyAllOn(result);
+                    }
 
-                public void onReceive(DHTGetCRDTReply reply) {
-                    result.set(reply.getObject());
-                    Threading.synchronizedNotifyAllOn(result);
-                }
-            }, 0);
-            Threading.synchronizedWaitOn(result, 200);
+                    public void onReceive(DHTGetCRDTReply reply) {
+                        result.set(reply.getObject());
+                        Threading.synchronizedNotifyAllOn(result);
+                    }
+                }, 0);
+                Threading.waitOn(result, 100);
+            }
         }
         return (V) result.get();
     }
@@ -203,11 +204,6 @@ final class DCDataServer {
         });
     }
 
-    /*
-     * private void addNotification(NotificationRecord record) { synchronized
-     * (notifications) { notifications.addLast(record);
-     * notifications.notifyAll(); } }
-     */
     private void initData(Properties props) {
         this.db = new HashMap<String, Map<String, CRDTData<?>>>();
         this.locks = new HashMap<CRDTIdentifier, LockInfo>();
