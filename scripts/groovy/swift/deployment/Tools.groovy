@@ -5,7 +5,7 @@ class Tools {
 
     static int DEBUG = 5;
 
-    static String USERNAME = 'ubuntu'
+    static String USERNAME = 'ec2-user'
     static String HOMEDIR = "/home/" + USERNAME + "/"
 
     static void Debug(int level, msg ) {
@@ -175,5 +175,13 @@ class Tools {
             println msg + " " + it + " s"
             sleep(1000)
         }
+    }
+    
+    static String getGitCommitId() {
+        def ids = "git rev-parse HEAD".execute().inputStream.readLines()
+        if (ids.size() == 0) {
+            return "unknown"
+        }
+        return ids[0].substring(0, 8)
     }
 }

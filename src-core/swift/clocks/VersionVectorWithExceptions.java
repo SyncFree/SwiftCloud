@@ -145,17 +145,18 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     private static final long serialVersionUID = 1L;
     protected Map<String, LinkedList<Interval>> vv;
+
     // total number of intervals
-    protected int numPairs;
+    // protected transient int numPairs;
 
     public VersionVectorWithExceptions() {
         vv = new TreeMap<String, LinkedList<Interval>>();
-        numPairs = 0;
+        // numPairs = 0;
     }
 
     protected VersionVectorWithExceptions(VersionVectorWithExceptions v) {
         vv = new TreeMap<String, LinkedList<Interval>>();
-        numPairs = v.numPairs;
+        // numPairs = v.numPairs;
         for (Entry<String, LinkedList<Interval>> entry : v.vv.entrySet()) {
             String key = entry.getKey();
             LinkedList<Interval> l = entry.getValue();
@@ -165,12 +166,12 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     protected VersionVectorWithExceptions(VersionVector v) {
         vv = new TreeMap<String, LinkedList<Interval>>();
-        numPairs = 0;
+        // numPairs = 0;
         for (Entry<String, Long> entry : v.vv.entrySet()) {
             String key = entry.getKey();
             LinkedList<Interval> nl = new LinkedList<Interval>();
             nl.add(new Interval(0, entry.getValue()));
-            numPairs++;
+            // numPairs++;
             vv.put(key, nl);
         }
     }
@@ -237,7 +238,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             l = new LinkedList<Interval>();
             vv.put(cc.getIdentifier(), l);
             l.add(new Interval(v, v));
-            numPairs++;
+            // numPairs++;
             return true;
         }
 
@@ -256,7 +257,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                     Interval prev = it.previous();
                     if (p.mergeBack(prev)) { // [-prev-][v-p-]
                         it.remove();
-                        numPairs--;
+                        // numPairs--;
                     }
                 }
                 return true;
@@ -267,13 +268,13 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 it.next(); // Before the insertion is before and no exception
                            // because p is a previous.
                 it.add(new Interval(v, v));
-                numPairs++;
+                // numPairs++;
                 return true;
             }
         }
 
         l.addFirst(new Interval(v, v));
-        numPairs++;
+        // numPairs++;
         return true;
     }
 
@@ -297,12 +298,12 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         LinkedList<Interval> l = vv.get(siteid);
         if (l == null) {
             l = duplicateList(l0);
-            numPairs = numPairs + l0.size();
+            // numPairs = numPairs + l0.size();
             vv.put(siteid, l);
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
         CMP_CLOCK cmp = compareOneEntryVV(siteid, l0);
-        numPairs = numPairs - l.size();
+        // numPairs = numPairs - l.size();
         LinkedList<Interval> nl = new LinkedList<Interval>();
         Iterator<Interval> it = l.iterator();
         Iterator<Interval> it0 = l0.iterator();
@@ -368,7 +369,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             nl.add(np);
         }
         vv.put(siteid, nl);
-        numPairs += nl.size();
+        // numPairs += nl.size();
 
         return cmp;
     }
@@ -439,7 +440,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             return CMP_CLOCK.CMP_ISDOMINATED;
         }
         CMP_CLOCK cmp = compareOneEntryVV(siteid, l0);
-        numPairs = numPairs - l.size();
+        // numPairs = numPairs - l.size();
         LinkedList<Interval> nl = new LinkedList<Interval>();
         Iterator<Interval> it = l.iterator();
         Iterator<Interval> it0 = l0.iterator();
@@ -472,7 +473,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         } else {
             vv.put(siteid, nl);
         }
-        numPairs = numPairs + nl.size();
+        // numPairs = numPairs + nl.size();
 
         return cmp;
     }
@@ -506,7 +507,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             Entry<String, LinkedList<Interval>> e = it.next();
             LinkedList<Interval> l = cc.vv.get(e.getKey());
             if (l == null) {
-                numPairs = numPairs - e.getValue().size();
+                // numPairs = numPairs - e.getValue().size();
                 it.remove();
                 result = ClockUtils.combineCmpClock(result, CMP_CLOCK.CMP_DOMINATES);
             }
@@ -546,7 +547,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         for (Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             List<Interval> l = e.getValue();
             if (l.size() > 1) {
-                numPairs -= l.size() - 1;
+                // numPairs -= l.size() - 1;
                 Interval interval = l.get(0);
                 l.clear();
                 l.add(interval);
@@ -795,18 +796,18 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     @Override
     public int getExceptionsNumber() {
-        return numPairs - vv.size();
-    }
-
-    public int getNumPairs() {
-        return numPairs;
+        int exceptionsSum = 0;
+        for (final LinkedList<Interval> intervals : vv.values()) {
+            exceptionsSum += intervals.size() - 1;
+        }
+        return exceptionsSum;
     }
 
     @Override
     public void drop(String siteId) {
         final LinkedList<Interval> intervals = vv.remove(siteId);
         if (intervals != null) {
-            numPairs -= intervals.size();
+            // numPairs -= intervals.size();
         }
     }
 
@@ -839,7 +840,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 // timestamp is in the interval, so split the interval
                 it.add(new Interval(p.from, v - 1));
                 p.from = v + 1;
-                numPairs++;
+                // numPairs++;
                 return;
             }
         }
@@ -854,7 +855,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 Interval v = it.next();
                 if (v.to <= timestamp.getCounter()) {
                     it.remove();
-                    numPairs--;
+                    // numPairs--;
                 } else {
                     if (v.from <= timestamp.getCounter() + 1) {
                         v.from = Timestamp.MIN_VALUE + 1;
@@ -864,7 +865,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 }
             }
             l.addFirst(new Interval(Timestamp.MIN_VALUE + 1, timestamp.getCounter()));
-            numPairs++;
+            // numPairs++;
             // for (long i = Timestamp.MIN_VALUE + 1; i <
             // timestamp.getCounter(); i++) {
             // record(new Timestamp(timestamp.getIdentifier(), i));
@@ -873,14 +874,14 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             final LinkedList<Interval> l = new LinkedList<Interval>();
             vv.put(timestamp.getIdentifier(), l);
             l.add(new Interval(Timestamp.MIN_VALUE + 1, timestamp.getCounter()));
-            numPairs++;
+            // numPairs++;
         }
     }
 
     private void cleanUp(final Timestamp cc, LinkedList<Interval> l, ListIterator<Interval> it, Interval p) {
         if (p.from > p.to) {
             it.remove();
-            numPairs--;
+            // numPairs--;
             if (l.isEmpty()) {
                 drop(cc.getIdentifier());
             }
@@ -910,7 +911,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     @Override
     public void read(Kryo kryo, Input in) {
-        numPairs = in.readInt();
+        // numPairs = 0;
         for (int i = in.readInt(); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
             vv.put(in.readString().intern(), lli);
@@ -918,13 +919,13 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 Interval ii = new Interval();
                 ii.read(kryo, in);
                 lli.add(ii);
+                // numPairs++;
             }
         }
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        out.writeInt(numPairs);
         out.writeInt(vv.size());
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             out.writeString(e.getKey().intern());

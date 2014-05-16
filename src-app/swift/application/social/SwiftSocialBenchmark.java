@@ -91,6 +91,8 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         String partitions = Args.valueOf(args, "-partition", "0/1");
         int site = Integer.valueOf(partitions.split("/")[0]);
         int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
+        // ASSUMPTION: concurrentSessions is the same at all sites
+        int numberOfVirtualSites = numberOfSites * concurrentSessions;
 
         List<String> candidates = Args.subList(args, "-servers");
         server = ClosestDomain.closest2Domain(candidates, site);
@@ -105,9 +107,10 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
         bufferedOutput.printf(";\tsite=%s\n", site);
         bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
+        bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
+        bufferedOutput.printf(";\tnumberOfVirtualSites=%s\n", numberOfVirtualSites);
         bufferedOutput.printf(";\tSurrogate=%s\n", server);
         bufferedOutput.printf(";\tShepard=%s\n", shepard);
-        bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
 
         if (!shepard.isEmpty())
             Shepard.sheepJoinHerd(shepard);
@@ -118,8 +121,8 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         System.err.println("Spawning session threads.");
         for (int i = 0; i < concurrentSessions; i++) {
-            final int sessionId = i;
-            final Workload commands = getWorkloadFromConfig(site, numberOfSites);
+            final int sessionId = site * concurrentSessions + i;
+            final Workload commands = getWorkloadFromConfig(sessionId, numberOfVirtualSites);
             threadPool.execute(new Runnable() {
                 public void run() {
                     // Randomize startup to avoid clients running all at the

@@ -53,6 +53,6 @@ public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0);
+        collector.recordStats(this, buffer.position(), 0, 0, 0);
     }
 }

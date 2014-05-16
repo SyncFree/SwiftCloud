@@ -58,6 +58,10 @@ public class CommitUpdatesRequest extends ClientRequest {
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
     }
 
+    public CausalityClock getDependencyClock() {
+        return dependencyClock;
+    }
+
     /**
      * Set the waitTilStable
      */

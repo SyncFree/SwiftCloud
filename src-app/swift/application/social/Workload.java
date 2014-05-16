@@ -25,6 +25,7 @@ import com.thoughtworks.xstream.core.util.Base64Encoder;
 
 abstract public class Workload implements Iterable<String>, Iterator<String> {
 
+    private static final int MAX_SITES = 1321;
     /** List of user names */
     private static List<String> users = new ArrayList<String>();
     /** List of command line operations to generate user data */
@@ -177,7 +178,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
     static public Workload doMixed(int site, int friends_per_user, final int ops_biased, final int ops_random,
             final int ops_groups, int number_of_sites) {
        // Each workload has its own seed...
-        final Random rg = new Random(doMixedCounter.addAndGet(13 + site)); 
+        final Random rg = new Random(doMixedCounter.addAndGet(MAX_SITES + site)); 
   
         // Pick a user at random from this site's user partition
         site = site < 0 ? rg.nextInt(number_of_sites) : site; // fix site

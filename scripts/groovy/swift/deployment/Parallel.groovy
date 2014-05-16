@@ -4,7 +4,7 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 class Parallel {
-    static String ACCOUNT = "ubuntu"
+    static String ACCOUNT = Tools.USERNAME
 
     static Executor threads = Executors.newFixedThreadPool(48)
 
