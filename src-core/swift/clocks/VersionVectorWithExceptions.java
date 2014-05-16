@@ -355,7 +355,6 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             }
             if (!hasChanged) {
                 nl.add(np);
-                numPairs++;
                 np = null;
             }
             if (p == null && it.hasNext()) {
@@ -367,9 +366,9 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         }
         if (np != null) {
             nl.add(np);
-            numPairs++;
         }
         vv.put(siteid, nl);
+        numPairs += nl.size();
 
         return cmp;
     }
@@ -547,6 +546,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         for (Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             List<Interval> l = e.getValue();
             if (l.size() > 1) {
+                numPairs -= l.size() - 1;
                 Interval interval = l.get(0);
                 l.clear();
                 l.add(interval);
@@ -794,10 +794,8 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     }
 
     @Override
-    public boolean hasExceptions() {
-        // FIXME: I suppose numPairs <= vv.size() should always hold?
-        // Somehow, this is not always the case...
-        return vv.size() != numPairs;
+    public int getExceptionsNumber() {
+        return numPairs - vv.size();
     }
 
     public int getNumPairs() {
@@ -806,7 +804,10 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     @Override
     public void drop(String siteId) {
-        vv.remove(siteId);
+        final LinkedList<Interval> intervals = vv.remove(siteId);
+        if (intervals != null) {
+            numPairs -= intervals.size();
+        }
     }
 
     @Override
@@ -825,12 +826,12 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             if (v > p.to) {
                 return;
             } else if (v == p.to) {
-                // timestamp is at beginning of interval
+                // timestamp is at end of interval
                 p.to = p.to - 1;
                 cleanUp(cc, l, it, p);
                 return;
             } else if (v == p.from) {
-                // timestamp is at end of interval
+                // timestamp is at beginning of interval
                 p.from = p.from + 1;
                 cleanUp(cc, l, it, p);
                 return;
@@ -851,9 +852,10 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             Iterator<Interval> it = l.iterator();
             while (it.hasNext()) {
                 Interval v = it.next();
-                if (v.to <= timestamp.getCounter())
+                if (v.to <= timestamp.getCounter()) {
                     it.remove();
-                else {
+                    numPairs--;
+                } else {
                     if (v.from <= timestamp.getCounter() + 1) {
                         v.from = Timestamp.MIN_VALUE + 1;
                         return;
@@ -862,6 +864,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 }
             }
             l.addFirst(new Interval(Timestamp.MIN_VALUE + 1, timestamp.getCounter()));
+            numPairs++;
             // for (long i = Timestamp.MIN_VALUE + 1; i <
             // timestamp.getCounter(); i++) {
             // record(new Timestamp(timestamp.getIdentifier(), i));
@@ -870,6 +873,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             final LinkedList<Interval> l = new LinkedList<Interval>();
             vv.put(timestamp.getIdentifier(), l);
             l.add(new Interval(Timestamp.MIN_VALUE + 1, timestamp.getCounter()));
+            numPairs++;
         }
     }
 

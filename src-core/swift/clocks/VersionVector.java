@@ -362,8 +362,8 @@ public class VersionVector implements CausalityClock {
     }
 
     @Override
-    public boolean hasExceptions() {
-        return false;
+    public int getExceptionsNumber() {
+        return 0;
     }
 
     @Override
