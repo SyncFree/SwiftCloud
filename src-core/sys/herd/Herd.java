@@ -55,6 +55,7 @@ public class Herd extends HerdProtoHandler {
 
     static long lastChange = System.currentTimeMillis();
     volatile static Map<String, Map<String, Herd>> herds = new HashMap<String, Map<String, Herd>>();
+    volatile static boolean stopProbing = false;
 
     Herd() {
     }
@@ -91,6 +92,7 @@ public class Herd extends HerdProtoHandler {
         final RpcEndpoint sock = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
         Log.info(IP.localHostname() + " Contacting shepard at: " + shepard + " to join: " + herd);
+        System.err.println(IP.localHostname() + " Contacting shepard at: " + shepard + " to join: " + herd);
 
         new PeriodicTask(2.0, 1.0) {
             public void run() {
@@ -105,6 +107,9 @@ public class Herd extends HerdProtoHandler {
                             Threading.synchronizedNotifyAllOn(herds);
                         }
                     }, 0);
+                    if (stopProbing)
+                        cancel();
+
                 } catch (Exception x) {
                     Log.warning("Cannot connect to shepard at: " + shepard + " to join: " + herd);
                 }
@@ -117,10 +122,6 @@ public class Herd extends HerdProtoHandler {
             try {
                 Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, new HerdProtoHandler() {
                     public void onReceive(RpcHandle conn, JoinHerdRequest r) {
-                        // System.err.println("Got join:" + r.dc() + "  " +
-                        // r.herd()
-                        // +
-                        // " " + r.sheep());
 
                         JoinHerdReply reply;
                         synchronized (herds) {
@@ -158,11 +159,12 @@ public class Herd extends HerdProtoHandler {
         }
     }
 
-    public static Herd getHerd(String dc, String herd, int minimumAge) {
+    public static Herd getHerd(String dc, String herd, int minimumAge, boolean stop) {
         synchronized (herds) {
             while (age() / 1000 < minimumAge) {
                 Threading.synchronizedWaitOn(herds, 100);
             }
+            stopProbing = stop;
             return getHerd(dc, herd);
         }
     }

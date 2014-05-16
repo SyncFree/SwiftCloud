@@ -41,7 +41,7 @@ public class DHT_Node {
         int delay = 15;
         System.err.printf(IP.localHostname() + " Waiting %s seconds for <%s, %s> membership to settle...\n", delay, dc,
                 herd);
-        Herd h = Herd.getHerd(dc, herd, delay);
+        Herd h = Herd.getHerd(dc, herd, delay, true);
         db = new OrdinalDB().populate(h, selfEndpoint);
         self = db.self();
         System.err.printf(IP.localHostname() + " Found %d node(s): %s\n", db.nodes().size(), db.nodes());
