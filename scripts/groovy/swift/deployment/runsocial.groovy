@@ -57,7 +57,7 @@ deployTo(AllMachines, SwiftSocial_Props)
 
 def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
-SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "256m")
+SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "3096m")
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
 Sleep(InterCmdDelay)
