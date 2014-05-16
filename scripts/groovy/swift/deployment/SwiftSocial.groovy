@@ -19,11 +19,11 @@ class SwiftSocial extends SwiftBase {
         return res
     }
 
-    static void runStandaloneScouts( List scouts, List servers, String config, String shepard, int threads, String heap ="512m" ) {
-        def cmd = { host ->
-            String partition = scouts.indexOf( host ) + "/" + scouts.size()
+    static void runStandaloneScouts( List scouts, Map scoutsToServersMap, String config, String shepard, int threads, String heap ="512m" ) {
+        def cmd = { scout ->
+            String partition = scouts.indexOf( scout ) + "/" + scouts.size()
             def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "
-            servers.each { res += it + " "}
+            scoutsToServersMap[scout].each { res += it + " "}
             res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
             return res;
         }

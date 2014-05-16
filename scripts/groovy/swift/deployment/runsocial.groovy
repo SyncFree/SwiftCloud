@@ -12,20 +12,34 @@ def __ = onControlC({
     System.exit(0);
 })
 
+SurrogateEU = 'eu'
+SurrogateNorthVirginia = 'NV'
+SurrogateOregon = 'oregon'
 
 Surrogates = [
-    'ec2-54-76-29-118.eu-west-1.compute.amazonaws.com',
-    'ec2-54-187-177-232.us-west-2.compute.amazonaws.com',
-    'ec2-107-21-136-93.compute-1.amazonaws.com',
+    SurrogateEU,
+    SurrogateNorthVirginia,
+    SurrogateOregon,
 ]
 
+ScoutsEU = ['eu-scout']
+ScoutsNorthVirginia = ['nv-scout']
+ScoutsOregon = ['oregon-scout']
 
 //    Scouts = (PlanetLab_EU).unique()
 // (PlanetLab_NC + PlanetLab_NV + PlanetLab_EU).unique()
-Scouts = ['ec2-54-76-28-141.eu-west-1.compute.amazonaws.com',
-          'ec2-54-187-210-164.us-west-2.compute.amazonaws.com',
-          'ec2-54-227-32-176.compute-1.amazonaws.com',
-]
+Scouts = ScoutsEU + ScoutsNorthVirginia + ScoutsOregon
+
+ScoutsToServersMap = [:]
+ScoutsEU.each { scout ->
+    ScoutsToServersMap[scout] = SurrogateNorthVirginia
+}
+ScoutsNorthVirginia.each { scout ->
+    ScoutsToServersMap[scout] = SurrogateOregon
+}
+ScoutsOregon.each { scout ->
+    ScoutsToServersMap[scout] = SurrogateEU
+}
 
 ShepardAddr = Surrogates.get(0);
 
@@ -70,7 +84,7 @@ SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
-SwiftSocial.runStandaloneScouts( Scouts, Surrogates, SwiftSocial_Props, ShepardAddr, Threads )
+SwiftSocial.runStandaloneScouts( Scouts, ScoutsToServersMap, SwiftSocial_Props, ShepardAddr, Threads )
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 shep.take()
