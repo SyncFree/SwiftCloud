@@ -176,4 +176,12 @@ class Tools {
             sleep(1000)
         }
     }
+    
+    static String getGitCommitId() {
+        def ids = "git rev-parse HEAD".execute().inputStream.readLines()
+        if (ids.size() == 0) {
+            return "unknown"
+        }
+        return ids[0].substring(0, 8)
+    }
 }

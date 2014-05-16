@@ -35,6 +35,8 @@ SwiftSocial_Props = "swiftsocial-test.props"
 
 AllMachines = (Surrogates + Scouts + ShepardAddr).unique()
 
+Version = getGitCommitId()
+
 println getBinding().getVariables()
 
 dumpTo(AllMachines, "/tmp/nodes.txt")
@@ -44,7 +46,7 @@ pnuke(AllMachines, "java", 60)
 
 //System.exit(0)
 
-println "==== BUILDING JAR..."
+println "==== BUILDING JAR for version " + Version + "..."
 sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, SwiftSocial_Props)
@@ -75,8 +77,8 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/swiftsocial/multi_cdf/" + new Date().format('MMMdd-') + System.currentTimeMillis()
-def dstFile = String.format("1pc-results-swiftsocial-DC-%s-SC-%s-TH-%s.log", Surrogates.size(), Scouts.size(), Threads)
+def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version
+def dstFile = String.format("DC-%s-SC-%s-TH-%s.log", Surrogates.size(), Scouts.size(), Threads)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, dstFile, 300)
 
