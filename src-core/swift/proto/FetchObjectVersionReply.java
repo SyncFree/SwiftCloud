@@ -132,9 +132,20 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
         final int totalSize = buffer.position();
         buffer.clear();
 
+        int maxExceptionsNum = 0;
+        if (estimatedDisasterDurableLatestKnownClock != null) {
+            maxExceptionsNum = Math.max(estimatedDisasterDurableLatestKnownClock.getExceptionsNumber(),
+                    maxExceptionsNum);
+        }
+        if (estimatedLatestKnownClock != null) {
+            maxExceptionsNum = Math.max(estimatedLatestKnownClock.getExceptionsNumber(), maxExceptionsNum);
+        }
+
         int versionSize = 0;
         int valueSize = 0;
         if (crdt != null) {
+            maxExceptionsNum = Math.max(crdt.getClock().getExceptionsNumber(), maxExceptionsNum);
+
             // TODO: be more precise w.r.t version
             kryo = collector.getFreshKryo();
             buffer = collector.getFreshKryoBuffer();
@@ -150,6 +161,6 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
             valueSize = buffer.position();
         }
 
-        collector.recordStats(this, totalSize, versionSize, valueSize);
+        collector.recordStats(this, totalSize, versionSize, valueSize, maxExceptionsNum);
     }
 }

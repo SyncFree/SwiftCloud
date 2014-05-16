@@ -87,8 +87,19 @@ public class SnapshotNotification implements Notifyable<CRDTIdentifier>, Metadat
         final Kryo kryo = collector.getFreshKryo();
         final Output buffer = collector.getFreshKryoBuffer();
 
+        int maxExceptionsNum = 0;
+        if (snapshotClock != null) {
+            maxExceptionsNum = Math.max(snapshotClock.getExceptionsNumber(), maxExceptionsNum);
+        }
+        if (estimatedDCVersion != null) {
+            maxExceptionsNum = Math.max(estimatedDCVersion.getExceptionsNumber(), maxExceptionsNum);
+        }
+        if (estimatedDCStableVersion != null) {
+            maxExceptionsNum = Math.max(estimatedDCStableVersion.getExceptionsNumber(), maxExceptionsNum);
+        }
+
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0);
+        collector.recordStats(this, buffer.position(), 0, 0, maxExceptionsNum);
     }
 }
