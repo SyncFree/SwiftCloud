@@ -53,13 +53,9 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
     public void initDB(String[] args) {
 
-        String servers = Args.valueOf(args, "-servers", "localhost");
+        final String servers = Args.valueOf(args, "-servers", "localhost");
 
         Properties properties = Props.parseFile("swiftsocial", System.out, "swiftsocial-test.props");
-
-        final SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
-
-        options.setConcurrentOpenTransactions(true);
 
         System.out.println("Populating db with users...");
 
@@ -68,7 +64,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         final int PARTITION_SIZE = 1000;
         int partitions = numUsers / PARTITION_SIZE + (numUsers % PARTITION_SIZE > 0 ? 1 : 0);
-        ExecutorService pool = Executors.newFixedThreadPool(4);
+        ExecutorService pool = Executors.newFixedThreadPool(32);
 
         final AtomicInteger counter = new AtomicInteger(0);
         for (int i = 0; i < partitions; i++) {
@@ -76,6 +72,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             final List<String> partition = Workload.getUserData().subList(lo, Math.min(hi, numUsers));
             pool.execute(new Runnable() {
                 public void run() {
+                    final SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
                     SwiftSocialBenchmark.super.initUsers(options, partition, counter, numUsers);
                 }
             });
