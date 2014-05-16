@@ -24,9 +24,10 @@ import java.util.logging.Logger;
 
 import sys.herd.Herd;
 import sys.net.api.Endpoint;
+import sys.utils.IP;
 
 public class DHT_Node {
-    private static Logger Log = Logger.getLogger("sys.dht");
+    private static Logger Log = Logger.getLogger(DHT_Node.class.getName());
 
     static Node self;
     static OrdinalDB db;
@@ -37,12 +38,13 @@ public class DHT_Node {
     public static void init(String dc, String herd, Endpoint selfEndpoint, Endpoint shepard) {
         Herd.joinHerd(dc, herd, selfEndpoint, shepard);
 
-        int delay = 10;
-        System.err.printf("Waiting %s seconds for <%s, %s> membership to settle...", delay, dc, herd);
+        int delay = 15;
+        System.err.printf(IP.localHostname() + " Waiting %s seconds for <%s, %s> membership to settle...\n", delay, dc,
+                herd);
         Herd h = Herd.getHerd(dc, herd, delay);
         db = new OrdinalDB().populate(h, selfEndpoint);
         self = db.self();
-        System.err.printf("Found %d node(s): %s\n", db.nodes().size(), db.nodes());
+        System.err.printf(IP.localHostname() + " Found %d node(s): %s\n", db.nodes().size(), db.nodes());
     }
 
     public static Set<Long> nodeKeys() {
@@ -54,12 +56,15 @@ public class DHT_Node {
     }
 
     static public Endpoint resolveKey(final String key) {
-        return resolveNextHop(key).endpoint;
+        Node nextHop = resolveNextHop(key);
+        return self.key == nextHop.key ? null : nextHop.endpoint;
     }
 
     static Node resolveNextHop(String key) {
         long key2key = longHashValue(key) & Node.MAX_KEY;
-        Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key, self.key, db.nodeKeys()));
+        // if (Log.isLoggable(Log.getLevel()))
+        // Log.finest(String.format("Hashing %s (%s) @ %s DB:%s", key, key2key,
+        // self.key, db.nodeKeys()));
 
         for (Node i : db.nodes(key2key))
             if (i.isOnline())
