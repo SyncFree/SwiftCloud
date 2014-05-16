@@ -88,7 +88,7 @@ import sys.scheduler.Task;
  * 
  * @author preguica
  */
-public class DCSurrogate extends SwiftProtocolHandler {
+final public class DCSurrogate extends SwiftProtocolHandler {
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     String siteId;
@@ -213,10 +213,10 @@ public class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId());
         }
-
+        
         if (request.hasSubscription())
             getSession(request.getClientId()).subscribe(request.getUid());
-
+        
         conn.reply(handleFetchVersionRequest(conn, request));
     }
 
@@ -253,7 +253,7 @@ public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
-
+        
         ManagedCRDT crdt = getCRDT(request.getUid(), request.getVersion(), request.getClientId());
 
         if (crdt == null) {

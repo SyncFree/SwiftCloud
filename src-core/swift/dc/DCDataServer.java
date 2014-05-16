@@ -17,7 +17,10 @@
 package swift.dc;
 
 import static sys.net.api.Networking.Networking;
+import static sys.utils.Threading.lock;
+import static sys.utils.Threading.unlock;
 
+import java.lang.management.LockInfo;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,13 +62,14 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
 import sys.net.impl.RemoteEndpoint;
 import sys.utils.Threading;
+import sys.utils.Timings;
 
 /**
  * Class to maintain data in the server.
  * 
  * @author preguica, smduarte
  */
-class DCDataServer {
+final class DCDataServer {
     private static final int DHT_PORT = 27777;
 
     private static Logger logger = Logger.getLogger(DCDataServer.class.getName());
@@ -197,34 +201,6 @@ class DCDataServer {
                         request.getCurDCVersion())));
             }
         });
-    }
-
-    void lock(CRDTIdentifier id) {
-        synchronized (locks) {
-            LockInfo l = locks.get(id);
-            if (l != null && l.ownedByMe()) {
-                l.lock();
-                return;
-            }
-            while (locks.containsKey(id)) {
-                try {
-                    locks.wait();
-                } catch (InterruptedException e) {
-                    // TODO Auto-generated catch block
-                }
-            }
-            locks.put(id, new LockInfo());
-        }
-    }
-
-    void unlock(CRDTIdentifier id) {
-        synchronized (locks) {
-            LockInfo l = locks.get(id);
-            if (l.unlock()) {
-                locks.remove(id);
-                locks.notifyAll();
-            }
-        }
     }
 
     /*
@@ -360,9 +336,9 @@ class DCDataServer {
      */
     ManagedCRDT getCRDT(final CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed) {
         Endpoint dst = DHT_Node.resolveKey(id.toString());
-        if (dst == null)
+        if (dst == null) {
             return localGetCRDTObject(id, clk, clientId, isSubscribed);
-        else {
+        } else {
             return dhtRequest(dst, new DHTGetCRDT(id, clk, clientId, isSubscribed));
         }
     }
@@ -507,11 +483,12 @@ class DCDataServer {
      * @return null if cannot fulfill request
      */
     ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
+
+        Timings.mark();
         if (subscribeUpdates)
             dsPubSub.subscribe(localSurrogateId, id, suPubSub);
         // else
         // dsPubSub.unsubscribe(localSurrogateId, id, suPubSub);
-
         lock(id);
         try {
             CRDTData<?> data = localGetCRDT(id);
@@ -568,7 +545,9 @@ class DCDataServer {
     CRDTData<?> localGetCRDT(CRDTIdentifier id) {
         lock(id);
         try {
+            Timings.mark();
             CRDTData<?> data = this.getDatabaseEntry(id);
+            Timings.sample("getDatabaseEntry");
             if (data.empty)
                 return null;
 
@@ -576,31 +555,6 @@ class DCDataServer {
         } finally {
             unlock(id);
         }
-    }
-
-}
-
-class LockInfo {
-    Thread thread;
-    int count;
-
-    LockInfo() {
-        thread = Thread.currentThread();
-        count = 1;
-    }
-
-    boolean ownedByMe() {
-        return thread.equals(Thread.currentThread());
-    }
-
-    void lock() {
-        count++;
-    }
-
-    boolean unlock() {
-        if (count > 0)
-            count--;
-        return count <= 0;
     }
 
 }
