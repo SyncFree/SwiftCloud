@@ -1,7 +1,7 @@
 package sys.utils;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -157,28 +157,22 @@ final public class Threading {
     }
 
     public static void lock(Object id) {
-        ReentrantLock lock;
-        synchronized (locks) {
-            lock = locks.get(id);
+        ReentrantLock lock = locks.get(id), newLock;
+        if (lock == null) {
+            lock = locks.putIfAbsent(id, newLock = new ReentrantLock(true));
             if (lock == null)
-                locks.put(id, lock = new ReentrantLock(true));
+                lock = newLock;
         }
         lock.lock();
     }
 
     public static void unlock(Object id) {
-        ReentrantLock lock;
-        do {
-            synchronized (locks) {
-                lock = locks.get(id);
-                if (lock == null) {
-                    Threading.sleep(100);
-                    throw new RuntimeException("Unbalanced unlock for :" + id);
-                }
-            }
-        } while (lock == null);
+        ReentrantLock lock = locks.get(id);
+        if (lock == null)
+            throw new RuntimeException("Unbalanced unlock for :" + id);
+
         lock.unlock();
     }
 
-    static Map<Object, ReentrantLock> locks = new HashMap<Object, ReentrantLock>();
+    static ConcurrentHashMap<Object, ReentrantLock> locks = new ConcurrentHashMap<Object, ReentrantLock>();
 }
