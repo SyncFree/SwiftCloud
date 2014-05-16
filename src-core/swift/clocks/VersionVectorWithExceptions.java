@@ -278,19 +278,20 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     }
 
     // FIXME is this really needed? What is the semantics?!
-    protected Interval advanceUntil(Interval p, Iterator<Interval> it, int val) {
-        if (val <= p.to) {
-            return p;
-        }
-        while (it.hasNext()) {
-            p = it.next();
-            if (val > p.to) {
-                continue;
-            }
-            return p;
-        }
-        return null;
-    }
+    // protected Interval advanceUntil(Interval p, Iterator<Interval> it, int
+    // val) {
+    // if (val <= p.to) {
+    // return p;
+    // }
+    // while (it.hasNext()) {
+    // p = it.next();
+    // if (val > p.to) {
+    // continue;
+    // }
+    // return p;
+    // }
+    // return null;
+    // }
 
     protected CMP_CLOCK mergeOneEntryVV(String siteid, LinkedList<Interval> l0) {
         LinkedList<Interval> l = vv.get(siteid);
