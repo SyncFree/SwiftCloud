@@ -307,16 +307,16 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     private CommitUpdatesReply prepareAndDoCommit(final ClientSession session, final CommitUpdatesRequest req) {
         final List<CRDTObjectUpdatesGroup<?>> ops = req.getObjectUpdateGroups();
-        final CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
+        final CausalityClock dependenciesClock = ops.size() > 0 ? req.getDependencyClock() : ClockFactory.newClock();
 
         GenerateDCTimestampReply tsReply = cltEndpoint4Sequencer.request(sequencerServerEndpoint,
-                new GenerateDCTimestampRequest(req.getClientId(), req.getCltTimestamp(), snapshotClock));
+                new GenerateDCTimestampRequest(req.getClientId(), req.getCltTimestamp(), dependenciesClock));
 
         req.setTimestamp(tsReply.getTimestamp());
 
         // req.setDisasterSafe(); // FOR SOSP EVALUATION...
 
-        return doOneCommit(session, req, snapshotClock);
+        return doOneCommit(session, req, dependenciesClock);
     }
 
     private CommitUpdatesReply doOneCommit(final ClientSession session, final CommitUpdatesRequest req,
