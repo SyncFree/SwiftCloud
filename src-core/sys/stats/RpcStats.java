@@ -20,6 +20,7 @@ import static sys.Sys.Sys;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
 import sys.net.impl.rpc.RpcPacket;
@@ -28,6 +29,9 @@ import sys.stats.sources.ValueSignalSource;
 import sys.utils.XmlExternalizable;
 
 public class RpcStats extends XmlExternalizable {
+
+    private static Logger Log = Logger.getLogger(RpcStats.class.getName());
+
     private static final double[] VALUE_BINS = new double[] {}; // new double[]
                                                                 // { 0, 10, 20,
                                                                 // 50, 100, 500,
@@ -62,8 +66,11 @@ public class RpcStats extends XmlExternalizable {
         RpcStats = this;
     }
 
+    long total = 0;
+
     synchronized public void logSentRpcPacket(RpcPacket pkt, Endpoint dst) {
         try {
+            total += pkt.getSize();
             String type = pkt.getPayload().getClass().getName();
             valueFor(outMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
             outMsgStats.setValue(pkt.getSize());
@@ -128,8 +135,9 @@ public class RpcStats extends XmlExternalizable {
                                 DL = Sys.downloadedBytes.get();
                                 UL = Sys.uploadedBytes.get();
                             }
-                            System.err.printf("%s  [Down:  %.1f KB/s, Up: %.1f KB/s Heap: %s/%sm]\n", Sys.mainClass,
-                                    dlrate / 1024, ulrate / 1024, rt.totalMemory() >> 20, rt.maxMemory() >> 20);
+                            Log.info(String.format("%s  [Down:  %.1f KB/s, Up: %.1f KB/s Heap: %s/%sm]\n",
+                                    Sys.mainClass, dlrate / 1024, ulrate / 1024, rt.totalMemory() >> 20,
+                                    rt.maxMemory() >> 20));
                         }
                         RpcStats.saveXmlTo("./tmp/" + Sys.mainClass + "-stats.xml");
                         RpcStats.stats.dump();
