@@ -146,7 +146,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     private static final long serialVersionUID = 1L;
     protected Map<String, LinkedList<Interval>> vv;
     // total number of intervals
-    protected int numPairs;
+    protected transient int numPairs;
 
     public VersionVectorWithExceptions() {
         vv = new TreeMap<String, LinkedList<Interval>>();
@@ -910,7 +910,8 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     @Override
     public void read(Kryo kryo, Input in) {
-        numPairs = in.readInt();
+        // numPairs = in.readInt();
+        numPairs = 0;
         for (int i = in.readInt(); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
             vv.put(in.readString().intern(), lli);
@@ -918,13 +919,14 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 Interval ii = new Interval();
                 ii.read(kryo, in);
                 lli.add(ii);
+                numPairs++;
             }
         }
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        out.writeInt(numPairs);
+        // out.writeInt(numPairs);
         out.writeInt(vv.size());
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             out.writeString(e.getKey().intern());
