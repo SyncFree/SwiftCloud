@@ -1,4 +1,6 @@
-#!/usr/bin/env groovy -classpath .:scripts/groovy:scripts/groovy/lib
+#!/bin/bash
+//usr/bin/env groovy -classpath .:scripts/groovy "$0" $@; exit $?
+
 package swift.deployment
 
 import static swift.deployment.PlanetLab_3X.*
