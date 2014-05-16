@@ -26,6 +26,7 @@ import static sys.net.api.Networking.Networking;
 import java.util.Properties;
 
 import sys.Sys;
+import sys.herd.Herd;
 import sys.net.api.Endpoint;
 import sys.utils.Args;
 
@@ -84,6 +85,10 @@ public class DCServer {
                 props.setProperty(PRUNE_POLICY, "true");
             }
         }
+
+        String shepard = Args.valueOf(args, "-shepard", sequencerNode);
+        Herd.setDefaultShepard(shepard);
+
         new DCServer(sequencerNode, props).startSurrogServer(siteId, portSurrogate, SURROGATE_PORT_FOR_SEQUENCERS);
     }
 }

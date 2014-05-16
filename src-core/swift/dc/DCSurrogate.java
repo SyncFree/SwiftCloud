@@ -133,7 +133,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("Server ready...");
         }
 
-        DHT_Node.init(siteId, "surrogates", srvEndpoint4Clients.localEndpoint(), sequencerEndpoint);
+        DHT_Node.init(siteId, "surrogates", srvEndpoint4Clients.localEndpoint());
         new PeriodicTask(0.0, 0.1) {
             public void run() {
                 updateEstimatedDCVersion();

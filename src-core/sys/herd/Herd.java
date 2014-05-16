@@ -53,6 +53,7 @@ public class Herd extends HerdProtoHandler {
     String herd;
     Set<Endpoint> sheep;
 
+    static Endpoint shepard;
     static long lastChange = System.currentTimeMillis();
     volatile static Map<String, Map<String, Herd>> herds = new HashMap<String, Map<String, Herd>>();
     volatile static boolean stopProbing = false;
@@ -84,6 +85,14 @@ public class Herd extends HerdProtoHandler {
 
     static long age() {
         return (System.currentTimeMillis() - lastChange);
+    }
+
+    public static void setDefaultShepard(String shepardAddress) {
+        shepard = Networking.resolve(shepardAddress, PORT);
+    }
+
+    public static void joinHerd(final String dc, final String herd, final Endpoint endpoint) {
+        joinHerd(dc, herd, endpoint, shepard);
     }
 
     public static void joinHerd(final String dc, final String herd, final Endpoint endpoint, Endpoint shepardAddress) {

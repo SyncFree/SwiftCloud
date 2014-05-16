@@ -446,10 +446,7 @@ final class DCDataServer {
             ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, oldClock, data.clock.clone(), data.pruneClock.clone(),
                     grp);
 
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info(">>>>>>>>>>>>>   PUBLISH:     " + id + "  >>>>  " + txTs);
-            }
-            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), txTs, info));
+            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), null, info));
 
             return new ExecCRDTResult(true, id, info);
         } finally {

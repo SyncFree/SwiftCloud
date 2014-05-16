@@ -35,8 +35,8 @@ public class DHT_Node {
     protected DHT_Node() {
     }
 
-    public static void init(String dc, String herd, Endpoint selfEndpoint, Endpoint shepard) {
-        Herd.joinHerd(dc, herd, selfEndpoint, shepard);
+    public static void init(String dc, String herd, Endpoint selfEndpoint) {
+        Herd.joinHerd(dc, herd, selfEndpoint);
 
         int delay = 15;
         System.err.printf(IP.localHostname() + " Waiting %s seconds for <%s, %s> membership to settle...\n", delay, dc,
