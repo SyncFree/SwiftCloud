@@ -27,8 +27,9 @@ Scouts = ['ec2-54-76-28-141.eu-west-1.compute.amazonaws.com',
 
 ShepardAddr = Surrogates.get(0);
 
-Threads = 1
-Duration = 240
+Threads = 4
+Duration = 360
+InterCmdDelay = 40
 SwiftSocial_Props = "swiftsocial-test.props"
 
 
@@ -54,8 +55,8 @@ def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
 SwiftSocial.runEachAsDatacentre(Surrogates, "256m", "256m")
 
-Sleep(20)
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
+Sleep(InterCmdDelay)
 println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Surrogates.get(0)
 def INIT_DB_CLIENT = Surrogates.get(0)
@@ -64,13 +65,13 @@ SwiftSocial.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
-Sleep(20)
+Sleep(InterCmdDelay)
 SwiftSocial.runStandaloneScouts( Scouts, Surrogates, SwiftSocial_Props, ShepardAddr, Threads )
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 shep.take()
 
-Countdown( "Remaining: ", Duration + 30)
+Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
