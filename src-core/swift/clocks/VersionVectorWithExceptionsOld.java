@@ -404,8 +404,8 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         return buf.toString();
     }
 
-    public boolean hasExceptions() {
-        return excludedTimestamps.isEmpty();
+    public int getExceptionsNumber() {
+        return excludedTimestamps.size();
     }
 
     @Override

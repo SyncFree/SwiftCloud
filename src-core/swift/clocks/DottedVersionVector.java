@@ -410,9 +410,9 @@ public class DottedVersionVector implements CausalityClock {
     }
 
     @Override
-    public boolean hasExceptions() {
+    public int getExceptionsNumber() {
         // TODO Auto-generated method stub
-        throw new RuntimeException("Method hasExpcetions() in DottedVersionVector is not implemented yet!");
+        throw new RuntimeException("Method getExceptionsNumber() in DottedVersionVector is not implemented yet!");
     }
 
     @Override
