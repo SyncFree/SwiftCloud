@@ -117,6 +117,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         };
     };
 
+    // Experimental feature: share dependency clock in a commit batch to reduce
+    // metadata size.
+    public static final boolean USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH = true;
+
     // TODO: server failover
 
     // WISHME: notifications are quite CPU/memory scans-intensive at the
@@ -208,7 +212,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // not contain local transactions before they are committed.
     private CausalityClock lastLocallyCommittedTxnClock;
     // Last globally committed txn clock + dependencies.
-    private CausalityClock lastGloballyCommittedTxnClock;
+    // Commented-out to avoid holes on the wire.
+    // private CausalityClock lastGloballyCommittedTxnClock;
     // Generator of local timestamps.
     private final ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
 
@@ -299,7 +304,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
-        this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
+        // this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedDisasterDurableVersion = ClockFactory.newClock();
         this.causalSnapshot = ClockFactory.newClock();
 
@@ -606,6 +611,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         for (final AbstractTxnHandle txn : globallyCommittedUnstableTxns) {
             final TimestampMapping txnMapping = txn.getTimestampMapping();
             if (txnMapping.hasSystemTimestamp()) {
+                // FIXME: keep txn longer, until it is stable in all DCs
                 boolean notNeeded = txnMapping.allSystemTimestampsIncluded(committedDisasterDurableVersion);
                 for (final CausalityClock fetchedVersion : fetchVersionsInProgress) {
                     if (!txnMapping.allSystemTimestampsIncluded(fetchedVersion)) {
@@ -693,7 +699,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 fetchStrictlyRequired = (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT || objectsCache
                         .getAndTouch(id) == null);
                 fetchClock = getGlobalCommittedVersion(true);
-                fetchClock.merge(lastGloballyCommittedTxnClock);
+                fetchClock.merge(lastLocallyCommittedTxnClock);
                 // Try to get the latest one.
             }
 
@@ -1449,22 +1455,35 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
      */
     private void commitTxnGlobally(final List<AbstractTxnHandle> transactionsToCommit) {
         final List<CommitUpdatesRequest> requests = new LinkedList<CommitUpdatesRequest>();
+
         // Preprocess transactions before sending them.
+        final CausalityClock mergedDeps;
+        if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
+            mergedDeps = getDepsOnLocalGloballyCommittedTxns();
+            // Compute maximum deps. from the transactions in the batch
+            for (final AbstractTxnHandle txn : transactionsToCommit) {
+                mergedDeps.merge(txn.getUpdatesDependencyClock());
+            }
+            mergedDeps.drop(scoutId);
+        }
         for (final AbstractTxnHandle txn : transactionsToCommit) {
             txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
-            txn.getUpdatesDependencyClock().drop(scoutId);
-            // Use optimizedDependencyClock when sending out the updates - it
-            // may impose more restrictions, but contains less holes.
-            final CausalityClock optimizedDependencyClock = getGlobalCommittedVersion(true);
-            optimizedDependencyClock.merge(txn.getUpdatesDependencyClock());
-            optimizedDependencyClock.drop(scoutId);
+            final CausalityClock txnDeps;
+            if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
+                // Alternative 1: coarse grained, but overapproximated.
+                txnDeps = mergedDeps;
+            } else {
+                // Alternative 2: fine grained, but costs more traffic.
+                txnDeps = getDepsOnLocalGloballyCommittedTxns();
+                txnDeps.merge(txn.getUpdatesDependencyClock());
+                txnDeps.drop(scoutId);
+            }
             final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
-                operationsGroups.add(group.withDependencyClock(optimizedDependencyClock));
+                operationsGroups.add(group.withGlobalDependencyClock(txnDeps, scoutId));
             }
-            requests.add(new CommitUpdatesRequest(scoutId, txn.getClientTimestamp(), optimizedDependencyClock,
-                    operationsGroups));
+            requests.add(new CommitUpdatesRequest(scoutId, txn.getClientTimestamp(), txnDeps, operationsGroups));
         }
 
         // Send batched updates and wait for reply of server
@@ -1488,14 +1507,15 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (int i = 0; i < batchReply.getReplies().size(); i++) {
                 final CommitUpdatesReply reply = batchReply.getReplies().get(i);
                 final AbstractTxnHandle txn = transactionsToCommit.get(i);
-                txn.updateUpdatesDependencyClock(lastGloballyCommittedTxnClock);
 
                 switch (reply.getStatus()) {
                 case COMMITTED_WITH_KNOWN_TIMESTAMPS:
                     for (final Timestamp ts : reply.getCommitTimestamps()) {
                         txn.markGloballyCommitted(ts);
-                        lastGloballyCommittedTxnClock.record(ts);
-                        committedVersion.record(ts);
+                        // lastGloballyCommittedTxnClock.record(ts);
+                        // Commented out to avoid holes; useful for
+                        // multi-session?
+                        // committedVersion.record(ts);
                         // TODO: call updateCommittedVersion?
                     }
                     CausalityClock systemTxnClock = ClockFactory.newClock();
@@ -1510,7 +1530,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     objectsCache.augmentAllWithDCCausalClockWithoutMappings(systemTxnClock);
                     break;
                 case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
-                    lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
+                    // lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
                     txn.markGloballyCommitted(null);
                     // TODO: call updateCommittedVersion?
                     break;
@@ -1519,9 +1539,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 default:
                     throw new UnsupportedOperationException("unknown commit status: " + reply.getStatus());
                 }
+                // TODO: can it be done earlier, when it commits locally?
                 removeEvictionProtection(txn);
-                lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
-                lastLocallyCommittedTxnClock.merge(lastGloballyCommittedTxnClock);
+                // lastGloballyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
+                // lastLocallyCommittedTxnClock.merge(txn.getUpdatesDependencyClock());
                 removeLocallyNowGloballyCommitedTxn(txn);
                 globallyCommittedUnstableTxns.addLast(txn);
 
@@ -1541,6 +1562,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             }
         }
+    }
+
+    private CausalityClock getDepsOnLocalGloballyCommittedTxns() {
+        final CausalityClock mergedDeps;
+        mergedDeps = getGlobalCommittedVersion(true);
+        if (!globallyCommittedUnstableTxns.isEmpty()) {
+            for (final Timestamp sysTimestamp : globallyCommittedUnstableTxns.getLast().getTimestampMapping()
+                    .getSystemTimestamps()) {
+                mergedDeps.recordAllUntil(sysTimestamp);
+            }
+        }
+        return mergedDeps;
     }
 
     private synchronized void addLocallyCommittedTransactionBlocking(AbstractTxnHandle txn) {

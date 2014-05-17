@@ -453,7 +453,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (session.getLastSeqNo() != null
                     && session.getLastSeqNo().getCounter() >= r.getCltTimestamp().getCounter()) {
                 reply.addLast(new CommitUpdatesReply(getEstimatedDCVersionCopy()));
+                // FIXME: unless the timestamp is stable andpruned, we need to
+                // send a precise mapping to the client!
+                // Also, non-stable clock should appear in internal dependencies
+                // in the batch.
             } else {
+                // Respect internal dependencies in the batch.
                 r.addTimestampsToDeps(tsLst);
                 CommitUpdatesReply repOne = prepareAndDoCommit(session, r);
 

@@ -38,7 +38,7 @@ import swift.clocks.TimestampMapping;
  * <p>
  * TODO: document life-cycle of mappings and dependencyClock references
  * (optimization hacks in {@link #strippedWithCopiedTimestampMappings()} and
- * {@link #withDependencyClock(CausalityClock)})
+ * {@link #withGlobalDependencyClock(CausalityClock)})
  * 
  * @author mzawirsk
  */
@@ -209,9 +209,12 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
     /**
      * @param newDependencyClock
+     * @param scoutIdToDrop
      * @return shallow copy of this object dependencyClock set to another one.
      */
-    public CRDTObjectUpdatesGroup<V> withDependencyClock(final CausalityClock newDependencyClock) {
+    public CRDTObjectUpdatesGroup<V> withGlobalDependencyClock(final CausalityClock newDependencyClock,
+            String ignoredScoutId) {
+        dependencyClock.drop(ignoredScoutId);
         if (newDependencyClock != null
                 && !newDependencyClock.compareTo(dependencyClock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
             throw new IllegalArgumentException("new dependency clock is concurrent or lower than the old one");
