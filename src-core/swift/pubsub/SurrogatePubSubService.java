@@ -62,7 +62,8 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
                     logger.info("PubSubHandshake client = " + request.getClientId() + " @ " + conn.remoteEndpoint());
                 }
                 logger.info("##### PubSubHandshake client = " + request.getClientId() + " @ " + conn.remoteEndpoint());
-                surrogate.getSession(request.getClientId()).setClientEndpoint(conn.remoteEndpoint());
+                surrogate.getSession(request.getClientId(), request.isDisasterSafeSession()).setClientEndpoint(
+                        conn.remoteEndpoint());
             }
 
             @Override
@@ -70,7 +71,8 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("UnsubscribeUpdatesRequest client = " + request.getClientId());
                 }
-                surrogate.getSession(request.getClientId()).unsubscribe(request.getUnSubscriptions());
+                surrogate.getSession(request.getClientId(), request.isDisasterSafeSession()).unsubscribe(
+                        request.getUnSubscriptions());
                 handle.reply(new UnsubscribeUpdatesReply(request.getId()));
             }
         };

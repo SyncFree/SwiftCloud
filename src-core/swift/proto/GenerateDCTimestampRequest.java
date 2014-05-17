@@ -36,8 +36,9 @@ public class GenerateDCTimestampRequest extends ClientRequest {
     GenerateDCTimestampRequest() {
     }
 
-    public GenerateDCTimestampRequest(String clientId, Timestamp cltTimestamp, CausalityClock dependencyClk) {
-        super(clientId);
+    public GenerateDCTimestampRequest(String clientId, boolean disasterSafeSession, Timestamp cltTimestamp,
+            CausalityClock dependencyClk) {
+        super(clientId, disasterSafeSession);
         this.cltTimestamp = cltTimestamp;
         this.dependencyClk = dependencyClk;
         // cltDependency = dependencyClk.getLatestCounter(clientId);

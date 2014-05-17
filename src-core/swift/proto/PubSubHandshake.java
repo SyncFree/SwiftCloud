@@ -32,8 +32,8 @@ public class PubSubHandshake extends ClientRequest {
     PubSubHandshake() {
     }
 
-    public PubSubHandshake(String clientId) {
-        super(clientId);
+    public PubSubHandshake(String clientId, boolean disasterSafeSession) {
+        super(clientId, disasterSafeSession);
     }
 
     @Override

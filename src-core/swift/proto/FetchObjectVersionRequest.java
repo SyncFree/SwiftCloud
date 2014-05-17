@@ -37,8 +37,8 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     // protected CausalityClock clock;
     // protected CausalityClock disasterDurableClock;
     protected boolean strictUnprunedVersion;
-
     protected boolean subscribe;
+    protected boolean sendDCVector;
 
     public long timestamp = sys.Sys.Sys.timeMillis(); // FOR EVALUATION, TO BE
                                                       // REMOVED...
@@ -49,13 +49,14 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     FetchObjectVersionRequest() {
     }
 
-    public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid, CausalityClock version,
-            final boolean strictUnprunedVersion, boolean subscribe) {
-        super(clientId);
+    public FetchObjectVersionRequest(String clientId, boolean disasterSafe, CRDTIdentifier uid, CausalityClock version,
+            final boolean strictUnprunedVersion, boolean subscribe, boolean sendDCVersion) {
+        super(clientId, disasterSafe);
         this.uid = uid;
         this.version = version;
         this.subscribe = subscribe;
         this.strictUnprunedVersion = strictUnprunedVersion;
+        this.sendDCVector = sendDCVersion;
     }
 
     // public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid,
@@ -71,6 +72,10 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     // this.strictUnprunedVersion = strictUnprunedVersion;
     // this.disasterDurableClock = disasterDurableClock;
     // }
+
+    public boolean isSendDCVector() {
+        return sendDCVector;
+    }
 
     public boolean hasSubscription() {
         return subscribe;

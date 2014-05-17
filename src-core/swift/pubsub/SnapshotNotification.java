@@ -25,13 +25,6 @@ public class SnapshotNotification implements Notifyable<CRDTIdentifier>, Metadat
     SnapshotNotification() {
     }
 
-    public SnapshotNotification(String clientId, CRDTIdentifier id, Timestamp timestamp, CausalityClock snapshotClock) {
-        this.snapshotClock = snapshotClock;
-        this.timestamp = timestamp;
-        this.clientId = clientId;
-        this.id = id;
-    }
-
     public SnapshotNotification(CausalityClock snapshotClock, CausalityClock estimatedDCVersion,
             CausalityClock estimatedDCStableVersion) {
         this.snapshotClock = snapshotClock;

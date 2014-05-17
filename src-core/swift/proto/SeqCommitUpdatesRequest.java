@@ -50,7 +50,7 @@ public class SeqCommitUpdatesRequest extends CommitUpdatesRequest {
     public SeqCommitUpdatesRequest(String dcName, final Timestamp timestamp, final Timestamp cltTimestamp,
             final Timestamp prvCltTimestamp, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
             CausalityClock dcReceived, CausalityClock dcNotUsed) {
-        super(dcName, cltTimestamp, null, objectUpdateGroups);
+        super(dcName, false, cltTimestamp, null, objectUpdateGroups);
         this.timestamp = timestamp;
         this.prvCltTimestamp = prvCltTimestamp;
         this.dcReceived = dcReceived;

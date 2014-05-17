@@ -78,7 +78,6 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
-import swift.proto.MetadataStatsCollectorImpl;
 import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.ScoutPubSubService;
@@ -91,7 +90,6 @@ import swift.utils.TransactionsLog;
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.impl.KryoLib;
 import sys.stats.DummyStats;
 import sys.stats.Stats;
 import sys.stats.StatsConstants;
@@ -323,7 +321,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         localEndpoint.setHandler(new SwiftProtocolHandler());
 
-        this.scoutPubSub = new ScoutPubSubService(scoutId, serverEndpoint(), metadataStatsCollector) {
+        this.scoutPubSub = new ScoutPubSubService(scoutId, disasterSafe, serverEndpoint(), metadataStatsCollector) {
             public void onNotification(final UpdateNotification update) {
                 update.recordMetadataSample(metadataStatsCollector);
                 applyObjectUpdates(update.info);
@@ -498,7 +496,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     private boolean getDCClockEstimates() {
-        LatestKnownClockRequest request = new LatestKnownClockRequest(scoutId);
+        LatestKnownClockRequest request = new LatestKnownClockRequest(scoutId, disasterSafe);
         LatestKnownClockReply reply = localEndpoint.request(serverEndpoint(), request);
 
         if (reply != null) {
@@ -591,20 +589,21 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private synchronized void updateCommittedVersions(final CausalityClock newCommittedVersion,
             final CausalityClock newCommittedDisasterDurableVersion) {
-
-        if (newCommittedVersion == null || newCommittedDisasterDurableVersion == null) {
-            logger.warning("server returned null clock");
-            return;
+        boolean committedVersionUpdated = false;
+        if (newCommittedVersion != null) {
+            committedVersionUpdated = this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_ISDOMINATED,
+                    CMP_CLOCK.CMP_CONCURRENT);
         }
-
-        boolean committedVersionUpdated = this.committedVersion.merge(newCommittedVersion).is(
-                CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
-        boolean committedDisasterDurableUpdated = this.committedDisasterDurableVersion.merge(
-                newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
+        boolean committedDisasterDurableUpdated = false;
+        if (newCommittedDisasterDurableVersion != null) {
+            committedDisasterDurableUpdated = this.committedDisasterDurableVersion.merge(
+                    newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
+        }
         if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
             // No changes.
             return;
         }
+
         // Find and clean new stable local txns logs that we won't need anymore.
         int stableTxnsToDiscard = 0;
         int evaluatedTxns = 0;
@@ -895,9 +894,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // Record and drop scout's entry from the requested clock (efficiency?).
         final Timestamp requestedScoutVersion = version.getLatest(scoutId);
         version.drop(this.scoutId);
-        // FIXME: bring back measurement-related data?
-        final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, id, version,
-                strictUnprunedVersion, subscribeUpdates);
+        // TODO: do we always need a DC vector? Not necessarily.
+        final boolean requestDCVector = true;
+        final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, disasterSafe, id,
+                version, strictUnprunedVersion, subscribeUpdates, requestDCVector);
 
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create, requestedScoutVersion);
     }
@@ -1483,11 +1483,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
                 operationsGroups.add(group.withGlobalDependencyClock(txnDeps, scoutId));
             }
-            requests.add(new CommitUpdatesRequest(scoutId, txn.getClientTimestamp(), txnDeps, operationsGroups));
+            requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), txnDeps,
+                    operationsGroups));
         }
 
         // Send batched updates and wait for reply of server
-        final BatchCommitUpdatesRequest commitRequest = new BatchCommitUpdatesRequest(scoutId, requests);
+        final BatchCommitUpdatesRequest commitRequest = new BatchCommitUpdatesRequest(scoutId, disasterSafe, requests);
         BatchCommitUpdatesReply batchReply = localEndpoint.request(serverEndpoint(), commitRequest);
         commitRequest.recordMetadataSample(metadataStatsCollector);
 

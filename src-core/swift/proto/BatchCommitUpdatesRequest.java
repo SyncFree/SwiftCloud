@@ -51,8 +51,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
      * @param commitRequests
      *            sequence of commit requests from the client
      */
-    public BatchCommitUpdatesRequest(String clientId, List<CommitUpdatesRequest> commitRequests) {
-        super(clientId);
+    public BatchCommitUpdatesRequest(String clientId, boolean disasterSafeSession,
+            List<CommitUpdatesRequest> commitRequests) {
+        super(clientId, disasterSafeSession);
         this.commitRequests = new LinkedList<CommitUpdatesRequest>(commitRequests);
     }
 

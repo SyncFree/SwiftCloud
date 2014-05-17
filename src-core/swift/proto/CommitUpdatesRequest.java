@@ -50,9 +50,9 @@ public class CommitUpdatesRequest extends ClientRequest {
     CommitUpdatesRequest() {
     }
 
-    public CommitUpdatesRequest(String clientId, final Timestamp cltTimestamp, final CausalityClock dependencyClock,
-            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
-        super(clientId);
+    public CommitUpdatesRequest(String clientId, boolean disasterSafeSession, final Timestamp cltTimestamp,
+            final CausalityClock dependencyClock, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
+        super(clientId, disasterSafeSession);
         this.cltTimestamp = cltTimestamp;
         this.dependencyClock = dependencyClock;
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);

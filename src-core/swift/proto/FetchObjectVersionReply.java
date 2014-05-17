@@ -65,8 +65,10 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
         this.status = status;
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
-        // TODO: use diff over here?
-        this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
+        if (estimatedLatestKnownClock != null && estimatedDisasterDurableLatestKnownClock != null) {
+            // TODO: use diff over here?
+            this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
+        }
     }
 
     // public FetchObjectVersionReply(FetchStatus status, ManagedCRDT<?> crdt,

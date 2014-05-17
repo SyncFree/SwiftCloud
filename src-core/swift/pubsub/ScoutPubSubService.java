@@ -32,11 +32,13 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
     final Task updater;
     final FifoQueue<SwiftNotification> fifoQueue;
     private MetadataStatsCollector statsCollector;
+    private boolean disasterSafeSession;
 
-    public ScoutPubSubService(final String clientId, final Endpoint surrogate,
+    public ScoutPubSubService(final String clientId, boolean disasterSafeSession, final Endpoint surrogate,
             final MetadataStatsCollector statsCollector) {
         super(clientId);
 
+        this.disasterSafeSession = disasterSafeSession;
         this.statsCollector = statsCollector;
 
         // process incoming events observing source fifo order...
@@ -54,7 +56,7 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
             }
         });
 
-        this.endpoint.send(suPubSub, new PubSubHandshake(clientId));
+        this.endpoint.send(suPubSub, new PubSubHandshake(clientId, disasterSafeSession));
 
         updater = new Task(5) {
             public void run() {
@@ -65,7 +67,8 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
 
     private void updateSurrogatePubSub() {
         final Set<CRDTIdentifier> uset = new HashSet<CRDTIdentifier>(unsubscriptions);
-        final UnsubscribeUpdatesRequest request = new UnsubscribeUpdatesRequest(-1L, super.id(), uset);
+        final UnsubscribeUpdatesRequest request = new UnsubscribeUpdatesRequest(-1L, super.id(), disasterSafeSession,
+                uset);
         request.recordMetadataSample(statsCollector);
         endpoint.send(suPubSub, request, new SwiftProtocolHandler() {
             public void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {

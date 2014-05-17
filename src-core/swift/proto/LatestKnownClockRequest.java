@@ -36,8 +36,8 @@ public class LatestKnownClockRequest extends ClientRequest implements MetadataSa
     LatestKnownClockRequest() {
     }
 
-    public LatestKnownClockRequest(String clientId) {
-        super(clientId);
+    public LatestKnownClockRequest(String clientId, boolean disasterSafeSession) {
+        super(clientId, disasterSafeSession);
     }
 
     @Override

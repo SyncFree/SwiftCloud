@@ -59,6 +59,7 @@ import swift.proto.CommitUpdatesRequest;
 import swift.proto.FetchObjectDeltaRequest;
 import swift.proto.FetchObjectVersionReply;
 import swift.proto.FetchObjectVersionReply.FetchStatus;
+import swift.proto.ClientRequest;
 import swift.proto.FetchObjectVersionRequest;
 import swift.proto.GenerateDCTimestampReply;
 import swift.proto.GenerateDCTimestampRequest;
@@ -184,7 +185,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     private void updateEstimatedDCVersion() {
         LatestKnownClockReply reply = cltEndpoint4Sequencer.request(sequencerServerEndpoint,
-                new LatestKnownClockRequest("surrogate"));
+                new LatestKnownClockRequest("surrogate", false));
         if (reply != null) {
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
@@ -214,7 +215,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId());
         }
         if (request.hasSubscription())
-            getSession(request.getClientId()).subscribe(request.getUid());
+            getSession(request).subscribe(request.getUid());
 
         conn.reply(handleFetchVersionRequest(conn, request));
     }
@@ -232,7 +233,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
                     + request.getUid());
         }
-        final ClientSession session = getSession(request.getClientId());
+        final ClientSession session = getSession(request);
 
         final Timestamp cltLastSeqNo = session.getLastSeqNo();
 
@@ -282,7 +283,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/" + request.getUid());
                 }
-                return new FetchObjectVersionReply(status, crdt, estimatedDCVersionCopy, estimatedDCStableVersionCopy);
+                // TODO: for nodes if !request.isDisasterSafe() send it less
+                // frequently (it's for pruning only)
+                CausalityClock disasterSafeVV = request.isSendDCVector() ? estimatedDCStableVersionCopy : null;
+                CausalityClock vv = !request.isDisasterSafeSession() && request.isSendDCVector() ? estimatedDCVersionCopy
+                        : null;
+                return new FetchObjectVersionReply(status, crdt, vv, disasterSafeVV);
             }
         }
     }
@@ -293,7 +299,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("CommitUpdatesRequest client = " + request.getClientId() + ":ts=" + request.getCltTimestamp()
                     + ":nops=" + request.getObjectUpdateGroups().size());
         }
-        final ClientSession session = getSession(request.getClientId());
+        final ClientSession session = getSession(request);
         if (logger.isLoggable(Level.INFO)) {
             logger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
@@ -310,7 +316,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final CausalityClock dependenciesClock = ops.size() > 0 ? req.getDependencyClock() : ClockFactory.newClock();
 
         GenerateDCTimestampReply tsReply = cltEndpoint4Sequencer.request(sequencerServerEndpoint,
-                new GenerateDCTimestampRequest(req.getClientId(), req.getCltTimestamp(), dependenciesClock));
+                new GenerateDCTimestampRequest(req.getClientId(), req.isDisasterSafeSession(), req.getCltTimestamp(),
+                        dependenciesClock));
 
         req.setTimestamp(tsReply.getTimestamp());
 
@@ -442,7 +449,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("CommitUpdatesRequest client = " + request.getClientId() + ":batch size="
                     + request.getCommitRequests().size());
         }
-        final ClientSession session = getSession(request.getClientId());
+        final ClientSession session = getSession(request);
         if (logger.isLoggable(Level.INFO)) {
             logger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
@@ -481,7 +488,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
         generalExecutor.execute(new Runnable() {
             public void run() {
-                ClientSession session = getSession("Sequencer");
+                ClientSession session = getSession("Sequencer", false);
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
                 CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
                 doOneCommit(session, request, snapshotClock);
@@ -512,10 +519,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
         final String clientId;
         Timestamp lastSeqNo;
+        boolean disasterSafe;
 
-        ClientSession(String clientId) {
+        ClientSession(String clientId, boolean disasterSafe) {
             super(clientId, suPubSub.endpoint());
             this.clientId = clientId;
+            this.disasterSafe = disasterSafe;
         }
 
         public ClientSession setClientEndpoint(Endpoint remote) {
@@ -569,9 +578,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     }
                 }
                 if (updated && Sys.timeMillis() > (lastNotification + NOTIFICATION_RATE)) {
-
-                    super.onNotification(new SwiftNotification(new SnapshotNotification(snapshot,
-                            getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy())));
+                    // TODO: for nodes if !request.isDisasterSafe() send it less
+                    // frequently (it's for pruning only)
+                    CausalityClock dcVV = disasterSafe ? null : getEstimatedDCVersionCopy();
+                    CausalityClock dcDisasterSafeVV = getEstimatedDCStableVersionCopy();
+                    super.onNotification(new SwiftNotification(new SnapshotNotification(snapshot, dcVV,
+                            dcDisasterSafeVV)));
 
                     lastNotification = Sys.timeMillis();
                 }
@@ -595,10 +607,19 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     }
 
-    synchronized public ClientSession getSession(String clientId) {
+    synchronized public ClientSession getSession(ClientRequest clientRequest) {
+        ClientSession session = sessions.get(clientRequest.getClientId());
+        if (session == null) {
+            sessions.put(clientRequest.getClientId(), session = new ClientSession(clientRequest.getClientId(),
+                    clientRequest.isDisasterSafeSession()));
+        }
+        return session;
+    }
+
+    synchronized public ClientSession getSession(String clientId, boolean disasterSafe) {
         ClientSession session = sessions.get(clientId);
         if (session == null)
-            sessions.put(clientId, session = new ClientSession(clientId));
+            sessions.put(clientId, session = new ClientSession(clientId, disasterSafe));
         return session;
     }
 

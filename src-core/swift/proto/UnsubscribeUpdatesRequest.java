@@ -44,8 +44,8 @@ public class UnsubscribeUpdatesRequest extends ClientRequest implements Metadata
     UnsubscribeUpdatesRequest() {
     }
 
-    public UnsubscribeUpdatesRequest(long id, String clientId, Set<CRDTIdentifier> removals) {
-        super(clientId);
+    public UnsubscribeUpdatesRequest(long id, String clientId, boolean disasterSafeSession, Set<CRDTIdentifier> removals) {
+        super(clientId, disasterSafeSession);
         this.id = id;
         this.unsubscriptions = new ArrayList<CRDTIdentifier>(removals);
     }
