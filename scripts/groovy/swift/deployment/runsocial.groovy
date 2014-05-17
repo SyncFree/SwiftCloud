@@ -105,10 +105,11 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version
-def dstFile = String.format("DC-%s-SC-%s-TH-%s.log", Surrogates.size(), Scouts.size(), Threads)
+def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') +
+        System.currentTimeMillis() + "-" + Version + "-" +
+        String.format("DC-%s-SC-%s-TH-%s", Surrogates.size(), Scouts.size(), Threads)
 
-pslurp( Scouts, "scout-stdout.txt", dstDir, dstFile, 300)
+pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 
 exec([
     "/bin/bash",
