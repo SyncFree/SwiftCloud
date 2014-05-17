@@ -125,4 +125,10 @@ public class CommitUpdatesRequest extends ClientRequest {
             }
         }
     }
+
+    @Override
+    public String toString() {
+        return "CommitUpdatesRequest [objectUpdateGroups=" + objectUpdateGroups + ", dependencyClock="
+                + dependencyClock + ", cltTimestamp=" + cltTimestamp + "]";
+    }
 }

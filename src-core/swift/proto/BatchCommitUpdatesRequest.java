@@ -19,7 +19,6 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
-import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
@@ -79,7 +78,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         Kryo kryo = collector.getFreshKryo();
         Output buffer = collector.getFreshKryoBuffer();
 
-        // TODO: get it from the write, rather than recompute
+        // TODO: get it from the wire, rather than recompute
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
 
@@ -115,5 +114,10 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         }
         final int valuesSize = buffer.position();
         collector.recordStats(this, totalSize, updatesSize, valuesSize, maxExceptionsNum);
+    }
+
+    @Override
+    public String toString() {
+        return "BatchCommitUpdatesRequest [" + commitRequests + "]";
     }
 }
