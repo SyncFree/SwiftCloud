@@ -5,7 +5,7 @@ package swift.stats
 import static swift.stats.GnuPlot.*
 
 if (args.length < 1) {
-    println "usage: script <file_log>"
+    println "usage: script <rootdir_with_logs>"
     System.exit(1)
 }
 
@@ -90,7 +90,7 @@ def gnuplot = [
     'set mytics',
     //    'set clip',
     //    'set grid xtics ytics lt 30 lt 30',
-    'set xr [0.0:80.0]',
+    // 'set xr [0.0:80.0]',
     // 'set yr [0:400]',
     'set lmargin at screen 0.11',
     'set rmargin at screen 0.99',

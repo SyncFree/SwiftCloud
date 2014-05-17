@@ -174,7 +174,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         final UUID uuid = UUID.randomUUID();
         final byte[] uuidBytes = ByteBuffer.allocate(Long.SIZE / Byte.SIZE * 2).putLong(uuid.getMostSignificantBits())
                 .putLong(uuid.getLeastSignificantBits()).array();
-        return DatatypeConverter.printBase64Binary(uuidBytes);
+        final String result = DatatypeConverter.printBase64Binary(uuidBytes);
+        // FIXME: measurement hack, shrink the String size, since we encode it
+        // inefficiently (we should have a separate ClientId class).
+        // Realistically, these 4 UTF-16 chars represent what's needed with a
+        // decent encoding.
+        return result.substring(0, 4);
     }
 
     volatile private boolean stopFlag;
