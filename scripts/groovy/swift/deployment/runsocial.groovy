@@ -12,9 +12,9 @@ def __ = onControlC({
     System.exit(0);
 })
 
-SurrogateEU = 'eu'
-SurrogateNorthVirginia = 'NV'
-SurrogateOregon = 'oregon'
+SurrogateEU = 'ec2-54-72-99-205.eu-west-1.compute.amazonaws.com'
+SurrogateNorthVirginia = 'ec2-54-86-227-231.compute-1.amazonaws.com'
+SurrogateOregon = 'ec2-54-200-37-248.us-west-2.compute.amazonaws.com'
 
 Surrogates = [
     SurrogateEU,
@@ -22,29 +22,41 @@ Surrogates = [
     SurrogateOregon,
 ]
 
-ScoutsEU = ['eu-scout']
-ScoutsNorthVirginia = ['nv-scout']
-ScoutsOregon = ['oregon-scout']
+ScoutsEU = [
+    'ec2-54-76-22-70.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-18-79.eu-west-1.compute.amazonaws.com',
+    'ec2-54-72-210-145.eu-west-1.compute.amazonaws.com'
+]
+ScoutsNorthVirginia = [
+    'ec2-54-84-112-85.compute-1.amazonaws.com',
+    'ec2-54-86-232-242.compute-1.amazonaws.com',
+    'ec2-54-86-236-144.compute-1.amazonaws.com'
+]
+ScoutsOregon = [
+    'ec2-54-200-37-250.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-37-249.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-38-2.us-west-2.compute.amazonaws.com'
+]
 
 //    Scouts = (PlanetLab_EU).unique()
 // (PlanetLab_NC + PlanetLab_NV + PlanetLab_EU).unique()
-Scouts = ScoutsEU + ScoutsNorthVirginia + ScoutsOregon
+Scouts = ScoutsEU  + ScoutsNorthVirginia + ScoutsOregon
 
 ScoutsToServersMap = [:]
 ScoutsEU.each { scout ->
-    ScoutsToServersMap[scout] = SurrogateNorthVirginia
+    ScoutsToServersMap[scout] = [SurrogateNorthVirginia]
 }
 ScoutsNorthVirginia.each { scout ->
-    ScoutsToServersMap[scout] = SurrogateOregon
+    ScoutsToServersMap[scout] = [SurrogateOregon]
 }
 ScoutsOregon.each { scout ->
-    ScoutsToServersMap[scout] = SurrogateEU
+    ScoutsToServersMap[scout] = [SurrogateEU]
 }
 
 ShepardAddr = Surrogates.get(0);
 
 Threads = 4
-Duration = 360
+Duration = 240
 InterCmdDelay = 40
 SwiftSocial_Props = "swiftsocial-test.props"
 
