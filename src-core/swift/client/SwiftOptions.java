@@ -29,7 +29,7 @@ import swift.proto.MetadataStatsCollectorImpl;
  */
 final public class SwiftOptions {
     public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
-    public static final boolean DEFAULT_DISASTER_SAFE = false;
+    public static final boolean DEFAULT_DISASTER_SAFE = true;
     public static final int DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED = 50;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;

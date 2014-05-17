@@ -3,6 +3,7 @@ swift.Notifications=true
 swift.CachePolicy=CACHED
 swift.IsolationLevel=SNAPSHOT_ISOLATION
 swift.cacheEvictionTimeMillis=5000000
+swift.disasterSafe=true
 swift.batchSize=10
 swift.asyncQueue=50
 swift.cacheSize=512
