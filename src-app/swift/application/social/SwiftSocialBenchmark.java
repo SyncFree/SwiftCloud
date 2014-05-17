@@ -136,7 +136,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         // report client progress every 1 seconds...
         new PeriodicTask(0.0, 1.0) {
             public void run() {
-                System.err.printf("\rDone: %s", Progress.percentage(commandsDone.get(), totalCommands.get()));
+                System.err.printf("Done: %s", Progress.percentage(commandsDone.get(), totalCommands.get()));
             }
         };
 
