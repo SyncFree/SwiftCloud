@@ -26,7 +26,7 @@ def processFile = { File f, int L, int H, String key1, String key2 ->
             return;
 
         String[] tok = line.split(",");
-        if (tok.length == 4) {
+        if (tok.length == 4 && !line.contains("METADATA")) {
             int tid = Integer.valueOf(tok[0]);
             String op = tok[1];
 
