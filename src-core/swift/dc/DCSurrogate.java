@@ -554,25 +554,35 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
             pending.addAll(update.info.getUpdates());
 
+            tryFireClientNotification();
+        }
+
+        protected void tryFireClientNotification() {
             long now = Sys.Sys.timeMillis();
             if (now > (lastNotification + NOTIFICATION_PERIOD)) {
                 CausalityClock snapshot = suPubSub.minDcVersion();
-                if (disasterSafe)
+                if (disasterSafe) {
                     snapshot.intersect(getEstimatedDCStableVersionCopy());
-                // FIXME: Sergio, please check my fix:
-                final List<CRDTObjectUpdatesGroup<?>> updates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+                }
+
+                final HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
                 final Iterator<CRDTObjectUpdatesGroup<?>> iter = pending.iterator();
                 while (iter.hasNext()) {
                     final CRDTObjectUpdatesGroup<?> u = iter.next();
                     if (u.anyTimestampIncluded(snapshot)) {
-                        updates.add(u);
+                        List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(u.getTargetUID());
+                        if (objectUpdates == null) {
+                            objectUpdates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+                            objectsUpdates.put(u.getTargetUID(), objectUpdates);
+                        }
+                        objectUpdates.add(u.strippedWithCopiedTimestampMappings());
                         iter.remove();
                     }
                 }
 
-                if (!updates.isEmpty()) {
+                if (!objectsUpdates.isEmpty()) {
                     super.onNotification(new SwiftNotification(new BatchUpdatesNotification(suPubSub.minDcVersion(),
-                            disasterSafe, updates)));
+                            disasterSafe, objectsUpdates)));
                     lastNotification = now;
                 }
             }

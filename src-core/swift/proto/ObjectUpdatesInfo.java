@@ -1,6 +1,7 @@
 package swift.proto;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import swift.clocks.CausalityClock;
@@ -47,7 +48,11 @@ public class ObjectUpdatesInfo {
      *         (notification) has been requested
      */
     public List<CRDTObjectUpdatesGroup<?>> getUpdates() {
-        return updates;
+        final LinkedList<CRDTObjectUpdatesGroup<?>> res = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+        for (final CRDTObjectUpdatesGroup<?> u : updates) {
+            res.add(u.withId(this.id));
+        }
+        return res;
     }
 
     public void clearOperations() {

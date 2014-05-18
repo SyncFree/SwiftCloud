@@ -323,8 +323,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             public void onNotification(final BatchUpdatesNotification batch) {
                 // FIXME: handle violated FIFO channel?
-
-                batch.recordMetadataSample(metadataStatsCollector);
                 for (Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : batch.getObjectsUpdates()
                         .entrySet()) {
                     applyObjectUpdates(entry.getKey(), entry.getValue());
@@ -336,6 +334,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     System.err.println("Committed DC vector: " + getGlobalCommittedVersion(false));
                     System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
                 }
+                batch.recordMetadataSample(metadataStatsCollector);
                 // TODO: add pruning
             }
         };

@@ -220,6 +220,14 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     }
 
     /**
+     * @param newId
+     * @return shallow copy of the object id set to another one.
+     */
+    public CRDTObjectUpdatesGroup<V> withId(CRDTIdentifier newId) {
+        return new CRDTObjectUpdatesGroup<V>(newId, timestampMapping, operations, creationState, dependencyClock);
+    }
+
+    /**
      * @return shallow copy of this object with a deep copy of timestamps that
      *         may change (the only mutable piece of state at that state), and
      *         stripped out of dependencyClock and object id information

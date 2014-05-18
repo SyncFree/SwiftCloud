@@ -1,8 +1,6 @@
 package swift.pubsub;
 
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -36,19 +34,10 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
     }
 
     public BatchUpdatesNotification(CausalityClock newVersion, boolean disasterSafe,
-            List<CRDTObjectUpdatesGroup<?>> updates) {
+            Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates) {
         this.newVersion = newVersion;
         this.newVersionDisasterSafe = disasterSafe;
-        this.objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
-        for (final CRDTObjectUpdatesGroup<?> update : updates) {
-            final CRDTIdentifier id = update.getTargetUID();
-            List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(id);
-            if (objectUpdates == null) {
-                objectUpdates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
-                objectsUpdates.put(id, objectUpdates);
-            }
-            objectUpdates.add(update.strippedWithCopiedTimestampMappings());
-        }
+        this.objectsUpdates = objectsUpdates;
     }
 
     @Override
