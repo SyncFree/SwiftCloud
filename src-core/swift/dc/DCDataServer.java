@@ -60,7 +60,6 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.RemoteEndpoint;
 import sys.utils.Threading;
 import sys.utils.Timings;
 
@@ -70,8 +69,6 @@ import sys.utils.Timings;
  * @author preguica, smduarte
  */
 final class DCDataServer {
-    private static final int DHT_PORT = 27777;
-
     private static Logger logger = Logger.getLogger(DCDataServer.class.getName());
 
     Map<CRDTIdentifier, LockInfo> locks;
@@ -156,11 +153,6 @@ final class DCDataServer {
 
     @SuppressWarnings("unchecked")
     <V> V dhtRequest(Endpoint dst, final RpcMessage req) {
-        dst = new RemoteEndpoint(dst.getHost(), DHT_PORT); // TODO: improve this
-                                                           // to avoid creating
-                                                           // the
-                                                           // endpoint for each
-                                                           // request...
         final AtomicReference<Object> result = new AtomicReference<Object>(req);
         for (; result.get() == req;) {
             synchronized (result) {
@@ -184,7 +176,7 @@ final class DCDataServer {
     void initDHT() {
 
         dhtEndpoint = Networking.rpcConnect().toDefaultService();
-        Networking.rpcBind(DHT_PORT).toService(0, new SwiftProtocolHandler() {
+        Networking.rpcBind(DHT_Node.DHT_PORT).toService(0, new SwiftProtocolHandler() {
 
             public void onReceive(RpcHandle con, DHTGetCRDT request) {
                 if (logger.isLoggable(Level.INFO)) {
