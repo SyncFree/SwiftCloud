@@ -21,6 +21,7 @@ import static sys.net.api.Networking.Networking;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -523,6 +524,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             long rtt = rttAcum / numAcum;
             long clockSkew = (clockSkewPlusLatency - rtt / 2) / numAcum;
+            System.out.println( "" + rtt +"," + clockSkew + "," + scoutId + "," + InetAddress.getLocalHost() + "," + serverEndpoint().getHost());
             return numAcum > 0;
         } catch (Exception e) {
             return false;
