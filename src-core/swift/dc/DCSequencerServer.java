@@ -16,6 +16,8 @@
  *****************************************************************************/
 package swift.dc;
 
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_DOMINATES;
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
@@ -435,18 +437,11 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         return t;
     }
 
-    // private synchronized boolean refreshId(Timestamp t) {
-    // boolean hasTS = pendingTS.containsKey(t);
-    // if (hasTS)
-    // pendingTS.put(t, System.currentTimeMillis());
-    // return hasTS;
-    // }
-
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, Timestamp cltTs, boolean commit) {
         boolean hasTS = pendingTS.remove(t) != null
                 || ((!t.getIdentifier().equals(this.siteId)) && !currentState.includes(t));
 
-        currentState.merge(clk); // nmp: not sure why is this here
+        // currentState.merge(clk); // nmp: not sure why is this here
         currentState.record(t);
         clientClock.record(cltTs);
         if (sequencers.size() == 0 || !siteId.equals(t.getIdentifier())) // HACK:
@@ -477,9 +472,13 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     private boolean processGenerateDCTimestampRequest(RpcHandle conn, GenerateDCTimestampRequest request) {
+        long last;
+
+        Timestamp cltTs = request.getCltTimestamp();
         synchronized (clientClock) {
-            if (clientClock.includes(request.getCltTimestamp())) {
-                conn.reply(new GenerateDCTimestampReply(clientClock.getLatestCounter(request.getClientId())));
+            last = clientClock.getLatestCounter(request.getClientId());
+            if (clientClock.includes(cltTs)) {
+                conn.reply(new GenerateDCTimestampReply(last));
                 return true;
             }
         }
@@ -487,10 +486,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         synchronized (this) {
             cmp = currentState.compareTo(request.getDependencyClk());
         }
-        // FIXME: check first if request.getCltTimestamp() == prev + 1?
-        
-        if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
-
+        if (cltTs.getCounter() == (last + 1L) && cmp.is(CMP_EQUALS, CMP_DOMINATES)) {
             conn.reply(new GenerateDCTimestampReply(generateNewId(),
                     clientClock.getLatestCounter(request.getClientId())));
 
