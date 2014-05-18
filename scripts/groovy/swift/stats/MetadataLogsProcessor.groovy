@@ -7,6 +7,7 @@ class MetadataLogsProcessor {
     static CATEGORY_GLOBAL_METADATA = "global metadata"
     static CATEGORY_OBJECT_METADATA = "object metadata"
     static CATEGORY_HOLES_NUMBER = "holes number"
+    static CATEGORY_BATCH_SIZE = "batch size"
 
     // Call with a file and empty or prefilled maps
     static processFile(File f, Map categoriesMessagesSessionsSeriesMap, Map categoriesMessagesTallyMap ) {
@@ -32,7 +33,7 @@ class MetadataLogsProcessor {
         long T0 = -1
         f.eachLine { String l ->
             String[] fields = l.split(",")
-            if( ! l.startsWith(";") && !l.startsWith("SYS") && l.contains("METADATA_") && fields.length == 7) {
+            if( ! l.startsWith(";") && !l.startsWith("SYS") && l.contains("METADATA_") && fields.length >= 7) {
                 String sessionId = fields[0]
                 long T = Long.valueOf(fields[1])
                 String message = fields[2].substring("METADATA_".size())
@@ -42,6 +43,10 @@ class MetadataLogsProcessor {
                 int dataOnly = Integer.valueOf(fields[5])
                 def objectMetadata = objectMetadataData- dataOnly
                 int vvHolesNumber = Integer.valueOf(fields[6])
+                int batchSize = 1
+                if (fields.length >= 8) {
+                    batchSize = Integer.valueOf(fields[7])
+                }
                 if (T0 < 0) {
                     T0 = T
                 }
@@ -51,11 +56,14 @@ class MetadataLogsProcessor {
                     categoriesMessagesSessionsSeriesMap[CATEGORY_GLOBAL_METADATA][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, globalMetadata)
                     categoriesMessagesSessionsSeriesMap[CATEGORY_OBJECT_METADATA][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, objectMetadata)
                     categoriesMessagesSessionsSeriesMap[CATEGORY_HOLES_NUMBER][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, vvHolesNumber)
+                    categoriesMessagesSessionsSeriesMap[CATEGORY_BATCH_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, batchSize)
                 }
                 if (categoriesMessagesTallyMap != null) {
                     categoriesMessagesTallyMap[CATEGORY_FULL_SIZE][message].add((double) messageSize)
                     categoriesMessagesTallyMap[CATEGORY_GLOBAL_METADATA][message].add((double) globalMetadata)
                     categoriesMessagesTallyMap[CATEGORY_OBJECT_METADATA][message].add((double) objectMetadata)
+                    categoriesMessagesTallyMap[CATEGORY_HOLES_NUMBER][message].add((double) vvHolesNumber)
+                    categoriesMessagesTallyMap[CATEGORY_BATCH_SIZE][message].add((double) batchSize)
                 }
             }
         }

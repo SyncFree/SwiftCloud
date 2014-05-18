@@ -84,6 +84,6 @@ public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0, maxExceptionsNum);
+        collector.recordStats(this, buffer.position(), 0, 0, 1, maxExceptionsNum);
     }
 }

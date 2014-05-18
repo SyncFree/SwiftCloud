@@ -84,6 +84,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         final int totalSize = buffer.position();
 
         int maxExceptionsNum = 0;
+        int numberOfOps = 0;
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         for (final CommitUpdatesRequest req : commitRequests) {
@@ -117,11 +118,12 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                     } else {
                         kryo.writeObject(buffer, false);
                     }
+                    numberOfOps++;
                 }
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, maxExceptionsNum);
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, numberOfOps, maxExceptionsNum);
     }
 
     @Override

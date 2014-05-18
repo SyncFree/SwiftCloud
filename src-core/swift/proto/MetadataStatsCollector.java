@@ -32,10 +32,12 @@ public interface MetadataStatsCollector {
      * @param objectOrUpdateValueSize
      *            total size of the value carried in the object version or the
      *            update (e.g., value of a counter)
+     * @param batchSize
+     *            size of the batch (i.e., number of objects/updates) if
+     *            applicable; otherwise 1
      * @param maxExceptionsNum
      *            maximum number of exceptions in a vector in the message
      */
     public abstract void recordStats(Object message, int totalSize, int objectOrUpdateSize,
-            int objectOrUpdateValueSize, int maxExceptionsNum);
-
+            int objectOrUpdateValueSize, int batchSize, int maxExceptionsNum);
 }

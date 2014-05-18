@@ -97,6 +97,7 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         }
         final int updatesSize = buffer.position();
 
+        int numberOfOps = 0;
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
@@ -108,9 +109,10 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
             }
             for (final CRDTUpdate<?> op : group.getOperations()) {
                 kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                numberOfOps++;
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, maxExceptionsNum);
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, numberOfOps, maxExceptionsNum);
     }
 }
