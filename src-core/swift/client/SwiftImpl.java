@@ -78,8 +78,8 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
-import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
+import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.ScoutPubSubService;
 import swift.pubsub.SnapshotNotification;
 import swift.pubsub.UpdateNotification;
@@ -87,7 +87,6 @@ import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
 import swift.utils.TransactionsLog;
-import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.stats.DummyStats;
@@ -106,6 +105,12 @@ import sys.utils.Threading;
  * @see Swift, TxnManager
  * @author mzawirski
  */
+// DISCLAIMER: this class is an unmanageable monolithic monster, as a result of
+// continued design decision changes over the project. It includes many legacy
+// options that contributed to the complexity.
+// The focus of the current version is on providing SNAPSHOT_ISOLATION+CACHED
+// transaction mode, although an unrelated legacy code may coexist.
+// TODO: drop legacy functionality, divide into smaller components.
 public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // Temporary Nuno's hack:
     public static final boolean DEFAULT_LISTENER_FOR_GET = false;
@@ -119,7 +124,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // metadata size.
     public static final boolean USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH = true;
 
-    // TODO: server failover
+    // TODO: complete server failover
 
     // WISHME: notifications are quite CPU/memory scans-intensive at the
     // moment; consider more efficient implementation if this is an issue
@@ -131,10 +136,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // prove it is a real issue for a client application, I would rather keep it
     // this way. In any case, locking should not affect responsiveness to
     // pendingTxn requests.
-
-    // WISHME: split this monolithic untestable monster, e.g. extract
-    // "object store" from the rest of transactions and notifications
-    // processing.
 
     // WISHME: subscribe updates of frequently accessed objects
 
@@ -197,12 +198,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private final LRUObjectsCache objectsCache;
 
     // CLOCKS: all clocks grow over time. Careful with references, use copies.
-
-    // A clock that advances with atomic causal notifications received from the
-    // surrogate
-    // TODO Q: how it relates to committedVersion or
-    // committedDisasterDurableVersion?
-    private final CausalityClock causalSnapshot;
 
     // A clock known to be committed at the store.
     private final CausalityClock committedVersion;
@@ -309,7 +304,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         // this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedDisasterDurableVersion = ClockFactory.newClock();
-        this.causalSnapshot = ClockFactory.newClock();
 
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
@@ -329,29 +323,46 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.scoutPubSub = new ScoutPubSubService(scoutId, disasterSafe, serverEndpoint(), metadataStatsCollector) {
             private int i;
 
+            public void onNotification(final BatchUpdatesNotification batch) {
+                // FIXME: handle violated FIFO channel?
+
+                batch.recordMetadataSample(metadataStatsCollector);
+                for (Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : batch.getObjectsUpdates()
+                        .entrySet()) {
+                    applyObjectUpdates(entry.getKey(), entry.getValue());
+                }
+                objectsCache.augmentAllWithDCCausalClockWithoutMappings(batch.getNewVersion());
+                updateCommittedVersions(batch.isNewVersionDisasterSafe() ? null : batch.getNewVersion(),
+                        batch.isNewVersionDisasterSafe() ? batch.getNewVersion() : null);
+                if (i++ % 50 == 0) {
+                    System.err.println("Committed DC vector: " + getGlobalCommittedVersion(false));
+                    System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
+                }
+                // TODO: add pruning
+            }
+
+            // FIXME: remove
+            @Deprecated
             public void onNotification(final UpdateNotification update) {
                 update.recordMetadataSample(metadataStatsCollector);
-                applyObjectUpdates(update.info);
+                applyObjectUpdates(update.info.getId(), update.info.getUpdates());
                 if (logger.isLoggable(Level.FINE)) {
                     logger.fine(update.info.getId() + "/" + update.info.getNewClock());
                 }
             }
 
+            @Deprecated
             public void onNotification(final SnapshotNotification n) {
                 n.recordMetadataSample(metadataStatsCollector);
 
                 synchronized (SwiftImpl.this) {
                     if (logger.isLoggable(Level.FINE)) {
-                        logger.fine(causalSnapshot + "/" + Sys.Sys.currentTime());
+                        // logger.fine(causalSnapshot + "/" +
+                        // Sys.Sys.currentTime());
                     }
 
-                    causalSnapshot.merge(n.snapshotClock());
+                    // causalSnapshot.merge(n.snapshotClock());
                     updateCommittedVersions(n.estimatedDCVersion(), n.estimatedDCStableVersion());
-                    if (i++ % 50 == 0) {
-                        System.err.println("Causal snapshot: " + causalSnapshot);
-                        System.err.println("Committed DC vector: " + getGlobalCommittedVersion(false));
-                        System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
-                    }
 
                     // Causalsnapshot is notified when it is dominated
                     // by the minimum of all the
@@ -359,7 +370,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     // estimates. For correctness, it is also delivered to the
                     // client after the updates
                     // that caused it.
-                    objectsCache.augmentAllWithDCCausalClockWithoutMappings(causalSnapshot);
+                    objectsCache.augmentAllWithDCCausalClockWithoutMappings(n.snapshotClock());
                 }
             }
         };
@@ -534,7 +545,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // whole code assume only one option?
             if (assumeAtomicCausalNotifications && cachePolicy == CachePolicy.CACHED) {
                 snapshotClock = getGlobalCommittedVersion(true);
-                snapshotClock.merge(causalSnapshot);
             } else {
                 if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -1111,13 +1121,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     /**
      * @return true if subscription should be continued for this object
      */
-    private synchronized void applyObjectUpdates(ObjectUpdatesInfo update) {
-
-        final CRDTIdentifier id = update.getId();
-        final CausalityClock outputClock = update.getNewClock();
-        final CausalityClock dependencyClock = update.getOldClock();
-        final List<CRDTObjectUpdatesGroup<?>> ops = update.getUpdates();
-
+    private synchronized void applyObjectUpdates(CRDTIdentifier id, List<CRDTObjectUpdatesGroup<?>> ops) {
         if (stopFlag) {
             logger.info("Update received after scout has been stopped -> ignoring");
             return;
@@ -1144,15 +1148,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     // Stop subscription for object evicted from the cache.
                     removeUpdateSubscriptionAsyncUnsubscribe(id);
                 }
-            }
-            return;
-        }
-
-        if (crdt.getClock().compareTo(dependencyClock).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
-            // Ooops, we missed some update or messages were ordered.
-            logger.info("cannot apply received updates on object " + id + " due to unsatisfied dependencies");
-            if (sessionsSubs != null && !ops.isEmpty()) {
-                asyncFetchAndSubscribeObjectUpdates(id);
             }
             return;
         }
@@ -1188,8 +1183,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             }
         }
-        crdt.augmentWithDCClockWithoutMappings(outputClock);
-        crdt.prune(update.getPruneClock(), true);
+        // FIXME: when to prune?
+        // crdt.prune(update.getPruneClock(), true);
     }
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id,
@@ -1469,34 +1464,30 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         final List<CommitUpdatesRequest> requests = new LinkedList<CommitUpdatesRequest>();
 
         // Preprocess transactions before sending them.
-        final CausalityClock mergedDeps;
+        final CausalityClock sharedDeps;
         if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
-            mergedDeps = getDepsOnLocalGloballyCommittedTxns();
-            // Compute maximum deps. from the transactions in the batch
-            for (final AbstractTxnHandle txn : transactionsToCommit) {
-                mergedDeps.merge(txn.getUpdatesDependencyClock());
-            }
-            mergedDeps.drop(scoutId);
+            sharedDeps = getGlobalCommittedVersion(true);
         }
         for (final AbstractTxnHandle txn : transactionsToCommit) {
             txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
-            final CausalityClock txnDeps;
-            if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
-                // Alternative 1: coarse grained, but overapproximated.
-                txnDeps = mergedDeps;
-            } else {
-                // Alternative 2: fine grained, but costs more traffic.
-                txnDeps = getDepsOnLocalGloballyCommittedTxns();
-                txnDeps.merge(txn.getUpdatesDependencyClock());
-                txnDeps.drop(scoutId);
-            }
             final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
-                operationsGroups.add(group.withGlobalDependencyClock(txnDeps, scoutId));
+                if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
+                    // Alternative 1: coarse grained, but overapproximated.
+                    operationsGroups.add(group.withDependencyClock(sharedDeps));
+                } else {
+                    // Alternative 2: fine grained, but costs more traffic.
+                    operationsGroups.add(group);
+                }
             }
-            requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), txnDeps,
-                    operationsGroups));
+            requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), txn
+                    .getUpdatesDependencyClock(), operationsGroups));
+        }
+        for (CommitUpdatesRequest request : requests) {
+            // LEGACY: internal dependency is implicit from the timestamp and
+            // checked by the surrogate.
+            request.dropInternalDependency();
         }
 
         // Send batched updates and wait for reply of server
@@ -1575,18 +1566,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             }
         }
-    }
-
-    private CausalityClock getDepsOnLocalGloballyCommittedTxns() {
-        final CausalityClock mergedDeps;
-        mergedDeps = getGlobalCommittedVersion(true);
-        if (!globallyCommittedUnstableTxns.isEmpty()) {
-            for (final Timestamp sysTimestamp : globallyCommittedUnstableTxns.getLast().getTimestampMapping()
-                    .getSystemTimestamps()) {
-                mergedDeps.recordAllUntil(sysTimestamp);
-            }
-        }
-        return mergedDeps;
     }
 
     private synchronized void addLocallyCommittedTransactionBlocking(AbstractTxnHandle txn) {

@@ -131,4 +131,8 @@ public class CommitUpdatesRequest extends ClientRequest {
         return "CommitUpdatesRequest [objectUpdateGroups=" + objectUpdateGroups + ", dependencyClock="
                 + dependencyClock + ", cltTimestamp=" + cltTimestamp + "]";
     }
+
+    public void dropInternalDependency() {
+        dependencyClock.drop(clientId);
+    }
 }
