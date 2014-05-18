@@ -1451,8 +1451,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
                 operationsGroups.add(group.withDependencyClock(newDeps));
             }
-            requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), txn
-                    .getUpdatesDependencyClock(), operationsGroups));
+            requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), newDeps,
+                    operationsGroups));
         }
         for (CommitUpdatesRequest request : requests) {
             // LEGACY: internal dependency is implicit from the timestamp and
