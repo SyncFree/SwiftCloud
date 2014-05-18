@@ -189,7 +189,7 @@ public class SwiftSocialApp {
             SwiftSocialOps client = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                     asyncCommit);
 
-            TxnHandle txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
+            TxnHandle txn = swiftClient.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             int txnSize = 0;
             // Initialize user data
             List<String> userData = users;
@@ -197,7 +197,7 @@ public class SwiftSocialApp {
                 // Divide into smaller transactions.
                 if (txnSize >= 100) {
                     txn.commit();
-                    txn = swiftClient.beginTxn(IsolationLevel.REPEATABLE_READS, CachePolicy.CACHED, false);
+                    txn = swiftClient.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
                     txnSize = 0;
                 } else {
                     txnSize++;
