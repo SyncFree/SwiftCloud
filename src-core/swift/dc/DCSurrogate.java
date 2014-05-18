@@ -250,6 +250,20 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
+        CausalityClock minVV = session.getMinVV();
+
+        CausalityClock disasterSafeVVReply = null;
+        if (request.isSendDCVector()) {
+            disasterSafeVVReply = estimatedDCStableVersionCopy.clone();
+            disasterSafeVVReply.intersect(minVV);
+        }
+        CausalityClock vvReply = null;
+        if (!request.isDisasterSafeSession() && request.isSendDCVector()) {
+            // TODO: for nodes !request.isDisasterSafe() send it less
+            // frequently (it's for pruning only)
+            vvReply = estimatedDCVersionCopy.clone();
+            vvReply.intersect(minVV);
+        }
 
         ManagedCRDT crdt = getCRDT(request.getUid(), request.getVersion(), request.getClientId());
 
@@ -259,8 +273,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             }
             // if (cltLastSeqNo != null)
             // crdt.augmentWithScoutClock(cltLastSeqNo);
-            return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null,
-                    estimatedDCVersionCopy, estimatedDCStableVersionCopy);
+            estimatedDCVersionCopy.intersect(minVV);
+            estimatedDCVersionCopy.intersect(minVV);
+            return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, vvReply,
+                    disasterSafeVVReply);
         } else {
 
             // for evaluating stale reads
@@ -280,12 +296,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/" + request.getUid());
                 }
-                // TODO: for nodes if !request.isDisasterSafe() send it less
-                // frequently (it's for pruning only)
-                CausalityClock disasterSafeVV = request.isSendDCVector() ? estimatedDCStableVersionCopy : null;
-                CausalityClock vv = !request.isDisasterSafeSession() && request.isSendDCVector() ? estimatedDCVersionCopy
-                        : null;
-                return new FetchObjectVersionReply(status, crdt, vv, disasterSafeVV);
+                return new FetchObjectVersionReply(status, crdt, vvReply, disasterSafeVVReply);
             }
         }
     }
@@ -516,12 +527,15 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final String clientId;
         Timestamp lastSeqNo;
         boolean disasterSafe;
-        private int i;
 
         ClientSession(String clientId, boolean disasterSafe) {
             super(clientId, suPubSub.endpoint());
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
+        }
+
+        public synchronized CausalityClock getMinVV() {
+            return suPubSub.minDcVersion();
         }
 
         public ClientSession setClientEndpoint(Endpoint remote) {
