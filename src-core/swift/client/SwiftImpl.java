@@ -1430,11 +1430,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // Preprocess transactions before sending them.
         final CausalityClock sharedDeps;
         if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
-            sharedDeps = getGlobalCommittedVersion(true);
+            sharedDeps = transactionsToCommit.get(transactionsToCommit.size() - 1).getUpdatesDependencyClock().clone();
             final long prevId = transactionsToCommit.get(0).getClientTimestamp().getCounter() - 1;
             if (prevId > 0) {
                 sharedDeps.recordAllUntil(new Timestamp(scoutId, prevId));
             }
+
         }
         for (final AbstractTxnHandle txn : transactionsToCommit) {
             txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
