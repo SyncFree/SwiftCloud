@@ -61,8 +61,8 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
         // than forcing re-serialization for measurements purposes
         if (isEnabled()) {
             stream.printf("%s,%s,METADATA_%s,%d,%d,%d,%d,%d\n", scoutId, System.currentTimeMillis(), message.getClass()
-                    .getSimpleName(), totalSize, objectOrUpdateSize, objectOrUpdateValueSize, batchSize,
-                    maxExceptionsNum);
+                    .getSimpleName(), totalSize, objectOrUpdateSize, objectOrUpdateValueSize, maxExceptionsNum,
+                    batchSize);
         }
     }
 }
