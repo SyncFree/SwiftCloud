@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -50,10 +51,10 @@ import swift.proto.LatestKnownClockRequest;
 import swift.proto.SeqCommitUpdatesReply;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
-import sys.herd.Herd;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.utils.FifoQueue;
 import sys.utils.Threading;
 
 /**
@@ -198,6 +199,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                             }
                             if (curTime < req0.lastSent + 2000)
                                 continue;
+
                             CMP_CLOCK cmp = currentStateCopy.compareTo(req0.getObjectUpdateGroups().get(0)
                                     .getDependency());
                             if ((cmp == CMP_CLOCK.CMP_DOMINATES || cmp == CMP_CLOCK.CMP_EQUALS)
@@ -282,8 +284,6 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 logger.info("Sequencer ready...");
             }
         }
-
-        Herd.joinHerd(siteId, "sequencers", srvEndpoint.localEndpoint(), srvEndpoint.localEndpoint());
     }
 
     private boolean upgradeToPrimary() {
@@ -529,6 +529,31 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         conn.reply(new LatestKnownClockReply(currentClockCopy(), stableClockCopy()));
     }
 
+    final ConcurrentHashMap<String, FifoQueue<CommitTSRequest>> fifoQueues = new ConcurrentHashMap<String, FifoQueue<CommitTSRequest>>();
+
+    public FifoQueue<CommitTSRequest> queueFor(final Timestamp ts) {
+        String id = ts.getIdentifier();
+        FifoQueue<CommitTSRequest> res = fifoQueues.get(id), nq;
+        if (res == null) {
+            res = fifoQueues.putIfAbsent(id, nq = new FifoQueue<CommitTSRequest>(id) {
+                public void process(CommitTSRequest request) {
+                    doCommit(request.getReplyHandle(), request);
+                }
+            });
+            if (res == null)
+                res = nq;
+        }
+        return res;
+    }
+
+    @Override
+    public void onReceive(final RpcHandle conn, final CommitTSRequest request) {
+        request.setReplyHandle(conn);
+
+        Timestamp ts = request.getTimestamp();
+        queueFor(ts).offer(ts.getCounter(), request);
+    }
+
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -536,8 +561,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
      * @param request
      *            request to serve
      */
-    @Override
-    public void onReceive(final RpcHandle conn, final CommitTSRequest request) {
+    void doCommit(final RpcHandle conn, final CommitTSRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("sequencer: commitTSRequest:" + request.getTimestamp() + ":nops="
                     + request.getObjectUpdateGroups().size());
@@ -680,15 +704,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             }
         }
 
-        try {
-            Herd.initServer();
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
-
         new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup, props).start();
     }
-
 }
 
 class BlockedTimestampRequest {
