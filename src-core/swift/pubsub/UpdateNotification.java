@@ -110,7 +110,7 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         buffer = collector.getFreshKryoBuffer();
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
             if (group.hasCreationState()) {
-                kryo.writeObject(buffer, group.getCreationState());
+                kryo.writeObject(buffer, group.getCreationState().getValue());
             }
             if (group.getTargetUID() != null) {
                 kryo.writeObject(buffer, group.getTargetUID());

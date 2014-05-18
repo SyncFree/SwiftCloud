@@ -5,12 +5,18 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
+import swift.proto.CommitUpdatesRequest;
 import swift.proto.MetadataSamplable;
 import swift.proto.MetadataStatsCollector;
 import sys.pubsub.PubSub;
@@ -98,6 +104,51 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        // TODO: Marek
+        if (!collector.isEnabled()) {
+            return;
+        }
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
+
+        // TODO: get it from the wire, rather than recompute
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
+            kryo.writeObject(buffer, entry.getKey());
+            for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
+                if (group.hasCreationState()) {
+                    kryo.writeObject(buffer, group.getCreationState());
+                }
+                kryo.writeObject(buffer, group.getOperations());
+            }
+        }
+        final int updatesSize = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
+            kryo.writeObject(buffer, entry.getKey());
+            for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
+                if (group.hasCreationState()) {
+                    kryo.writeObject(buffer, group.getCreationState().getValue());
+                }
+                for (final CRDTUpdate<?> op : group.getOperations()) {
+                    kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                }
+            }
+        }
+        final int valuesSize = buffer.position();
+
+        final int maxExceptionsNum = newVersion.getExceptionsNumber();
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, maxExceptionsNum);
+    }
+
+    @Override
+    public String toString() {
+        return "BatchUpdatesNotification [newVersion=" + newVersion + ", newVersionDisasterSafe="
+                + newVersionDisasterSafe + ", objectsUpdates=" + objectsUpdates + "]";
     }
 }

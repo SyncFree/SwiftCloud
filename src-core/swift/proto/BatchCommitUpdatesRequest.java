@@ -93,9 +93,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                 }
                 maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
                 kryo.writeObject(buffer, group.getTargetUID());
-                for (final CRDTUpdate<?> op : group.getOperations()) {
-                    kryo.writeObject(buffer, op);
-                }
+                kryo.writeObject(buffer, group.getOperations());
             }
         }
         final int updatesSize = buffer.position();
@@ -105,7 +103,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 if (group.hasCreationState()) {
-                    kryo.writeObject(buffer, group.getCreationState());
+                    kryo.writeObject(buffer, group.getCreationState().getValue());
                 }
                 kryo.writeObject(buffer, group.getTargetUID());
                 for (final CRDTUpdate<?> op : group.getOperations()) {
