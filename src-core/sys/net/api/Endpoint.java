@@ -78,6 +78,8 @@ public interface Endpoint {
      */
     <T> T gid();
 
+    <T> T locator();
+
     /**
      * Provides host/ip address associated with this endpoint
      * 

@@ -16,10 +16,8 @@
  *****************************************************************************/
 package sys.dht;
 
-import java.math.BigInteger;
-import java.util.Random;
-
 import sys.net.api.Endpoint;
+import sys.net.api.Networking;
 
 /**
  * 
@@ -33,6 +31,7 @@ public class Node {
 
     public long key;
     public Endpoint endpoint;
+    public Endpoint dhtEndpoint;
     public String datacenter;
 
     public Node() {
@@ -40,8 +39,9 @@ public class Node {
 
     protected Node(Node other) {
         endpoint = other.endpoint;
+        dhtEndpoint = other.dhtEndpoint;
         datacenter = other.datacenter;
-        key = locator2key(endpoint.gid());
+        key = locator2key(endpoint.locator());
     }
 
     public Node(Endpoint endpoint) {
@@ -51,12 +51,14 @@ public class Node {
     public Node(Endpoint endpoint, String datacenter) {
         this.endpoint = endpoint;
         this.datacenter = datacenter;
-        key = locator2key(endpoint.gid());
+        this.key = locator2key(endpoint.locator());
+        this.dhtEndpoint = Networking.Networking.resolve(endpoint.getHost(), DHT_Node.DHT_PORT);
     }
 
     public Node(long key, Endpoint endpoint) {
-        this.endpoint = endpoint;
         this.key = key;
+        this.endpoint = endpoint;
+        this.dhtEndpoint = Networking.Networking.resolve(endpoint.getHost(), DHT_Node.DHT_PORT);
     }
 
     @Override
@@ -86,6 +88,6 @@ public class Node {
     }
 
     private static long locator2key(Object locator) {
-        return new BigInteger(NODE_KEY_LENGTH, new Random((Long) locator)).longValue();
+        return (DHT_Node.longHashValue(locator.toString()) >>> 1) & MAX_KEY;
     }
 }

@@ -23,6 +23,7 @@ import static swift.dc.DCConstants.SURROGATE_PORT;
 import static swift.dc.DCConstants.SURROGATE_PORT_FOR_SEQUENCERS;
 import static sys.net.api.Networking.Networking;
 
+import java.util.List;
 import java.util.Properties;
 
 import sys.Sys;
@@ -85,6 +86,9 @@ public class DCServer {
                 props.setProperty(PRUNE_POLICY, "true");
             }
         }
+
+        List<String> surrogates = Args.subList(args, "-surrogates");
+        Herd.setSurrogates(surrogates);
 
         String shepard = Args.valueOf(args, "-shepard", sequencerNode);
         Herd.setDefaultShepard(shepard);

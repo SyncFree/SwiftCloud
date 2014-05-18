@@ -51,6 +51,7 @@ import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
 import swift.proto.BatchCommitUpdatesReply;
 import swift.proto.BatchCommitUpdatesRequest;
+import swift.proto.ClientRequest;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
 import swift.proto.CommitUpdatesReply;
@@ -59,7 +60,6 @@ import swift.proto.CommitUpdatesRequest;
 import swift.proto.FetchObjectDeltaRequest;
 import swift.proto.FetchObjectVersionReply;
 import swift.proto.FetchObjectVersionReply.FetchStatus;
-import swift.proto.ClientRequest;
 import swift.proto.FetchObjectVersionRequest;
 import swift.proto.GenerateDCTimestampReply;
 import swift.proto.GenerateDCTimestampRequest;
@@ -446,14 +446,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     @Override
     public void onReceive(RpcHandle conn, BatchCommitUpdatesRequest request) {
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("CommitUpdatesRequest client = " + request.getClientId() + ":batch size="
+            logger.info("BatchCommitUpdatesRequest client = " + request.getClientId() + ":batch size="
                     + request.getCommitRequests().size());
         }
         final ClientSession session = getSession(request);
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("CommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
+            logger.info("BatchCommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
-
         List<Timestamp> tsLst = new LinkedList<Timestamp>();
         LinkedList<CommitUpdatesReply> reply = new LinkedList<CommitUpdatesReply>();
         for (CommitUpdatesRequest r : request.getCommitRequests()) {

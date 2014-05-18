@@ -137,6 +137,11 @@ abstract public class AbstractEndpoint implements Endpoint {
         return (T) new Long(gid);
     }
 
+    @SuppressWarnings("unchecked")
+    public <T> T locator() {
+        return (T) new Long(locator);
+    }
+
     protected static long encodeLocator(InetSocketAddress addr) {
         try {
             return ((long) ByteBuffer.wrap(addr.getAddress().getAddress()).getInt() << Integer.SIZE) | addr.getPort();

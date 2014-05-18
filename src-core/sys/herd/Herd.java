@@ -18,12 +18,15 @@ package sys.herd;
 
 import static sys.net.api.Networking.Networking;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import swift.dc.DCConstants;
 import sys.herd.proto.HerdProtoHandler;
 import sys.herd.proto.JoinHerdReply;
 import sys.herd.proto.JoinHerdRequest;
@@ -55,6 +58,8 @@ public class Herd extends HerdProtoHandler {
 
     static Endpoint shepard;
     static long lastChange = System.currentTimeMillis();
+    static List<String> surrogates = new ArrayList<String>();
+
     volatile static Map<String, Map<String, Herd>> herds = new HashMap<String, Map<String, Herd>>();
     volatile static boolean stopProbing = false;
 
@@ -87,15 +92,25 @@ public class Herd extends HerdProtoHandler {
         return (System.currentTimeMillis() - lastChange);
     }
 
+    public static void setSurrogates(List<String> otherSurrogates) {
+        surrogates = otherSurrogates;
+    }
+
     public static void setDefaultShepard(String shepardAddress) {
         shepard = Networking.resolve(shepardAddress, PORT);
     }
 
     public static void joinHerd(final String dc, final String herd, final Endpoint endpoint) {
-        joinHerd(dc, herd, endpoint, shepard);
+        getHerd(dc, herd).sheep().add(endpoint);
+        for (String s : surrogates) {
+            Endpoint e = Networking.resolve(s, DCConstants.SURROGATE_PORT);
+            getHerd(dc, herd).sheep().add(e);
+        }
+        lastChange = 0;
     }
 
     public static void joinHerd(final String dc, final String herd, final Endpoint endpoint, Endpoint shepardAddress) {
+        Thread.dumpStack();
 
         final Endpoint shepard = Networking.resolve(shepardAddress.getHost(), PORT);
         final RpcEndpoint sock = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
@@ -169,6 +184,9 @@ public class Herd extends HerdProtoHandler {
     }
 
     public static Herd getHerd(String dc, String herd, int minimumAge, boolean stop) {
+        Log.info(String.format(IP.localHostname() + " Waiting up to %s seconds for <%s, %s> membership to settle...\n",
+                minimumAge, dc, herd));
+
         synchronized (herds) {
             while (age() / 1000 < minimumAge) {
                 Threading.synchronizedWaitOn(herds, 100);
