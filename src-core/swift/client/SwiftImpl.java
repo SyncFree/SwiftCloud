@@ -702,7 +702,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 fetchStrictlyRequired = (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT || objectsCache
                         .getAndTouch(id) == null);
                 fetchClock = getGlobalCommittedVersion(true);
-                fetchClock.merge(lastLocallyCommittedTxnClock);
+                // fetchClock.merge(lastLocallyCommittedTxnClock);
                 // Try to get the latest one.
             }
 
