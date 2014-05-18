@@ -118,6 +118,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         SocketChannel channel;
         KryoInputBuffer inBuf;
         KryoOutputBuffer outBuf;
+
         ExecutorService workers = Executors.newFixedThreadPool(2);
 
         public AbstractConnection() throws IOException {
@@ -140,6 +141,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 }
             } catch (RuntimeException x) {
             } catch (IOException x) {
+                x.printStackTrace();
                 Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
                 cause = x;
                 handler.onFailure(this);
