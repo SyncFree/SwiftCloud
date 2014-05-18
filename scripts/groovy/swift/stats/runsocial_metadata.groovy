@@ -67,8 +67,9 @@ configsCategoriesMessagesTallyMap.each{ config, categoriesMessagesTally ->
     categoriesMessagesTally.each { category, messages ->
         messages.each { message, tally ->
             avg = tally.average()
+            stddev = tally.standardDeviation()
             // TODO: add stddev etc.
-            categoriesMessagesPlotsMap[category][message] << String.format('"%s" %.3f', config, avg)
+            categoriesMessagesPlotsMap[category][message] << String.format('%s %.3f %.3f', config, avg, stddev)
         }
     }
 }
@@ -79,7 +80,10 @@ def gnuplot = [
     'set terminal postscript size 10.0, 4.0 enhanced dashed font "Helvetica,24" linewidth 1',
     'set ylabel "Metadata size [ b ]"',
     'set xlabel "#clients "',
+    'set style data histograms',
+    'set style histogram cluster',
     'set boxwidth 0.95 relative',
+    'set style fill solid 1.0 border -1',
 
     //    'set clip',
     //    'set grid xtics ytics lt 30 lt 30',
@@ -95,9 +99,9 @@ def gnuplot = [
 categoriesMessagesPlotsMap.each { category,messagesPlots ->
     messagesPlots.each { message, plot ->
         String outputFile = new File(args[0], "metadata-processed-" + message + "-" + category.replace(' ', '_')).absolutePath
-
+        println plot
         GnuPlot.doGraph( outputFile, gnuplot, ['x':plot], { k, v ->
-            String.format('u 1:2 with boxes lc rgb"green" notitle')
+            String.format('using 1:2 with boxes notitle')
         })
         println "Wrote " + outputFile
     }
