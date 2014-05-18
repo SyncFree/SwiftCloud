@@ -20,17 +20,27 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 
 public class FifoQueue<T> {
-    Long nextKey = 1L;
+    protected String name;
+    protected Long nextKey = 1L;
+    protected SortedMap<Long, T> queue = new TreeMap<Long, T>();
 
-    SortedMap<Long, T> queue = new TreeMap<Long, T>();
+    public FifoQueue() {
+        this("?");
+    }
+
+    public FifoQueue(String name) {
+        this.name = name;
+    }
 
     synchronized public void offer(long seqN, T val) {
-        queue.put(seqN, val);
+        if (seqN >= nextKey) {
+            queue.put(seqN, val);
 
-        Long headKey;
-        while (queue.size() > 0 && (headKey = queue.firstKey()).longValue() == nextKey) {
-            process(queue.remove(headKey));
-            nextKey++;
+            Long headKey;
+            while (queue.size() > 0 && (headKey = queue.firstKey()).longValue() == nextKey) {
+                process(queue.remove(headKey));
+                nextKey++;
+            }
         }
     }
 
