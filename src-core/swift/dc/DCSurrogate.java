@@ -170,6 +170,18 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
     }
 
+    public void updateEstimatedDCVersion(CausalityClock cc) {
+        synchronized (estimatedDCVersion) {
+            estimatedDCVersion.merge(cc);
+        }
+    }
+
+    public void updateEstimatedDCStableVersion(CausalityClock cc) {
+        synchronized (estimatedDCStableVersion) {
+            estimatedDCStableVersion.merge(cc);
+        }
+    }
+
     /********************************************************************************************
      * Methods related with notifications from clients
      *******************************************************************************************/
@@ -187,12 +199,9 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
             }
-            synchronized (estimatedDCVersion) {
-                estimatedDCVersion.merge(reply.getClock());
-            }
-            synchronized (estimatedDCStableVersion) {
-                estimatedDCStableVersion.merge(reply.getDistasterDurableClock());
-            }
+
+            updateEstimatedDCVersion(reply.getClock());
+            updateEstimatedDCStableVersion(reply.getDistasterDurableClock());
         }
     }
 
@@ -235,18 +244,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final Timestamp cltLastSeqNo = session.getLastSeqNo();
 
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
-        CausalityClock estimatedDCVersionCopy = null;
-        synchronized (estimatedDCVersion) {
-            cmp = request.getVersion() == null ? CMP_CLOCK.CMP_EQUALS : estimatedDCVersion.compareTo(request
-                    .getVersion());
-            estimatedDCVersionCopy = estimatedDCVersion.clone();
-        }
+        CausalityClock estimatedDCVersionCopy = getEstimatedDCVersionCopy();
+        cmp = request.getVersion() == null ? CMP_CLOCK.CMP_EQUALS : estimatedDCVersionCopy.compareTo(request
+                .getVersion());
+
         if (cmp == CMP_CLOCK.CMP_ISDOMINATED || cmp == CMP_CLOCK.CMP_CONCURRENT) {
             updateEstimatedDCVersion();
-            synchronized (estimatedDCVersion) {
-                cmp = estimatedDCVersion.compareTo(request.getVersion());
-                estimatedDCVersionCopy = estimatedDCVersion.clone();
-            }
+            estimatedDCVersionCopy = getEstimatedDCVersionCopy();
+            cmp = estimatedDCVersionCopy.compareTo(request.getVersion());
         }
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
@@ -366,10 +371,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final CausalityClock trxClock = snapshotClock.clone();
         trxClock.record(txTs);
 
-        final CausalityClock estimatedDCVersionCopy;
-        synchronized (estimatedDCVersion) {
-            estimatedDCVersionCopy = estimatedDCVersion.clone();
-        }
+        final CausalityClock estimatedDCVersionCopy = getEstimatedDCVersionCopy();
 
         int pos = 0;
         final AtomicBoolean txnOK = new AtomicBoolean(true);
@@ -385,9 +387,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                             results.set(j,
                                     execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));
                             txnOK.compareAndSet(true, results.get(j).isResult());
-                            synchronized (estimatedDCVersion) {
-                                estimatedDCVersion.merge(i.getDependency());
-                            }
+                            updateEstimatedDCVersion(i.getDependency());
                         } finally {
                             s.release();
                         }
@@ -399,9 +399,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             for (final CRDTObjectUpdatesGroup<?> i : ops) {
                 results.set(pos, execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));
                 txnOK.compareAndSet(true, results.get(pos).isResult());
-                synchronized (estimatedDCVersion) {
-                    estimatedDCVersion.merge(i.getDependency());
-                }
+                updateEstimatedDCVersion(i.getDependency());
                 pos++;
             }
         }
@@ -426,12 +424,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             }
             estimatedDCVersionCopy.record(txTs);
             synchronized (estimatedDCVersion) {
-                estimatedDCVersion.merge(reply.getCurrVersion());
+                updateEstimatedDCVersion(reply.getCurrVersion());
                 dataServer.dbServer.writeSysData("SYS_TABLE", "CURRENT_CLK", estimatedDCVersion);
             }
             synchronized (estimatedDCStableVersion) {
-                estimatedDCStableVersion.merge(reply.getStableVersion());
-                dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", estimatedDCVersion);
+                updateEstimatedDCStableVersion(reply.getStableVersion());
+                dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", estimatedDCStableVersion);
             }
 
             if (txnOK.get() && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
@@ -513,12 +511,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
             }
-            synchronized (estimatedDCVersion) {
-                estimatedDCVersion.merge(reply.getClock());
-            }
-            synchronized (estimatedDCStableVersion) {
-                estimatedDCStableVersion.merge(reply.getDistasterDurableClock());
-            }
+
+            updateEstimatedDCVersion(reply.getClock());
+            updateEstimatedDCStableVersion(reply.getDistasterDurableClock());
+
             conn.reply(reply);
         }
     }
