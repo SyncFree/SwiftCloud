@@ -1,7 +1,10 @@
 package swift.pubsub;
 
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
@@ -14,40 +17,38 @@ import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 
 /**
- * A notification that brings client's cache from one consistent state to
- * another one.
+ * A notification that brings client's cache (a set of subscribed objects) from
+ * the previous consistent state to the new one, described by a vector.
  * 
- * @author mzawirski
+ * @author mzawirski,smd
  */
 public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, MetadataSamplable {
-    // TODO: alternatively, for a best-effort FIFO session, include just last
-    // id?
-    protected CausalityClock oldVersion;
     protected CausalityClock newVersion;
     private boolean newVersionDisasterSafe;
-    protected List<CRDTObjectUpdatesGroup<?>> updates;
+    protected Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates;
 
     BatchUpdatesNotification() {
     }
 
-    public BatchUpdatesNotification(CausalityClock oldVersion, CausalityClock newVersion, boolean disasterSafe,
+    public BatchUpdatesNotification(CausalityClock newVersion, boolean disasterSafe,
             List<CRDTObjectUpdatesGroup<?>> updates) {
-        this.oldVersion = oldVersion;
         this.newVersion = newVersion;
         this.newVersionDisasterSafe = disasterSafe;
-        this.updates = updates;
+        this.objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
+        for (final CRDTObjectUpdatesGroup update : updates) {
+            final CRDTIdentifier id = update.getTargetUID();
+            List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(id);
+            if (objectUpdates == null) {
+                objectUpdates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+                objectsUpdates.put(id, objectUpdates);
+            }
+            objectUpdates.add(update.strippedWithCopiedTimestampMappings());
+        }
     }
 
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
         ((SwiftSubscriber) pubsub).onNotification(this);
-    }
-
-    /**
-     * @return old version assumed by the DC
-     */
-    public CausalityClock getOldVersion() {
-        return oldVersion;
     }
 
     /**
@@ -59,12 +60,13 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
     }
 
     /**
-     * @return all updates on client's subscribed object with timestamps between
-     *         {@link #getOldVersion()} and {@link #getNewVersion()}
+     * @return a map of all updates on the objects subscribed by the client,
+     *         with timestamps between {@link #getNewVersion()} of the previous
+     *         notification, and {@link #getNewVersion()} of this one
      */
     // FIXME: define subscribed objects with an epochId or so?
-    public List<CRDTObjectUpdatesGroup<?>> getUpdates() {
-        return updates;
+    public Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> getObjectsUpdates() {
+        return objectsUpdates;
     }
 
     /**
@@ -91,11 +93,7 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
 
     @Override
     public Set<CRDTIdentifier> keys() {
-        Set<CRDTIdentifier> keys = new HashSet<CRDTIdentifier>();
-        for (final CRDTObjectUpdatesGroup<?> update : updates) {
-            keys.add(update.getTargetUID());
-        }
-        return keys;
+        return Collections.unmodifiableSet(objectsUpdates.keySet());
     }
 
     @Override
