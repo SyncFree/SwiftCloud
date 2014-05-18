@@ -985,7 +985,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 throw new WrongTypeException(e.getMessage());
             }
             final CausalityClock clock = request.getVersion().clone();
-            clock.merge(fetchReply.getEstimatedCommittedVersion());
+            if (fetchReply.getEstimatedDisasterDurableCommittedVersion() != null) {
+                clock.merge(fetchReply.getEstimatedDisasterDurableCommittedVersion());
+            }
+            if (fetchReply.getEstimatedCommittedVersion() != null) {
+                clock.merge(fetchReply.getEstimatedCommittedVersion());
+            }
             clock.recordAllUntil(requestedScoutVersion);
             crdt = new ManagedCRDT<V>(request.getUid(), checkpoint, clock, false);
             break;
