@@ -103,11 +103,20 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 if (group.hasCreationState()) {
-                    kryo.writeObject(buffer, group.getCreationState().getValue());
+                    final Object value = group.getCreationState().getValue();
+                    if (value != null) {
+                        kryo.writeObject(buffer, value);
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
                 }
                 kryo.writeObject(buffer, group.getTargetUID());
                 for (final CRDTUpdate<?> op : group.getOperations()) {
-                    kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                    if (op.getValueWithoutMetadata() != null) {
+                        kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
                 }
             }
         }

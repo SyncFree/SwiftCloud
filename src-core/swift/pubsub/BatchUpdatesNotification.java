@@ -132,10 +132,20 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
             kryo.writeObject(buffer, entry.getKey());
             for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
                 if (group.hasCreationState()) {
-                    kryo.writeObject(buffer, group.getCreationState().getValue());
+                    final Object value = group.getCreationState().getValue();
+                    if (value != null) {
+                        kryo.writeObject(buffer, value);
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
                 }
                 for (final CRDTUpdate<?> op : group.getOperations()) {
-                    kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                    final Object value = op.getValueWithoutMetadata();
+                    if (value != null) {
+                        kryo.writeObject(buffer, value);
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
                 }
             }
         }
