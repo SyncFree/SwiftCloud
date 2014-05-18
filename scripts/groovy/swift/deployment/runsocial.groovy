@@ -12,39 +12,43 @@ def __ = onControlC({
     System.exit(0);
 })
 
+
+Europe = DC(['ec2-54-76-30-169.eu-west-1.compute.amazonaws.com'], 
+					['ec2-54-76-30-169.eu-west-1.compute.amazonaws.com'])
+
+NorthVirginia = DC(['ec2-54-86-30-43.compute-1.amazonaws.com'], 
+					['ec2-54-86-30-43.compute-1.amazonaws.com'])
+
+//Oregon = DC(['ec2-54-200-37-248.us-west-2.compute.amazonaws.com'], 
+//					['ec2-54-200-37-248.us-west-2.compute.amazonaws.com']
+
+
+ScoutsEU = SGroup( [
+    'ec2-54-76-36-191.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-36-201.eu-west-1.compute.amazonaws.com'
+], Europe )
+
+
+ScoutsNorthVirginia = SGroup( 	[
+    'ec2-54-86-140-91.compute-1.amazonaws.com',
+    'ec2-54-86-159-33.compute-1.amazonaws.com'
+], NorthVirginia )
+
+
+//ScoutsOregon = SGroup( 	[
+//    'ec2-54-200-37-250.us-west-2.compute.amazonaws.com',
+//    'ec2-54-200-37-249.us-west-2.compute.amazonaws.com',
+//    'ec2-54-200-38-2.us-west-2.compute.amazonaws.com'
+//], Oregon )
+
+
 /*
-Europe = DC(['ec2-54-72-99-205.eu-west-1.compute.amazonaws.com'], 
-					['ec2-54-72-99-205.eu-west-1.compute.amazonaws.com'])
-
-NorthVirginia = DC(['ec2-54-86-227-231.compute-1.amazonaws.com'], 
-					['ec2-54-86-227-231.compute-1.amazonaws.com'])
-
-Oregon = DC(['ec2-54-200-37-248.us-west-2.compute.amazonaws.com'], 
-					['ec2-54-200-37-248.us-west-2.compute.amazonaws.com']
-
-
-ScoutsEU = SGroup( ['ec2-54-76-22-70.eu-west-1.compute.amazonaws.com', 
-					'ec2-54-76-18-79.eu-west-1.compute.amazonaws.com', 
-					'ec2-54-72-210-145.eu-west-1.compute.amazonaws.com'], Europe ) 
-
-
-ScoutsNorthVirginia = SGroup( 	['ec2-54-84-112-85.compute-1.amazonaws.com', 
-								'ec2-54-86-232-242.compute-1.amazonaws.com', 
-								'ec2-54-86-236-144.compute-1.amazonaws.com'], NorthVirginia ) 
-
-
-ScoutsNorthVirginia = SGroup( 	['ec2-54-200-37-250.us-west-2.compute.amazonaws.com', 
-								'ec2-54-200-37-249.us-west-2.compute.amazonaws.com', 
-								'ec2-54-200-38-2.us-west-2.compute.amazonaws.com'], Oregon ) 
-
-*/
-
 Texas = DC([ "ricepl-1.cs.rice.edu"], ["ricepl-2.cs.rice.edu", "ricepl-4.cs.rice.edu", "ricepl-5.cs.rice.edu"]);
 East = DC([ "planetlab1.cnds.jhu.edu"], ["planetlab2.cnds.jhu.edu","planetlab3.cnds.jhu.edu", "planetlab4.cnds.jhu.edu"]);
 
 NV_Clients = SGroup( ["planetlab4.rutgers.edu", "planetlab3.rutgers.edu"], East)
 CA_Clients = SGroup( ["planetlab01.cs.washington.edu", "planetlab02.cs.washington.edu"], Texas)
-
+*/
 
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
