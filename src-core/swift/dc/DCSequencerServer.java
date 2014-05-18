@@ -47,6 +47,8 @@ import swift.proto.GenerateDCTimestampReply;
 import swift.proto.GenerateDCTimestampRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
+import swift.proto.PingReply;
+import swift.proto.PingRequest;
 import swift.proto.SeqCommitUpdatesReply;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
@@ -642,6 +644,12 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         addPending(request);
 
         Threading.synchronizedNotifyAllOn(pendingOps);
+    }
+
+    @Override
+    public void onReceive(final RpcHandle conn, PingRequest request) {
+        PingReply reply = new PingReply( request.getTimeAtSender(), System.nanoTime());
+        conn.reply(reply);
     }
 
     public static void main(String[] args) {
