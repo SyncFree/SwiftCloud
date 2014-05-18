@@ -81,8 +81,6 @@ import swift.proto.MetadataStatsCollector;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.ScoutPubSubService;
-import swift.pubsub.SnapshotNotification;
-import swift.pubsub.UpdateNotification;
 import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
@@ -339,39 +337,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
                 }
                 // TODO: add pruning
-            }
-
-            // FIXME: remove
-            @Deprecated
-            public void onNotification(final UpdateNotification update) {
-                update.recordMetadataSample(metadataStatsCollector);
-                applyObjectUpdates(update.info.getId(), update.info.getUpdates());
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine(update.info.getId() + "/" + update.info.getNewClock());
-                }
-            }
-
-            @Deprecated
-            public void onNotification(final SnapshotNotification n) {
-                n.recordMetadataSample(metadataStatsCollector);
-
-                synchronized (SwiftImpl.this) {
-                    if (logger.isLoggable(Level.FINE)) {
-                        // logger.fine(causalSnapshot + "/" +
-                        // Sys.Sys.currentTime());
-                    }
-
-                    // causalSnapshot.merge(n.snapshotClock());
-                    updateCommittedVersions(n.estimatedDCVersion(), n.estimatedDCStableVersion());
-
-                    // Causalsnapshot is notified when it is dominated
-                    // by the minimum of all the
-                    // surrogate DC version
-                    // estimates. For correctness, it is also delivered to the
-                    // client after the updates
-                    // that caused it.
-                    objectsCache.augmentAllWithDCCausalClockWithoutMappings(n.snapshotClock());
-                }
             }
         };
 

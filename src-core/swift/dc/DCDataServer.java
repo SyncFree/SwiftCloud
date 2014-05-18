@@ -435,8 +435,7 @@ final class DCDataServer {
                 }
             }
 
-            ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, oldClock, data.clock.clone(), data.pruneClock.clone(),
-                    grp);
+            ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, data.pruneClock.clone(), grp);
 
             dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), txTs, info));
 

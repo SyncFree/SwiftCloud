@@ -487,6 +487,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         synchronized (this) {
             cmp = currentState.compareTo(request.getDependencyClk());
         }
+        // FIXME: check first if request.getCltTimestamp() == prev + 1?
+        
         if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
 
             conn.reply(new GenerateDCTimestampReply(generateNewId(),

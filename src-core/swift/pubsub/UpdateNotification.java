@@ -74,15 +74,6 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         final int totalSize = buffer.position();
 
         int maxExceptionsNum = 0;
-        if (info.getOldClock() != null) {
-            maxExceptionsNum = Math.max(info.getOldClock().getExceptionsNumber(), maxExceptionsNum);
-        }
-        if (info.getNewClock() != null) {
-            maxExceptionsNum = Math.max(info.getNewClock().getExceptionsNumber(), maxExceptionsNum);
-        }
-        if (info.getPruneClock() != null) {
-            maxExceptionsNum = Math.max(info.getPruneClock().getExceptionsNumber(), maxExceptionsNum);
-        }
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();

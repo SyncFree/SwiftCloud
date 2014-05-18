@@ -16,10 +16,9 @@
  *****************************************************************************/
 package swift.dc;
 
-import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -27,8 +26,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -67,12 +64,13 @@ import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
+import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.RemoteSwiftSubscriber;
-import swift.pubsub.SnapshotNotification;
 import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.SwiftNotification;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
+import sys.Sys;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
@@ -82,7 +80,6 @@ import sys.scheduler.PeriodicTask;
 //import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
 //import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
 //import swift.client.proto.FastRecentUpdatesRequest;
-import sys.scheduler.Task;
 
 /**
  * Class to handle the requests from clients.
@@ -548,68 +545,38 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             suPubSub.unsubscribe(keys, this);
         }
 
-        public void onNotification(final UpdateNotification update) {
+        long lastNotification = 0L;
+        static final long NOTIFICATION_PERIOD = 1000;
 
-            super.onNotification(new SwiftNotification(update));
-            new Task(0) {
-                public void run() {
-                    doSnapshotNotification(update);
-                }
-            };
-        }
+        List<CRDTObjectUpdatesGroup<?>> pending = new ArrayList<CRDTObjectUpdatesGroup<?>>();
 
-        synchronized void doSnapshotNotification(UpdateNotification n) {
-            Timestamp ts = n.timestamp();
-            if (!summary.record(ts)) {
+        synchronized public void onNotification(final UpdateNotification update) {
 
-                snapshots.put(ts, n.info.getNewClock());
+            pending.addAll(update.info.getUpdates());
 
-                CausalityClock minDcVersion = suPubSub.minDcVersion();
-
-                boolean updated = false;
-                for (Iterator<Map.Entry<Timestamp, CausalityClock>> it = snapshots.entrySet().iterator(); it.hasNext();) {
-                    Map.Entry<Timestamp, CausalityClock> e = it.next();
-
-                    if (minDcVersion.includes(e.getKey())
-                            && minDcVersion.compareTo(e.getValue()).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
-                        snapshot.merge(e.getValue());
-                        updated = true;
-                        it.remove();
+            long now = Sys.Sys.timeMillis();
+            if (now > (lastNotification + NOTIFICATION_PERIOD)) {
+                CausalityClock snapshot = suPubSub.minDcVersion();
+                if (disasterSafe)
+                    snapshot.intersect(getEstimatedDCStableVersionCopy());
+                // FIXME: Sergio, please check my fix:
+                final List<CRDTObjectUpdatesGroup<?>> updates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+                final Iterator<CRDTObjectUpdatesGroup<?>> iter = pending.iterator();
+                while (iter.hasNext()) {
+                    final CRDTObjectUpdatesGroup<?> u = iter.next();
+                    if (u.anyTimestampIncluded(snapshot)) {
+                        updates.add(u);
+                        iter.remove();
                     }
                 }
-                if (updated && Sys.timeMillis() > (lastNotification + NOTIFICATION_RATE)) {
-                    // TODO: for nodes if !request.isDisasterSafe() send it less
-                    // frequently (it's for pruning only)
-                    CausalityClock dcVV = disasterSafe ? null : getEstimatedDCVersionCopy();
-                    CausalityClock dcDisasterSafeVV = getEstimatedDCStableVersionCopy();
-                    super.onNotification(new SwiftNotification(new SnapshotNotification(snapshot, dcVV,
-                            dcDisasterSafeVV)));
-                    
-                    if (i++ % 50 == 0) {
-                        System.err.println("Causal snapshot: " + snapshot);
-                        System.err.println("DC vector: " + dcVV);
-                        System.err.println("DC distaster-safe vector: " + dcDisasterSafeVV);
-                    }
 
-                    lastNotification = Sys.timeMillis();
+                if (!updates.isEmpty()) {
+                    super.onNotification(new SwiftNotification(new BatchUpdatesNotification(suPubSub.minDcVersion(),
+                            disasterSafe, updates)));
+                    lastNotification = now;
                 }
-                if (logger.isLoggable(Level.INFO)) {
-                    logger.info("MinDcVersion: " + minDcVersion + " SNAPSHOTS:" + snapshots);
-                }
-            } else {
-                if (logger.isLoggable(Level.INFO)) {
-                    logger.info("Skipping redundant causal notification for: " + ts);
-                }
-
             }
         }
-
-        static final long NOTIFICATION_RATE = 1000;
-        long lastNotification = 0L;
-        CausalityClock snapshot = ClockFactory.newClock();
-        CausalityClock summary = ClockFactory.newClock();
-        SortedMap<Timestamp, CausalityClock> snapshots = Collections
-                .synchronizedSortedMap(new TreeMap<Timestamp, CausalityClock>());
 
     }
 

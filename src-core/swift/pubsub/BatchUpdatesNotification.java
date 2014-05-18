@@ -8,19 +8,18 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
-
 import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
-import swift.proto.CommitUpdatesRequest;
 import swift.proto.MetadataSamplable;
 import swift.proto.MetadataStatsCollector;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * A notification that brings client's cache (a set of subscribed objects) from
@@ -41,7 +40,7 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
         this.newVersion = newVersion;
         this.newVersionDisasterSafe = disasterSafe;
         this.objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
-        for (final CRDTObjectUpdatesGroup update : updates) {
+        for (final CRDTObjectUpdatesGroup<?> update : updates) {
             final CRDTIdentifier id = update.getTargetUID();
             List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(id);
             if (objectUpdates == null) {

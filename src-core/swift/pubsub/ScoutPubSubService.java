@@ -105,4 +105,9 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
     public void onNotification(SwiftNotification event) {
         Thread.dumpStack();
     }
+
+    @Override
+    public void onNotification(UpdateNotification event) {
+        Thread.dumpStack();
+    }
 }
