@@ -519,6 +519,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final String clientId;
         Timestamp lastSeqNo;
         boolean disasterSafe;
+        private int i;
 
         ClientSession(String clientId, boolean disasterSafe) {
             super(clientId, suPubSub.endpoint());
@@ -583,6 +584,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     CausalityClock dcDisasterSafeVV = getEstimatedDCStableVersionCopy();
                     super.onNotification(new SwiftNotification(new SnapshotNotification(snapshot, dcVV,
                             dcDisasterSafeVV)));
+                    
+                    if (i++ % 50 == 0) {
+                        System.err.println("Causal snapshot: " + snapshot);
+                        System.err.println("DC vector: " + dcVV);
+                        System.err.println("DC distaster-safe vector: " + dcDisasterSafeVV);
+                    }
 
                     lastNotification = Sys.timeMillis();
                 }

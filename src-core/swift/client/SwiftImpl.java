@@ -327,6 +327,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         localEndpoint.setHandler(new SwiftProtocolHandler());
 
         this.scoutPubSub = new ScoutPubSubService(scoutId, disasterSafe, serverEndpoint(), metadataStatsCollector) {
+            private int i;
+
             public void onNotification(final UpdateNotification update) {
                 update.recordMetadataSample(metadataStatsCollector);
                 applyObjectUpdates(update.info);
@@ -345,6 +347,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
                     causalSnapshot.merge(n.snapshotClock());
                     updateCommittedVersions(n.estimatedDCVersion(), n.estimatedDCStableVersion());
+                    if (i++ % 50 == 0) {
+                        System.err.println("Causal snapshot: " + causalSnapshot);
+                        System.err.println("Committed DC vector: " + getGlobalCommittedVersion(false));
+                        System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
+                    }
 
                     // Causalsnapshot is notified when it is dominated
                     // by the minimum of all the
