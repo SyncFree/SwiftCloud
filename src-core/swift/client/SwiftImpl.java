@@ -1439,15 +1439,17 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         for (final AbstractTxnHandle txn : transactionsToCommit) {
             txn.assertStatus(TxnStatus.COMMITTED_LOCAL);
 
+            final CausalityClock newDeps;
+            if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
+                // Alternative 1: coarse grained, but overapproximated.
+                newDeps = sharedDeps;
+            } else {
+                // Alternative 2: fine grained, but costs more traffic.
+                newDeps = txn.getUpdatesDependencyClock().clone();
+            }
             final LinkedList<CRDTObjectUpdatesGroup<?>> operationsGroups = new LinkedList<CRDTObjectUpdatesGroup<?>>();
             for (final CRDTObjectUpdatesGroup<?> group : txn.getAllUpdates()) {
-                if (USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH) {
-                    // Alternative 1: coarse grained, but overapproximated.
-                    operationsGroups.add(group.withDependencyClock(sharedDeps));
-                } else {
-                    // Alternative 2: fine grained, but costs more traffic.
-                    operationsGroups.add(group);
-                }
+                operationsGroups.add(group.withDependencyClock(newDeps));
             }
             requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), txn
                     .getUpdatesDependencyClock(), operationsGroups));
