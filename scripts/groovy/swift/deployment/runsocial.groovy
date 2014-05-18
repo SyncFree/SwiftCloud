@@ -19,8 +19,8 @@ Europe = DC(['ec2-54-76-30-169.eu-west-1.compute.amazonaws.com'],
 NorthVirginia = DC(['ec2-54-86-30-43.compute-1.amazonaws.com'], 
 					['ec2-54-86-30-43.compute-1.amazonaws.com'])
 
-//Oregon = DC(['ec2-54-200-37-248.us-west-2.compute.amazonaws.com'], 
-//					['ec2-54-200-37-248.us-west-2.compute.amazonaws.com']
+Oregon = DC(['ec2-54-187-236-55.us-west-2.compute.amazonaws.com'], 
+					['ec2-54-187-236-55.us-west-2.compute.amazonaws.com'])
 
 
 ScoutsEU = SGroup( [
@@ -35,11 +35,10 @@ ScoutsNorthVirginia = SGroup( 	[
 ], NorthVirginia )
 
 
-//ScoutsOregon = SGroup( 	[
-//    'ec2-54-200-37-250.us-west-2.compute.amazonaws.com',
-//    'ec2-54-200-37-249.us-west-2.compute.amazonaws.com',
-//    'ec2-54-200-38-2.us-west-2.compute.amazonaws.com'
-//], Oregon )
+ScoutsOregon = SGroup( 	[
+    'ec2-54-187-244-176.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-246-252.us-west-2.compute.amazonaws.com'
+], Oregon )
 
 
 /*
