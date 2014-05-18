@@ -3,9 +3,9 @@ package swift.deployment
 import static swift.deployment.Tools.*
 
 class SwiftBase {
-    static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCServer"
-    static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties swift.dc.DCSequencerServer"
-    static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties sys.herd.Shepard"
+    static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCServer"
+    static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCSequencerServer"
+    static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties sys.herd.Shepard"
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
         return "java " + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
@@ -15,16 +15,18 @@ class SwiftBase {
         return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
     }
 
-    static String sequencerCmd( String name, List servers, List otherSequencers) {
-        def res  = SEQUENCER_CMD + " -name " + name + " -servers "
+    static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers) {
+        def res  = SEQUENCER_CMD + " -name " + siteId + " -shepard " + shepard + " -servers "
         servers.each { res += it + " "}
         res += "-sequencers "
         otherSequencers.each { res += it + " "}
         return res
     }
 
-    static String surrogateCmd( String sequencer ) {
-        def res  = SURROGATE_CMD + " -sequencer " + sequencer + " "
+    static String surrogateCmd( String siteId, String shepard, String sequencer, List otherSurrogates ) {
+        def res  = SURROGATE_CMD + " -name " + siteId  + " -shepard " + shepard + " -sequencer " + sequencer + " "
+        res += "-surrogates "
+        otherSurrogates.each { res += it + " "}
         return res
     }
 
@@ -34,7 +36,7 @@ class SwiftBase {
         sequencers.each { host ->
             def sequencer = host
             def other_sequencers = sequencers.clone() - host
-            def name = "X" + sequencers.indexOf(host)
+            def name = siteId(sequencers.indexOf(host))
             rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, surrogates, other_sequencers), "seq-stdout.txt", "seq-stderr.txt" ))
         }
         println "\nOK"
@@ -52,13 +54,12 @@ class SwiftBase {
     static void runEachAsDatacentre( List datacentres, String seqHeap, String surHeap ) {
         println "==== STARTING DATACENTER SERVERS ===="
 
-        int i = 0;
         datacentres.each {
             def srv = it
             def surrogate = srv
             def sequencer = srv
             def other_sequencers = datacentres.clone() - srv
-            def name = "X" + i
+            def name = "X" + sequencers.indexOf(host)
             rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "seq-stdout.txt", "seq-stderr.txt" ))
             rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "sur-stdout.txt", "sur-stderr.txt" ))
             i++;

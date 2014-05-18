@@ -5,9 +5,30 @@ class Tools {
 
     static int DEBUG = 5;
 
-    static String USERNAME = 'ec2-user'
-    static String HOMEDIR = "/home/" + USERNAME + "/"
-
+    static String userName = {
+	    def swiftuser = System.getenv()['SwiftUser']
+	    if( swiftuser == null ) {
+	    	println '****  Please define SwiftUser shell environment variable to run SwiftCloud groovy scripts...' 
+	    	println '****  Defaulting to fctple_SwiftCloud'
+	    	return 'fctple_SwiftCloud'
+	    }	else
+	    	return swiftuser
+	    		    	
+    }()
+    
+    static String homeDir() {
+    	return "/home/" + userName + "/"    
+    }
+    
+	static void setUserName( String user) {
+		userName = user;
+		
+	}
+	 
+	static String userName() {
+		return userName;
+	}
+	
     static void Debug(int level, msg ) {
         if( DEBUG >= level )
             println msg
@@ -57,7 +78,7 @@ class Tools {
         def _cmd = (command + [
             "-v",
             "-l",
-            USERNAME,
+            userName(),
             "-h",
             f.absolutePath]
         + flags) + remote_cmd
@@ -91,7 +112,7 @@ class Tools {
     }
 
     static Process rsh( String host, String command ) {
-        def _cmd = ["ssh", USERNAME+"@"+host]+ command;
+        def _cmd = ["ssh", userName()+"@"+host]+ command;
         Debug(3, _cmd)
         return _cmd.execute()
     }
@@ -125,7 +146,7 @@ class Tools {
             [
                 "rsync",
                 src,
-                String.format("%s@%s:%s", USERNAME, host, dst)
+                String.format("%s@%s:%s", userName(), host, dst)
             ]
         }
         AtomicInteger n = new AtomicInteger();
@@ -143,7 +164,7 @@ class Tools {
             f.mkdirs()
             [
                 "scp",
-                String.format("%s@%s:%s", USERNAME, host, src),
+                String.format("%s@%s:%s", userName(), host, src),
                 f.absolutePath + "/" + dst
             ]
         }
