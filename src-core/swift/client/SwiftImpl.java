@@ -270,6 +270,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private CounterSignalSource ongoingObjectFetchesStats;
     private ValueSignalSource batchSizeOnCommitStats;
+    private CausalityClock nextPruneClock;
 
     SortedSet<CRDTIdentifier> notified = new TreeSet<CRDTIdentifier>();
     private final boolean assumeAtomicCausalNotifications;
@@ -335,7 +336,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
                 }
                 batch.recordMetadataSample(metadataStatsCollector);
-                // TODO: add pruning
+
+                tryPrune();
             }
         };
 
@@ -415,6 +417,22 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // new FailOverWatchDog().start();
 
         getDCClockEstimates();
+    }
+
+    protected synchronized void tryPrune() {
+        if (nextPruneClock != null) {
+            // for (final AbstractTxnHandle txn : pendingTxns) {
+            // if (txn.getUpdatesDependencyClock().compareTo(nextPruneClock)
+            // .is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
+            // // Pruning is unsafe at this stage.
+            // return;
+            // }
+            // }
+            // objectsCache.pruneAll(nextPruneClock);
+            // nextPruneClock = null;
+        } else {
+            nextPruneClock = getGlobalCommittedVersion(true);
+        }
     }
 
     public void stop(boolean waitForCommit) {
@@ -1535,6 +1553,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         asyncFetchAndSubscribeObjectUpdates(opsGroup.getTargetUID());
                     }
                 }
+                tryPrune();
             }
         }
     }
