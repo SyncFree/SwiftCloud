@@ -57,14 +57,14 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         Properties properties = Props.parseFile("swiftsocial", System.out, "swiftsocial-test.props");
 
-        System.out.println("Populating db with users...");
+        System.err.println("Populating db with users...");
 
         final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
         Workload.generateUsers(numUsers);
 
         final int PARTITION_SIZE = 1000;
         int partitions = numUsers / PARTITION_SIZE + (numUsers % PARTITION_SIZE > 0 ? 1 : 0);
-        ExecutorService pool = Executors.newFixedThreadPool(32);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
 
         final AtomicInteger counter = new AtomicInteger(0);
         for (int i = 0; i < partitions; i++) {
@@ -72,7 +72,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             final List<String> partition = Workload.getUserData().subList(lo, Math.min(hi, numUsers));
             pool.execute(new Runnable() {
                 public void run() {
-                    final SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
+                    SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
                     SwiftSocialBenchmark.super.initUsers(options, partition, counter, numUsers);
                 }
             });
@@ -157,7 +157,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             DCSequencerServer.main(new String[] { "-name", "X0" });
             DCServer.main(new String[] { "-servers", "localhost" });
 
-            args = new String[] { "-servers", "localhost", "-threads", "3" };
+            args = new String[] { "-servers", "localhost", "-threads", "10" };
 
             instance.initDB(args);
             instance.doBenchmark(args);
