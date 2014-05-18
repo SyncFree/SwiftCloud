@@ -26,10 +26,11 @@ abstract public class RemoteSubscriber<T> implements Subscriber<T> {
     @Override
     public void onNotification(Notifyable<T> info) {
         try {
-            if (remote != null && !id.equals(info.src()) || true) {
+            if (remote != null) {
                 endpoint.send(remote, (PubSubNotification<?>) info, RpcHandler.NONE, 0);
             }
-        } finally {
+        } catch (Exception x) {
+            x.printStackTrace();
         }
     }
 
