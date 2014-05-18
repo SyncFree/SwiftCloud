@@ -80,14 +80,12 @@ import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
 import swift.proto.ObjectUpdatesInfo;
 import swift.proto.SwiftProtocolHandler;
+import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.ScoutPubSubService;
-import swift.pubsub.SnapshotNotification;
-import swift.pubsub.UpdateNotification;
 import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
 import swift.utils.TransactionsLog;
-import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.stats.DummyStats;
@@ -329,39 +327,48 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.scoutPubSub = new ScoutPubSubService(scoutId, disasterSafe, serverEndpoint(), metadataStatsCollector) {
             private int i;
 
-            public void onNotification(final UpdateNotification update) {
-                update.recordMetadataSample(metadataStatsCollector);
-                applyObjectUpdates(update.info);
-                if (logger.isLoggable(Level.FINE)) {
-                    logger.fine(update.info.getId() + "/" + update.info.getNewClock());
-                }
+            @Override
+            public void onNotification(BatchUpdatesNotification snapshot) {
+                Thread.dumpStack();
             }
 
-            public void onNotification(final SnapshotNotification n) {
-                n.recordMetadataSample(metadataStatsCollector);
-
-                synchronized (SwiftImpl.this) {
-                    if (logger.isLoggable(Level.FINE)) {
-                        logger.fine(causalSnapshot + "/" + Sys.Sys.currentTime());
-                    }
-
-                    causalSnapshot.merge(n.snapshotClock());
-                    updateCommittedVersions(n.estimatedDCVersion(), n.estimatedDCStableVersion());
-                    if (i++ % 50 == 0) {
-                        System.err.println("Causal snapshot: " + causalSnapshot);
-                        System.err.println("Committed DC vector: " + getGlobalCommittedVersion(false));
-                        System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
-                    }
-
-                    // Causalsnapshot is notified when it is dominated
-                    // by the minimum of all the
-                    // surrogate DC version
-                    // estimates. For correctness, it is also delivered to the
-                    // client after the updates
-                    // that caused it.
-                    objectsCache.augmentAllWithDCCausalClockWithoutMappings(causalSnapshot);
-                }
-            }
+            // public void onNotification(final UpdateNotification update) {
+            // update.recordMetadataSample(metadataStatsCollector);
+            // applyObjectUpdates(update.info);
+            // if (logger.isLoggable(Level.FINE)) {
+            // logger.fine(update.info.getId() + "/" +
+            // update.info.getNewClock());
+            // }
+            // }
+            //
+            // public void onNotification(final SnapshotNotification n) {
+            // n.recordMetadataSample(metadataStatsCollector);
+            //
+            // synchronized (SwiftImpl.this) {
+            // if (logger.isLoggable(Level.FINE)) {
+            // logger.fine(causalSnapshot + "/" + Sys.Sys.currentTime());
+            // }
+            //
+            // causalSnapshot.merge(n.snapshotClock());
+            // updateCommittedVersions(n.estimatedDCVersion(),
+            // n.estimatedDCStableVersion());
+            // if (i++ % 50 == 0) {
+            // System.err.println("Causal snapshot: " + causalSnapshot);
+            // System.err.println("Committed DC vector: " +
+            // getGlobalCommittedVersion(false));
+            // System.err.println("Last local committed vector: " +
+            // lastLocallyCommittedTxnClock);
+            // }
+            //
+            // // Causalsnapshot is notified when it is dominated
+            // // by the minimum of all the
+            // // surrogate DC version
+            // // estimates. For correctness, it is also delivered to the
+            // // client after the updates
+            // // that caused it.
+            // objectsCache.augmentAllWithDCCausalClockWithoutMappings(causalSnapshot);
+            // }
+            // }
         };
 
         this.objectsCache.setEvictionListener(new EvictionListener() {

@@ -9,5 +9,5 @@ public interface SwiftSubscriber extends Subscriber<CRDTIdentifier> {
 
     public void onNotification(UpdateNotification update);
 
-    public void onNotification(SnapshotNotification snapshot);
+    public void onNotification(BatchUpdatesNotification snapshot);
 }
