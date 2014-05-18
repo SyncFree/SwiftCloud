@@ -524,7 +524,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             long rtt = rttAcum / numAcum;
             long clockSkew = (clockSkewPlusLatency - rtt / 2) / numAcum;
-            System.out.println( "" + rtt +"," + clockSkew + "," + scoutId + "," + InetAddress.getLocalHost() + "," + serverEndpoint().getHost());
+            System.out.println( ";" + rtt +"," + clockSkew + "," + scoutId + "," + InetAddress.getLocalHost() + "," + serverEndpoint().getHost());
             return numAcum > 0;
         } catch (Exception e) {
             return false;
