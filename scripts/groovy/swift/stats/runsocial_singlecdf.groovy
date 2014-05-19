@@ -8,11 +8,11 @@ import static swift.stats.GnuPlot.*
 import umontreal.iro.lecuyer.stat.Tally
 
 if (args.length < 1) {
-    println "usage: script <root_dir_with_logs>"
+    println "usage: script <root_dirs_with_logs>"
     System.exit(1)
 }
 
-DIR = args[0]
+DIRs = args.toList()
 
 Stats<Integer> stats = new Stats<Integer>();
 Set<String> skipOps = new HashSet<String>();
@@ -75,71 +75,69 @@ skipOps.add("LOGIN");
 skipOps.add("LOGOUT");
 skipOps.add("ERROR");
 
-processRootDir(90, 600, DIR, "client")
+DIRs.each { dir ->
+    processRootDir(90, 600, dir, "client")
+
+    plots = [:]
+    for( Histogram i : stats.histograms("data") ) {
+        data = []
+        int n = i.size()
+        Number[] xVal = i.xValues()
+        Tally[] yVal = i.yValues()
 
 
 
+        double total = 0.0
+        yVal.each { total += it.sum() }
 
-plots = [:]
-for( Histogram i : stats.histograms("data") ) {
-    data = []
-    int n = i.size()
-    Number[] xVal = i.xValues()
-    Tally[] yVal = i.yValues()
-
-
-
-    double total = 0.0
-    yVal.each { total += it.sum() }
-
-    double accum = 0.0, x0 = xVal[0].doubleValue()
-    n.times  {
-        double y0 = 100 * accum / total
-        accum += yVal[it].sum()
-        double x = xVal[it].doubleValue(), y = 100 * accum / total
-        data << String.format("%.0f\t%.1f", x, y0)
-        data << String.format("%.0f\t%.1f", x, y)
-        println x + "  " + y
+        double accum = 0.0, x0 = xVal[0].doubleValue()
+        n.times  {
+            double y0 = 100 * accum / total
+            accum += yVal[it].sum()
+            double x = xVal[it].doubleValue(), y = 100 * accum / total
+            data << String.format("%.0f\t%.1f", x, y0)
+            data << String.format("%.0f\t%.1f", x, y)
+            println x + "  " + y
+        }
+        plots[i.name()] = data
     }
-    plots[i.name()] = data
+
+    def gnuplot = [
+        '#set encoding utf8',
+        '#set label 1 "SwiftSocial - scout at DC" font "Helvetica,16" at 1,950',
+        'set terminal postscript size 10.0, 7.0 monochrome dashed font "Helvetica,28" linewidth 1',
+        //                   'set terminal aqua dashed',
+        'set xlabel "Latency [ ms ]"',
+        'set ylabel "Cumulative Ocurrences [ % ]"',
+        'set mxtics',
+        'set mytics',
+        'set xr [0.0:200.0]',
+        'set yr [0:100]',
+        'set pointinterval 20',
+        'set key right bottom',
+        'set grid xtics ytics lt 30 lt 30',
+        'set label',
+        'set clip points',
+        'set lmargin at screen 0.11',
+        'set rmargin at screen 0.99',
+        'set bmargin at screen 0.05',
+        'set tmargin at screen 0.9999',
+    ]
+
+    String outputFile = dir + "/latency_CDF"
+
+    //Sort by key length, then alphabetically
+    def keySorter = { String a, b ->
+        int l = Integer.signum( a.length() - b.length() )
+        l == 0 ? a.compareTo(b) : l
+    }
+
+
+    GnuPlot.doGraph( outputFile, gnuplot, plots, { k, v ->
+        String lw = k.toString().contains("---") ? 1: 3
+        String.format('title "%s" with lines lw %s', k, lw)
+        //    String.format('notitle  with lines lw %s', lw)
+    }, keySorter )
 }
-
-def gnuplot = [
-    '#set encoding utf8',
-    '#set label 1 "SwiftSocial - scout at DC" font "Helvetica,16" at 1,950',
-    'set terminal postscript size 10.0, 7.0 monochrome dashed font "Helvetica,28" linewidth 1',
-    //                   'set terminal aqua dashed',
-    'set xlabel "Latency [ ms ]"',
-    'set ylabel "Cumulative Ocurrences [ % ]"',
-    'set mxtics',
-    'set mytics',
-    'set xr [0.0:200.0]',
-    'set yr [0:100]',
-    'set pointinterval 20',
-    'set key right bottom',
-    'set grid xtics ytics lt 30 lt 30',
-    'set label',
-    'set clip points',
-    'set lmargin at screen 0.11',
-    'set rmargin at screen 0.99',
-    'set bmargin at screen 0.05',
-    'set tmargin at screen 0.9999',
-]
-
-String outputFile = DIR + "/latency_CDF"
-
-//Sort by key length, then alphabetically
-def keySorter = { String a, b ->
-    int l = Integer.signum( a.length() - b.length() )
-    l == 0 ? a.compareTo(b) : l
-}
-
-
-GnuPlot.doGraph( outputFile, gnuplot, plots, { k, v ->
-    String lw = k.toString().contains("---") ? 1: 3
-    String.format('title "%s" with lines lw %s', k, lw)
-    //    String.format('notitle  with lines lw %s', lw)
-}, keySorter )
-
 
 
