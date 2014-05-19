@@ -528,9 +528,7 @@ final class DCDataServer {
     CRDTData<?> localGetCRDT(CRDTIdentifier id) {
         lock(id);
         try {
-            Timings.mark();
             CRDTData<?> data = this.getDatabaseEntry(id);
-            Timings.sample("getDatabaseEntry");
             if (data.empty)
                 return null;
 
