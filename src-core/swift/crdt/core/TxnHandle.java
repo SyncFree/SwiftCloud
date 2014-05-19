@@ -170,7 +170,8 @@ public interface TxnHandle {
      *            An handler to monitor progress
      * @return map containing the result. null entries denote failed retrievals;
      */
-    Map<CRDTIdentifier, CRDT<?>> bulkGet(final Set<CRDTIdentifier> ids, final BulkGetProgressListener listener);
+    Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final Set<CRDTIdentifier> ids,
+            final BulkGetProgressListener listener);
 
     /**
      * TODO document
@@ -178,7 +179,7 @@ public interface TxnHandle {
      * @param ids
      * @return
      */
-    Map<CRDTIdentifier, CRDT<?>> bulkGet(final CRDTIdentifier... ids);
+    Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, final CRDTIdentifier... ids);
 
     // SYSTEM API:
     /**

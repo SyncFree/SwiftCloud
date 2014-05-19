@@ -31,7 +31,7 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         final HashMap<CRDTIdentifier, String> ids = getFieldIds(txn, table, key, fields, false);
 
         // Just trigger parallel reads.
-        txn.bulkGet(ids.keySet(), null);
+        txn.bulkGet(notificationsSubscriber != null, ids.keySet(), null);
         // Then do separate reads, to trigger notifications too.
         for (final Entry<CRDTIdentifier, String> entry : ids.entrySet()) {
             @SuppressWarnings("unchecked")
@@ -51,9 +51,9 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         final HashMap<CRDTIdentifier, String> ids = getFieldIds(txn, table, key, values.keySet(), true);
         // WISHME: would blind updates do the job here?
-       
+
         // Just trigger parallel reads.
-        txn.bulkGet(ids.keySet(), null);
+        txn.bulkGet(notificationsSubscriber != null, ids.keySet(), null);
         // Then do separate reads to trigger notifications too, and update.
         for (final Entry<CRDTIdentifier, String> entry : ids.entrySet()) {
             @SuppressWarnings("unchecked")
