@@ -255,19 +255,30 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
-        CausalityClock minVV = session.getMinVV();
 
+        final CausalityClock subscriptionsSnapshot;
+        if (request.hasSubscription()) {
+            // Force notification to update other objects to the same version
+            // TODO: force it only when necessary
+            subscriptionsSnapshot = session.tryFireClientNotification(true);
+        } else {
+            subscriptionsSnapshot = null;
+        }
         CausalityClock disasterSafeVVReply = null;
         if (request.isSendDCVector()) {
             disasterSafeVVReply = estimatedDCStableVersionCopy.clone();
-            disasterSafeVVReply.intersect(minVV);
+            if (subscriptionsSnapshot != null) {
+                disasterSafeVVReply.intersect(subscriptionsSnapshot);
+            }
         }
         CausalityClock vvReply = null;
         if (!request.isDisasterSafeSession() && request.isSendDCVector()) {
             // TODO: for nodes !request.isDisasterSafe() send it less
             // frequently (it's for pruning only)
             vvReply = estimatedDCVersionCopy.clone();
-            vvReply.intersect(minVV);
+            if (subscriptionsSnapshot != null) {
+                vvReply.intersect(subscriptionsSnapshot);
+            }
         }
 
         ManagedCRDT crdt = getCRDT(request.getUid(), request.getVersion(), request.getClientId());
@@ -278,8 +289,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             }
             // if (cltLastSeqNo != null)
             // crdt.augmentWithScoutClock(cltLastSeqNo);
-            estimatedDCVersionCopy.intersect(minVV);
-            estimatedDCVersionCopy.intersect(minVV);
             return new FetchObjectVersionReply(FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, vvReply,
                     disasterSafeVVReply);
         } else {
@@ -290,7 +299,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             // estimatedDCStableVersionCopy);
 
             synchronized (crdt) {
-                // FIXME: can we encode a diff between all these clocks on the
+                // TODO: can we encode a diff between all these clocks on the
                 // wire?
                 crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionCopy);
 
@@ -564,40 +573,43 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
             pending.addAll(update.info.getUpdates());
 
-            tryFireClientNotification();
+            tryFireClientNotification(false);
         }
 
-        protected void tryFireClientNotification() {
+        protected synchronized CausalityClock tryFireClientNotification(boolean force) {
             long now = Sys.Sys.timeMillis();
-            if (now > (lastNotification + NOTIFICATION_PERIOD)) {
-                CausalityClock snapshot = suPubSub.minDcVersion();
-                if (disasterSafe) {
-                    snapshot.intersect(getEstimatedDCStableVersionCopy());
-                }
+            if (!force && now <= (lastNotification + NOTIFICATION_PERIOD)) {
+                return null;
+            }
+            CausalityClock snapshot = suPubSub.minDcVersion();
+            if (disasterSafe) {
+                snapshot.intersect(getEstimatedDCStableVersionCopy());
+            }
 
-                final HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
-                final Iterator<CRDTObjectUpdatesGroup<?>> iter = pending.iterator();
-                while (iter.hasNext()) {
-                    final CRDTObjectUpdatesGroup<?> u = iter.next();
-                    if (u.anyTimestampIncluded(snapshot)) {
-                        // FIXME: for at-most-once check if any timestamp is
-                        // included in the previous clock of the scout
-                        List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(u.getTargetUID());
-                        if (objectUpdates == null) {
-                            objectUpdates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
-                            objectsUpdates.put(u.getTargetUID(), objectUpdates);
-                        }
-                        objectUpdates.add(u.strippedWithCopiedTimestampMappings());
-                        iter.remove();
+            final HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
+            final Iterator<CRDTObjectUpdatesGroup<?>> iter = pending.iterator();
+            while (iter.hasNext()) {
+                final CRDTObjectUpdatesGroup<?> u = iter.next();
+                if (u.anyTimestampIncluded(snapshot)) {
+                    // FIXME: for at-most-once check if any timestamp is
+                    // included in the previous clock of the scout
+                    List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(u.getTargetUID());
+                    if (objectUpdates == null) {
+                        objectUpdates = new LinkedList<CRDTObjectUpdatesGroup<?>>();
+                        objectsUpdates.put(u.getTargetUID(), objectUpdates);
                     }
-                }
-
-                if (!objectsUpdates.isEmpty()) {
-                    super.onNotification(new SwiftNotification(new BatchUpdatesNotification(suPubSub.minDcVersion(),
-                            disasterSafe, objectsUpdates)));
-                    lastNotification = now;
+                    objectUpdates.add(u.strippedWithCopiedTimestampMappings());
+                    iter.remove();
                 }
             }
+
+            if (!force && objectsUpdates.isEmpty()) {
+                return null;
+            }
+            super.onNotification(new SwiftNotification(new BatchUpdatesNotification(suPubSub.minDcVersion(),
+                    disasterSafe, objectsUpdates)));
+            lastNotification = now;
+            return snapshot;
         }
 
     }
