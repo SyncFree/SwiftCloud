@@ -1103,6 +1103,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // dependencies are overestimated.
             // TODO: during failover, it may be unsafe to IGNORE.
             cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
+        } else {
+            cachedCRDT.augmentWithScoutTimestamp(localTxn.getClientTimestamp());
+            CausalityClock dcTimetsamps = ClockFactory.newClock();
+            for (final Timestamp sysTs : localTxn.getTimestampMapping().getSystemTimestamps()) {
+                dcTimetsamps.record(sysTs);
+            }
+            cachedCRDT.augmentWithDCClockWithoutMappings(dcTimetsamps);
         }
     }
 
