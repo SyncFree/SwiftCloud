@@ -392,7 +392,6 @@ final class DCDataServer {
                 data = localPutCRDT(crdt);
             }
             data.pruneIfPossible();
-            CausalityClock oldClock = data.clock.clone();
 
             // crdt.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
             // //

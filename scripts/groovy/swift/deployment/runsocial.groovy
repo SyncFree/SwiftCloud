@@ -73,7 +73,7 @@ println "==== BUILDING JAR for version " + Version + "..."
 sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, SwiftSocial_Props)
-//        deployTo(AllMachines, "stuff/all_logging.properties", "logging.properties")
+deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 
 
 def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
