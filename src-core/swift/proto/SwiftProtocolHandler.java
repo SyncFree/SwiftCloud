@@ -99,6 +99,14 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
         Thread.dumpStack();
     }
 
+    protected void onReceive(RpcHandle conn, final PingRequest request) {
+        Thread.dumpStack();
+    }
+
+    protected void onReceive(RpcHandle conn, final PingReply reply) {
+        Thread.dumpStack();
+    }
+
     // For the pseudo DHT------------------------------
     protected void onReceive(RpcHandle conn, DHTExecCRDT request) {
         Thread.dumpStack();

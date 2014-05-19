@@ -78,6 +78,8 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
+import swift.proto.PingReply;
+import swift.proto.PingRequest;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.ScoutPubSubService;
@@ -417,6 +419,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // TODO: make it configurable
         // new FailOverWatchDog().start();
 
+        clockSkewEstimate();
+        
         getDCClockEstimates();
     }
 
@@ -500,6 +504,31 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // } catch (Exception e) {
         // // e.printStackTrace();
         // }
+    }
+
+    private boolean clockSkewEstimate() {
+        try {
+            PingRequest request;
+            PingReply reply;
+            long rttAcum = 0;
+            int numAcum = 0;
+            long clockSkewPlusLatency = 0;
+            for (int i = 0; i < 5; i++) {
+                request = new PingRequest(scoutId, disasterSafe, System.nanoTime());
+                reply = localEndpoint.request(serverEndpoint(), request);
+                long receivedTime = System.nanoTime();
+                if (reply != null) {
+                    numAcum++;
+                    rttAcum = rttAcum + receivedTime - reply.getTimeAtSender();
+                    clockSkewPlusLatency = clockSkewPlusLatency + reply.getTimeAtReceiver() - reply.getTimeAtSender();
+                }
+            }
+            long rtt = rttAcum / numAcum;
+            long clockSkew = (clockSkewPlusLatency - rtt / 2) / numAcum;
+            return numAcum > 0;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private boolean getDCClockEstimates() {
