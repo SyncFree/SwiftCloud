@@ -256,29 +256,15 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
 
-        final CausalityClock subscriptionsSnapshot;
-        if (request.hasSubscription()) {
-            // Force notification to update other objects to the same version
-            // TODO: force it only when necessary
-            subscriptionsSnapshot = session.tryFireClientNotification(true);
-        } else {
-            subscriptionsSnapshot = null;
-        }
         CausalityClock disasterSafeVVReply = null;
         if (request.isSendDCVector()) {
             disasterSafeVVReply = estimatedDCStableVersionCopy.clone();
-            if (subscriptionsSnapshot != null) {
-                disasterSafeVVReply.intersect(subscriptionsSnapshot);
-            }
         }
         CausalityClock vvReply = null;
         if (!request.isDisasterSafeSession() && request.isSendDCVector()) {
             // TODO: for nodes !request.isDisasterSafe() send it less
             // frequently (it's for pruning only)
             vvReply = estimatedDCVersionCopy.clone();
-            if (subscriptionsSnapshot != null) {
-                vvReply.intersect(subscriptionsSnapshot);
-            }
         }
 
         ManagedCRDT crdt = getCRDT(request.getUid(), request.getVersion(), request.getClientId());
@@ -573,12 +559,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
             pending.addAll(update.info.getUpdates());
 
-            tryFireClientNotification(false);
+            tryFireClientNotification();
         }
 
-        protected synchronized CausalityClock tryFireClientNotification(boolean force) {
+        protected synchronized CausalityClock tryFireClientNotification() {
             long now = Sys.Sys.timeMillis();
-            if (!force && now <= (lastNotification + NOTIFICATION_PERIOD)) {
+            if (now <= (lastNotification + NOTIFICATION_PERIOD)) {
                 return null;
             }
             CausalityClock snapshot = suPubSub.minDcVersion();
@@ -603,9 +589,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 }
             }
 
-            if (!force && objectsUpdates.isEmpty()) {
-                return null;
-            }
+            // Update client in any case.
+            // if (objectsUpdates.isEmpty()) {
+            // return null;
+            // }
+            // TODO: for clients that cannot receive periodical updates (e.g.
+            // mobile in background mode), one could require a transaction to
+            // redeclare his read set and force client to refresh the cache
+            // before the transaction.
             super.onNotification(new SwiftNotification(new BatchUpdatesNotification(suPubSub.minDcVersion(),
                     disasterSafe, objectsUpdates)));
             lastNotification = now;
