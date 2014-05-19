@@ -27,7 +27,7 @@ public class DummyMetadataStatsCollector implements MetadataStatsCollector {
 
     @Override
     public void recordStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize,
-            int batchSize, int maxExceptionsNum) {
+            int explicitlyComputedGlobalMetadataSize, int batchSize, int maxVectorSize, int maxExceptionsNum) {
         // no-op
     }
 }

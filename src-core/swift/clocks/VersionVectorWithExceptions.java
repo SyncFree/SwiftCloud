@@ -795,12 +795,17 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     }
 
     @Override
-    public int getExceptionsNumber() {
-        int exceptionsSum = 0;
+    public int getSize() {
+        int intervalsNum = 0;
         for (final LinkedList<Interval> intervals : vv.values()) {
-            exceptionsSum += intervals.size() - 1;
+            intervalsNum += intervals.size();
         }
-        return exceptionsSum;
+        return intervalsNum;
+    }
+
+    @Override
+    public int getExceptionsNumber() {
+        return getSize() - vv.size();
     }
 
     @Override

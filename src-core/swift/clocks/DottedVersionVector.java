@@ -441,6 +441,11 @@ public class DottedVersionVector implements CausalityClock {
         return new DottedVersionVector(this);
     }
 
+    @Override
+    public int getSize() {
+        return vv.size() + (ts == null ? 0 : 1);
+    }
+
     // @Override
     // public CausalityClock retain(String siteId) {
     // throw new RuntimeException("Not implemented...");

@@ -74,6 +74,7 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         final int totalSize = buffer.position();
 
         int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
@@ -93,6 +94,7 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
 
             if (group.getDependency() != null) {
                 maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(group.getDependency().getSize(), maxVectorSize);
             }
         }
         final int updatesSize = buffer.position();
@@ -113,6 +115,9 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, numberOfOps, maxExceptionsNum);
+        // FIXME
+        int globalMetadata = 0;
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+                maxExceptionsNum);
     }
 }
