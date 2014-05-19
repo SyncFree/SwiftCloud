@@ -62,6 +62,8 @@ import swift.proto.GenerateDCTimestampReply;
 import swift.proto.GenerateDCTimestampRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
+import swift.proto.PingReply;
+import swift.proto.PingRequest;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.BatchUpdatesNotification;
@@ -519,6 +521,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
     }
 
+    @Override
+    public void onReceive(final RpcHandle conn, PingRequest request) {
+        PingReply reply = new PingReply( request.getTimeAtSender(), System.nanoTime());
+        conn.reply(reply);
+    }
+    
+    
     public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
         final String clientId;
         Timestamp lastSeqNo;
