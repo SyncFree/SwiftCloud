@@ -580,6 +580,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 while (iter.hasNext()) {
                     final CRDTObjectUpdatesGroup<?> u = iter.next();
                     if (u.anyTimestampIncluded(snapshot)) {
+                        // FIXME: for at-most-once check if any timestamp is
+                        // included in the previous clock of the scout
                         List<CRDTObjectUpdatesGroup<?>> objectUpdates = objectsUpdates.get(u.getTargetUID());
                         if (objectUpdates == null) {
                             objectUpdates = new LinkedList<CRDTObjectUpdatesGroup<?>>();

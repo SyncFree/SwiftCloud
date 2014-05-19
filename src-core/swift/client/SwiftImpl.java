@@ -320,21 +320,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         localEndpoint.setHandler(new SwiftProtocolHandler());
 
         this.scoutPubSub = new ScoutPubSubService(scoutId, disasterSafe, serverEndpoint(), metadataStatsCollector) {
-            private int i;
 
             public void onNotification(final BatchUpdatesNotification batch) {
-                // FIXME: handle violated FIFO channel?
+                // FIXME: handle broken FIFO channel?
                 for (Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : batch.getObjectsUpdates()
                         .entrySet()) {
                     applyObjectUpdates(entry.getKey(), entry.getValue());
                 }
+                // FIXME: handle cache expansionconcurrent to the notification
+                // use epoch numbers?
                 objectsCache.augmentAllWithDCCausalClockWithoutMappings(batch.getNewVersion());
                 updateCommittedVersions(batch.isNewVersionDisasterSafe() ? null : batch.getNewVersion(),
                         batch.isNewVersionDisasterSafe() ? batch.getNewVersion() : null);
-                if (i++ % 50 == 0) {
-                    System.err.println("Committed DC vector: " + getGlobalCommittedVersion(false));
-                    System.err.println("Last local committed vector: " + lastLocallyCommittedTxnClock);
-                }
                 batch.recordMetadataSample(metadataStatsCollector);
 
                 tryPrune();
@@ -539,6 +536,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 // commitedVersion only grows.
                 snapshotClock = getGlobalCommittedVersion(true);
             }
+            // For Read Your Writes and Monotonic Reads (the latter necessary
+            // only if isolation level changes)
             snapshotClock.merge(lastLocallyCommittedTxnClock);
 
             final SnapshotIsolationTxnHandle siTxn;
