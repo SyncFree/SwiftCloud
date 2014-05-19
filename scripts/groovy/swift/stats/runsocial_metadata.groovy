@@ -96,8 +96,24 @@ def gnuplot = [
     //    'set grid xtics ytics lt 30 lt 30',
 ]
 
+def WANTED_MESSAGES = [
+    "FetchObjectVersionReply",
+    "FetchObjectRequest",
+    "BatchUpdatesNotification",
+    "BatchCommitRequest"] as Set
+def WANTED_CATEGORIES = [
+    MetadataLogsProcessor.CATEGORY_GLOBAL_METADATA_PRECISE,
+    MetadataLogsProcessor.CATEGORY_VECTOR_SIZE,
+    MetadataLogsProcessor.CATEGORY_BATCH_SIZE] as Set
+
 categoriesMessagesPlotsMap.each { category,messagesPlots ->
+    if (!WANTED_CATEGORIES.contains(category)) {
+        return
+    }
     messagesPlots.each { message, plot ->
+        if (!WANTED_MESSAGES.contains(message)) {
+            return
+        }
         String outputFile = new File(args[0], "metadata-processed-" + message + "-" + category.replace(' ', '_')).absolutePath
         println plot
         GnuPlot.doGraph( outputFile, gnuplot, ['x':plot], { k, v ->

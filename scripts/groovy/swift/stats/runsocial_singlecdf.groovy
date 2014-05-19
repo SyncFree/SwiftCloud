@@ -111,7 +111,7 @@ DIRs.each { dir ->
         'set ylabel "Cumulative Ocurrences [ % ]"',
         'set mxtics',
         'set mytics',
-        'set xr [0.0:200.0]',
+        'set xr [0.0:500.0]',
         'set yr [0:100]',
         'set pointinterval 20',
         'set key right bottom',
