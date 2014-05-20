@@ -19,6 +19,7 @@ package swift.clocks;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 
 import swift.exceptions.IncompatibleTypeException;
@@ -384,6 +385,12 @@ public class VersionVector implements CausalityClock {
     @Override
     public int getSize() {
         return vv.size();
+    }
+
+    @Override
+    public Set<String> getSiteIds() {
+        // TODO Auto-generated method stub
+        return null;
     }
 
     // @Override

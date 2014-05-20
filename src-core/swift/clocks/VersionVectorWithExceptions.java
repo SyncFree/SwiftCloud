@@ -942,6 +942,12 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             for (Interval ii : e.getValue())
                 ii.write(kryo, out);
         }
+
+    }
+
+    @Override
+    public Set<String> getSiteIds() {
+        return vv.keySet();
     }
 
     // @Override

@@ -473,6 +473,12 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         return 0;
     }
 
+    @Override
+    public Set<String> getSiteIds() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
     // @Override
     // public CausalityClock retain(String siteId) {
     // throw new RuntimeException("Not implemented...");

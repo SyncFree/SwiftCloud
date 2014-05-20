@@ -17,6 +17,7 @@
 package swift.clocks;
 
 import java.io.Serializable;
+import java.util.Set;
 
 import swift.crdt.core.Copyable;
 import swift.exceptions.IncompatibleTypeException;
@@ -49,6 +50,8 @@ public interface CausalityClock extends Serializable, Copyable {
             return false;
         }
     };
+    
+    Set<String> getSiteIds();
 
     /**
      * Records the given event. Assume the timestamp can be recorded in the
