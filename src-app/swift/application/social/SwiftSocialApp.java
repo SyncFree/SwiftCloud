@@ -19,6 +19,7 @@ package swift.application.social;
 import java.io.PrintStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -152,6 +153,7 @@ public class SwiftSocialApp {
             }
         case READ:
             if (toks.length == 2) {
+//                socialClient.read(toks[1], new ArrayList<Message>(), new ArrayList<Message>());
                 socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
                 break;
             }

@@ -93,6 +93,8 @@ import swift.utils.TransactionsLog;
 import sys.Sys;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.scheduler.PeriodicTask;
+import sys.scheduler.Task;
 import sys.stats.DummyStats;
 import sys.stats.Stats;
 import sys.stats.StatsConstants;
@@ -117,7 +119,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // do nothing
         };
     };
-
+    
     // Experimental feature: share dependency clock in a commit batch to reduce
     // metadata size.
     public static final boolean USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH = true;
@@ -435,7 +437,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // TODO: make it configurable
         // new FailOverWatchDog().start();
 
-        clockSkewEstimate();
+        new PeriodicTask(10,10) {
+            public void run() {
+                clockSkewEstimate();
+            }
+        };
         
         getDCClockEstimates();
     }
@@ -509,23 +515,17 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         try {
             PingRequest request;
             PingReply reply;
-            long rttAcum = 0;
-            int numAcum = 0;
-            long clockSkewPlusLatency = 0;
-            for (int i = 0; i < 5; i++) {
-                request = new PingRequest(scoutId, disasterSafe, System.nanoTime());
-                reply = localEndpoint.request(serverEndpoint(), request);
-                long receivedTime = System.nanoTime();
-                if (reply != null) {
-                    numAcum++;
-                    rttAcum = rttAcum + receivedTime - reply.getTimeAtSender();
-                    clockSkewPlusLatency = clockSkewPlusLatency + reply.getTimeAtReceiver() - reply.getTimeAtSender();
-                }
+            request = new PingRequest(scoutId, disasterSafe, System.currentTimeMillis());
+            reply = localEndpoint.request(serverEndpoint(), request);
+            long receivedTime = System.currentTimeMillis();
+            if (reply != null) {
+                long rtt = receivedTime - reply.getTimeAtSender();
+                long skew = reply.getTimeAtReceiver() - reply.getTimeAtSender() - rtt / 2;
+                //SS,time,rtt,skew,scoutid,ip,server_ip
+                System.out.println( "SS,time," + rtt +"," + skew + "," + scoutId + "," + InetAddress.getLocalHost() + "," + serverEndpoint().getHost());
+                return true;
             }
-            long rtt = rttAcum / numAcum;
-            long clockSkew = (clockSkewPlusLatency - rtt / 2) / numAcum;
-            System.out.println( ";" + rtt +"," + clockSkew + "," + scoutId + "," + InetAddress.getLocalHost() + "," + serverEndpoint().getHost());
-            return numAcum > 0;
+            return false;
         } catch (Exception e) {
             return false;
         }
@@ -1811,5 +1811,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 onFailOver();
             }
         }
+    }
+
+    public String getScoutId() {
+        return scoutId;
     }
 }

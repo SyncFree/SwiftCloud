@@ -520,7 +520,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     @Override
     public void onReceive(final RpcHandle conn, PingRequest request) {
-        PingReply reply = new PingReply( request.getTimeAtSender(), System.nanoTime());
+        PingReply reply = new PingReply( request.getTimeAtSender(), System.currentTimeMillis());
         conn.reply(reply);
     }
     

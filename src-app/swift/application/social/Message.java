@@ -71,4 +71,8 @@ public class Message implements Cloneable, java.io.Serializable, Comparable<Mess
         return new Long(date).compareTo(other.date);
     }
 
+    public long getDate() {
+        return date;
+    }
+
 }

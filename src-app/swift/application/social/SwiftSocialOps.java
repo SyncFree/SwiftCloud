@@ -16,6 +16,7 @@
  *****************************************************************************/
 package swift.application.social;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import swift.client.SwiftImpl;
 import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.core.CRDT;
@@ -229,6 +231,10 @@ public class SwiftSocialOps {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
+            // SS,get,scoutid,key,curtime,size
+            System.out.println( "SS,get," + server.getScout().getScoutId() + "," + NamingScheme.forUser(name) + "," + System.currentTimeMillis() + "," +
+                        msgs.size());
+//                                ((ArrayList<Message>)msgs).get(0).getDate());
         }
         return user;
     }
@@ -257,6 +263,8 @@ public class SwiftSocialOps {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
+            // SS,put,scoutid,key,curtime
+            System.out.println( "SS,put," + server.getScout().getScoutId() + "," + NamingScheme.forUser(receiverName) + "," + date);
         }
     }
 
