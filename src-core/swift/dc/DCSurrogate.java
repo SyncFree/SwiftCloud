@@ -90,7 +90,7 @@ import sys.scheduler.PeriodicTask;
  */
 final public class DCSurrogate extends SwiftProtocolHandler {
     public static final boolean FAKE_PRACTI_DEPOT_VECTORS = false;
-    public static final boolean OPTIMIZED_VECTORS_IN_BATCH = true;
+    public static final boolean OPTIMIZED_VECTORS_IN_BATCH = false;
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     String siteId;
