@@ -38,10 +38,10 @@ class MetadataLogsProcessor {
         f.eachLine { String l ->
             String[] fields = l.split(",")
             if( ! l.startsWith(";") && !l.startsWith("SYS") && l.contains("METADATA_") && fields.length >= 10) {
-                String sessionId = fields[0]
-                long T = Long.valueOf(fields[1])
-                String message = fields[2].substring("METADATA_".size())
                 try {
+                    String sessionId = fields[0]
+                    long T = Long.valueOf(fields[1])
+                    String message = fields[2].substring("METADATA_".size())
                     int messageSize = Integer.valueOf(fields[3])
                     int objectMetadataData = Integer.valueOf(fields[4])
                     def globalMetadata = messageSize - objectMetadataData
