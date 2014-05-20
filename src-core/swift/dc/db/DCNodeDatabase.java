@@ -23,6 +23,8 @@ import swift.dc.CRDTData;
 
 public interface DCNodeDatabase {
 
+    void sync(boolean flag);
+
     boolean ramOnly();
 
     void init(Properties props);

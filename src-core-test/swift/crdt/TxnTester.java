@@ -194,13 +194,16 @@ public class TxnTester implements TxnHandle {
     }
 
     @Override
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, BulkGetProgressListener listener) {
-        throw new UnsupportedOperationException();
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, Set<CRDTIdentifier> ids,
+            BulkGetProgressListener listener) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
     @Override
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(CRDTIdentifier... ids) {
-        throw new UnsupportedOperationException();
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, CRDTIdentifier... ids) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

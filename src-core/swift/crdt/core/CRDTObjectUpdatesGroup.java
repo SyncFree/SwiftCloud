@@ -209,17 +209,22 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
 
     /**
      * @param newDependencyClock
-     * @param scoutIdToDrop
      * @return shallow copy of this object dependencyClock set to another one.
      */
-    public CRDTObjectUpdatesGroup<V> withGlobalDependencyClock(final CausalityClock newDependencyClock,
-            String ignoredScoutId) {
-        dependencyClock.drop(ignoredScoutId);
+    public CRDTObjectUpdatesGroup<V> withDependencyClock(final CausalityClock newDependencyClock) {
         if (newDependencyClock != null
                 && !newDependencyClock.compareTo(dependencyClock).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
             throw new IllegalArgumentException("new dependency clock is concurrent or lower than the old one");
         }
         return new CRDTObjectUpdatesGroup<V>(id, timestampMapping, operations, creationState, newDependencyClock);
+    }
+
+    /**
+     * @param newId
+     * @return shallow copy of the object id set to another one.
+     */
+    public CRDTObjectUpdatesGroup<V> withId(CRDTIdentifier newId) {
+        return new CRDTObjectUpdatesGroup<V>(newId, timestampMapping, operations, creationState, dependencyClock);
     }
 
     /**

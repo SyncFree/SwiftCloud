@@ -77,7 +77,6 @@ public class Args {
     }
 
     static public List<String> subList(String[] args, String flag, String defaultValue) {
-        return contains(args, "-servers") ? subList(args, flag) : subList(new String[] { "-servers", defaultValue },
-                "-servers");
+        return contains(args, flag) ? subList(args, flag) : subList(new String[] { flag, defaultValue }, flag);
     }
 }

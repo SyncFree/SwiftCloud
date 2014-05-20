@@ -55,16 +55,17 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         final String servers = Args.valueOf(args, "-servers", "localhost");
 
-        Properties properties = Props.parseFile("swiftsocial", System.out, "swiftsocial-test.props");
+        String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
+        Properties properties = Props.parseFile("swiftsocial", System.out, propFile);
 
-        System.out.println("Populating db with users...");
+        System.err.println("Populating db with users...");
 
         final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
         Workload.generateUsers(numUsers);
 
         final int PARTITION_SIZE = 1000;
         int partitions = numUsers / PARTITION_SIZE + (numUsers % PARTITION_SIZE > 0 ? 1 : 0);
-        ExecutorService pool = Executors.newFixedThreadPool(32);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
 
         final AtomicInteger counter = new AtomicInteger(0);
         for (int i = 0; i < partitions; i++) {
@@ -72,7 +73,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             final List<String> partition = Workload.getUserData().subList(lo, Math.min(hi, numUsers));
             pool.execute(new Runnable() {
                 public void run() {
-                    final SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
+                    SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
                     SwiftSocialBenchmark.super.initUsers(options, partition, counter, numUsers);
                 }
             });
@@ -136,7 +137,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         // report client progress every 1 seconds...
         new PeriodicTask(0.0, 1.0) {
             public void run() {
-                System.err.printf("\rDone: %s", Progress.percentage(commandsDone.get(), totalCommands.get()));
+                System.err.printf("Done: %s", Progress.percentage(commandsDone.get(), totalCommands.get()));
             }
         };
 
@@ -154,16 +155,35 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         SwiftSocialBenchmark instance = new SwiftSocialBenchmark();
         if (args.length == 0) {
 
-            DCSequencerServer.main(new String[] { "-name", "X0" });
+            DCSequencerServer.main(new String[] { "-name", "X" });
             DCServer.main(new String[] { "-servers", "localhost" });
 
-            args = new String[] { "-servers", "localhost", "-threads", "3" };
-
+            args = new String[] { "-servers", "localhost", "-threads", "10", "-props", "swiftsocial-test.props" };
             instance.initDB(args);
             instance.doBenchmark(args);
             exit(0);
         }
+        if (args[0].equals("-prepareDB")) {
+            // uses berkeleydb in sync mode to create a DB snapshot.
+            // In folder db, default and default_seq need
+            // to be renamed manually to 25k and 25k_seq
+            DCSequencerServer.main(new String[] { "-sync", "-db", "-name", "X" });
+            DCServer.main(new String[] { "-sync", "-db", "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            instance.initDB(args);
 
+            Threading.sleep(30000);
+            exit(0);
+        }
+        if (args[0].equals("-reloadDB")) {
+            // assumes there is db/25k and db/25k_seq folders with the prepared
+            // db snapshot...
+            DCSequencerServer.main(new String[] { "-rdb", "25k", "-db", "-name", "X" });
+            DCServer.main(new String[] { "-rdb", "25k", "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            instance.doBenchmark(args);
+            exit(0);
+        }
         if (args[0].equals("init")) {
             instance.initDB(args);
             exit(0);

@@ -16,6 +16,9 @@
  *****************************************************************************/
 package swift.dc;
 
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_DOMINATES;
+import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
+import static swift.dc.DCConstants.DATABASE_CLASS;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
@@ -29,6 +32,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -52,10 +56,11 @@ import swift.proto.PingRequest;
 import swift.proto.SeqCommitUpdatesReply;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
-import sys.herd.Herd;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.utils.Args;
+import sys.utils.FifoQueue;
 import sys.utils.Threading;
 
 /**
@@ -200,6 +205,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                             }
                             if (curTime < req0.lastSent + 2000)
                                 continue;
+
                             CMP_CLOCK cmp = currentStateCopy.compareTo(req0.getObjectUpdateGroups().get(0)
                                     .getDependency());
                             if ((cmp == CMP_CLOCK.CMP_DOMINATES || cmp == CMP_CLOCK.CMP_EQUALS)
@@ -284,8 +290,6 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 logger.info("Sequencer ready...");
             }
         }
-
-        Herd.joinHerd(siteId, "sequencers", srvEndpoint.localEndpoint(), srvEndpoint.localEndpoint());
     }
 
     private boolean upgradeToPrimary() {
@@ -437,18 +441,11 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         return t;
     }
 
-    // private synchronized boolean refreshId(Timestamp t) {
-    // boolean hasTS = pendingTS.containsKey(t);
-    // if (hasTS)
-    // pendingTS.put(t, System.currentTimeMillis());
-    // return hasTS;
-    // }
-
     private synchronized boolean commitTS(CausalityClock clk, Timestamp t, Timestamp cltTs, boolean commit) {
         boolean hasTS = pendingTS.remove(t) != null
                 || ((!t.getIdentifier().equals(this.siteId)) && !currentState.includes(t));
 
-        currentState.merge(clk); // nmp: not sure why is this here
+        // currentState.merge(clk); // nmp: not sure why is this here
         currentState.record(t);
         clientClock.record(cltTs);
         if (sequencers.size() == 0 || !siteId.equals(t.getIdentifier())) // HACK:
@@ -479,9 +476,13 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     private boolean processGenerateDCTimestampRequest(RpcHandle conn, GenerateDCTimestampRequest request) {
+        long last;
+
+        Timestamp cltTs = request.getCltTimestamp();
         synchronized (clientClock) {
-            if (clientClock.includes(request.getCltTimestamp())) {
-                conn.reply(new GenerateDCTimestampReply(clientClock.getLatestCounter(request.getClientId())));
+            last = clientClock.getLatestCounter(request.getClientId());
+            if (clientClock.includes(cltTs)) {
+                conn.reply(new GenerateDCTimestampReply(last));
                 return true;
             }
         }
@@ -489,8 +490,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         synchronized (this) {
             cmp = currentState.compareTo(request.getDependencyClk());
         }
-        if (cmp == CMP_CLOCK.CMP_EQUALS || cmp == CMP_CLOCK.CMP_DOMINATES) {
-
+        if (cltTs.getCounter() == (last + 1L) && cmp.is(CMP_EQUALS, CMP_DOMINATES)) {
             conn.reply(new GenerateDCTimestampReply(generateNewId(),
                     clientClock.getLatestCounter(request.getClientId())));
 
@@ -531,6 +531,31 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         conn.reply(new LatestKnownClockReply(currentClockCopy(), stableClockCopy()));
     }
 
+    final ConcurrentHashMap<String, FifoQueue<CommitTSRequest>> fifoQueues = new ConcurrentHashMap<String, FifoQueue<CommitTSRequest>>();
+
+    public FifoQueue<CommitTSRequest> queueFor(final Timestamp ts) {
+        String id = ts.getIdentifier();
+        FifoQueue<CommitTSRequest> res = fifoQueues.get(id), nq;
+        if (res == null) {
+            res = fifoQueues.putIfAbsent(id, nq = new FifoQueue<CommitTSRequest>(id) {
+                public void process(CommitTSRequest request) {
+                    doCommit(request.getReplyHandle(), request);
+                }
+            });
+            if (res == null)
+                res = nq;
+        }
+        return res;
+    }
+
+    @Override
+    public void onReceive(final RpcHandle conn, final CommitTSRequest request) {
+        request.setReplyHandle(conn);
+
+        Timestamp ts = request.getTimestamp();
+        queueFor(ts).offer(ts.getCounter(), request);
+    }
+
     /**
      * @param conn
      *            connection such that the remote end implements
@@ -538,8 +563,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
      * @param request
      *            request to serve
      */
-    @Override
-    public void onReceive(final RpcHandle conn, final CommitTSRequest request) {
+    void doCommit(final RpcHandle conn, final CommitTSRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("sequencer: commitTSRequest:" + request.getTimestamp() + ":nops="
                     + request.getObjectUpdateGroups().size());
@@ -653,9 +677,32 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     public static void main(String[] args) {
-        sys.Sys.init();
-        Properties props = new Properties();
-        props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+        final String dbSuffix = "_seq";
+
+        final Properties props = new Properties();
+        props.putAll(System.getProperties());
+
+        props.setProperty("sync_commit", Args.contains(args, "-sync") + "");
+
+        String restoreDBdir = Args.valueOf(args, "-rdb", null);
+        boolean useBerkeleyDB = Args.contains(args, "-db");
+
+        if (restoreDBdir != null) {
+            useBerkeleyDB = true;
+            props.setProperty("restore_db", restoreDBdir + dbSuffix);
+        }
+        if (!props.containsKey(DATABASE_CLASS) || useBerkeleyDB) {
+            if (DCConstants.DEFAULT_DB_NULL && !useBerkeleyDB) {
+                props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+            } else {
+                props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DCBerkeleyDBDatabase");
+                props.setProperty(DCConstants.BERKELEYDB_DIR, "db/default" + dbSuffix);
+            }
+        }
+        if (!props.containsKey(DCConstants.DATABASE_CLASS)) {
+            props.setProperty(DCConstants.PRUNE_POLICY, "false");
+        }
+
         List<String> sequencers = new ArrayList<String>();
         List<String> servers = new ArrayList<String>();
         int port = DCConstants.SEQUENCER_PORT;
@@ -688,15 +735,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             }
         }
 
-        try {
-            Herd.initServer();
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
-
         new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup, props).start();
     }
-
 }
 
 class BlockedTimestampRequest {

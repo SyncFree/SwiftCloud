@@ -129,4 +129,9 @@ public class DCKryoFileDatabase implements DCNodeDatabase {
             // x.printStackTrace();
         }
     }
+
+    @Override
+    public void sync(boolean sync) {
+        throw new RuntimeException("Not implemented...");
+    }
 }

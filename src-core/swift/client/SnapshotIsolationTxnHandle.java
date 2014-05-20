@@ -100,7 +100,7 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
             manager.getObjectVersionTxnView(this, id, localView.getClock(), create, classOfV, updatesListener);
         }
         if (localView == null) {
-            localView = manager.getObjectVersionTxnView(this, id, getUpdatesDependencyClock(), create, classOfV,
+            localView = manager.getObjectVersionTxnView(this, id, getUpdatesDependencyClock().clone(), create, classOfV,
                     updatesListener);
             objectViewsCache.put(id, localView);
         }

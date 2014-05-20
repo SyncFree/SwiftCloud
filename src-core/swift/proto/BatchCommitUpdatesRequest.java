@@ -19,6 +19,7 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
+import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
@@ -83,7 +84,22 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
 
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        CausalityClock sharedDepsTest = null;
+        for (final CommitUpdatesRequest req : commitRequests) {
+            // Count the shared clock only once (it can appear once on the wire)
+            if (sharedDepsTest != req.getDependencyClock()) {
+                kryo.writeObject(buffer, req.getDependencyClock());
+                sharedDepsTest = req.getDependencyClock();
+            }
+            kryo.writeObject(buffer, req.getCltTimestamp());
+        }
+        final int globalMetadata = buffer.position();
+
         int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
+        int numberOfOps = 0;
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         for (final CommitUpdatesRequest req : commitRequests) {
@@ -92,10 +108,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                     kryo.writeObject(buffer, group.getCreationState());
                 }
                 maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(group.getDependency().getSize(), maxVectorSize);
                 kryo.writeObject(buffer, group.getTargetUID());
-                for (final CRDTUpdate<?> op : group.getOperations()) {
-                    kryo.writeObject(buffer, op);
-                }
+                kryo.writeObject(buffer, group.getOperations());
             }
         }
         final int updatesSize = buffer.position();
@@ -105,16 +120,27 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         for (final CommitUpdatesRequest req : commitRequests) {
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
                 if (group.hasCreationState()) {
-                    kryo.writeObject(buffer, group.getCreationState());
+                    final Object value = group.getCreationState().getValue();
+                    if (value != null) {
+                        kryo.writeObject(buffer, value);
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
                 }
                 kryo.writeObject(buffer, group.getTargetUID());
                 for (final CRDTUpdate<?> op : group.getOperations()) {
-                    kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                    if (op.getValueWithoutMetadata() != null) {
+                        kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
+                    numberOfOps++;
                 }
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, maxExceptionsNum);
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+                maxExceptionsNum);
     }
 
     @Override

@@ -60,7 +60,6 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
-import sys.net.impl.RemoteEndpoint;
 import sys.utils.Threading;
 import sys.utils.Timings;
 
@@ -70,8 +69,6 @@ import sys.utils.Timings;
  * @author preguica, smduarte
  */
 final class DCDataServer {
-    private static final int DHT_PORT = 27777;
-
     private static Logger logger = Logger.getLogger(DCDataServer.class.getName());
 
     Map<CRDTIdentifier, LockInfo> locks;
@@ -136,7 +133,7 @@ final class DCDataServer {
                             }
                             writeCRDTintoDB(obj);
                         }
-
+                        logger.info("Flushed store to disk...");
                         Thread.sleep(DCConstants.SYNC_PERIOD);
                     } catch (Exception e) {
                         // do nothing
@@ -156,11 +153,6 @@ final class DCDataServer {
 
     @SuppressWarnings("unchecked")
     <V> V dhtRequest(Endpoint dst, final RpcMessage req) {
-        dst = new RemoteEndpoint(dst.getHost(), DHT_PORT); // TODO: improve this
-                                                           // to avoid creating
-                                                           // the
-                                                           // endpoint for each
-                                                           // request...
         final AtomicReference<Object> result = new AtomicReference<Object>(req);
         for (; result.get() == req;) {
             synchronized (result) {
@@ -184,7 +176,7 @@ final class DCDataServer {
     void initDHT() {
 
         dhtEndpoint = Networking.rpcConnect().toDefaultService();
-        Networking.rpcBind(DHT_PORT).toService(0, new SwiftProtocolHandler() {
+        Networking.rpcBind(DHT_Node.DHT_PORT).toService(0, new SwiftProtocolHandler() {
 
             public void onReceive(RpcHandle con, DHTGetCRDT request) {
                 if (logger.isLoggable(Level.INFO)) {
@@ -400,7 +392,6 @@ final class DCDataServer {
                 data = localPutCRDT(crdt);
             }
             data.pruneIfPossible();
-            CausalityClock oldClock = data.clock.clone();
 
             // crdt.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
             // //
@@ -443,8 +434,7 @@ final class DCDataServer {
                 }
             }
 
-            ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, oldClock, data.clock.clone(), data.pruneClock.clone(),
-                    grp);
+            ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, data.pruneClock.clone(), grp);
 
             dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), txTs, info));
 
@@ -538,9 +528,7 @@ final class DCDataServer {
     CRDTData<?> localGetCRDT(CRDTIdentifier id) {
         lock(id);
         try {
-            Timings.mark();
             CRDTData<?> data = this.getDatabaseEntry(id);
-            Timings.sample("getDatabaseEntry");
             if (data.empty)
                 return null;
 

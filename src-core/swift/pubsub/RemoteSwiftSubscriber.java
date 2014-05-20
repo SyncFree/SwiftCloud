@@ -47,7 +47,7 @@ public class RemoteSwiftSubscriber extends RemoteSubscriber<CRDTIdentifier> impl
     }
 
     @Override
-    public void onNotification(SnapshotNotification snapshot) {
+    public void onNotification(BatchUpdatesNotification snapshot) {
         Thread.dumpStack();
     }
 }

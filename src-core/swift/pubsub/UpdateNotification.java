@@ -32,11 +32,6 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         this.timestamp = ts;
     }
 
-    public UpdateNotification(String srcId, Timestamp ts, Timestamp suTs, ObjectUpdatesInfo info) {
-        this.info = info;
-        this.srcId = srcId;
-    }
-
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
         for (Subscriber<CRDTIdentifier> i : pubsub.subscribers(info.getId(), true))
@@ -79,15 +74,7 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         final int totalSize = buffer.position();
 
         int maxExceptionsNum = 0;
-        if (info.getOldClock() != null) {
-            maxExceptionsNum = Math.max(info.getOldClock().getExceptionsNumber(), maxExceptionsNum);
-        }
-        if (info.getNewClock() != null) {
-            maxExceptionsNum = Math.max(info.getNewClock().getExceptionsNumber(), maxExceptionsNum);
-        }
-        if (info.getPruneClock() != null) {
-            maxExceptionsNum = Math.max(info.getPruneClock().getExceptionsNumber(), maxExceptionsNum);
-        }
+        int maxVectorSize = 0;
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
@@ -107,24 +94,30 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
 
             if (group.getDependency() != null) {
                 maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(group.getDependency().getSize(), maxVectorSize);
             }
         }
         final int updatesSize = buffer.position();
 
+        int numberOfOps = 0;
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
             if (group.hasCreationState()) {
-                kryo.writeObject(buffer, group.getCreationState());
+                kryo.writeObject(buffer, group.getCreationState().getValue());
             }
             if (group.getTargetUID() != null) {
                 kryo.writeObject(buffer, group.getTargetUID());
             }
             for (final CRDTUpdate<?> op : group.getOperations()) {
                 kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                numberOfOps++;
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, maxExceptionsNum);
+        // FIXME
+        int globalMetadata = 0;
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+                maxExceptionsNum);
     }
 }

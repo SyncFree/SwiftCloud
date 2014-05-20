@@ -3,7 +3,7 @@ package swift.stats
 import swift.deployment.Tools
 
 public class GnuPlot {
-    static OPEN_CMD = System.getenv("SESSION").contains("ubuntu" )? "xdg-open" : "open"
+    static OPEN_CMD = "open" // System.getenv("SESSION"). contains("ubuntu" )? "xdg-open" : "open"
 
     static doGraph( output, List script, Map useries, Closure plotstyle ) {
         doGraph( output, script, useries, plotstyle, { a,b ->

@@ -70,18 +70,29 @@ public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
         if (!collector.isEnabled()) {
             return;
         }
-        final Kryo kryo = collector.getFreshKryo();
-        final Output buffer = collector.getFreshKryoBuffer();
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
+        final int totalSize = buffer.position();
 
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
         int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
         for (final CommitUpdatesReply reply : getReplies()) {
+            if (reply.getCommitTimestamps() != null) {
+                kryo.writeObject(buffer, reply.getCommitTimestamps());
+            }
             if (reply.getImpreciseCommitClock() != null) {
                 maxExceptionsNum = Math.max(reply.getImpreciseCommitClock().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(reply.getImpreciseCommitClock().getSize(), maxVectorSize);
+                kryo.writeObject(buffer, reply.getImpreciseCommitClock());
             }
         }
+        final int globalMetadata = buffer.position();
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0, maxExceptionsNum);
+        collector.recordStats(this, totalSize, 0, 0, globalMetadata, getReplies().size(), maxVectorSize,
+                maxExceptionsNum);
     }
 }

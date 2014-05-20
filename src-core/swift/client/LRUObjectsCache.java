@@ -211,6 +211,18 @@ class LRUObjectsCache {
             entry.object.augmentWithDCClockWithoutMappings(causalClock);
         }
     }
+    
+
+    synchronized void pruneAll(CausalityClock nextPruneClock) {
+        for (final Entry entry : entries.values()) {
+            try {
+                entry.object.prune(nextPruneClock, true);
+            } catch (IllegalStateException x) {
+                logger.warning("Unsafe pruning attempt in the cache: " + x.getMessage());
+            }
+        }
+    }
+
 
     synchronized void augmentAllWithScoutTimestampWithoutMappings(Timestamp clientTimestamp) {
         for (final Entry entry : entries.values()) {

@@ -4,8 +4,11 @@ import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 
 class Parallel {
-    static String ACCOUNT = Tools.USERNAME
 
+	static String userName() {
+		return Tools.userName()
+	}
+    
     static Executor threads = Executors.newFixedThreadPool(48)
 
     static Map rsh( List<String> hosts, Closure cmd,  Closure resHandler, boolean ignoreIO, int timeout ) {
@@ -16,7 +19,7 @@ class Parallel {
                         public void run() {
                             def cmdline = [
                                 "ssh",
-                                String.format("%s@%s", ACCOUNT, it),
+                                String.format("%s@%s", userName(), it),
                                 cmd.call(it)
                             ]
                             

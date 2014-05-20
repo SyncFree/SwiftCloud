@@ -71,19 +71,33 @@ public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
         if (!collector.isEnabled()) {
             return;
         }
-        final Kryo kryo = collector.getFreshKryo();
-        final Output buffer = collector.getFreshKryoBuffer();
 
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
         int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
         if (clock != null) {
             maxExceptionsNum = Math.max(clock.getExceptionsNumber(), maxExceptionsNum);
+            maxVectorSize = Math.max(clock.getSize(), maxVectorSize);
         }
         if (disasterDurableClock != null) {
             maxExceptionsNum = Math.max(disasterDurableClock.getExceptionsNumber(), maxExceptionsNum);
+            maxVectorSize = Math.max(disasterDurableClock.getSize(), maxVectorSize);
         }
+        final int totalSize = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        if (clock != null) {
+            kryo.writeObject(buffer, clock);
+        }
+        if (disasterDurableClock != null) {
+            kryo.writeObject(buffer, disasterDurableClock);
+        }
+        final int globalMetadata = buffer.position();
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0, maxExceptionsNum);
+        collector.recordStats(this, totalSize, 0, 0, globalMetadata, 1, maxVectorSize, maxExceptionsNum);
     }
 }

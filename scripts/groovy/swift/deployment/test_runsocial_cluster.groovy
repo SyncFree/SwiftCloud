@@ -1,4 +1,4 @@
-#!/usr/bin/env groovy -classpath .:scripts/groovy:scripts/groovy/lib
+#!/home/smd/groovy-2.1.9/bin/groovy -classpath .:scripts/groovy:scripts/groovy/lib
 
 package swift.deployment
 
@@ -10,25 +10,15 @@ def __ = onControlC({
     System.exit(0);
 })
 
-//West = DC([ "pllx1.parc.xerox.com"], ["pl-node-0.csl.sri.com", "pl-node-1.csl.sri.com"]);
-//East = DC([ "planetlab1.cnds.jhu.edu"], ["planetlab2.cnds.jhu.edu"]);
-//Europe = DC([ "planetlab-4.imperial.ac.uk"], ["planetlab-3.imperial.ac.uk"]);
+ClusterDC = DC(['192.168.10.1'], ['192.168.10.2']);
 
 
-Texas = DC([ "ricepl-1.cs.rice.edu"], ["ricepl-2.cs.rice.edu", "ricepl-4.cs.rice.edu", "ricepl-5.cs.rice.edu"]);
-//East = DC([ "planetlab2.cnds.jhu.edu"], ["planetlab2.cnds.jhu.edu"]);
-//Europe = DC([ "planetlab-2.imperial.ac.uk"], ["planetlab-1.imperial.ac.uk", "planetlab-4.imperial.ac.uk"]);
- 
- 
-//PT_Clients = SGroup( ["planetlab1.di.fct.unl.pt", "planetlab2.di.fct.unl.pt"], Europe ) 
 
-//NV_Clients = SGroup( ["planetlab4.rutgers.edu", "planetlab3.rutgers.edu"], East)
-
-CA_Clients = SGroup( ["planetlab01.cs.washington.edu", "planetlab02.cs.washington.edu"], Texas)
+Cluster_Clients = SGroup( ['192.168.10.9'], ClusterDC)
 
 Scouts = ( Topology.scouts() ).unique()
 
-ShepardAddr = "peeramide.irisa.fr"
+ShepardAddr = Topology.datacenters[0].sequencers[0]
 
 def Threads = 3
 def Duration = 60
@@ -52,26 +42,27 @@ def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
-	datacenter.deploySequencersExtraArgs(ShepardAddr, "-rdb 1k") 
+	datacenter.deploySequencers(ShepardAddr ) 
 }
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-	datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-rdb 1k") 
+	datacenter.deploySurrogates(ShepardAddr) 
 }
 
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
 Sleep(15)
 
-//println "==== INITIALIZING DATABASE ===="
-//def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
-//def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
+println "==== INITIALIZING DATABASE ===="
+def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
+def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-//SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
+SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(20)
+
 
 SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads )
 

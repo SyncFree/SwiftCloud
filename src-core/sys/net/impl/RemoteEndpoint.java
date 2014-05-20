@@ -43,7 +43,7 @@ public class RemoteEndpoint extends AbstractEndpoint implements KryoSerializable
     }
 
     public RemoteEndpoint(final String host, final int tcpPort) {
-        super(new InetSocketAddress(host, tcpPort), 0);
+        super(new InetSocketAddress(host, tcpPort), 0L);
     }
 
     public RemoteEndpoint(long locator, long gid) {

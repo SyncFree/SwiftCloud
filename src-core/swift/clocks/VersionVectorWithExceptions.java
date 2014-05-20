@@ -709,6 +709,9 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
      *             Case comparison cannot be made
      */
     protected CMP_CLOCK compareVV(VersionVectorWithExceptions cc) {
+        if (this == cc) {
+            return CMP_CLOCK.CMP_EQUALS;
+        }
         CMP_CLOCK result = CMP_CLOCK.CMP_EQUALS;
         for (Entry<String, LinkedList<Interval>> e : cc.vv.entrySet()) {
             CMP_CLOCK partialResult = compareOneEntryVV(e.getKey(), e.getValue());
@@ -795,12 +798,17 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     }
 
     @Override
-    public int getExceptionsNumber() {
-        int exceptionsSum = 0;
+    public int getSize() {
+        int intervalsNum = 0;
         for (final LinkedList<Interval> intervals : vv.values()) {
-            exceptionsSum += intervals.size() - 1;
+            intervalsNum += intervals.size();
         }
-        return exceptionsSum;
+        return intervalsNum;
+    }
+
+    @Override
+    public int getExceptionsNumber() {
+        return getSize() - vv.size();
     }
 
     @Override

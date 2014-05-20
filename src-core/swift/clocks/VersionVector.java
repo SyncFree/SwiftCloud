@@ -381,6 +381,11 @@ public class VersionVector implements CausalityClock {
         return new VersionVector(this);
     }
 
+    @Override
+    public int getSize() {
+        return vv.size();
+    }
+
     // @Override
     // public CausalityClock retain(String siteId) {
     // throw new RuntimeException("Not implemented...");

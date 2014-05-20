@@ -10,29 +10,33 @@ def __ = onControlC({
     System.exit(0);
 })
 
-//West = DC([ "pllx1.parc.xerox.com"], ["pl-node-0.csl.sri.com", "pl-node-1.csl.sri.com"]);
-//East = DC([ "planetlab1.cnds.jhu.edu"], ["planetlab2.cnds.jhu.edu"]);
-//Europe = DC([ "planetlab-4.imperial.ac.uk"], ["planetlab-3.imperial.ac.uk"]);
+def PEERS = ['ricepl-1.cs.rice.edu', 
+			'planetlab1.cnds.jhu.edu', 
+			'planetlab-4.imperial.ac.uk', 
+			'planetlab4.rutgers.edu', 
+			'peeramide.irisa.fr',
+			'host2.planetlab.informatik.tu-darmstadt.de',
+			'planet1.servers.ua.pt',
+			'planetlab-1.research.netlab.hut.fi',
+			'planetlab1.unineuchatel.ch',
+			'pl-node-0.csl.sri.com',
+			'planetlab1.cs.colorado.edu',
+			'planetlab1.cs.umass.edu'
+			]
 
-
-Texas = DC([ "ricepl-1.cs.rice.edu"], ["ricepl-2.cs.rice.edu", "ricepl-4.cs.rice.edu", "ricepl-5.cs.rice.edu"]);
-//East = DC([ "planetlab2.cnds.jhu.edu"], ["planetlab2.cnds.jhu.edu"]);
-//Europe = DC([ "planetlab-2.imperial.ac.uk"], ["planetlab-1.imperial.ac.uk", "planetlab-4.imperial.ac.uk"]);
- 
- 
-//PT_Clients = SGroup( ["planetlab1.di.fct.unl.pt", "planetlab2.di.fct.unl.pt"], Europe ) 
-
-//NV_Clients = SGroup( ["planetlab4.rutgers.edu", "planetlab3.rutgers.edu"], East)
-
-CA_Clients = SGroup( ["planetlab01.cs.washington.edu", "planetlab02.cs.washington.edu"], Texas)
+//Creates a Datacenter at each peer, running a sequencer and a surrogate and, finally, a swiftsocial client at each site
+PEERS.each {
+		dc = DC([it],[it])
+		SGroup([it], dc)
+}
 
 Scouts = ( Topology.scouts() ).unique()
 
 ShepardAddr = "peeramide.irisa.fr"
 
-def Threads = 3
+def Threads = 1
 def Duration = 60
-def SwiftSocial_Props = "swiftsocial-test.props"
+def SwiftSocial_Props = "swiftsocial-test-p2p.props"
 
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
@@ -52,28 +56,29 @@ def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
-	datacenter.deploySequencersExtraArgs(ShepardAddr, "-rdb 1k") 
+	datacenter.deploySequencers(ShepardAddr ) 
 }
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-	datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-rdb 1k") 
+	datacenter.deploySurrogates(ShepardAddr) 
 }
 
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
 Sleep(15)
 
-//println "==== INITIALIZING DATABASE ===="
-//def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
-//def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
+println "==== INITIALIZING DATABASE ===="
+def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
+def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-//SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
+SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(20)
 
-SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads )
+
+SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads,"256m" )
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 shep.take()

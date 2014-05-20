@@ -42,6 +42,7 @@ public class CommitTSRequest implements RpcMessage {
     protected boolean disasterSafe;
 
     public String clientId;
+    transient RpcHandle replyHandle;
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
@@ -71,6 +72,14 @@ public class CommitTSRequest implements RpcMessage {
         this.objectUpdateGroups = objectUpdateGroups;
         this.disasterSafe = disasterSafe;
         this.clientId = clientId;
+    }
+
+    public void setReplyHandle(RpcHandle conn) {
+        this.replyHandle = conn;
+    }
+
+    public RpcHandle getReplyHandle() {
+        return this.replyHandle;
     }
 
     public boolean disasterSafe() {
