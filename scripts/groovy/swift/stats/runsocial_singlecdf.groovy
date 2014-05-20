@@ -4,7 +4,6 @@
 package swift.stats
 
 import static swift.stats.GnuPlot.*
-
 import umontreal.iro.lecuyer.stat.Tally
 
 if (args.length < 1) {
@@ -27,19 +26,23 @@ def processFile = { File f, int L, int H, String key1, String key2 ->
 
         String[] tok = line.split(",");
         if (tok.length == 4 && !line.contains("METADATA")) {
-            int tid = Integer.valueOf(tok[0]);
-            String op = tok[1];
+            try {
+                int tid = Integer.valueOf(tok[0]);
+                String op = tok[1];
 
-            if (tid < 0 || skipOps.contains(op))
-                return;
+                if (tid < 0 || skipOps.contains(op))
+                    return;
 
-            int execTime = Integer.valueOf(tok[2]);
-            long T = Long.valueOf(tok[3]);
-            if (T0 < 0)
-                T0 = T;
-            T -= T0;
-            if (T > L * 1000 && T < H * 1000) {
-                stats.histogram(key1, key2, 1).tally(execTime, 1.0);
+                int execTime = Integer.valueOf(tok[2]);
+                long T = Long.valueOf(tok[3]);
+                if (T0 < 0)
+                    T0 = T;
+                T -= T0;
+                if (T > L * 1000 && T < H * 1000) {
+                    stats.histogram(key1, key2, 1).tally(execTime, 1.0);
+                }
+            } catch (NumberFormatException x) {
+                System.err.println("Couldn't parse line " + line)
             }
         }
     }
