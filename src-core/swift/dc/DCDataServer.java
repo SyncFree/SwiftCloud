@@ -133,7 +133,7 @@ final class DCDataServer {
                             }
                             writeCRDTintoDB(obj);
                         }
-
+                        logger.info("Flushed store to disk...");
                         Thread.sleep(DCConstants.SYNC_PERIOD);
                     } catch (Exception e) {
                         // do nothing

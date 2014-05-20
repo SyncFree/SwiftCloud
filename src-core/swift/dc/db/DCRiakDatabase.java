@@ -146,4 +146,9 @@ public class DCRiakDatabase implements DCNodeDatabase {
         }
     }
 
+    @Override
+    public void sync(boolean sync) {
+        throw new RuntimeException("Not implemented...");
+    }
+
 }

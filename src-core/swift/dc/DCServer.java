@@ -61,10 +61,22 @@ public class DCServer {
     }
 
     public static void main(String[] args) {
+
         final Properties props = new Properties();
         props.putAll(System.getProperties());
-        if (!props.containsKey(DATABASE_CLASS)) {
-            if (DCConstants.DEFAULT_DB_NULL) {
+
+        String restoreDBdir = Args.valueOf(args, "-rdb", null);
+        boolean useBerkeleyDB = Args.contains(args, "-db");
+
+        if (restoreDBdir != null) {
+            useBerkeleyDB = true;
+            props.setProperty("restore_db", restoreDBdir);
+        }
+
+        props.setProperty("sync_commit", Args.contains(args, "-sync") + "");
+
+        if (!props.containsKey(DATABASE_CLASS) || useBerkeleyDB) {
+            if (DCConstants.DEFAULT_DB_NULL && !useBerkeleyDB) {
                 props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
             } else {
                 props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DCBerkeleyDBDatabase");

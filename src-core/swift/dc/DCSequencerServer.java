@@ -18,6 +18,7 @@ package swift.dc;
 
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_DOMINATES;
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
+import static swift.dc.DCConstants.DATABASE_CLASS;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
@@ -56,6 +57,7 @@ import swift.proto.SwiftProtocolHandler;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.utils.Args;
 import sys.utils.FifoQueue;
 import sys.utils.Threading;
 
@@ -667,9 +669,32 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     public static void main(String[] args) {
-        sys.Sys.init();
-        Properties props = new Properties();
-        props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+        final String dbSuffix = "_seq";
+
+        final Properties props = new Properties();
+        props.putAll(System.getProperties());
+
+        props.setProperty("sync_commit", Args.contains(args, "-sync") + "");
+
+        String restoreDBdir = Args.valueOf(args, "-rdb", null);
+        boolean useBerkeleyDB = Args.contains(args, "-db");
+
+        if (restoreDBdir != null) {
+            useBerkeleyDB = true;
+            props.setProperty("restore_db", restoreDBdir + dbSuffix);
+        }
+        if (!props.containsKey(DATABASE_CLASS) || useBerkeleyDB) {
+            if (DCConstants.DEFAULT_DB_NULL && !useBerkeleyDB) {
+                props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DevNullNodeDatabase");
+            } else {
+                props.setProperty(DCConstants.DATABASE_CLASS, "swift.dc.db.DCBerkeleyDBDatabase");
+                props.setProperty(DCConstants.BERKELEYDB_DIR, "db/default" + dbSuffix);
+            }
+        }
+        if (!props.containsKey(DCConstants.DATABASE_CLASS)) {
+            props.setProperty(DCConstants.PRUNE_POLICY, "false");
+        }
+
         List<String> sequencers = new ArrayList<String>();
         List<String> servers = new ArrayList<String>();
         int port = DCConstants.SEQUENCER_PORT;

@@ -19,7 +19,6 @@ package swift.dc.db;
 import static sys.net.api.Networking.Networking;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,18 +30,19 @@ import swift.crdt.core.CRDTIdentifier;
 import swift.dc.CRDTData;
 import swift.dc.DCConstants;
 import sys.utils.FileUtils;
+import sys.utils.Props;
 
-import com.sleepycat.db.Database;
-import com.sleepycat.db.DatabaseConfig;
-import com.sleepycat.db.DatabaseEntry;
-import com.sleepycat.db.DatabaseException;
-import com.sleepycat.db.DatabaseType;
-import com.sleepycat.db.Environment;
-import com.sleepycat.db.EnvironmentConfig;
-import com.sleepycat.db.LockMode;
-import com.sleepycat.db.OperationStatus;
-import com.sleepycat.db.Transaction;
-import com.sleepycat.db.TransactionConfig;
+import com.sleepycat.je.Database;
+import com.sleepycat.je.DatabaseConfig;
+import com.sleepycat.je.DatabaseEntry;
+import com.sleepycat.je.DatabaseException;
+import com.sleepycat.je.Environment;
+import com.sleepycat.je.EnvironmentConfig;
+import com.sleepycat.je.EnvironmentMutableConfig;
+import com.sleepycat.je.LockMode;
+import com.sleepycat.je.OperationStatus;
+import com.sleepycat.je.Transaction;
+import com.sleepycat.je.TransactionConfig;
 
 public class DCBerkeleyDBDatabase implements DCNodeDatabase {
     static Logger logger = Logger.getLogger(DCBerkeleyDBDatabase.class.getName());
@@ -50,6 +50,7 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
     Map<String, Database> databases;
     File dir;
     TransactionConfig txnConfig;
+    private boolean syncCommit;
 
     public DCBerkeleyDBDatabase() {
     }
@@ -79,21 +80,33 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
                 FileUtils.deleteDir(dir);
             dir.mkdirs();
 
+            String restoreDBdir = Props.get(props, "restore_db");
+            if (!restoreDBdir.isEmpty()) {
+                FileUtils.copyDir(new File(dir.getParent() + File.separatorChar + restoreDBdir), dir);
+            }
+
+            syncCommit = Props.boolValue(props, "sync_commit", false);
+
             EnvironmentConfig myEnvConfig = new EnvironmentConfig();
-            myEnvConfig.setInitializeCache(true);
-            myEnvConfig.setInitializeLocking(true);
-            myEnvConfig.setInitializeLogging(true);
+            // myEnvConfig.setInitializeCache(true); // smd: not supported in
+            // the JE edition...
+            // myEnvConfig.setInitializeLocking(true);
+            // myEnvConfig.setInitializeLogging(true);
+
+            myEnvConfig.setCacheSize(100L << 20);
             myEnvConfig.setTransactional(true);
             // myEnvConfig.setMultiversion(true);
             myEnvConfig.setAllowCreate(true);
 
             env = new Environment(dir, myEnvConfig);
 
-            txnConfig = new TransactionConfig();
-            txnConfig.setSnapshot(true);
+            EnvironmentMutableConfig mut = new EnvironmentMutableConfig();
+            mut.setTxnWriteNoSyncVoid(true);
 
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException("Cannot create databases", e);
+            env.setMutableConfig(mut);
+            txnConfig = new TransactionConfig();
+            // txnConfig.setSnapshot(true); //not available in the JE edition...
+
         } catch (DatabaseException e) {
             throw new RuntimeException("Cannot create databases", e);
         } catch (Error e) {
@@ -112,16 +125,13 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
                 DatabaseConfig dbConfig = new DatabaseConfig();
                 dbConfig.setTransactional(true);
                 dbConfig.setAllowCreate(true);
-                dbConfig.setType(DatabaseType.HASH);
+                // dbConfig.setType(DatabaseType.HASH);
 
                 try {
                     db = env.openDatabase(null, // txn handle
                             tableName, // db file name
-                            tableName, // db name
                             dbConfig);
                     databases.put(tableName, db);
-                } catch (FileNotFoundException e) {
-                    throw new RuntimeException("Cannot create database : " + tableName, e);
                 } catch (DatabaseException e) {
                     throw new RuntimeException("Cannot create database : " + tableName, e);
                 }
@@ -211,11 +221,22 @@ public class DCBerkeleyDBDatabase implements DCNodeDatabase {
         } finally {
             if (tx != null)
                 try {
-                    tx.commitNoSync();
+                    if (syncCommit)
+                        tx.commitSync();
+                    else
+                        tx.commitNoSync();
                 } catch (DatabaseException e) {
                     logger.throwing("DCBerkeleyDBDatabase", "put", e);
                 }
         }
     }
 
+    public void restoreDB() {
+
+    }
+
+    @Override
+    public void sync(boolean sync) {
+        this.syncCommit = sync;
+    }
 }

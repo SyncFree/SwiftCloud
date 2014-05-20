@@ -58,4 +58,8 @@ public class DevNullNodeDatabase implements DCNodeDatabase {
     public boolean writeSysData(String table, String key, Object data) {
         return true;
     }
+
+    @Override
+    public void sync(boolean flag) {
+    }
 }
