@@ -153,8 +153,10 @@ public class SwiftSocialApp {
             }
         case READ:
             if (toks.length == 2) {
-//                socialClient.read(toks[1], new ArrayList<Message>(), new ArrayList<Message>());
-                socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
+                // socialClient.read(toks[1], new ArrayList<Message>(), new
+                // ArrayList<Message>());
+                String readTimeRecord = socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
+                bufferedOutput.println(readTimeRecord);
                 break;
             }
         case SEE_FRIENDS:
@@ -174,7 +176,8 @@ public class SwiftSocialApp {
             }
         case POST:
             if (toks.length == 3) {
-                socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
+                final String postTimeRecord = socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
+                bufferedOutput.println(postTimeRecord);
                 break;
             }
         default:

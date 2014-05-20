@@ -210,7 +210,7 @@ public class SwiftSocialOps {
     }
 
     @SuppressWarnings("unchecked")
-    public User read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
+    public String read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
@@ -232,16 +232,15 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
             // SS,get,scoutid,key,curtime,size
-            System.out.println( "SS,get," + server.getScout().getScoutId() + "," + NamingScheme.forUser(name) + "," + System.currentTimeMillis() + "," +
-                        msgs.size());
-//                                ((ArrayList<Message>)msgs).get(0).getDate());
+            return "SS,get," + server.getScout().getScoutId() + "," + NamingScheme.forUser(name) + ","
+                    + System.currentTimeMillis() + "," + msgs.size();
+            // ((ArrayList<Message>)msgs).get(0).getDate());
         }
-        return user;
     }
 
     // FIXME return error code?
     @SuppressWarnings("unchecked")
-    public void postMessage(String receiverName, String msg, long date) {
+    public String postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
@@ -264,7 +263,7 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
             // SS,put,scoutid,key,curtime
-            System.out.println( "SS,put," + server.getScout().getScoutId() + "," + NamingScheme.forUser(receiverName) + "," + date);
+            return "SS,put," + server.getScout().getScoutId() + "," + NamingScheme.forUser(receiverName) + "," + date;
         }
     }
 
