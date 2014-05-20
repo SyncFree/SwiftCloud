@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.TreeMap;
 
 import swift.exceptions.IncompatibleTypeException;
@@ -923,11 +924,17 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         for (int i = in.readInt(); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
             vv.put(in.readString().intern(), lli);
-            for (int j = in.readInt(); --j >= 0;) {
-                Interval ii = new Interval();
-                ii.read(kryo, in);
-                lli.add(ii);
-                // numPairs++;
+            long numIntervalsOrOneOptimizedInterval = in.readLong();
+            if (numIntervalsOrOneOptimizedInterval < 0) {
+                // optimized interval
+                lli.add(new Interval(0, numIntervalsOrOneOptimizedInterval * -1));
+            } else {
+                for (long j = numIntervalsOrOneOptimizedInterval; --j >= 0;) {
+                    Interval ii = new Interval();
+                    ii.read(kryo, in);
+                    lli.add(ii);
+                    // numPairs++;
+                }
             }
         }
     }
@@ -938,9 +945,14 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             out.writeString(e.getKey().intern());
             LinkedList<Interval> lli = e.getValue();
-            out.writeInt(lli.size());
-            for (Interval ii : e.getValue())
-                ii.write(kryo, out);
+            if (lli.size() == 1 && lli.get(0).from == 0) {
+                // use optimized encoding for the common case
+                out.writeLong(lli.get(0).to * -1);
+            } else {
+                out.writeLong(lli.size());
+                for (Interval ii : e.getValue())
+                    ii.write(kryo, out);
+            }
         }
 
     }
