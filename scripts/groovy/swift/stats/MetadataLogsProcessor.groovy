@@ -41,39 +41,44 @@ class MetadataLogsProcessor {
                 String sessionId = fields[0]
                 long T = Long.valueOf(fields[1])
                 String message = fields[2].substring("METADATA_".size())
-                int messageSize = Integer.valueOf(fields[3])
-                int objectMetadataData = Integer.valueOf(fields[4])
-                def globalMetadata = messageSize - objectMetadataData
-                int dataOnly = Integer.valueOf(fields[5])
-                def objectMetadata = objectMetadataData- dataOnly
-                int globalMetadataExplicit = Integer.valueOf(fields[6])
-                int batchSize = Integer.valueOf(fields[7])
-                int vvSize = Integer.valueOf(fields[8])
-                int vvHolesNumber = Integer.valueOf(fields[9])
-                if (T0 < 0) {
-                    T0 = T
-                }
-                if ((T-T0)/1000.0 < NOISE_TIME_CUT_BEFORE_S || (T-T0)/1000.0 > NOISE_TIME_CUT_AFTER_S) {
-                    return
-                }
+                try {
+                    int messageSize = Integer.valueOf(fields[3])
+                    int objectMetadataData = Integer.valueOf(fields[4])
+                    def globalMetadata = messageSize - objectMetadataData
+                    int dataOnly = Integer.valueOf(fields[5])
+                    def objectMetadata = objectMetadataData- dataOnly
+                    int globalMetadataExplicit = Integer.valueOf(fields[6])
+                    int batchSize = Integer.valueOf(fields[7])
+                    int vvSize = Integer.valueOf(fields[8])
+                    int vvHolesNumber = Integer.valueOf(fields[9])
 
-                if (categoriesMessagesSessionsSeriesMap != null) {
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_FULL_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, messageSize)
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_GLOBAL_METADATA][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, globalMetadata)
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_OBJECT_METADATA][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, objectMetadata)
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_GLOBAL_METADATA_PRECISE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, globalMetadataExplicit)
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_BATCH_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, batchSize)
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_VECTOR_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, vvSize)
-                    categoriesMessagesSessionsSeriesMap[CATEGORY_HOLES_NUMBER][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, vvHolesNumber)
-                }
-                if (categoriesMessagesTallyMap != null) {
-                    categoriesMessagesTallyMap[CATEGORY_FULL_SIZE][message].add((double) messageSize)
-                    categoriesMessagesTallyMap[CATEGORY_GLOBAL_METADATA][message].add((double) globalMetadata)
-                    categoriesMessagesTallyMap[CATEGORY_OBJECT_METADATA][message].add((double) objectMetadata)
-                    categoriesMessagesTallyMap[CATEGORY_GLOBAL_METADATA_PRECISE][message].add((double) globalMetadataExplicit)
-                    categoriesMessagesTallyMap[CATEGORY_BATCH_SIZE][message].add((double) batchSize)
-                    categoriesMessagesTallyMap[CATEGORY_VECTOR_SIZE][message].add((double) vvSize)
-                    categoriesMessagesTallyMap[CATEGORY_HOLES_NUMBER][message].add((double) vvHolesNumber)
+                    if (T0 < 0) {
+                        T0 = T
+                    }
+                    if ((T-T0)/1000.0 < NOISE_TIME_CUT_BEFORE_S || (T-T0)/1000.0 > NOISE_TIME_CUT_AFTER_S) {
+                        return
+                    }
+
+                    if (categoriesMessagesSessionsSeriesMap != null) {
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_FULL_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, messageSize)
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_GLOBAL_METADATA][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, globalMetadata)
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_OBJECT_METADATA][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, objectMetadata)
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_GLOBAL_METADATA_PRECISE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, globalMetadataExplicit)
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_BATCH_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, batchSize)
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_VECTOR_SIZE][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, vvSize)
+                        categoriesMessagesSessionsSeriesMap[CATEGORY_HOLES_NUMBER][message][sessionId] << String.format("%.3f %d", (T - T0)/1000.0, vvHolesNumber)
+                    }
+                    if (categoriesMessagesTallyMap != null) {
+                        categoriesMessagesTallyMap[CATEGORY_FULL_SIZE][message].add((double) messageSize)
+                        categoriesMessagesTallyMap[CATEGORY_GLOBAL_METADATA][message].add((double) globalMetadata)
+                        categoriesMessagesTallyMap[CATEGORY_OBJECT_METADATA][message].add((double) objectMetadata)
+                        categoriesMessagesTallyMap[CATEGORY_GLOBAL_METADATA_PRECISE][message].add((double) globalMetadataExplicit)
+                        categoriesMessagesTallyMap[CATEGORY_BATCH_SIZE][message].add((double) batchSize)
+                        categoriesMessagesTallyMap[CATEGORY_VECTOR_SIZE][message].add((double) vvSize)
+                        categoriesMessagesTallyMap[CATEGORY_HOLES_NUMBER][message].add((double) vvHolesNumber)
+                    }
+                } catch (NumberFormatException x) {
+                    System.err.println("Ingoring ununderstandable line: " + l)
                 }
             }
         }
