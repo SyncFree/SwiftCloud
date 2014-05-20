@@ -116,6 +116,7 @@ public class runsocial_staleness {
             Read read = it.next();
             if( writes == null) {
                 incStaleCount( 0);
+                incStaleAmount( 0);
                 continue;
             }
             
@@ -124,7 +125,6 @@ public class runsocial_staleness {
                 pos = - pos - 2;
             
             int nWrites = 0;
-            long maxStale = 0;
             for( int i = pos; i >= 0; i--) {
                 Write w = writes.get(i);
                 if( read.time - maxLatency > w.time) {
@@ -142,10 +142,17 @@ public class runsocial_staleness {
             int diffN = nWrites - read.size;
             if( diffN < 0)
                 diffN = 0;
-            
             incStaleCount( diffN);
+            
+            if( diffN == 0)
+                incStaleAmount( 0);
+            else {
+                long staleV = read.time - writes.get( pos - diffN + 1).time;
+                incStaleAmount( (int)staleV);
+            }
         }
     }
+    
     
     void adjustClockSkew() {
         Iterator<Entry<String,List<Read>>> itr = reads.entrySet().iterator();
@@ -196,14 +203,41 @@ public class runsocial_staleness {
     
     void dumpStaleness() {
         long total = 0;
+        int lastCount = 0;
+        int lastAmount = 0;
         for( int i = 0; i <staleCount.length; i++) {
             total += staleCount[i];
+            if( staleCount[i] > 0)
+                lastCount = i;
+        }
+        for( int i = 0; i <staleAmount.length; i++) {
+            if( staleAmount[i] > 0)
+                lastAmount = i;
         }
         
-        for( int i = 0; i <staleCount.length; i++) {
-            System.out.println( "" + i + "\t" + staleCount[i] + "\t" + ((double)((long)(((double)staleCount[i] / total) * 10000))/100.0));
+        int acum = 0;
+        for( int i = 0; i <= lastCount; i++) {
+            acum = acum + staleCount[i];
+            System.out.println( "" + i + "\t" + staleCount[i] + "\t" + acum + "\t" + 
+                        ((double)((long)(((double)staleCount[i] / total) * 10000))/100.0) + "\t" +
+                        ((double)((long)(((double)acum / total) * 10000))/100.0));
         }
-    }
+        System.err.println( "Average stale count = " + ((double)acum / total));
+
+        System.out.println( "-------------------------------------------");
+        acum = 0;
+        long acumAmount = 0;
+        for( int i = 0; i <= lastAmount; i++) {
+            if( staleAmount[i] == 0)
+                continue;
+            acum = acum + staleAmount[i];
+            acumAmount = acumAmount + i * staleAmount[i];
+            System.out.println( "" + i + "\t" + staleAmount[i] + "\t" + acum + "\t" + 
+                    ((double)((long)(((double)staleAmount[i] / total) * 10000))/100.0) + "\t" +
+                    ((double)((long)(((double)acum / total) * 10000))/100.0));
+        }
+        System.err.println( "Average stale amount = " + ((double)acumAmount / total));
+   }
     
     private void doit() throws Exception {
         strs = new HashMap<String,String>();
@@ -276,7 +310,7 @@ class NetInfo {
     public void update(long skew, long latency) {
         if( this.latency > latency)
             this.latency = latency;
-        if( this.skew > skew)
+        if( Math.abs( this.skew) > Math.abs( skew))
             this.skew = skew;
     }
 
