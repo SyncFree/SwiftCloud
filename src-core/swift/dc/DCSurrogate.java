@@ -574,6 +574,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         List<CRDTObjectUpdatesGroup<?>> pending = new ArrayList<CRDTObjectUpdatesGroup<?>>();
 
         synchronized public void onNotification(final UpdateNotification update) {
+            if (update.srcId.equals(clientId)) {
+                // Ignore
+                return;
+            }
 
             pending.addAll(update.info.getUpdates());
 
