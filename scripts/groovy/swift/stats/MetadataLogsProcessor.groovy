@@ -10,6 +10,8 @@ class MetadataLogsProcessor {
     static CATEGORY_VECTOR_SIZE = "vector size"
     static CATEGORY_HOLES_NUMBER = "holes number"
     static CATEGORY_BATCH_SIZE = "batch size"
+    static NOISE_TIME_CUT_BEFORE_S = 30
+    static NOISE_TIME_CUT_AFTER_S = 200
 
     // Call with a file and empty or prefilled maps
     static processFile(File f, Map categoriesMessagesSessionsSeriesMap, Map categoriesMessagesTallyMap ) {
@@ -50,6 +52,9 @@ class MetadataLogsProcessor {
                 int vvHolesNumber = Integer.valueOf(fields[9])
                 if (T0 < 0) {
                     T0 = T
+                }
+                if ((T-T0)/1000.0 < NOISE_TIME_CUT_BEFORE_S || (T-T0)/1000.0 > NOISE_TIME_CUT_AFTER_S) {
+                    return
                 }
 
                 if (categoriesMessagesSessionsSeriesMap != null) {
