@@ -16,26 +16,26 @@
  *****************************************************************************/
 package swift.proto;
 
+import swift.clocks.CausalityClock;
+import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
-import sys.net.api.rpc.RpcMessage;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
+/**
+ * Used to check RTT and clock skew.
+ * 
+ * @author nmp
+ */
+public class PingRequest extends ClientRequest {
+    long timeAtSender;
 
-public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
-
-    protected long id;
-
-    UnsubscribeUpdatesReply() {
+    // Fake constructor for Kryo serialization. Do NOT use.
+    PingRequest() {
     }
 
-    public UnsubscribeUpdatesReply(long id) {
-        this.id = id;
-    }
-
-    public long getId() {
-        return id;
+    public PingRequest(String clientId, boolean disasterSafeSession, long currentTime) {
+        super(clientId, disasterSafeSession);
+        this.timeAtSender = currentTime;
     }
 
     @Override
@@ -43,16 +43,7 @@ public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
-    @Override
-    public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
-            return;
-        }
-        final Kryo kryo = collector.getFreshKryo();
-        final Output buffer = collector.getFreshKryoBuffer();
-
-        // TODO: capture from the wire, rather than recompute here
-        kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0, 0, 1, 0, 0);
+    public long getTimeAtSender() {
+        return timeAtSender;
     }
 }

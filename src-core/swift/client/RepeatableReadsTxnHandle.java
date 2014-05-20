@@ -17,9 +17,11 @@
 package swift.client;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import swift.clocks.TimestampMapping;
+import swift.crdt.core.BulkGetProgressListener;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CachePolicy;

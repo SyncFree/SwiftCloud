@@ -429,11 +429,11 @@ public class SwiftSocialOps {
     Map<CRDTIdentifier, CRDT<?>> bulkRes = new HashMap<CRDTIdentifier, CRDT<?>>();
 
     void bulkGet(TxnHandle txn, CRDTIdentifier... ids) {
-        txn.bulkGet(ids);
+        txn.bulkGet(updatesSubscriber != null, ids);
     }
 
     void bulkGet(TxnHandle txn, Set<CRDTIdentifier> ids) {
-        txn.bulkGet(ids.toArray(new CRDTIdentifier[ids.size()]));
+        txn.bulkGet(updatesSubscriber != null, ids.toArray(new CRDTIdentifier[ids.size()]));
     }
 
     @SuppressWarnings("unchecked")

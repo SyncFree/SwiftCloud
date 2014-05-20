@@ -502,14 +502,15 @@ public class ManagedCRDTTest {
             }
 
             @Override
-            public Map<CRDTIdentifier, CRDT<?>> bulkGet(CRDTIdentifier... ids) {
-                fail();
+            public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, Set<CRDTIdentifier> ids,
+                    BulkGetProgressListener listener) {
+                // TODO Auto-generated method stub
                 return null;
             }
 
             @Override
-            public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, BulkGetProgressListener listener) {
-                fail();
+            public Map<CRDTIdentifier, CRDT<?>> bulkGet(boolean subscribeUpdates, CRDTIdentifier... ids) {
+                // TODO Auto-generated method stub
                 return null;
             }
         });

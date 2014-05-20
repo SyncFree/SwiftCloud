@@ -51,7 +51,6 @@ import swift.utils.DummyLog;
 import swift.utils.TransactionsLog;
 import sys.stats.Stats;
 import sys.stats.StatsConstants;
-import sys.stats.StatsImpl;
 import sys.stats.sources.CounterSignalSource;
 import sys.stats.sources.ValueSignalSource;
 import sys.stats.sources.ValueSignalSource.Stopper;
@@ -429,7 +428,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     }
 
     @Override
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(Set<CRDTIdentifier> ids, final BulkGetProgressListener listener) {
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(final boolean subscribeUpdates, Set<CRDTIdentifier> ids,
+            final BulkGetProgressListener listener) {
         final Map<CRDTIdentifier, CRDT<?>> res = Collections.synchronizedMap(new HashMap<CRDTIdentifier, CRDT<?>>());
 
         if (ids.isEmpty())
@@ -441,7 +441,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
                 public void run() {
                     CRDT<?> val;
                     try {
-                        val = get(i, false, null);
+                        val = get(i, false, null, subscribeUpdates ? TxnHandle.UPDATES_SUBSCRIBER : null);
                         res.put(i, val);
                         if (listener != null)
                             listener.onGet(AbstractTxnHandle.this, i, val);
@@ -459,9 +459,9 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         return res;
     }
 
-    public Map<CRDTIdentifier, CRDT<?>> bulkGet(CRDTIdentifier... crdtIdentifiers) {
+    public Map<CRDTIdentifier, CRDT<?>> bulkGet(final boolean subscribeUpdates, CRDTIdentifier... crdtIdentifiers) {
         Set<CRDTIdentifier> ids = new HashSet<CRDTIdentifier>(Arrays.asList(crdtIdentifiers));
-        return this.bulkGet(ids, null);
+        return this.bulkGet(subscribeUpdates, ids, null);
     }
 
     public IsolationLevel getIsolationLevel() {

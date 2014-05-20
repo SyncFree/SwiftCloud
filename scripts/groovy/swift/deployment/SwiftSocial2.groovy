@@ -51,7 +51,7 @@ class SwiftSocial2 extends SwiftBase {
 
 
     static final DEFAULT_PROPS = [
-        'swift.cacheEvictionTimeMillis':'3600000',
+        'swift.cacheEvictionTimeMillis':'5000000',
         'swift.maxCommitBatchSize':'10',
         'swift.maxAsyncTransactionsQueued':'50',
         'swift.cacheSize':'512',
@@ -59,12 +59,12 @@ class SwiftSocial2 extends SwiftBase {
         'swift.notifications':'true',
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
-        'swift.computeMetadataStatistics':'false',
-        'swiftsocial.numUsers':'25000',
+        'swift.computeMetadataStatistics':'true',
+        'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
         'swiftsocial.biasedOps':'9',
         'swiftsocial.randomOps':'1',
         'swiftsocial.opGroups':'10000',
-        'swiftsocial.thinkTime':'0'
+        'swiftsocial.thinkTime':'10'
     ]
 }

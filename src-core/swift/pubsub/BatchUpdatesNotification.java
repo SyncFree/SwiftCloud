@@ -104,6 +104,17 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
+        kryo.writeObject(buffer, newVersion);
+        kryo.writeObject(buffer, newVersionDisasterSafe);
+        for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
+            for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
+                kryo.writeObject(buffer, group.getTimestampMapping());
+            }
+        }
+        final int globalMetadata = buffer.position();
+        
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
         int numberOfOps = 0;
         for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
             kryo.writeObject(buffer, entry.getKey());
@@ -142,8 +153,9 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
         }
         final int valuesSize = buffer.position();
 
+        final int vectorSize = newVersion.getSize();
         final int maxExceptionsNum = newVersion.getExceptionsNumber();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, numberOfOps, maxExceptionsNum);
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, vectorSize, maxExceptionsNum);
     }
 
     @Override

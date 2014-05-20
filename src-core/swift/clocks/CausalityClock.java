@@ -197,6 +197,11 @@ public interface CausalityClock extends Serializable, Copyable {
      */
     int getExceptionsNumber();
 
+    /**
+     * @return estimated size (e.g. number of entry / intervals in VV)
+     */
+    int getSize();
+
     // CausalityClock retain(String siteId);
     //
     // CausalityClock retain(CausalityClock cc);

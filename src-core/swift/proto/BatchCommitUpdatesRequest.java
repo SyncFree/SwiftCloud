@@ -19,6 +19,7 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
+import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
@@ -83,7 +84,21 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
 
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        CausalityClock sharedDepsTest = null;
+        for (final CommitUpdatesRequest req : commitRequests) {
+            // Count the shared clock only once (it can appear once on the wire)
+            if (sharedDepsTest != req.getDependencyClock()) {
+                kryo.writeObject(buffer, req.getDependencyClock());
+                sharedDepsTest = req.getDependencyClock();
+            }
+            kryo.writeObject(buffer, req.getCltTimestamp());
+        }
+        final int globalMetadata = buffer.position();
+
         int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
         int numberOfOps = 0;
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
@@ -93,6 +108,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                     kryo.writeObject(buffer, group.getCreationState());
                 }
                 maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(group.getDependency().getSize(), maxVectorSize);
                 kryo.writeObject(buffer, group.getTargetUID());
                 kryo.writeObject(buffer, group.getOperations());
             }
@@ -123,7 +139,8 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, numberOfOps, maxExceptionsNum);
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+                maxExceptionsNum);
     }
 
     @Override

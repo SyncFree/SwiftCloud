@@ -405,7 +405,8 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
     }
 
     public int getExceptionsNumber() {
-        return excludedTimestamps.size();
+        // TODO Auto-generated method stub
+        return 0;
     }
 
     @Override
@@ -464,6 +465,12 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
     public void trim() {
         // FIXME !!!
         throw new RuntimeException("not implemented");
+    }
+
+    @Override
+    public int getSize() {
+        // TODO Auto-generated method stub
+        return 0;
     }
 
     // @Override

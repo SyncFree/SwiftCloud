@@ -135,12 +135,15 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
         buffer.clear();
 
         int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
         if (estimatedDisasterDurableLatestKnownClock != null) {
             maxExceptionsNum = Math.max(estimatedDisasterDurableLatestKnownClock.getExceptionsNumber(),
                     maxExceptionsNum);
+            maxVectorSize = Math.max(estimatedDisasterDurableLatestKnownClock.getSize(), maxVectorSize);
         }
         if (estimatedLatestKnownClock != null) {
             maxExceptionsNum = Math.max(estimatedLatestKnownClock.getExceptionsNumber(), maxExceptionsNum);
+            maxVectorSize = Math.max(estimatedLatestKnownClock.getSize(), maxVectorSize);
         }
 
         int versionSize = 0;
@@ -148,10 +151,11 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
         if (crdt != null) {
             maxExceptionsNum = Math.max(crdt.getClock().getExceptionsNumber(), maxExceptionsNum);
 
-            // TODO: be more precise w.r.t version
             kryo = collector.getFreshKryo();
             buffer = collector.getFreshKryoBuffer();
             kryo.writeObject(buffer, crdt.getUID());
+            // TODO: be more precise w.r.t version (we should get the requested
+            // version, not the latest)
             final CRDT version = crdt.getLatestVersion(null);
             kryo.writeObject(buffer, version);
             versionSize = buffer.position();
@@ -168,6 +172,22 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
             valueSize = buffer.position();
         }
 
-        collector.recordStats(this, totalSize, versionSize, valueSize, 1, maxExceptionsNum);
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        if (estimatedDisasterDurableLatestKnownClock != null) {
+            kryo.writeObject(buffer, estimatedDisasterDurableLatestKnownClock);
+        }
+        if (estimatedLatestKnownClock != null) {
+            kryo.writeObject(buffer, estimatedLatestKnownClock);
+        }
+        if (crdt != null) {
+            kryo.writeObject(buffer, crdt.getClock());
+            kryo.writeObject(buffer, crdt.getPruneClock());
+            kryo.writeObject(buffer, crdt.getUpdatesTimestampMappingsSince(crdt.getPruneClock()));
+        }
+        final int globalMetadata = buffer.position();
+
+        collector.recordStats(this, totalSize, versionSize, valueSize, globalMetadata, 1, maxVectorSize,
+                maxExceptionsNum);
     }
 }
