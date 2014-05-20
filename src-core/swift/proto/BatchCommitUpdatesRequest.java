@@ -88,10 +88,13 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         buffer = collector.getFreshKryoBuffer();
         CausalityClock sharedDepsTest = null;
         for (final CommitUpdatesRequest req : commitRequests) {
-            // Count the shared clock only once (it can appear once on the wire)
-            if (sharedDepsTest != req.getDependencyClock()) {
-                kryo.writeObject(buffer, req.getDependencyClock());
-                sharedDepsTest = req.getDependencyClock();
+            if (!req.fakePractiDepot) {
+                // Count the shared clock only once (it should appear 1 on the
+                // wire)
+                if (sharedDepsTest != req.getDependencyClock()) {
+                    kryo.writeObject(buffer, req.getDependencyClock());
+                    sharedDepsTest = req.getDependencyClock();
+                }
             }
             kryo.writeObject(buffer, req.getCltTimestamp());
         }

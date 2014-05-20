@@ -89,6 +89,7 @@ import sys.scheduler.PeriodicTask;
  * @author preguica
  */
 final public class DCSurrogate extends SwiftProtocolHandler {
+    public static final boolean FAKE_PRACTI_DEPOT_VECTORS = false;
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     String siteId;
@@ -518,20 +519,23 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     @Override
     public void onReceive(final RpcHandle conn, PingRequest request) {
-        PingReply reply = new PingReply( request.getTimeAtSender(), System.currentTimeMillis());
+        PingReply reply = new PingReply(request.getTimeAtSender(), System.currentTimeMillis());
         conn.reply(reply);
     }
-    
-    
+
     public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
         final String clientId;
         Timestamp lastSeqNo;
         boolean disasterSafe;
+        CausalityClock clientsFakeVectorKnowledge;
 
         ClientSession(String clientId, boolean disasterSafe) {
             super(clientId, suPubSub.endpoint());
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
+            if (FAKE_PRACTI_DEPOT_VECTORS) {
+                clientsFakeVectorKnowledge = ClockFactory.newClock();
+            }
         }
 
         public synchronized CausalityClock getMinVV() {
@@ -604,10 +608,28 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             // }
             // TODO: for clients that cannot receive periodical updates (e.g.
             // mobile in background mode), one could require a transaction to
-            // redeclare his read set and force client to refresh the cache
-            // before the transaction.
-            super.onNotification(new SwiftNotification(new BatchUpdatesNotification(suPubSub.minDcVersion(),
-                    disasterSafe, objectsUpdates)));
+            // declare his read set and force refresh the cache before the
+            // transaction if necessary.
+
+            if (FAKE_PRACTI_DEPOT_VECTORS) {
+                CausalityClock fakeVector = ClockFactory.newClock();
+                // We compare against the stale vector matchin snapshot, but
+                // these entries
+                // would need to be eventually send anyways.
+                for (final String clientId : dataServer.cltClock.getSiteIds()) {
+                    final Timestamp clientTimestamp = dataServer.cltClock.getLatest(clientId);
+                    if (!clientsFakeVectorKnowledge.includes(clientTimestamp)) {
+                        fakeVector.recordAllUntil(clientTimestamp);
+                        clientsFakeVectorKnowledge.recordAllUntil(clientTimestamp);
+                    }
+                }
+                clientsFakeVectorKnowledge.merge(fakeVector);
+                super.onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
+                        objectsUpdates, fakeVector)));
+            } else {
+                super.onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
+                        objectsUpdates)));
+            }
             lastNotification = now;
             return snapshot;
         }

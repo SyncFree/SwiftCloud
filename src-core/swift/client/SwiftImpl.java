@@ -122,7 +122,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // do nothing
         };
     };
-    
+
     // Experimental feature: share dependency clock in a commit batch to reduce
     // metadata size.
     public static final boolean USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH = true;
@@ -422,12 +422,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // TODO: make it configurable
         // new FailOverWatchDog().start();
 
-        new PeriodicTask(10,10) {
+        new PeriodicTask(10, 10) {
             public void run() {
                 clockSkewEstimate();
             }
         };
-        
+
         getDCClockEstimates();
     }
 
@@ -523,8 +523,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (reply != null) {
                 long rtt = receivedTime - reply.getTimeAtSender();
                 long skew = reply.getTimeAtReceiver() - reply.getTimeAtSender() - rtt / 2;
-                //SS,time,rtt,skew,scoutid,ip,server_ip
-                System.out.println( "SS,time," + rtt +"," + skew + "," + scoutId + "," + InetAddress.getLocalHost() + "," + serverEndpoint().getHost());
+                // SS,time,rtt,skew,scoutid,ip,server_ip
+                System.out.println("SS,time," + rtt + "," + skew + "," + scoutId + "," + InetAddress.getLocalHost()
+                        + "," + serverEndpoint().getHost());
                 return true;
             }
             return false;
@@ -1530,7 +1531,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 operationsGroups.add(group.withDependencyClock(newDeps));
             }
             requests.add(new CommitUpdatesRequest(scoutId, disasterSafe, txn.getClientTimestamp(), newDeps,
-                    operationsGroups));
+                    operationsGroups, true));
         }
         for (CommitUpdatesRequest request : requests) {
             // LEGACY: internal dependency is implicit from the timestamp and

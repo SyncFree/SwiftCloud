@@ -17,6 +17,8 @@ import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
@@ -29,15 +31,24 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
     protected CausalityClock newVersion;
     private boolean newVersionDisasterSafe;
     protected Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates;
+    // THIS IS USED FOR EXPERIMENT PURPOSES ONLY: to measure the overhead of
+    // PRACTI/Depot metadata
+    protected CausalityClock fakePractiDepotVector;
 
     BatchUpdatesNotification() {
     }
 
     public BatchUpdatesNotification(CausalityClock newVersion, boolean disasterSafe,
-            Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates) {
+            Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates, CausalityClock newFakeVector) {
         this.newVersion = newVersion;
         this.newVersionDisasterSafe = disasterSafe;
         this.objectsUpdates = objectsUpdates;
+        this.fakePractiDepotVector = newFakeVector;
+    }
+
+    public BatchUpdatesNotification(CausalityClock newVersion, boolean disasterSafe,
+            Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates) {
+        this(newVersion, disasterSafe, objectsUpdates, null);
     }
 
     @Override
@@ -100,19 +111,28 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
 
         // TODO: get it from the wire, rather than recompute
         kryo.writeObject(buffer, this);
+        // FIXME: repsect fakePractiDepotVector != null
         final int totalSize = buffer.position();
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
-        kryo.writeObject(buffer, newVersion);
+        if (fakePractiDepotVector != null) {
+            kryo.writeObject(buffer, fakePractiDepotVector);
+        } else {
+            kryo.writeObject(buffer, newVersion);
+        }
         kryo.writeObject(buffer, newVersionDisasterSafe);
         for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
             for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
-                kryo.writeObject(buffer, group.getTimestampMapping());
+                if (fakePractiDepotVector != null) {
+                    kryo.writeObject(buffer, group.getClientTimestamp());
+                } else {
+                    kryo.writeObject(buffer, group.getTimestampMapping());
+                }
             }
         }
         final int globalMetadata = buffer.position();
-        
+
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         int numberOfOps = 0;
@@ -155,7 +175,8 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
 
         final int vectorSize = newVersion.getSize();
         final int maxExceptionsNum = newVersion.getExceptionsNumber();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, vectorSize, maxExceptionsNum);
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, vectorSize,
+                maxExceptionsNum);
     }
 
     @Override
