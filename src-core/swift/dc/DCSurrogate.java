@@ -90,6 +90,7 @@ import sys.scheduler.PeriodicTask;
  */
 final public class DCSurrogate extends SwiftProtocolHandler {
     public static final boolean FAKE_PRACTI_DEPOT_VECTORS = false;
+    public static final boolean OPTIMIZED_VECTORS_IN_BATCH = true;
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     String siteId;
@@ -527,14 +528,18 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final String clientId;
         Timestamp lastSeqNo;
         boolean disasterSafe;
-        CausalityClock clientsFakeVectorKnowledge;
+        private CausalityClock clientFakeVectorKnowledge;
+        private CausalityClock lastSnapshotVector;
 
         ClientSession(String clientId, boolean disasterSafe) {
             super(clientId, suPubSub.endpoint());
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
             if (FAKE_PRACTI_DEPOT_VECTORS) {
-                clientsFakeVectorKnowledge = ClockFactory.newClock();
+                clientFakeVectorKnowledge = ClockFactory.newClock();
+            }
+            if (OPTIMIZED_VECTORS_IN_BATCH) {
+                lastSnapshotVector = ClockFactory.newClock();
             }
         }
 
@@ -584,6 +589,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (disasterSafe) {
                 snapshot.intersect(getEstimatedDCStableVersionCopy());
             }
+            if (OPTIMIZED_VECTORS_IN_BATCH) {
+                for (final String dcId : lastSnapshotVector.getSiteIds()) {
+                    if (lastSnapshotVector.includes(snapshot.getLatest(dcId))) {
+                        snapshot.drop(dcId);
+                    }
+                }
+                lastSnapshotVector.merge(snapshot);
+            }
 
             final HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
             final Iterator<CRDTObjectUpdatesGroup<?>> iter = pending.iterator();
@@ -618,12 +631,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 // would need to be eventually send anyways.
                 for (final String clientId : dataServer.cltClock.getSiteIds()) {
                     final Timestamp clientTimestamp = dataServer.cltClock.getLatest(clientId);
-                    if (!clientsFakeVectorKnowledge.includes(clientTimestamp)) {
+                    if (!clientFakeVectorKnowledge.includes(clientTimestamp)) {
                         fakeVector.recordAllUntil(clientTimestamp);
-                        clientsFakeVectorKnowledge.recordAllUntil(clientTimestamp);
+                        clientFakeVectorKnowledge.recordAllUntil(clientTimestamp);
                     }
                 }
-                clientsFakeVectorKnowledge.merge(fakeVector);
+                clientFakeVectorKnowledge.merge(fakeVector);
                 super.onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
                         objectsUpdates, fakeVector)));
             } else {
