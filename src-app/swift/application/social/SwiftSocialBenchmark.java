@@ -55,7 +55,8 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         final String servers = Args.valueOf(args, "-servers", "localhost");
 
-        Properties properties = Props.parseFile("swiftsocial", System.out, "swiftsocial-test.props");
+        String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
+        Properties properties = Props.parseFile("swiftsocial", System.out, propFile);
 
         System.err.println("Populating db with users...");
 
@@ -154,16 +155,35 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         SwiftSocialBenchmark instance = new SwiftSocialBenchmark();
         if (args.length == 0) {
 
-            DCSequencerServer.main(new String[] { "-name", "X0" });
+            DCSequencerServer.main(new String[] { "-name", "X" });
             DCServer.main(new String[] { "-servers", "localhost" });
 
-            args = new String[] { "-servers", "localhost", "-threads", "10" };
-
+            args = new String[] { "-servers", "localhost", "-threads", "10", "-props", "swiftsocial-test.props" };
             instance.initDB(args);
             instance.doBenchmark(args);
             exit(0);
         }
+        if (args[0].equals("-prepareDB")) {
+            // uses berkeleydb in sync mode to create a DB snapshot.
+            // In folder db, default and default_seq need
+            // to be renamed manually to 25k and 25k_seq
+            DCSequencerServer.main(new String[] { "-sync", "-db", "-name", "X" });
+            DCServer.main(new String[] { "-sync", "-db", "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            instance.initDB(args);
 
+            Threading.sleep(30000);
+            exit(0);
+        }
+        if (args[0].equals("-reloadDB")) {
+            // assumes there is db/25k and db/25k_seq folders with the prepared
+            // db snapshot...
+            DCSequencerServer.main(new String[] { "-rdb", "25k", "-db", "-name", "X" });
+            DCServer.main(new String[] { "-rdb", "25k", "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            instance.doBenchmark(args);
+            exit(0);
+        }
         if (args[0].equals("init")) {
             instance.initDB(args);
             exit(0);
