@@ -100,7 +100,7 @@ def WANTED_MESSAGES = [
     "FetchObjectVersionReply",
     "FetchObjectRequest",
     "BatchUpdatesNotification",
-    "BatchCommitRequest"] as Set
+    "BatchCommitUpdatesRequest"] as Set
 def WANTED_CATEGORIES = [
     MetadataLogsProcessor.CATEGORY_GLOBAL_METADATA_PRECISE,
     MetadataLogsProcessor.CATEGORY_VECTOR_SIZE,
