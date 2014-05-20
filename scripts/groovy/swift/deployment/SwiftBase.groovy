@@ -15,19 +15,19 @@ class SwiftBase {
         return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
     }
 
-    static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers) {
+    static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers, String extraArgs) {
         def res  = SEQUENCER_CMD + " -name " + siteId + " -shepard " + shepard + " -servers "
         servers.each { res += it + " "}
         res += "-sequencers "
         otherSequencers.each { res += it + " "}
-        return res
+        return res + extraArgs + " "
     }
 
-    static String surrogateCmd( String siteId, String shepard, String sequencer, List otherSurrogates ) {
+    static String surrogateCmd( String siteId, String shepard, String sequencer, List otherSurrogates, String extraArgs ) {
         def res  = SURROGATE_CMD + " -name " + siteId  + " -shepard " + shepard + " -sequencer " + sequencer + " "
         res += "-surrogates "
         otherSurrogates.each { res += it + " "}
-        return res
+        return res + extraArgs + " "
     }
 
 	static void runEachAsSequencer( List sequencers, List surrogates, String seqHeap) {

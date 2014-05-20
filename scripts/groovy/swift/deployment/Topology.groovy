@@ -7,8 +7,8 @@ class Topology {
 		static List datacenters = []
 		static List scoutGroups = []
 		
-		static String dcKey( int index ) {
-			return "" + ('XYZWVUABCDEFGHIJKLM').charAt(index);
+		static String dcKey( int index ) {			
+			return "" + ('XYZABCDEFGHIJKLMOPKRSTUVW').charAt(index);
 		}
 		
 		def static Datacenter DC(List sequencers, List surrogates) {
@@ -67,25 +67,32 @@ class Topology {
 			}
 			return res.unique()
 		}
-		
-		void deploySequencers(String shepard, String seqHeap = "256m") {
+
+		void deploySequencersExtraArgs(String shepard, String extraArgs, String seqHeap = "256m") {
 			def otherSequencers = sequencers() - this.sequencers
 			def siteId = dcKey( Topology.datacenters.indexOf(this));
 			
 			sequencers.each { host ->		
-				rshC(host, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(siteId, shepard, surrogates, otherSequencers), "seq-stdout.txt", "seq-stderr.txt" ))
+				rshC(host, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(siteId, shepard, surrogates, otherSequencers, extraArgs), "seq-stdout.txt", "seq-stderr.txt" ))
 			}
+		}		
+		
+		void deploySequencers(String shepard, String seqHeap = "256m") {
+			deploySequencersExtraArgs( shepards, "", seqHeap)	
     	}	
     	
-    	void deploySurrogates(String shepard, String surHeap = "512m") {
+    	void deploySurrogatesExtraArgs(String shepard, String extraArgs, String surHeap = "512m") {
 			def siteId = dcKey( Topology.datacenters.indexOf(this));
 			
 			surrogates.each { host ->
 				def otherSurrogates = surrogates - host
-            	rshC(host, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates ), "sur-stdout.txt", "sur-stderr.txt" ))
+            	rshC(host, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, extraArgs ), "sur-stdout.txt", "sur-stderr.txt" ))
 			}			
     	}	
     	
+    	void deploySurrogates(String shepard, String surHeap = "512m") {
+    		deploySurrogatesExtraArgs( shepard, "", surHeap)
+    	}
 	}
 	
 	
@@ -94,7 +101,7 @@ class Topology {
 		Datacenter dc
 		
 		ScoutGroup( List scouts, Datacenter dc) {
-			this.scouts = scouts.unique()
+			this.scouts = scouts
 			this.dc = dc	
 			Topology.scoutGroups += this
 		} 
