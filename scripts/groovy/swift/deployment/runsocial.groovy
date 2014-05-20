@@ -12,27 +12,32 @@ def __ = onControlC({
     System.exit(0);
 })
 
+EuropeEC2 = [
+    'ec2-54-76-46-41.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-46-25.eu-west-1.compute.amazonaws.com',
+    'ec2-54-72-227-177.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-46-49.eu-west-1.compute.amazonaws.com',
+    'ec2-54-72-52-235.eu-west-1.compute.amazonaws.com',
+    'ec2-54-72-217-106.eu-west-1.compute.amazonaws.com'
+]
 
-Europe = DC([
-    'ec2-54-76-46-41.eu-west-1.compute.amazonaws.com'
-],
-[
-    'ec2-54-76-46-41.eu-west-1.compute.amazonaws.com'
-])
+NorthVirginiaEC2 = [
+    'ec2-54-86-252-163.compute-1.amazonaws.com',
+    'ec2-54-86-252-161.compute-1.amazonaws.com',
+    'ec2-54-86-124-17.compute-1.amazonaws.com',
+    'ec2-54-86-252-209.compute-1.amazonaws.com',
+    'ec2-54-86-223-100.compute-1.amazonaws.com',
+    'ec2-54-86-197-100.compute-1.amazonaws.com'
+]
 
-NorthVirginia = DC([
-    'ec2-54-86-252-163.compute-1.amazonaws.com'
-],
-[
-    'ec2-54-86-252-163.compute-1.amazonaws.com'
-])
-
-Oregon = DC([
-    'ec2-54-200-13-249.us-west-2.compute.amazonaws.com'
-],
-[
-    'ec2-54-200-13-249.us-west-2.compute.amazonaws.com'
-])
+OregonEC2 = [
+    'ec2-54-200-13-249.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-230-35.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-230-38.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-223-234.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-29-62.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-29-51.us-west-2.compute.amazonaws.com'
+]
 
 // Optional argument - limit of scouts number
 if (args.length < 2) {
@@ -40,32 +45,22 @@ if (args.length < 2) {
 }
 PerDCClientNodesLimit = Integer.valueOf(args[0])
 Threads = Integer.valueOf(args[1])
-ScoutsEU = SGroup( [
-    'ec2-54-76-46-25.eu-west-1.compute.amazonaws.com',
-    'ec2-54-72-227-177.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-46-49.eu-west-1.compute.amazonaws.com',
-    'ec2-54-72-52-235.eu-west-1.compute.amazonaws.com',
-    'ec2-54-72-217-106.eu-west-1.compute.amazonaws.com'
-].subList(0, PerDCClientNodesLimit), NorthVirginia )
 
+//AllEC2 = EuropeEC2 + NorthVirginiaEC2 + OregonEC2
+//
+//
+//AllEC2.each { node ->
+//    dc = DC([node], [node])
+//    SGroup([node], dc)
+//}
 
-ScoutsNorthVirginia = SGroup( 	[
-    'ec2-54-86-252-161.compute-1.amazonaws.com',
-    'ec2-54-86-124-17.compute-1.amazonaws.com',
-    'ec2-54-86-252-209.compute-1.amazonaws.com',
-    'ec2-54-86-223-100.compute-1.amazonaws.com',
-    'ec2-54-86-197-100.compute-1.amazonaws.com'
-].subList(0, PerDCClientNodesLimit), Oregon )
+Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
+NorthVirginia = DC([NorthVirginiaEC2[0]], [NorthVirginiaEC2[0]])
+Oregon = DC([OregonEC2[0]], [OregonEC2[0]])
 
-
-ScoutsOregon = SGroup( 	[
-    'ec2-54-187-230-35.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-230-38.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-223-234.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-29-62.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-29-51.us-west-2.compute.amazonaws.com'
-].subList(0, PerDCClientNodesLimit), Europe )
-
+ScoutsEU = SGroup( EuropeEC2[1..PerDCClientNodesLimit], NorthVirginia )
+ScoutsNorthVirginia = SGroup(NorthVirginiaEC2[1..PerDCClientNodesLimit], Oregon )
+ScoutsOregon = SGroup(OregonEC2[1..PerDCClientNodesLimit], Europe )
 
 /*
  Texas = DC([ "ricepl-1.cs.rice.edu"], ["ricepl-2.cs.rice.edu", "ricepl-4.cs.rice.edu", "ricepl-5.cs.rice.edu"]);
