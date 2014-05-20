@@ -78,7 +78,7 @@ class Topology {
         }
 
         void deploySequencers(String shepard, String seqHeap = "256m") {
-            deploySequencersExtraArgs( shepards, "", seqHeap)
+            deploySequencersExtraArgs( shepard, "", seqHeap)
         }
 
         void deploySurrogatesExtraArgs(String shepard, String extraArgs, String surHeap = "512m") {
