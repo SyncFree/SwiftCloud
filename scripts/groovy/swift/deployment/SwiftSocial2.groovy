@@ -54,7 +54,7 @@ class SwiftSocial2 extends SwiftBase {
         'swift.cacheEvictionTimeMillis':'5000000',
         'swift.maxCommitBatchSize':'10',
         'swift.maxAsyncTransactionsQueued':'50',
-        'swift.cacheSize':'512',
+        'swift.cacheSize':'256',
         'swift.asyncCommit':'true',
         'swift.notifications':'true',
         'swift.cachePolicy':'CACHED',

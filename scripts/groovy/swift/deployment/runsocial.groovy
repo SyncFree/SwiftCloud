@@ -77,7 +77,7 @@ Duration = 240
 InterCmdDelay = 30
 SwiftSocial_Props = "swiftsocial-test.props"
 
-DbSize = 1000*Scouts.size()*Threads
+DbSize = 200*Scouts.size()*Threads
 props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString()], SwiftSocial2.DEFAULT_PROPS)
 
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
@@ -119,12 +119,12 @@ println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
 def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
+SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props, "2048m")
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
 
-SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads )
+SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads, "2048m" )
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 shep.take()
