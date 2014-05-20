@@ -97,7 +97,7 @@ DIRs.each { dir ->
             double x = xVal[it].doubleValue(), y = 100 * accum / total
             data << String.format("%.0f\t%.1f", x, y0)
             data << String.format("%.0f\t%.1f", x, y)
-            println x + "  " + y
+            // println x + "  " + y
         }
         plots[i.name()] = data
     }
