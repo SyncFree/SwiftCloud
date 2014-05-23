@@ -23,6 +23,9 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * Server confirmation for a batch of committed updates, with information on
  * status and used timestamp.
@@ -31,7 +34,7 @@ import sys.net.api.rpc.RpcMessage;
  * @see BatchCommitUpdatesRequest
  * @see CommitUpdatesReply
  */
-public class BatchCommitUpdatesReply implements RpcMessage {
+public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
     protected List<CommitUpdatesReply> replies;
 
     /**
@@ -60,5 +63,36 @@ public class BatchCommitUpdatesReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         // ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
+        final int totalSize = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
+        for (final CommitUpdatesReply reply : getReplies()) {
+            if (reply.getCommitTimestamps() != null) {
+                kryo.writeObject(buffer, reply.getCommitTimestamps());
+            }
+            if (reply.getImpreciseCommitClock() != null) {
+                maxExceptionsNum = Math.max(reply.getImpreciseCommitClock().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(reply.getImpreciseCommitClock().getSize(), maxVectorSize);
+                kryo.writeObject(buffer, reply.getImpreciseCommitClock());
+            }
+        }
+        final int globalMetadata = buffer.position();
+
+        // TODO: capture from the wire, rather than recompute here
+        kryo.writeObject(buffer, this);
+        collector.recordStats(this, totalSize, 0, 0, globalMetadata, getReplies().size(), maxVectorSize,
+                maxExceptionsNum);
     }
 }

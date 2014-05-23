@@ -1,34 +1,123 @@
 package swift.pubsub;
 
+import java.util.Set;
+
+import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
+import swift.proto.MetadataSamplable;
+import swift.proto.MetadataStatsCollector;
 import swift.proto.ObjectUpdatesInfo;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 import sys.pubsub.PubSub.Subscriber;
 
-public class UpdateNotification implements Notifyable<CRDTIdentifier> {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
-    public String clientId;
+public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataSamplable {
+
+    // TODO: lots of redundant things on the wire?
+    public String srcId;
+    public Timestamp timestamp;
     public ObjectUpdatesInfo info;
 
     UpdateNotification() {
     }
 
-    public UpdateNotification(String clientId, ObjectUpdatesInfo info) {
+    public UpdateNotification(String srcId, Timestamp ts, ObjectUpdatesInfo info) {
         this.info = info;
-        this.clientId = clientId;
+        this.srcId = srcId;
+        this.timestamp = ts;
     }
-
-    int n = 0;
 
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
         for (Subscriber<CRDTIdentifier> i : pubsub.subscribers(info.getId(), true))
-            ((SwiftSubscriber) i).onNotification(this);
+            try {
+                ((SwiftSubscriber) i).onNotification(this);
+            } finally {
+            }
     }
 
     @Override
     public Object src() {
-        return clientId;
+        return srcId;
+    }
+
+    @Override
+    public CRDTIdentifier key() {
+        return info.getId();
+    }
+
+    @Override
+    public Set<CRDTIdentifier> keys() {
+        return null;
+    }
+
+    @Override
+    public Timestamp timestamp() {
+        return timestamp;
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
+
+        // TODO: get it from the write, rather than recompute
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+
+        int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        if (info.getId() != null) {
+            kryo.writeObject(buffer, info.getId());
+        }
+        for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
+            if (group.hasCreationState()) {
+                kryo.writeObject(buffer, group.getCreationState());
+            }
+            if (group.getTargetUID() != null) {
+                kryo.writeObject(buffer, group.getTargetUID());
+            }
+            for (final CRDTUpdate<?> op : group.getOperations()) {
+                kryo.writeObject(buffer, op);
+            }
+
+            if (group.getDependency() != null) {
+                maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(group.getDependency().getSize(), maxVectorSize);
+            }
+        }
+        final int updatesSize = buffer.position();
+
+        int numberOfOps = 0;
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        for (final CRDTObjectUpdatesGroup<?> group : info.getUpdates()) {
+            if (group.hasCreationState()) {
+                kryo.writeObject(buffer, group.getCreationState().getValue());
+            }
+            if (group.getTargetUID() != null) {
+                kryo.writeObject(buffer, group.getTargetUID());
+            }
+            for (final CRDTUpdate<?> op : group.getOperations()) {
+                kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                numberOfOps++;
+            }
+        }
+        final int valuesSize = buffer.position();
+        // FIXME
+        int globalMetadata = 0;
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+                maxExceptionsNum);
     }
 }

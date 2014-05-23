@@ -47,4 +47,11 @@ public interface SwiftScout {
      * Prints and resets caching statistics.
      */
     void printAndResetCacheStats();
+    
+    /**
+     * Returns scout id;
+     * @return
+     */
+    public String getScoutId();
+
 }

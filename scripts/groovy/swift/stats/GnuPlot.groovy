@@ -2,8 +2,8 @@ package swift.stats
 
 import swift.deployment.Tools
 
-
 public class GnuPlot {
+    static OPEN_CMD = "open" // System.getenv("SESSION"). contains("ubuntu" )? "xdg-open" : "open"
 
     static doGraph( output, List script, Map useries, Closure plotstyle ) {
         doGraph( output, script, useries, plotstyle, { a,b ->
@@ -55,10 +55,11 @@ public class GnuPlot {
 
         Tools.Sleep(5)
 
-        Tools.exec([
-            "/bin/bash",
-            "-c",
-            "open " + output + ".pdf"
-        ]).waitFor()
+
+        //        Tools.exec([
+        //            "/bin/bash",
+        //            "-c",
+        //            OPEN_CMD + " " + output + ".pdf"
+        //        ]).waitFor()
     }
 }

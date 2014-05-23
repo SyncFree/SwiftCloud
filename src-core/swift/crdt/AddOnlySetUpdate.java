@@ -17,4 +17,9 @@ public class AddOnlySetUpdate<V> implements CRDTUpdate<AddOnlySetCRDT<V>> {
     public void applyTo(AddOnlySetCRDT<V> crdt) {
         crdt.applyAdd(element);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return element;
+    }
 }

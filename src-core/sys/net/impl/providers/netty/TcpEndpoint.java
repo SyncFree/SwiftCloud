@@ -192,7 +192,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint {
                 KryoLib.kryo().writeClassAndObject(output, msg);
                 output.close();
 
-                int uploadTotal = output.total();
+                int uploadTotal = (int) output.total();
                 buf.setInt(0, uploadTotal);
 
                 ChannelFuture fut = channel.write(buf);

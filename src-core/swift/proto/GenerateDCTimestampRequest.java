@@ -29,17 +29,19 @@ import sys.net.api.rpc.RpcHandler;
 public class GenerateDCTimestampRequest extends ClientRequest {
     Timestamp cltTimestamp;
     CausalityClock dependencyClk;
-    long cltDependency;
+
+    // long cltDependency;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     GenerateDCTimestampRequest() {
     }
 
-    public GenerateDCTimestampRequest(String clientId, Timestamp cltTimestamp, CausalityClock dependencyClk) {
-        super(clientId);
+    public GenerateDCTimestampRequest(String clientId, boolean disasterSafeSession, Timestamp cltTimestamp,
+            CausalityClock dependencyClk) {
+        super(clientId, disasterSafeSession);
         this.cltTimestamp = cltTimestamp;
         this.dependencyClk = dependencyClk;
-        cltDependency = dependencyClk.getLatestCounter(clientId);
+        // cltDependency = dependencyClk.getLatestCounter(clientId);
         dependencyClk.drop(clientId);
     }
 

@@ -20,7 +20,10 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-public class UnsubscribeUpdatesReply implements RpcMessage {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
+
+public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
 
     protected long id;
 
@@ -38,5 +41,18 @@ public class UnsubscribeUpdatesReply implements RpcMessage {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getFreshKryo();
+        final Output buffer = collector.getFreshKryoBuffer();
+
+        // TODO: capture from the wire, rather than recompute here
+        kryo.writeObject(buffer, this);
+        collector.recordStats(this, buffer.position(), 0, 0, 0, 1, 0, 0);
     }
 }

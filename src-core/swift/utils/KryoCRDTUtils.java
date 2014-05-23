@@ -39,6 +39,8 @@ import swift.crdt.AddWinsSetRemoveUpdate;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
+import swift.proto.BatchCommitUpdatesReply;
+import swift.proto.BatchCommitUpdatesRequest;
 import swift.proto.ClientRequest;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
@@ -54,6 +56,8 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.UnsubscribeUpdatesRequest;
+import swift.pubsub.BatchUpdatesNotification;
+import swift.pubsub.UpdateNotification;
 import sys.net.impl.KryoLib;
 //import swift.dc.proto.DHTSendNotification;
 //import swift.client.proto.FastRecentUpdatesReply;
@@ -106,11 +110,16 @@ public class KryoCRDTUtils {
         registerable.register(CommitUpdatesRequest.class, 0x71);
         registerable.register(CommitUpdatesReply.class, 0x72);
         registerable.register(CommitUpdatesReply.CommitStatus.class, 0x73);
+        registerable.register(BatchCommitUpdatesRequest.class, 0x74);
+        registerable.register(BatchCommitUpdatesReply.class, 0x75);
+        registerable.register(BatchUpdatesNotification.class, 0x76);
 
         registerable.register(FetchObjectDeltaRequest.class, 0x77);
         registerable.register(FetchObjectVersionRequest.class, 0x78);
         registerable.register(FetchObjectVersionReply.class, 0x79);
         registerable.register(FetchObjectVersionReply.FetchStatus.class, 0x7A);
+        
+        registerable.register(UpdateNotification.class, 0x7B);
 
         registerable.register(LatestKnownClockRequest.class, 0x7F);
         registerable.register(LatestKnownClockReply.class, 0x80);

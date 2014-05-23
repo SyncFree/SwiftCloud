@@ -17,9 +17,11 @@
 package swift.client;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import swift.clocks.TimestampMapping;
+import swift.crdt.core.BulkGetProgressListener;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CachePolicy;
@@ -62,8 +64,7 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
      */
     RepeatableReadsTxnHandle(final TxnManager manager, final String sessionId, final TransactionsLog durableLog,
             final CachePolicy cachePolicy, final TimestampMapping timestampMapping, Stats stats) {
-        super(manager, sessionId, durableLog, IsolationLevel.REPEATABLE_READS, cachePolicy, timestampMapping,
-                stats);
+        super(manager, sessionId, durableLog, IsolationLevel.REPEATABLE_READS, cachePolicy, timestampMapping, stats);
         this.objectViewsCache = new ConcurrentHashMap<CRDTIdentifier, CRDT<?>>();
     }
 
@@ -90,7 +91,7 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
         CRDT<V> localView = (CRDT<V>) objectViewsCache.get(id);
         if (localView != null && updatesListener != null) {
             // force another read to install the listener and discard it
-            manager.getObjectVersionTxnView(this, id, localView.getClock(), create, classOfV, updatesListener);
+            manager.getObjectVersionTxnView(this, id, null, create, classOfV, updatesListener);
         }
         if (localView == null) {
             localView = manager.getObjectLatestVersionTxnView(this, id, cachePolicy, create, classOfV, updatesListener);

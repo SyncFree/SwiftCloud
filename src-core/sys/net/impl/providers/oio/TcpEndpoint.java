@@ -118,6 +118,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
         SocketChannel channel;
         KryoInputBuffer inBuf;
         KryoOutputBuffer outBuf;
+
         ExecutorService workers = Executors.newFixedThreadPool(2);
 
         public AbstractConnection() throws IOException {
@@ -134,13 +135,20 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                         int msgSize = inBuf.msgSize;
                         Sys.downloadedBytes.addAndGet(msgSize);
                         incomingBytesCounter.addAndGet(msgSize);
+                        msg.setSize(msgSize);
                     }
                     msg.deliverTo(this, TcpEndpoint.this.handler);
                 }
-            } catch (Throwable t) {
-                Log.log(Level.FINEST, "Exception in connection to: " + remote, t);
-                cause = t;
+            } catch (RuntimeException x) {
+            } catch (IOException x) {
+                x.printStackTrace();
+                Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
+                cause = x;
                 handler.onFailure(this);
+            } catch (Throwable t) {
+                Log.severe(t.getMessage());
+                t.printStackTrace();
+                cause = t;
             }
             isBroken = true;
             IO.close(socket);
@@ -155,7 +163,10 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 msg.setSize(msgSize);
                 return true;
             } catch (Throwable t) {
-                Log.log(Level.INFO, "Exception in connection to: " + remote, t);
+                if (Log.isLoggable(Level.INFO))
+                    t.printStackTrace();
+
+                Log.warning("Exception in connection to: " + remote + " " + t.getMessage());
 
                 cause = t;
                 isBroken = true;
@@ -189,8 +200,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             inBuf = new KryoInputBuffer();
             outBuf = new KryoOutputBuffer();
             workers.execute(this);
-            // Threading.newThread("incoming-tcp-channel-reader:" + local +
-            // " <-> " + remote, true, this).start();
         }
     }
 
@@ -214,13 +223,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 cause = x;
                 isBroken = true;
                 IO.close(socket);
-                throw x;
+                Log.warning("Cannot connect to: " + remote + " " + x.getMessage());
+                if (Log.isLoggable(Level.INFO))
+                    x.printStackTrace();
             }
             this.send(new InitiatorInfo(localEndpoint));
             handler.onConnect(this);
             workers.execute(this);
-            // Threading.newThread("outgoing-tcp-channel-reader:" + local +
-            // " <-> " + remote, true, this).start();
         }
     }
 }
@@ -250,7 +259,6 @@ final class KryoInputBuffer {
         while (buffer.hasRemaining() && ch.read(buffer) > 0)
             ;
 
-        sys.Sys.Sys.startWatch("rcv");
         if (buffer.hasRemaining())
             return -1;
 
@@ -325,6 +333,7 @@ final class KryoOutputBuffer {
     public int writeClassAndObject(Object object, SocketChannel ch) throws Exception {
         reset();
         out.setPosition(4);
+
         KryoLib.kryo().writeClassAndObject(out, object);
         int length = out.position();
 

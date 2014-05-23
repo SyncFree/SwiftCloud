@@ -38,6 +38,9 @@ public class CommitUpdatesRequest extends ClientRequest {
 
     protected List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups;
     protected CausalityClock dependencyClock;
+    // THIS IS USED FOR EXPERIMENT PURPOSES ONLY: to measure the overhead of
+    // PRACTI/Depot metadata
+    protected boolean fakePractiDepot;
 
     transient Timestamp timestamp;
     protected Timestamp cltTimestamp;
@@ -50,12 +53,23 @@ public class CommitUpdatesRequest extends ClientRequest {
     CommitUpdatesRequest() {
     }
 
-    public CommitUpdatesRequest(String clientId, final Timestamp cltTimestamp, final CausalityClock dependencyClock,
-            List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
-        super(clientId);
+    public CommitUpdatesRequest(String clientId, boolean disasterSafeSession, final Timestamp cltTimestamp,
+            final CausalityClock dependencyClock, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups) {
+        this(clientId, disasterSafeSession, cltTimestamp, dependencyClock, objectUpdateGroups, false);
+    }
+
+    public CommitUpdatesRequest(String clientId, boolean disasterSafeSession, final Timestamp cltTimestamp,
+            final CausalityClock dependencyClock, List<CRDTObjectUpdatesGroup<?>> objectUpdateGroups,
+            boolean fakePractiDepot) {
+        super(clientId, disasterSafeSession);
         this.cltTimestamp = cltTimestamp;
         this.dependencyClock = dependencyClock;
         this.objectUpdateGroups = new ArrayList<CRDTObjectUpdatesGroup<?>>(objectUpdateGroups);
+        this.fakePractiDepot = fakePractiDepot;
+    }
+
+    public CausalityClock getDependencyClock() {
+        return dependencyClock;
     }
 
     /**
@@ -120,5 +134,15 @@ public class CommitUpdatesRequest extends ClientRequest {
                 this.dependencyClock.record(t);
             }
         }
+    }
+
+    @Override
+    public String toString() {
+        return "CommitUpdatesRequest [objectUpdateGroups=" + objectUpdateGroups + ", dependencyClock="
+                + dependencyClock + ", cltTimestamp=" + cltTimestamp + "]";
+    }
+
+    public void dropInternalDependency() {
+        dependencyClock.drop(clientId);
     }
 }

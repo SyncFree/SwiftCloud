@@ -76,4 +76,10 @@ public class ReleaseOwnershipUpdate implements CRDTUpdate<SharedLockCRDT> {
         return parentId;
     }
 
+    @Override
+    public Object getValueWithoutMetadata() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
 }

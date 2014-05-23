@@ -1,30 +1,30 @@
 package sys.utils;
 
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.Enumeration;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.HashMap;
 import java.util.Properties;
 
 public class Props {
 
     public static Properties parseFile(String propName, PrintStream out) {
         try {
-            File filename = new File(System.getProperty(propName));
+            final Properties props = new Properties();            
+            String filename = System.getProperty(propName);
+            if (filename != null) {
+                BufferedReader br = new BufferedReader(new FileReader(filename));
+                props.load(br);
+                br.close();
+                if (out != null) {
+                    out.printf("; Read properties from: %s\n", filename);
 
-            if (out != null)
-                out.printf(";\tReading properties from: %s\n", filename);
-
-            BufferedReader br = new BufferedReader(new FileReader(filename));
-            final Properties props = new Properties();
-            props.load(br);
-            br.close();
-            props.list(out);
+                    // Marek, naughty, naughty, you did break the statistics
+                    // scripts ;-)
+                    for (Object i : props.keySet())
+                        out.printf(";\t%s=%s\n", i, props.getProperty((String) i));
+                }
+            }
             // BACKWARD-COMPABILITY HACK:
             Properties processedProps = new Properties();
             for (final String key : props.stringPropertyNames()) {
@@ -37,6 +37,14 @@ public class Props {
             System.exit(0);
             return null;
         }
+    }
+
+    public static Properties parseFile(String propName, PrintStream out, String defaultFilename) {
+        String filename = System.getProperty(propName);
+        if (filename == null)
+            System.setProperty(propName, defaultFilename);
+
+        return parseFile(propName, out);
     }
 
     public static String get(Properties props, String prop) {

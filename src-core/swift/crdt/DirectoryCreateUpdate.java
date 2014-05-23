@@ -42,4 +42,9 @@ public class DirectoryCreateUpdate implements CRDTUpdate<DirectoryCRDT> {
     public void applyTo(DirectoryCRDT crdt) {
         crdt.applyCreate(entry, ts, overwrittenTimestamps);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return entry;
+    }
 }

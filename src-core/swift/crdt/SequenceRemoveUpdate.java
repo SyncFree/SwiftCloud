@@ -39,4 +39,10 @@ public class SequenceRemoveUpdate<V extends Comparable<V>> implements CRDTUpdate
     public void applyTo(SequenceCRDT<V> crdt) {
         crdt.applyRemove(posId, ids);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

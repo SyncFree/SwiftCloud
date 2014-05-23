@@ -94,8 +94,8 @@ public class VersionVectorWithExceptionBasicTest {
 
         List<Interval> l1 = Arrays.asList(new Interval(1, 3));
         List<Interval> l2 = Arrays.asList(new Interval(2, 2));
-        clock.vv.put("a", new LinkedList(l1));
-        clock2.vv.put("a", new LinkedList(l2));
+        clock.vv.put("a", new LinkedList<Interval>(l1));
+        clock2.vv.put("a", new LinkedList<Interval>(l2));
 
         clock2.merge(clock);
 
@@ -110,8 +110,8 @@ public class VersionVectorWithExceptionBasicTest {
                 19));
         VersionVectorWithExceptions clock = new VersionVectorWithExceptions();
         VersionVectorWithExceptions clock2 = new VersionVectorWithExceptions();
-        clock.vv.put("a", new LinkedList(l1));
-        clock2.vv.put("a", new LinkedList(l2));
+        clock.vv.put("a", new LinkedList<Interval>(l1));
+        clock2.vv.put("a", new LinkedList<Interval>(l2));
         List<Interval> exp = Arrays.asList(new Interval(1, 6), new Interval(9, 10), new Interval(19, 20));
         clock2.merge(clock);
         assertEquals(exp, clock2.vv.get("a"));

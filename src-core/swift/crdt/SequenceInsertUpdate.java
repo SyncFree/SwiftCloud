@@ -41,4 +41,10 @@ public class SequenceInsertUpdate<V extends Comparable<V>> implements CRDTUpdate
     public void applyTo(SequenceCRDT<V> crdt) {
         crdt.applyAdd(posId, ts, overwrittenInstances);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

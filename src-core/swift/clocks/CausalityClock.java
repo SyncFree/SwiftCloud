@@ -17,6 +17,7 @@
 package swift.clocks;
 
 import java.io.Serializable;
+import java.util.Set;
 
 import swift.crdt.core.Copyable;
 import swift.exceptions.IncompatibleTypeException;
@@ -49,6 +50,8 @@ public interface CausalityClock extends Serializable, Copyable {
             return false;
         }
     };
+    
+    Set<String> getSiteIds();
 
     /**
      * Records the given event. Assume the timestamp can be recorded in the
@@ -193,9 +196,17 @@ public interface CausalityClock extends Serializable, Copyable {
     CausalityClock clone();
 
     /**
-     * Test if version vector has exceptions or holes.
-     * 
-     * @return true if there are exceptions
+     * @return number of exceptions or holes (discontiguity intervals)
      */
-    boolean hasExceptions();
+    int getExceptionsNumber();
+
+    /**
+     * @return estimated size (e.g. number of entry / intervals in VV)
+     */
+    int getSize();
+
+    // CausalityClock retain(String siteId);
+    //
+    // CausalityClock retain(CausalityClock cc);
+
 }

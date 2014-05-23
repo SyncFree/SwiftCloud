@@ -19,8 +19,14 @@ package swift.proto;
 import java.util.LinkedList;
 import java.util.List;
 
+import swift.clocks.CausalityClock;
+import swift.crdt.core.CRDTObjectUpdatesGroup;
+import swift.crdt.core.CRDTUpdate;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Client batch request to commit a a sequence of transactions. Transactions
@@ -29,7 +35,7 @@ import sys.net.api.rpc.RpcHandler;
  * 
  * @author mzawirski
  */
-public class BatchCommitUpdatesRequest extends ClientRequest {
+public class BatchCommitUpdatesRequest extends ClientRequest implements MetadataSamplable {
     protected LinkedList<CommitUpdatesRequest> commitRequests;
 
     /**
@@ -46,8 +52,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest {
      * @param commitRequests
      *            sequence of commit requests from the client
      */
-    public BatchCommitUpdatesRequest(String clientId, List<CommitUpdatesRequest> commitRequests) {
-        super(clientId);
+    public BatchCommitUpdatesRequest(String clientId, boolean disasterSafeSession,
+            List<CommitUpdatesRequest> commitRequests) {
+        super(clientId, disasterSafeSession);
         this.commitRequests = new LinkedList<CommitUpdatesRequest>(commitRequests);
     }
 
@@ -65,4 +72,82 @@ public class BatchCommitUpdatesRequest extends ClientRequest {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        Kryo kryo = collector.getFreshKryo();
+        Output buffer = collector.getFreshKryoBuffer();
+
+        // TODO: get it from the wire, rather than recompute
+        kryo.writeObject(buffer, this);
+        final int totalSize = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        CausalityClock sharedDepsTest = null;
+        for (final CommitUpdatesRequest req : commitRequests) {
+            if (!req.fakePractiDepot) {
+                // Count the shared clock only once (it should appear 1 on the
+                // wire)
+                if (sharedDepsTest != req.getDependencyClock()) {
+                    kryo.writeObject(buffer, req.getDependencyClock());
+                    sharedDepsTest = req.getDependencyClock();
+                }
+            }
+            kryo.writeObject(buffer, req.getCltTimestamp());
+        }
+        final int globalMetadata = buffer.position();
+
+        int maxExceptionsNum = 0;
+        int maxVectorSize = 0;
+        int numberOfOps = 0;
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        for (final CommitUpdatesRequest req : commitRequests) {
+            for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
+                if (group.hasCreationState()) {
+                    kryo.writeObject(buffer, group.getCreationState());
+                }
+                maxExceptionsNum = Math.max(group.getDependency().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(group.getDependency().getSize(), maxVectorSize);
+                kryo.writeObject(buffer, group.getTargetUID());
+                kryo.writeObject(buffer, group.getOperations());
+            }
+        }
+        final int updatesSize = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        for (final CommitUpdatesRequest req : commitRequests) {
+            for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
+                if (group.hasCreationState()) {
+                    final Object value = group.getCreationState().getValue();
+                    if (value != null) {
+                        kryo.writeObject(buffer, value);
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
+                }
+                kryo.writeObject(buffer, group.getTargetUID());
+                for (final CRDTUpdate<?> op : group.getOperations()) {
+                    if (op.getValueWithoutMetadata() != null) {
+                        kryo.writeObject(buffer, op.getValueWithoutMetadata());
+                    } else {
+                        kryo.writeObject(buffer, false);
+                    }
+                    numberOfOps++;
+                }
+            }
+        }
+        final int valuesSize = buffer.position();
+        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+                maxExceptionsNum);
+    }
+
+    @Override
+    public String toString() {
+        return "BatchCommitUpdatesRequest [" + commitRequests + "]";
+    }
 }

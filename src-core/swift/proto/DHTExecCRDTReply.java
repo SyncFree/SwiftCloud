@@ -17,14 +17,16 @@
 package swift.proto;
 
 import swift.dc.ExecCRDTResult;
-import sys.dht.api.DHT;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.net.api.rpc.RpcMessage;
 
 /**
  * 
  * @author preguica
  * 
  */
-public class DHTExecCRDTReply implements DHT.Reply {
+public class DHTExecCRDTReply implements RpcMessage {
     ExecCRDTResult result;
 
     public DHTExecCRDTReply(ExecCRDTResult result) {
@@ -37,12 +39,17 @@ public class DHTExecCRDTReply implements DHT.Reply {
     DHTExecCRDTReply() {
     }
 
+    // @Override
+    // public void deliverTo(DHT.Handle conn, DHT.ReplyHandler handler) {
+    // if (conn.expectingReply())
+    // ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    // else
+    // ((SwiftProtocolHandler) handler).onReceive(this);
+    // }
+
     @Override
-    public void deliverTo(DHT.Handle conn, DHT.ReplyHandler handler) {
-        if (conn.expectingReply())
-            ((SwiftProtocolHandler) handler).onReceive(conn, this);
-        else
-            ((SwiftProtocolHandler) handler).onReceive(this);
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(this);
     }
 
     public ExecCRDTResult getResult() {

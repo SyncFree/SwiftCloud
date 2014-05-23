@@ -48,4 +48,9 @@ public class AddWinsSetAddUpdate<V, T extends AbstractAddWinsSetCRDT<V, T>> impl
     public void applyTo(T crdt) {
         crdt.applyAdd(val, instance, overwrittenAdds);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return val;
+    }
 }

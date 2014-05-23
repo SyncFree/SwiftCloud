@@ -40,4 +40,9 @@ public class DirectoryRemoveUpdate implements CRDTUpdate<DirectoryCRDT> {
         crdt.applyRemove(key, toBeRemoved);
     }
 
+    @Override
+    public Object getValueWithoutMetadata() {
+        return key;
+    }
+
 }

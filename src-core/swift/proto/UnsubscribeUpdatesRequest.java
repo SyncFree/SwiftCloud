@@ -25,12 +25,15 @@ import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * Scout request to update its subscriptions.
  * 
  * @author smduarte
  */
-public class UnsubscribeUpdatesRequest extends ClientRequest {
+public class UnsubscribeUpdatesRequest extends ClientRequest implements MetadataSamplable {
 
     protected long id;
     protected Collection<CRDTIdentifier> unsubscriptions;
@@ -41,8 +44,8 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
     UnsubscribeUpdatesRequest() {
     }
 
-    public UnsubscribeUpdatesRequest(long id, String clientId, Set<CRDTIdentifier> removals) {
-        super(clientId);
+    public UnsubscribeUpdatesRequest(long id, String clientId, boolean disasterSafeSession, Set<CRDTIdentifier> removals) {
+        super(clientId, disasterSafeSession);
         this.id = id;
         this.unsubscriptions = new ArrayList<CRDTIdentifier>(removals);
     }
@@ -58,5 +61,18 @@ public class UnsubscribeUpdatesRequest extends ClientRequest {
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
+    }
+
+    @Override
+    public void recordMetadataSample(MetadataStatsCollector collector) {
+        if (!collector.isEnabled()) {
+            return;
+        }
+        final Kryo kryo = collector.getFreshKryo();
+        final Output buffer = collector.getFreshKryoBuffer();
+
+        // TODO: capture from the wire, rather than recompute here
+        kryo.writeObject(buffer, this);
+        collector.recordStats(this, buffer.position(), 0, 0, 0, unsubscriptions.size(), 0, 0);
     }
 }

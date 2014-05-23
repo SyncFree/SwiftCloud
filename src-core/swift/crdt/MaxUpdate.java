@@ -13,4 +13,9 @@ public class MaxUpdate<V extends Comparable<V>> implements CRDTUpdate<MaxCRDT<V>
     public void applyTo(MaxCRDT<V> crdt) {
         crdt.applySet(value);
     }
+
+    @Override
+    public Object getValueWithoutMetadata() {
+        return value;
+    }
 }

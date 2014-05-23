@@ -25,13 +25,16 @@ import sys.net.api.rpc.RpcMessage;
  */
 public abstract class ClientRequest implements RpcMessage {
     protected String clientId;
+    // TODO: ideally, set it only in session init. request
+    protected boolean disasterSafeSession;
 
     // Fake constructor for Kryo serialization. Do NOT use.
     public ClientRequest() {
     }
 
-    public ClientRequest(final String clientId) {
+    public ClientRequest(final String clientId, boolean disasterSafeSession) {
         this.clientId = clientId;
+        this.disasterSafeSession = disasterSafeSession;
     }
 
     /**
@@ -39,5 +42,9 @@ public abstract class ClientRequest implements RpcMessage {
      */
     public String getClientId() {
         return clientId;
+    }
+
+    public boolean isDisasterSafeSession() {
+        return disasterSafeSession;
     }
 }

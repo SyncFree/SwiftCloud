@@ -17,6 +17,7 @@
 package sys.utils;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -29,6 +30,10 @@ import java.util.List;
 public class Args {
 
     // Can this be generalized????
+
+    static public boolean contains(String[] args, String flag) {
+        return Arrays.asList(args).contains(flag);
+    }
 
     static public String valueOf(String[] args, String flag, String defaultValue) {
         for (int i = 0; i < args.length - 1; i++)
@@ -69,5 +74,9 @@ public class Args {
                         res.add(args[j]);
             }
         return res;
+    }
+
+    static public List<String> subList(String[] args, String flag, String defaultValue) {
+        return contains(args, flag) ? subList(args, flag) : subList(new String[] { flag, defaultValue }, flag);
     }
 }

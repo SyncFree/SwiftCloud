@@ -16,14 +16,15 @@
  *****************************************************************************/
 package swift.application.social;
 
+import static java.lang.System.exit;
 import static sys.Sys.Sys;
 
+import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.client.SwiftOptions;
@@ -31,10 +32,11 @@ import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import sys.ec2.ClosestDomain;
+import sys.herd.Shepard;
 import sys.scheduler.PeriodicTask;
-import sys.shepard.Shepard;
 import sys.utils.Args;
 import sys.utils.IP;
+import sys.utils.Progress;
 import sys.utils.Props;
 import sys.utils.Threading;
 
@@ -45,137 +47,157 @@ import sys.utils.Threading;
  * Runs in parallel SwiftSocial sessions from the provided file. Sessions can be
  * distributed among different instances by specifying sessions range.
  */
-public class SwiftSocialBenchmark extends SwiftSocialMain {
+public class SwiftSocialBenchmark extends SwiftSocialApp {
+
     private static String shepard;
 
-    public static void main(String[] args) {
+    public void initDB(String[] args) {
 
-        final String command = args[0];
-        sys.Sys.init();
+        final String servers = Args.valueOf(args, "-servers", "localhost");
 
-        if (command.equals("init")) {
+        String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
+        Properties properties = Props.parseFile("swiftsocial", System.out, propFile);
 
-            dcName = Args.valueOf(args, "-servers", "localhost");
-            if (dcName.equals("@")) {
-                dcName = "localhost";
-                DCServer.main(new String[] { dcName });
-                DCSequencerServer.main(new String[] { "-name", "INIT" });
-            }
+        System.err.println("Populating db with users...");
 
-            Properties properties = Props.parseFile("swiftsocial", System.out);
-            final SwiftOptions options = new SwiftOptions(dcName, DCConstants.SURROGATE_PORT);
-            options.setConcurrentOpenTransactions(true);
+        final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
+        Workload.generateUsers(numUsers);
 
-            System.out.println("Populating db with users...");
+        final int PARTITION_SIZE = 1000;
+        int partitions = numUsers / PARTITION_SIZE + (numUsers % PARTITION_SIZE > 0 ? 1 : 0);
+        ExecutorService pool = Executors.newFixedThreadPool(8);
 
-            final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
-            List<String> users = Workload.populate(numUsers);
-
-            final int PARTITION_SIZE = 1000;
-            int partitions = users.size() / PARTITION_SIZE + (users.size() % PARTITION_SIZE > 0 ? 1 : 0);
-            ExecutorService pool = Executors.newFixedThreadPool(4);
-
-            final AtomicInteger counter = new AtomicInteger(0);
-            for (int i = 0; i < partitions; i++) {
-                int lo = i * PARTITION_SIZE, hi = (i + 1) * PARTITION_SIZE;
-                final List<String> partition = users.subList(lo, Math.min(hi, users.size()));
-                pool.execute(new Runnable() {
-                    public void run() {
-                        SwiftSocialMain.initUsers(options, partition, counter, numUsers);
-                    }
-                });
-            }
-            // Wait for all sessions.
-            pool.shutdown();
-            try {
-                pool.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            Threading.sleep(5000);
-            System.out.println("\nFinished populating db with users.");
-        }
-        if (command.equals("run")) {
-
-            // IO.redirect("stdout.txt", "stderr.txt");
-            System.err.println(IP.localHostname() + "/ starting...");
-
-            int concurrentSessions = Args.valueOf(args, "-threads", 1);
-            String partitions = Args.valueOf(args, "-partition", "0/1");
-            int site = Integer.valueOf(partitions.split("/")[0]);
-            int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
-
-            List<String> servers = Args.subList(args, "-servers");
-            dcName = ClosestDomain.closest2Domain(servers, site);
-            shepard = Args.valueOf(args, "-shepard", dcName);
-
-            System.err.println(IP.localHostAddress() + " connecting to: " + dcName);
-
-            SwiftSocialMain.init();
-
-            bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
-            bufferedOutput.printf(";\tsite=%s\n", site);
-            bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
-            bufferedOutput.printf(";\tSurrogate=%s\n", dcName);
-            bufferedOutput.printf(";\tShepard=%s\n", shepard);
-            bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
-
-            List<String> users = Workload.populate(SwiftSocialMain.numUsers);
-
-            if (!shepard.isEmpty())
-                Shepard.sheepJoinHerd(shepard);
-
-            // Kick off all sessions, throughput is limited by
-            // concurrentSessions.
-            final ExecutorService sessionsExecutor = Executors.newFixedThreadPool(concurrentSessions,
-                    Threading.factory("App"));
-
-            System.err.println("Spawning session threads.");
-            for (int i = 0; i < concurrentSessions; i++) {
-                final int sessionId = i;
-                final Workload commands = Workload.doMixed(site, SwiftSocialMain.userFriends,
-                        SwiftSocialMain.biasedOps, SwiftSocialMain.randomOps, SwiftSocialMain.opGroups, numberOfSites);
-
-                sessionsExecutor.execute(new Runnable() {
-                    public void run() {
-                        // Randomize startup to avoid clients running all at the
-                        // same time; causes problems akin to DDOS symptoms.
-                        Threading.sleep(Sys.rg.nextInt(1000));
-                        SwiftSocialMain.runClientSession(sessionId, commands, false);
-                    }
-                });
-            }
-
-            // smd - report client progress every 1 seconds...
-            new PeriodicTask(0.0, 1.0) {
-                String prev = "";
-
+        final AtomicInteger counter = new AtomicInteger(0);
+        for (int i = 0; i < partitions; i++) {
+            int lo = i * PARTITION_SIZE, hi = (i + 1) * PARTITION_SIZE;
+            final List<String> partition = Workload.getUserData().subList(lo, Math.min(hi, numUsers));
+            pool.execute(new Runnable() {
                 public void run() {
-                    int done = commandsDone.get();
-                    int total = totalCommands.get();
-                    String curr = String.format("--->DONE: %.1f%%, %d/%d\n", 100.0 * done / total, done, total);
-                    if (!curr.equals(prev)) {
-                        System.err.println(curr);
-                        prev = curr;
-                    }
+                    SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
+                    SwiftSocialBenchmark.super.initUsers(options, partition, counter, numUsers);
                 }
-            };
-
-            // Wait for all sessions.
-            sessionsExecutor.shutdown();
-            try {
-                sessionsExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            System.err.println("Session threads completed.");
+            });
         }
+        Threading.awaitTermination(pool, Integer.MAX_VALUE);
+        Threading.sleep(5000);
+        System.out.println("\nFinished populating db with users.");
+    }
+
+    public void doBenchmark(String[] args) {
+        // IO.redirect("stdout.txt", "stderr.txt");
+
+        System.err.println(IP.localHostname() + "/ starting...");
+
+        int concurrentSessions = Args.valueOf(args, "-threads", 1);
+        String partitions = Args.valueOf(args, "-partition", "0/1");
+        int site = Integer.valueOf(partitions.split("/")[0]);
+        int numberOfSites = Integer.valueOf(partitions.split("/")[1]);
+        // ASSUMPTION: concurrentSessions is the same at all sites
+        int numberOfVirtualSites = numberOfSites * concurrentSessions;
+
+        List<String> candidates = Args.subList(args, "-servers");
+        server = ClosestDomain.closest2Domain(candidates, site);
+        shepard = Args.valueOf(args, "-shepard", "");
+
+        System.err.println(IP.localHostAddress() + " connecting to: " + server);
+
+        bufferedOutput = new PrintStream(System.out, false);
+
+        super.populateWorkloadFromConfig();
+
+        bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
+        bufferedOutput.printf(";\tsite=%s\n", site);
+        bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
+        bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
+        bufferedOutput.printf(";\tnumberOfVirtualSites=%s\n", numberOfVirtualSites);
+        bufferedOutput.printf(";\tSurrogate=%s\n", server);
+        bufferedOutput.printf(";\tShepard=%s\n", shepard);
+
+        if (!shepard.isEmpty())
+            Shepard.sheepJoinHerd(shepard);
+
+        // Kick off all sessions, throughput is limited by
+        // concurrentSessions.
+        final ExecutorService threadPool = Executors.newFixedThreadPool(concurrentSessions, Threading.factory("App"));
+
+        System.err.println("Spawning session threads.");
+        for (int i = 0; i < concurrentSessions; i++) {
+            final int sessionId = site * concurrentSessions + i;
+            final Workload commands = getWorkloadFromConfig(sessionId, numberOfVirtualSites);
+            threadPool.execute(new Runnable() {
+                public void run() {
+                    // Randomize startup to avoid clients running all at the
+                    // same time; causes problems akin to DDOS symptoms.
+                    Threading.sleep(Sys.rg.nextInt(1000));
+                    SwiftSocialBenchmark.super.runClientSession(Integer.toString(sessionId), commands, false);
+                }
+            });
+        }
+
+        // report client progress every 1 seconds...
+        new PeriodicTask(0.0, 1.0) {
+            public void run() {
+                System.err.printf("Done: %s", Progress.percentage(commandsDone.get(), totalCommands.get()));
+            }
+        };
+
+        // Wait for all sessions.
+        threadPool.shutdown();
+        Threading.awaitTermination(threadPool, Integer.MAX_VALUE);
+
+        System.err.println("Session threads completed.");
         System.exit(0);
     }
 
-    protected static void exitWithUsage() {
-        System.err.println("Usage 1: init <number_of_users>");
-        System.err.println("Usage 2: run <surrogate addr> <concurrent_sessions>");
-        System.exit(1);
+    public static void main(String[] args) {
+        sys.Sys.init();
+
+        SwiftSocialBenchmark instance = new SwiftSocialBenchmark();
+        if (args.length == 0) {
+
+            DCSequencerServer.main(new String[] { "-name", "X" });
+            DCServer.main(new String[] { "-servers", "localhost" });
+
+            args = new String[] { "-servers", "localhost", "-threads", "10", "-props", "swiftsocial-test.props" };
+            instance.initDB(args);
+            instance.doBenchmark(args);
+            exit(0);
+        }
+        if (args[0].equals("-prepareDB")) {
+            // uses berkeleydb in sync mode to create a DB snapshot.
+            // In folder db, default and default_seq need
+            // to be renamed manually to 25k and 25k_seq
+            DCSequencerServer.main(new String[] { "-sync", "-db", "-name", "X" });
+            DCServer.main(new String[] { "-sync", "-db", "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            instance.initDB(args);
+
+            Threading.sleep(30000);
+            exit(0);
+        }
+        if (args[0].equals("-reloadDB")) {
+            // assumes there is db/25k and db/25k_seq folders with the prepared
+            // db snapshot...
+            DCSequencerServer.main(new String[] { "-rdb", "25k", "-db", "-name", "X" });
+            DCServer.main(new String[] { "-rdb", "25k", "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            instance.doBenchmark(args);
+            exit(0);
+        }
+        if (args[0].equals("init")) {
+            instance.initDB(args);
+            exit(0);
+        }
+        if (args[0].equals("run")) {
+            instance.doBenchmark(args);
+            exit(0);
+        }
     }
 }
+
+// protected static void exitWithUsage() {
+// System.err.println("Usage 1: init <number_of_users>");
+// System.err.println("Usage 2: run <surrogate addr> <concurrent_sessions>");
+// System.exit(1);
+// }
+

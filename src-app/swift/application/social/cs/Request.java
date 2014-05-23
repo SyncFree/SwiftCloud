@@ -33,10 +33,6 @@ public class Request implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        if (handle.expectingReply())
-            ((RequestHandler) handler).onReceive(handle, this);
-        else
-            ((RequestHandler) handler).onReceive(this);
+        ((RequestHandler) handler).onReceive(handle, this);
     }
-
 }

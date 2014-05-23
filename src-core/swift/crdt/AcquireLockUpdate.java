@@ -33,4 +33,9 @@ public class AcquireLockUpdate implements CRDTUpdate<SharedLockCRDT> {
         this.type = type;
     }
 
+    @Override
+    public Object getValueWithoutMetadata() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }

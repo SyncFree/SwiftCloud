@@ -22,9 +22,6 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Logger;
 
-import sys.dht.api.StringKey;
-import sys.dht.impl.msgs.DHT_Request;
-import sys.dht.impl.msgs.DHT_RequestReply;
 import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.rpc.RpcPacket;
 
@@ -52,8 +49,7 @@ public class KryoLib {
             else
                 res.register(i.cl, i.id);
 
-        // res.setInstantiatorStrategy(new StdInstantiatorStrategy());
-        res.setReferences(false);
+        res.setAsmEnabled(true);
         return res;
     }
 
@@ -108,10 +104,6 @@ public class KryoLib {
 
         register(RpcPacket.class, 0x22);
         register(InitiatorInfo.class, 0x23);
-        register(DHT_Request.class, 0x24);
-        register(DHT_RequestReply.class, 0x25);
-        register(StringKey.class, 0x26);
-
     }
 
     static class _Registration implements Comparable<_Registration> {
@@ -161,11 +153,26 @@ public class KryoLib {
     private static final ThreadLocal<Kryo> kryo = new ThreadLocal<Kryo>() {
         @Override
         protected Kryo initialValue() {
-            return getKryoInstance();
+            final Kryo kryo = getKryoInstance();
+            kryo.setAutoReset(true);
+            return kryo;
+        }
+    };
+
+    private static final ThreadLocal<Kryo> kryoWithoutReset = new ThreadLocal<Kryo>() {
+        @Override
+        protected Kryo initialValue() {
+            final Kryo kryo = getKryoInstance();
+            kryo.setAutoReset(false);
+            return kryo;
         }
     };
 
     public static Kryo kryo() {
         return kryo.get();
+    }
+
+    public static Kryo kryoWithoutAutoreset() {
+        return kryoWithoutReset.get();
     }
 }

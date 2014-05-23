@@ -18,6 +18,10 @@ package swift.client;
 
 import java.util.Properties;
 
+import swift.proto.DummyMetadataStatsCollector;
+import swift.proto.MetadataStatsCollector;
+import swift.proto.MetadataStatsCollectorImpl;
+
 /**
  * Options for Swift scout instance.
  * 
@@ -25,21 +29,23 @@ import java.util.Properties;
  */
 final public class SwiftOptions {
     public static final boolean DEFAULT_CONCURRENT_OPEN_TRANSACTIONS = false;
-    public static final boolean DEFAULT_DISASTER_SAFE = false;
+    public static final boolean DEFAULT_DISASTER_SAFE = true;
     public static final int DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED = 50;
     public static final int DEFAULT_TIMEOUT_MILLIS = 20 * 1000;
     public static final int DEFAULT_DEADLINE_MILLIS = DEFAULT_TIMEOUT_MILLIS;
     public static final int DEFAULT_NOTIFICATION_TIMEOUT_MILLIS = 5 * 1000;
 
     public static final long DEFAULT_CACHE_EVICTION_MILLIS = 60 * 1000;
-    public static final int DEFAULT_CACHE_SIZE = 100000;
+    public static final int DEFAULT_CACHE_SIZE = 512;
     public static final int DEFAULT_MAX_COMMIT_BATCH_SIZE = 1;
     public static final String DEFAULT_LOG_FILENAME = null;
     public static final boolean DEFAULT_LOG_FLUSH_ON_COMMIT = false;
 
     public static final String DEFAULT_STATISTICS_DIR = "statistics";
     public static final boolean DEFAULT_OVERWRITE_STATISTICS_DIR = true;
-    public static final boolean DEFAULT_ENABLE_STATISTICS = true;
+    public static final boolean DEFAULT_ENABLE_STATISTICS = false;
+
+    public static final boolean DEFAULT_COMPUTE_METADATA_STATISTICS = false;
 
     public static final boolean DEFAULT_CAUSAL_NOTIFICATIONS = true;
 
@@ -61,6 +67,9 @@ final public class SwiftOptions {
     private boolean enableStatistics = DEFAULT_ENABLE_STATISTICS;
     private boolean overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
     private String statisticsOutputDir = DEFAULT_STATISTICS_DIR;
+
+    // Disabled by default
+    private MetadataStatsCollector metadataStatsCollector = null;
 
     // for kryo...
     SwiftOptions() {
@@ -160,6 +169,13 @@ final public class SwiftOptions {
         final String causalNotificationsString = defaultValues.getProperty("swift.causalNotifications");
         if (causalNotificationsString != null) {
             this.causalNotifications = Boolean.parseBoolean(causalNotificationsString);
+        }
+
+        final String computeMetadataStatistics = defaultValues.getProperty("swift.computeMetadataStatistics");
+        if (computeMetadataStatistics != null) {
+            if (Boolean.parseBoolean(computeMetadataStatistics)) {
+                metadataStatsCollector = new MetadataStatsCollectorImpl("unspecified-id", System.out);
+            }
         }
     }
 
@@ -401,5 +417,29 @@ final public class SwiftOptions {
 
     public void setEnableStatistics(boolean enableStatistics) {
         this.enableStatistics = enableStatistics;
+    }
+
+    /**
+     * @return when true, scout computes metadata statistics, and writes them to
+     *         STDOUT
+     */
+    public boolean hasMetadataStatsCollector() {
+        return metadataStatsCollector != null;
+    }
+
+    public void setMetadataStatsCollector(MetadataStatsCollector metadataStatsCollector) {
+        this.metadataStatsCollector = metadataStatsCollector;
+    }
+
+    /**
+     * @return implementation of metadata stats collector or a dummy one if the
+     *         collection is disabled ({@link #hasMetadataStatsCollector()} ==
+     *         false)
+     */
+    public MetadataStatsCollector getMetadataStatsCollector() {
+        if (metadataStatsCollector == null) {
+            return new DummyMetadataStatsCollector();
+        }
+        return metadataStatsCollector;
     }
 }

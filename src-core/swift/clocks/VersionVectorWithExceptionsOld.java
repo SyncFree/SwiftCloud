@@ -404,8 +404,9 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         return buf.toString();
     }
 
-    public boolean hasExceptions() {
-        return excludedTimestamps.isEmpty();
+    public int getExceptionsNumber() {
+        // TODO Auto-generated method stub
+        return 0;
     }
 
     @Override
@@ -446,7 +447,7 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
             if (exceptionsIter.next() < timestamp.getCounter()) {
                 exceptionsIter.remove();
             } else {
-                // Optimization: make use ofthe fact that the set is ordered.
+                // Optimization: make use of the fact that the set is ordered.
                 break;
             }
         }
@@ -465,4 +466,27 @@ public class VersionVectorWithExceptionsOld implements CausalityClock {
         // FIXME !!!
         throw new RuntimeException("not implemented");
     }
+
+    @Override
+    public int getSize() {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public Set<String> getSiteIds() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    // @Override
+    // public CausalityClock retain(String siteId) {
+    // throw new RuntimeException("Not implemented...");
+    // }
+    //
+    // @Override
+    // public CausalityClock retain(CausalityClock cc) {
+    // throw new RuntimeException("Not implemented...");
+    // }
+
 }

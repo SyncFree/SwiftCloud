@@ -67,8 +67,7 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
 
     @Override
     public int hashCode() {
-        final int prime = 31;
-        return prime * table.hashCode() + key.hashCode();
+        return table.hashCode() ^ key.hashCode();
     }
 
     @Override

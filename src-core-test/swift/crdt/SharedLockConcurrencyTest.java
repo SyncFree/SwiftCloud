@@ -30,8 +30,7 @@ import swift.exceptions.WrongTypeException;
 
 public class SharedLockConcurrencyTest {
     private ManagedCRDT<SharedLockCRDT> lock1, lock2;
-    private String siteA = "A", siteB = "B", siteC = "C";
-    private TxnTester txn;
+    private String siteA = "A", siteB = "B";
     private SwiftTester swift1, swift2;
 
     private SharedLockCRDT getLatestVersion(ManagedCRDT<SharedLockCRDT> l, TxnTester txn) {
