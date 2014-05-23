@@ -5,7 +5,7 @@ library("ggplot2");
 
 assembleFilename <- function(s){
   path <- "~/git/data_eval/swiftsocial/metadata-swiftcloud";
-  dir <- "May20-1400619623414-16cc04bc-DC-3-SU-1-SC-15-TH-2-USERS-6000";
+  dir <- "May20-1400622363116-d7bc2809-DC-3-SU-1-SC-15-TH-12-USERS-36000";
   fname <- "scout-stdout.log";
   return (paste(path,dir,s,fname,sep="/"))
 }
