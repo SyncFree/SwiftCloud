@@ -1,6 +1,10 @@
 require("ggplot2");
 require("reshape2");
 
+formatterThreads <- function(x){ 
+  x*15*200
+}
+
 preprocess <- function (data){
   
   #Filter for batch updates
@@ -26,7 +30,7 @@ collect_stats <- function(path,type) {
   file_list <- (paste(path,file_list,sep="/"))
   
   #data frame to store numbers for plot
-  nthreads <- c(2,4,6)
+  nthreads <- c(8,10,12)
   df <- matrix(ncol=6, nrow=length(nthreads))
   iter <- 0
   for(i in nthreads){
@@ -90,5 +94,17 @@ stat_practi <- collect_stats(path_p,"practi")
 stat <- rbind(stat_swift,stat_practi)
 stat <- transform(stat,Min=as.numeric(as.character(Min)),Max=as.numeric(as.character(Max)),Mean=as.numeric(as.character(Mean)),Median=as.numeric(as.character(Median)));
 
+#Export stats
+write.csv(stat, file = "~/git/data_eval/swiftsocial/normalized_meta.csv",row.names=FALSE,append=TRUE)
+
+levels(stat$Type) <- c("SwiftCloud","PRACTI/Depot")
+
 p <- ggplot(stat, aes(colour=Type, y=Median, x=Threads))
 p <- p + geom_point() + geom_errorbar(aes(ymax = Max, ymin=Min), width=0.2) + facet_grid(. ~ Type)
+p <- p + theme(axis.line = element_line(color = 'black'))
+p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+p <- p + labs(size= "Nitrogen",x = "#users",y = "system metadata [bytes]")
+p <- p + scale_x_continuous(labels = formatterThreads)
+p <- p + theme(legend.position="none")
+
+ggsave(p, file="~/git/data_eval/swiftsocial/normalized_meta.pdf", scale=2)
