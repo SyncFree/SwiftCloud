@@ -103,13 +103,13 @@ def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySequencers(ShepardAddr )
+    datacenter.deploySequencers(ShepardAddr, "1024m" )
 }
 
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySurrogates(ShepardAddr, "512m")
+    datacenter.deploySurrogates(ShepardAddr, "1536m")
 }
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
@@ -119,7 +119,7 @@ println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
 def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props, "2048m")
+SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props, "1024m")
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
