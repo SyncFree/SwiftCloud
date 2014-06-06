@@ -2,7 +2,6 @@ package swift.pubsub;
 
 import java.util.Set;
 
-import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
@@ -20,16 +19,14 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
 
     // TODO: lots of redundant things on the wire?
     public String srcId;
-    public Timestamp timestamp;
     public ObjectUpdatesInfo info;
 
     UpdateNotification() {
     }
 
-    public UpdateNotification(String srcId, Timestamp ts, ObjectUpdatesInfo info) {
+    public UpdateNotification(String srcId, ObjectUpdatesInfo info) {
         this.info = info;
         this.srcId = srcId;
-        this.timestamp = ts;
     }
 
     @Override
@@ -54,11 +51,6 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
     @Override
     public Set<CRDTIdentifier> keys() {
         return null;
-    }
-
-    @Override
-    public Timestamp timestamp() {
-        return timestamp;
     }
 
     @Override
@@ -120,4 +112,5 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
                 maxExceptionsNum);
     }
+
 }

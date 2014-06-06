@@ -19,7 +19,7 @@ package swift.application.social;
 import java.io.PrintStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -67,13 +67,17 @@ public class SwiftSocialApp {
     protected AtomicInteger totalCommands = new AtomicInteger(0);
     private Properties props;
 
+    private String propFile;
+
     public void init(String[] args) {
+        System.err.println(Arrays.asList(args));
+        propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
         server = Args.valueOf(args, "-servers", "localhost");
     }
 
     public void populateWorkloadFromConfig() {
 
-        props = Props.parseFile("swiftsocial", bufferedOutput, "swiftsocial-test.props");
+        props = Props.parseFile("swiftsocial", bufferedOutput, propFile);
         isolationLevel = IsolationLevel.valueOf(Props.get(props, "swift.isolationLevel"));
         cachePolicy = CachePolicy.valueOf(Props.get(props, "swift.cachePolicy"));
         subscribeUpdates = Props.boolValue(props, "swift.notifications", false);
@@ -171,7 +175,8 @@ public class SwiftSocialApp {
             }
         case STATUS:
             if (toks.length == 2) {
-                socialClient.updateStatus(toks[1], System.currentTimeMillis());
+                final String postTimeRecord = socialClient.updateStatus(toks[1], System.currentTimeMillis());
+                bufferedOutput.println(postTimeRecord);
                 break;
             }
         case POST:

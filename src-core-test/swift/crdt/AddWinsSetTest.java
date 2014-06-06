@@ -33,7 +33,7 @@ public class AddWinsSetTest {
     @Before
     public void setUp() throws SwiftException {
         txn = TxnTester.createIsolatedTxnTester();
-        i = txn.get(new CRDTIdentifier("A", "Int"), true, AddWinsSetCRDT.class);
+        i = (AddWinsSetCRDT<Integer>) txn.get(new CRDTIdentifier("A", "Int"), true, AddWinsSetCRDT.class);
     }
 
     @Test

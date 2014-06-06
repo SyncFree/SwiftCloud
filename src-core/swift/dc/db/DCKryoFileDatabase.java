@@ -17,7 +17,6 @@
 package swift.dc.db;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -58,13 +57,9 @@ public class DCKryoFileDatabase implements DCNodeDatabase {
 
             dbFile = new File(props.getProperty("kryo.dbFile"));
             if (dbFile.exists()) {
-                DataInputStream dis = new DataInputStream(new FileInputStream(dbFile));
-                byte[] data;
-                dis.readFully(data = new byte[(int) dbFile.length()]);
-                Input in = new Input(data);
+                Input in = new Input(new FileInputStream(dbFile));
                 db = (Map<String, Map<String, Object>>) KryoLib.kryo().readClassAndObject(in);
                 in.close();
-                dis.close();
                 System.err.printf("KryoFileDB: <%s> read: %s bytes, tables: %s\n", dbFile, in.total(), db.keySet());
                 dbFile = new File(dbFile.getAbsolutePath() + ".new.db");
             } else {

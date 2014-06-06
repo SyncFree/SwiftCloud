@@ -18,8 +18,6 @@ package sys.pubsub;
 
 import java.util.Set;
 
-import swift.clocks.Timestamp;
-
 public interface PubSub<T> {
 
     interface Notifyable<T> {
@@ -29,8 +27,6 @@ public interface PubSub<T> {
         T key();
 
         Set<T> keys();
-
-        Timestamp timestamp();
 
         void notifyTo(PubSub<T> pubsub);
     }

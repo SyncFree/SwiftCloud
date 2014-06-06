@@ -7,9 +7,9 @@ swift.disasterSafe=true
 swift.batchSize=10
 swift.asyncQueue=50
 swift.cacheSize=512
-swift.computeMetadataStatistics=true
+swift.computeMetadataStatistics=false
 
-swiftsocial.numUsers=100
+swiftsocial.numUsers=6000
 swiftsocial.userFriends=25
 swiftsocial.biasedOps=9
 swiftsocial.randomOps=1

@@ -1,4 +1,3 @@
-#!/home/smd/groovy-2.1.9/bin/groovy -classpath .:scripts/groovy:scripts/groovy/lib
 
 package swift.deployment
 
@@ -22,7 +21,7 @@ ShepardAddr = Topology.datacenters[0].sequencers[0]
 
 def Threads = 3
 def Duration = 60
-def SwiftSocial_Props = "swiftsocial-test.props"
+def SwiftSocial_Props = "swiftsocial-25k.props"
 
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
@@ -42,14 +41,13 @@ def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
-	datacenter.deploySequencers(ShepardAddr ) 
+	datacenter.deploySequencersExtraArgs(ShepardAddr, "-db -sync") 
 }
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-	datacenter.deploySurrogates(ShepardAddr) 
+	datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-db -sync") 
 }
-
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
 Sleep(15)
@@ -63,6 +61,7 @@ SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props)
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(20)
 
+System.exit(0);
 
 SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads )
 

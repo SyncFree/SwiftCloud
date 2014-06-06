@@ -12,31 +12,32 @@ def __ = onControlC({
     System.exit(0);
 })
 
+
 EuropeEC2 = [
-    'ec2-54-76-46-41.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-46-25.eu-west-1.compute.amazonaws.com',
-    'ec2-54-72-227-177.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-46-49.eu-west-1.compute.amazonaws.com',
-    'ec2-54-72-52-235.eu-west-1.compute.amazonaws.com',
-    'ec2-54-72-217-106.eu-west-1.compute.amazonaws.com'
+    'ec2-54-76-97-88.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-97-22.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-97-90.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-97-43.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-97-87.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-97-89.eu-west-1.compute.amazonaws.com'
 ]
 
 NorthVirginiaEC2 = [
-    'ec2-54-86-252-163.compute-1.amazonaws.com',
-    'ec2-54-86-252-161.compute-1.amazonaws.com',
-    'ec2-54-86-124-17.compute-1.amazonaws.com',
-    'ec2-54-86-252-209.compute-1.amazonaws.com',
-    'ec2-54-86-223-100.compute-1.amazonaws.com',
-    'ec2-54-86-197-100.compute-1.amazonaws.com'
+    'ec2-54-208-254-68.compute-1.amazonaws.com',
+    'ec2-54-209-2-181.compute-1.amazonaws.com',
+    'ec2-54-208-250-210.compute-1.amazonaws.com',
+    'ec2-54-208-211-241.compute-1.amazonaws.com',
+    'ec2-54-208-254-152.compute-1.amazonaws.com',
+    'ec2-54-208-243-237.compute-1.amazonaws.com'
 ]
 
 OregonEC2 = [
-    'ec2-54-200-13-249.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-230-35.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-230-38.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-223-234.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-29-62.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-29-51.us-west-2.compute.amazonaws.com'
+    'ec2-54-187-133-163.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-2-201.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-216-42.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-249-241.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-27-94.us-west-2.compute.amazonaws.com',
+	'ec2-54-186-190-139.us-west-2.compute.amazonaws.com',
 ]
 
 // Optional argument - limit of scouts number
@@ -46,38 +47,24 @@ if (args.length < 2) {
 PerDCClientNodesLimit = Integer.valueOf(args[0])
 Threads = Integer.valueOf(args[1])
 
-//AllEC2 = EuropeEC2 + NorthVirginiaEC2 + OregonEC2
-//
-//
-//AllEC2.each { node ->
-//    dc = DC([node], [node])
-//    SGroup([node], dc)
-//}
-
-Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
-NorthVirginia = DC([NorthVirginiaEC2[0]], [NorthVirginiaEC2[0]])
-Oregon = DC([OregonEC2[0]], [OregonEC2[0]])
+Europe = DC([EuropeEC2[0]], [EuropeEC2[0], EuropeEC2[0]])
+NorthVirginia = DC([NorthVirginiaEC2[0]], [NorthVirginiaEC2[0], NorthVirginiaEC2[0]])
+Oregon = DC([OregonEC2[0]], [OregonEC2[0], OregonEC2[0]])
 
 ScoutsEU = SGroup( EuropeEC2[1..PerDCClientNodesLimit], NorthVirginia )
 ScoutsNorthVirginia = SGroup(NorthVirginiaEC2[1..PerDCClientNodesLimit], Oregon )
 ScoutsOregon = SGroup(OregonEC2[1..PerDCClientNodesLimit], Europe )
 
-/*
- Texas = DC([ "ricepl-1.cs.rice.edu"], ["ricepl-2.cs.rice.edu", "ricepl-4.cs.rice.edu", "ricepl-5.cs.rice.edu"]);
- East = DC([ "planetlab1.cnds.jhu.edu"], ["planetlab2.cnds.jhu.edu","planetlab3.cnds.jhu.edu", "planetlab4.cnds.jhu.edu"]);
- NV_Clients = SGroup( ["planetlab4.rutgers.edu", "planetlab3.rutgers.edu"], East)
- CA_Clients = SGroup( ["planetlab01.cs.washington.edu", "planetlab02.cs.washington.edu"], Texas)
- */
-
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 
 // Threads = 4
-Duration = 240
-InterCmdDelay = 30
+Duration = 180
+InterCmdDelay = 25
 SwiftSocial_Props = "swiftsocial-test.props"
 
-DbSize = 200*Scouts.size()*Threads
+//DbSize = 200*Scouts.size()*Threads
+DbSize = 50000
 props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString()], SwiftSocial2.DEFAULT_PROPS)
 
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
@@ -103,13 +90,13 @@ def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySequencers(ShepardAddr )
+    datacenter.deploySequencers(ShepardAddr,"1024m" )
 }
 
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySurrogates(ShepardAddr, "512m")
+    datacenter.deploySurrogates(ShepardAddr, "2048m")
 }
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
@@ -124,7 +111,7 @@ SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props, "2048m")
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
 
-SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads, "2048m" )
+SwiftSocial2.runScouts( Topology.scoutGroups, SwiftSocial_Props, ShepardAddr, Threads, "3648m" )
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 shep.take()
@@ -133,7 +120,7 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') +
+def dstDir="results/staleness/swiftsocial/" + new Date().format('MMMdd-') +
         System.currentTimeMillis() + "-" + Version + "-" +
         String.format("DC-%s-SU-%s-SC-%s-TH-%s-USERS-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), Topology.totalScouts(), Threads, DbSize)
 

@@ -71,14 +71,16 @@ public class Order implements Copyable, Entity {
 
     public void addOrderLine(OrderLine line, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
+        AddWinsSetCRDT<OrderLine> orderLines = (AddWinsSetCRDT<OrderLine>) handler.get(orderlines, true,
+                AddWinsSetCRDT.class);
         orderLines.add(line);
         // TODO: update the order attributes if any
     }
 
     public OrderLine getOrderLine(String id, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
+        AddWinsSetCRDT<OrderLine> orderLines = (AddWinsSetCRDT<OrderLine>) handler.get(orderlines, true,
+                AddWinsSetCRDT.class);
         for (OrderLine ol : orderLines.getValue()) {
             if (ol.OL_ID == id)
                 return ol;
@@ -88,14 +90,16 @@ public class Order implements Copyable, Entity {
 
     public void setOrderLine(int id, OrderLine ol, TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
+        AddWinsSetCRDT<OrderLine> orderLines = (AddWinsSetCRDT<OrderLine>) handler.get(orderlines, true,
+                AddWinsSetCRDT.class);
         orderLines.add(ol);
 
     }
 
     public Collection<OrderLine> getOrderLines(TxnHandle handler) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
-        AddWinsSetCRDT<OrderLine> orderLines = handler.get(orderlines, true, AddWinsSetCRDT.class);
+        AddWinsSetCRDT<OrderLine> orderLines = (AddWinsSetCRDT<OrderLine>) handler.get(orderlines, true,
+                AddWinsSetCRDT.class);
         return orderLines.getValue();
     }
 

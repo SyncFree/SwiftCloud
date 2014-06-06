@@ -68,8 +68,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
     protected int insertImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        AddOnlySetCRDT<String> fieldsInfo = txn.get(new CRDTIdentifier(table, key), true, AddOnlySetCRDT.class,
-                notificationsSubscriber);
+        AddOnlySetCRDT<String> fieldsInfo = (AddOnlySetCRDT<String>) txn.get(new CRDTIdentifier(table, key), true,
+                AddOnlySetCRDT.class, notificationsSubscriber);
         for (final String field : values.keySet()) {
             fieldsInfo.add(field);
         }
@@ -91,8 +91,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         if (fields == null) {
             // Retrieve information on fields.
             @SuppressWarnings("unchecked")
-            final AddOnlySetCRDT<String> fieldsInfo = txn.get(new CRDTIdentifier(table, key), create,
-                    AddOnlySetCRDT.class, notificationsSubscriber);
+            final AddOnlySetCRDT<String> fieldsInfo = (AddOnlySetCRDT<String>) txn.get(new CRDTIdentifier(table, key),
+                    create, AddOnlySetCRDT.class, notificationsSubscriber);
             fields = fieldsInfo.getValue();
         }
         final HashMap<CRDTIdentifier, String> ids = new HashMap<CRDTIdentifier, String>(fields.size(), 2.0f);

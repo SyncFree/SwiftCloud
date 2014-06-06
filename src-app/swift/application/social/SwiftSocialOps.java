@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.application.social;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import swift.client.SwiftImpl;
 import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.core.CRDT;
@@ -169,7 +167,8 @@ public class SwiftSocialOps {
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
 
-        LWWRegisterCRDT<User> reg = txn.get(NamingScheme.forUser(loginName), true, LWWRegisterCRDT.class, null);
+        LWWRegisterCRDT<User> reg = (LWWRegisterCRDT<User>) txn.get(NamingScheme.forUser(loginName), true,
+                LWWRegisterCRDT.class, null);
 
         User newUser = new User(loginName, passwd, fullName, birthday, true);
         reg.set((User) newUser.copy());
@@ -188,6 +187,7 @@ public class SwiftSocialOps {
         return newUser;
     }
 
+    @SuppressWarnings("unchecked")
     void updateUser(boolean status, String fullName, long birthday) {
         logger.info("Update user data for " + this.currentUser.loginName);
         this.currentUser.active = status;
@@ -196,8 +196,8 @@ public class SwiftSocialOps {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
-            LWWRegisterCRDT<User> reg = get(txn, NamingScheme.forUser(this.currentUser.loginName), true,
-                    LWWRegisterCRDT.class, updatesSubscriber);
+            LWWRegisterCRDT<User> reg = (LWWRegisterCRDT<User>) get(txn,
+                    NamingScheme.forUser(this.currentUser.loginName), true, LWWRegisterCRDT.class, updatesSubscriber);
             reg.set((User) currentUser.copy());
             commitTxn(txn);
         } catch (SwiftException e) {
@@ -225,17 +225,20 @@ public class SwiftSocialOps {
             msgs.addAll((get(txn, user.msgList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
             evnts.addAll((get(txn, user.eventList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
             commitTxn(txn);
+            // SS,get,scoutid,key,curtime,size
+            // ((ArrayList<Message>)msgs).get(0).getDate());
+
+            return "SS,get," + server.getScout().getScoutId() + "," + user.msgList + "," + System.currentTimeMillis()
+                    + "," + msgs.size();
+
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
-            // SS,get,scoutid,key,curtime,size
-            return "SS,get," + server.getScout().getScoutId() + "," + NamingScheme.forUser(name) + ","
-                    + System.currentTimeMillis() + "," + msgs.size();
-            // ((ArrayList<Message>)msgs).get(0).getDate());
         }
+        return null;
     }
 
     // FIXME return error code?
@@ -256,18 +259,18 @@ public class SwiftSocialOps {
             writeMessage(txn, newMsg, receiver.msgList, updatesSubscriber);
             writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
+            return "SS,put," + server.getScout().getScoutId() + "," + receiver.msgList + "," + date;
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
-            // SS,put,scoutid,key,curtime
-            return "SS,put," + server.getScout().getScoutId() + "," + NamingScheme.forUser(receiverName) + "," + date;
         }
+        return null;
     }
 
-    public void updateStatus(String msg, long date) {
+    public String updateStatus(String msg, long date) {
         logger.info("Update status for " + this.currentUser.loginName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
@@ -280,6 +283,8 @@ public class SwiftSocialOps {
             writeMessage(txn, newMsg, currentUser.msgList, updatesSubscriber);
             writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
+
+            return "SS,put," + server.getScout().getScoutId() + "," + currentUser.msgList + "," + date;
             // TODO Broadcast update to friends
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
@@ -288,6 +293,7 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
         }
+        return null;
     }
 
     void answerFriendRequest(String requester, boolean accept) {

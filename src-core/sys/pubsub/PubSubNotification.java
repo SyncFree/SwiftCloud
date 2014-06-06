@@ -2,7 +2,6 @@ package sys.pubsub;
 
 import java.util.Set;
 
-import swift.clocks.Timestamp;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -52,8 +51,8 @@ public class PubSubNotification<T> implements RpcMessage, Notifyable<T> {
         Thread.dumpStack();
     }
 
-    @Override
-    public Timestamp timestamp() {
-        return payload.timestamp();
-    }
+    // @Override
+    // public Timestamp timestamp() {
+    // return payload.timestamp();
+    // }
 }

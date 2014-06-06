@@ -19,6 +19,16 @@ class SwiftSocial2 extends SwiftBase {
         println "OK.\n"
         return res
     }
+    
+    
+     static int prepareDB( String client, String server, String config, int threads, String heap = "512m") {
+        println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
+
+        def cmd = "-Dswiftsocial=" + config + " " + INITDB_CMD + " -prepareDB -threads " + threads + " "
+        def res = rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "prepdb-stdout.txt", "prepdb-stderr.txt")).waitFor()
+        println "OK.\n"
+        return res
+    }
 
    static void runScouts( List scoutGroups, String config, String shepard, int threads, String heap ="512m" ) {
    		def hosts = []
@@ -65,6 +75,6 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.biasedOps':'9',
         'swiftsocial.randomOps':'1',
         'swiftsocial.opGroups':'10000',
-        'swiftsocial.thinkTime':'10'
+        'swiftsocial.thinkTime':'0'
     ]
 }

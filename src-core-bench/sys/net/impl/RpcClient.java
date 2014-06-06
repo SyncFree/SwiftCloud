@@ -64,8 +64,9 @@ public class RpcClient {
                 @Override
                 public void onReceive(Reply r) {
                     rtt.add(r.rtt() / 1000);
-                    System.err.printf("%.1f/%.1f/%.1f - %.1f\n", rtt.min(), rtt.average(), rtt.max(), maxRTT.average());
-                    if (rtt.numberObs() % 99 == 0) {
+                    // System.err.printf("%.1f/%.1f/%.1f - %.1f\n", rtt.min(),
+                    // rtt.average(), rtt.max(), maxRTT.average());
+                    if (rtt.numberObs() % 9999 == 0) {
                         maxRTT.add(rtt.max());
                         rtt.init();
                     }
@@ -81,7 +82,7 @@ public class RpcClient {
             h.getReply();
 
             int total = n;
-            if (total % 1 == 0) {
+            if (total % 9999 == 0) {
                 synchronized (values) {
                     System.out.printf(endpoint.localEndpoint()
                             + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total,

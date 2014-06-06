@@ -44,7 +44,8 @@ public class AddWinsSetConcurrencyTest {
         final TxnTester txn = swift.beginTxn(i);
         try {
             @SuppressWarnings("unchecked")
-            final AddWinsSetCRDT<Integer> set = txn.get(i.getUID(), false, AddWinsSetCRDT.class);
+            final AddWinsSetCRDT<Integer> set = (AddWinsSetCRDT<Integer>) txn.get(i.getUID(), false,
+                    AddWinsSetCRDT.class);
             set.add(value);
         } catch (WrongTypeException e) {
             throw new RuntimeException(e);
@@ -59,7 +60,8 @@ public class AddWinsSetConcurrencyTest {
         final TxnTester txn = swift.beginTxn(i);
         try {
             @SuppressWarnings("unchecked")
-            final AddWinsSetCRDT<Integer> set = txn.get(i.getUID(), false, AddWinsSetCRDT.class);
+            final AddWinsSetCRDT<Integer> set = (AddWinsSetCRDT<Integer>) txn.get(i.getUID(), false,
+                    AddWinsSetCRDT.class);
             set.remove(value);
         } catch (WrongTypeException e) {
             throw new RuntimeException(e);

@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
@@ -61,7 +60,6 @@ import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
 import sys.utils.Threading;
-import sys.utils.Timings;
 
 /**
  * Class to maintain data in the server.
@@ -366,8 +364,9 @@ final class DCDataServer {
     }
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock snapshotVersion,
-            CausalityClock trxVersion, Timestamp txTs, Timestamp cltTs, Timestamp prvCltTs, CausalityClock curDCVersion) {
+    <V extends CRDT<V>> ExecCRDTResult localExecCRDT(CRDTObjectUpdatesGroup<V> grp, CausalityClock _snapshotVersion,
+            CausalityClock _trxVersion, Timestamp _txTs, Timestamp cltTs, Timestamp prvCltTs,
+            CausalityClock curDCVersion) {
         CRDTIdentifier id = grp.getTargetUID();
         lock(id);
         try {
@@ -430,13 +429,13 @@ final class DCDataServer {
                 this.cltClock.recordAllUntil(cltTs);
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("Data Server: for crdt : " + data.id + "; clk = " + data.clock + " ; cltClock = "
-                            + cltClock + ";  snapshotVersion = " + snapshotVersion + "; cltTs = " + cltTs);
+                            + cltClock + ";  snapshotVersion = " + _snapshotVersion + "; cltTs = " + cltTs);
                 }
             }
 
             ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, data.pruneClock.clone(), grp);
 
-            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), txTs, info));
+            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), info));
 
             return new ExecCRDTResult(true, id, info);
         } finally {
@@ -444,8 +443,6 @@ final class DCDataServer {
         }
 
     }
-
-    TreeSet<CRDTIdentifier> published = new TreeSet<CRDTIdentifier>();
 
     private ManagedCRDT localGetCRDTObject(Endpoint remote, DHTGetCRDT req) {
         if (req.subscribesUpdates())
@@ -467,7 +464,6 @@ final class DCDataServer {
      */
     ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
 
-        Timings.mark();
         if (subscribeUpdates)
             dsPubSub.subscribe(localSurrogateId, id, suPubSub);
         // else

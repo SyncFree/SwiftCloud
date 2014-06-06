@@ -428,7 +428,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             entity = (LWWRegisterCRDT<Entity>) txh
                     .get(new CRDTIdentifier(bucketName, key), true, LWWRegisterCRDT.class);
             entity.set(value);
-            AddWinsSetCRDT<String> index = txh.get(TPCWNamingScheme.forIndex(bucketName), true, AddWinsSetCRDT.class);
+            AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) txh.get(TPCWNamingScheme.forIndex(bucketName),
+                    true, AddWinsSetCRDT.class);
             index.add(key);
             return entity;
         } catch (WrongTypeException e) {
@@ -445,7 +446,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
     public void remove(String key, String bucketName, String column) throws Exception {
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
 
-        AddWinsSetCRDT<String> index = handler.get(TPCWNamingScheme.forIndex(bucketName), false, AddWinsSetCRDT.class);
+        AddWinsSetCRDT<String> index = (AddWinsSetCRDT<String>) handler.get(TPCWNamingScheme.forIndex(bucketName),
+                false, AddWinsSetCRDT.class);
         index.remove(key);
         handler.commitAsync(commitListener);
     }
@@ -549,8 +551,8 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
                 createdHandler = true;
             }
 
-            AddWinsSetCRDT<String> keyIndexesCRDT = handler.get(TPCWNamingScheme.forIndex(bucketName), false,
-                    AddWinsSetCRDT.class);
+            AddWinsSetCRDT<String> keyIndexesCRDT = (AddWinsSetCRDT<String>) handler.get(
+                    TPCWNamingScheme.forIndex(bucketName), false, AddWinsSetCRDT.class);
 
             Set<String> stringIDs = keyIndexesCRDT.getValue();
             // if (BULK_GET) {
@@ -633,7 +635,7 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
 
         TxnHandle handler = localSession.beginTxn(ISOLATION_LEVEL, CACHE_POLICY, false);
 
-        AddWinsSetCRDT<String> keyIndexesCRDT = handler.get(
+        AddWinsSetCRDT<String> keyIndexesCRDT = (AddWinsSetCRDT<String>) handler.get(
                 TPCWNamingScheme.forIndex(TPCWNamingScheme.getItemsTableName()), false, AddWinsSetCRDT.class/*
                                                                                                              * ,
                                                                                                              * updateListener
@@ -1368,7 +1370,7 @@ public class TPCW_SwiftCloud_Executor implements DatabaseExecutorInterface {
             LWWRegisterCRDT<Item> newItem = (LWWRegisterCRDT<Item>) txh.get(TPCWNamingScheme.forItem(itemId), true,
                     LWWRegisterCRDT.class);
 
-            AddWinsSetCRDT<String> indexesCRDT = txh.get(
+            AddWinsSetCRDT<String> indexesCRDT = (AddWinsSetCRDT<String>) txh.get(
                     TPCWNamingScheme.forIndex(TPCWNamingScheme.getItemsTableName()), true, AddWinsSetCRDT.class);
 
             indexesCRDT.add(itemId);

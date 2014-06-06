@@ -79,7 +79,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             }
             return new FailedTransportConnection(localEndpoint, remote, null);
         } catch (Throwable t) {
-            t.printStackTrace();
+            Threading.sleep(1000);
+            // t.printStackTrace();
             Log.log(Level.WARNING, "Cannot connect to: <" + remote + "> :" + t.getMessage());
             return new FailedTransportConnection(localEndpoint, remote, t);
         }

@@ -7,7 +7,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import swift.clocks.CausalityClock;
-import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
@@ -17,8 +16,6 @@ import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
@@ -79,11 +76,6 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
      */
     public boolean isNewVersionDisasterSafe() {
         return newVersionDisasterSafe;
-    }
-
-    @Override
-    public Timestamp timestamp() {
-        return null;
     }
 
     @Override

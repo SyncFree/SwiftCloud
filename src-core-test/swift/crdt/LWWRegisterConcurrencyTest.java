@@ -43,7 +43,8 @@ public class LWWRegisterConcurrencyTest {
         final TxnTester txn = swift.beginTxn(i);
         try {
             @SuppressWarnings("unchecked")
-            LWWRegisterCRDT<Integer> register = txn.get(i.getUID(), false, LWWRegisterCRDT.class);
+            LWWRegisterCRDT<Integer> register = (LWWRegisterCRDT<Integer>) txn.get(i.getUID(), false,
+                    LWWRegisterCRDT.class);
             register.set(new Integer(value));
         } catch (WrongTypeException e) {
             throw new RuntimeException(e);

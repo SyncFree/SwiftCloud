@@ -60,12 +60,15 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         System.err.println("Populating db with users...");
 
-        final int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
-        Workload.generateUsers(numUsers);
+        int numUsers = Props.intValue(properties, "swiftsocial.numUsers", 1000);
 
+        final int NumUsers = Args.valueOf(args, "-users", numUsers);
+        Workload.generateUsers(NumUsers);
+
+        int threads = Args.valueOf(args, "-threads", 6);
         final int PARTITION_SIZE = 1000;
         int partitions = numUsers / PARTITION_SIZE + (numUsers % PARTITION_SIZE > 0 ? 1 : 0);
-        ExecutorService pool = Executors.newFixedThreadPool(8);
+        ExecutorService pool = Executors.newFixedThreadPool(threads);
 
         final AtomicInteger counter = new AtomicInteger(0);
         for (int i = 0; i < partitions; i++) {
@@ -74,7 +77,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             pool.execute(new Runnable() {
                 public void run() {
                     SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
-                    SwiftSocialBenchmark.super.initUsers(options, partition, counter, numUsers);
+                    SwiftSocialBenchmark.super.initUsers(options, partition, counter, NumUsers);
                 }
             });
         }
@@ -84,6 +87,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
     }
 
     public void doBenchmark(String[] args) {
+        super.init(args);
         // IO.redirect("stdout.txt", "stderr.txt");
 
         System.err.println(IP.localHostname() + "/ starting...");
@@ -164,23 +168,36 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             exit(0);
         }
         if (args[0].equals("-prepareDB")) {
+            if (args.length != 3) {
+                System.err.println(Arrays.asList(args));
+                System.err.println("usage: -prepareDB dbName numUsers");
+                System.exit(0);
+            }
             // uses berkeleydb in sync mode to create a DB snapshot.
             // In folder db, default and default_seq need
             // to be renamed manually to 25k and 25k_seq
-            DCSequencerServer.main(new String[] { "-sync", "-db", "-name", "X" });
-            DCServer.main(new String[] { "-sync", "-db", "-servers", "localhost" });
-            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            DCSequencerServer.main(new String[] { "-sync", "-db", args[1], "-name", "X" });
+            DCServer.main(new String[] { "-sync", "-db", args[1], "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-users", args[2] };
+
             instance.initDB(args);
 
-            Threading.sleep(30000);
+            Threading.sleep(60000);
             exit(0);
         }
         if (args[0].equals("-reloadDB")) {
+            if (args.length != 3) {
+                System.err.println(Arrays.asList(args));
+                System.err.println("usage: -reloadDB dbName propfile");
+                System.exit(0);
+            }
             // assumes there is db/25k and db/25k_seq folders with the prepared
-            // db snapshot...
-            DCSequencerServer.main(new String[] { "-rdb", "25k", "-db", "-name", "X" });
-            DCServer.main(new String[] { "-rdb", "25k", "-servers", "localhost" });
-            args = new String[] { "-servers", "localhost", "-props", "swiftsocial-25k.props" };
+            // db snapshot, eg., for args[1] == 25k
+            System.err.println(Arrays.asList(args));
+            DCSequencerServer.main(new String[] { "-rdb", args[1], "-db", "-name", "X" });
+            DCServer.main(new String[] { "-rdb", args[1], "-servers", "localhost" });
+            args = new String[] { "-servers", "localhost", "-props", args[2] };
+
             instance.doBenchmark(args);
             exit(0);
         }

@@ -47,10 +47,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
                 }
                 fifoQueues.queueFor(evt.src(), new SwiftProtocolHandler() {
                     public void onReceive(RpcHandle nil, SwiftNotification evt2) {
-
-                        final String surrogateId = evt2.timestamp().getIdentifier();
-                        updateDcVersions(surrogateId, evt2.dcVersion);
-
+                        updateDcVersions(evt2.src, evt2.dcVersion);
                         evt2.payload().notifyTo(SurrogatePubSubService.this);
                     }
                 }).offer(evt.seqN(), evt);
