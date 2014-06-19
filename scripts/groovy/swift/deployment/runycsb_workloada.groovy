@@ -37,6 +37,7 @@ YCSBProps = "swiftycsb.properties"
 // DbSize = 200*Scouts.size()*Threads
 
 Duration = 240
+InterCmdDelay = 30
 
 Version = getGitCommitId()
 println getBinding().getVariables()
