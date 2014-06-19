@@ -85,6 +85,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
     public void doBenchmark(String[] args) {
         // IO.redirect("stdout.txt", "stderr.txt");
+        final long startTime = System.currentTimeMillis();
 
         System.err.println(IP.localHostname() + "/ starting...");
 
@@ -146,6 +147,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         Threading.awaitTermination(threadPool, Integer.MAX_VALUE);
 
         System.err.println("Session threads completed.");
+        System.err.println("Throughput: " + totalCommands.get() * 1000 / (System.currentTimeMillis() - startTime) + " txns/s");
         System.exit(0);
     }
 
