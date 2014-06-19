@@ -179,7 +179,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
 
     @Override
     @SuppressWarnings("unchecked")
-    public <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
+    public synchronized <V extends CRDT<V>> V get(CRDTIdentifier id, boolean create, Class<V> classOfV,
             ObjectUpdatesListener listener) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException {
         assertStatus(TxnStatus.PENDING);
