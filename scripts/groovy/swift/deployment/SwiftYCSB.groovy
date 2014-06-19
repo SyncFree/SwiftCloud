@@ -28,6 +28,7 @@ class SwiftYCSB extends SwiftBase {
             def str = n.incrementAndGet() + "/" + hosts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
             println str
         }
+        // TODO add shepard support
         
         scoutGroups.each { grp ->
             Thread.startDaemon {
