@@ -39,8 +39,8 @@ OregonEC2 = [
     'ec2-54-200-29-51.us-west-2.compute.amazonaws.com'
 ]
 
-// Optional argument - limit of scouts number
 if (args.length < 2) {
+    System.err.println "usage: runsocial.groovy <limits on scouts number per DC> <threads per scout>"
     System.exit(1)
 }
 PerDCClientNodesLimit = Integer.valueOf(args[0])
@@ -99,7 +99,7 @@ deployTo(AllMachines, props.absolutePath, SwiftSocial_Props)
 deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 
 
-def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
+def shep = SwiftBase.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->

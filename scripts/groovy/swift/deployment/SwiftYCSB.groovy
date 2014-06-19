@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import static swift.deployment.Tools.*
 
 class SwiftYCSB extends SwiftBase {
-    static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=all_logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerFieldClient"
-    static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=all_logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerFieldClient"
+    static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
+    static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
 
     static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
@@ -16,32 +16,44 @@ class SwiftYCSB extends SwiftBase {
         return res
     }
 
-    static void runClients(List clients, String server, String config, int threads = 1, String heap ="512m" ) {
-        def cmd = { host ->
-            // TODO: support multiple clients properly
-            // String partition = scouts.indexOf( host ) + "/" + scouts.size()
-            def res = "nohup java -Xmx" + heap + " " + YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + server + " -threads " + threads +" "
-            res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
-            return res;
-        }
-
+    static void runClients(List scoutGroups, String config, int threads = 1, String heap ="512m" ) {
+        def hosts = []
+        
+        scoutGroups.each{ hosts += it.all() }
+        
+        println hosts
+        
         AtomicInteger n = new AtomicInteger();
         def resHandler = { host, res ->
-            def str = n.incrementAndGet() + "/" + clients.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
+            def str = n.incrementAndGet() + "/" + hosts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
             println str
         }
-        Parallel.rsh( clients, cmd, resHandler, true, 500000)
+        
+        scoutGroups.each { grp ->
+            Thread.startDaemon {
+                def cmd = { host ->
+                    int index = hosts.indexOf( host );
+                    def res = "nohup java -Xmx" + heap + " " + YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + grp.dc.surrogates[index % grp.dc.surrogates.size()] + " -threads " + threads +" "
+                    res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+                    return res;
+                }
+                grp.deploy( cmd, resHandler, heap)
+            }
+        }
+        // Parallel.rsh( clients, cmd, resHandler, true, 500000)
     }
 
     static final DEFAULT_PROPS = [
-        'swift.cacheEvictionTimeMillis':'3600000',
+        'swift.cacheEvictionTimeMillis':'5000000',
         'swift.maxCommitBatchSize':'10',
         'swift.maxAsyncTransactionsQueued':'50',
-        'swift.cacheSize':'1',
+        'swift.cacheSize':'0',
         'swift.asyncCommit':'false',
         'swift.notifications':'false',
-        'swift.cachePolicy':'STRICTLY_MOST_RECENT',
-        'swift.isolationLevel':'SNAPSHOT_ISOLATION'
+        'swift.causalNotifications':'false',
+        'swift.cachePolicy':'CACHED',
+        'swift.isolationLevel':'SNAPSHOT_ISOLATION',
+        'swift.computeMetadataStatistics':'false',
     ]
 
     // TODO: use properties file?
