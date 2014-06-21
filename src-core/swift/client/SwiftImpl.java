@@ -86,8 +86,10 @@ import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.ScoutPubSubService;
 import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
+import swift.utils.SafeLog;
 import swift.utils.NoFlushLogDecorator;
 import swift.utils.TransactionsLog;
+import swift.utils.SafeLog.ReportType;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.scheduler.PeriodicTask;
@@ -523,9 +525,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (reply != null) {
                 long rtt = receivedTime - reply.getTimeAtSender();
                 long skew = reply.getTimeAtReceiver() - reply.getTimeAtSender() - rtt / 2;
-                // SS,time,rtt,skew,scoutid,ip,server_ip
-                System.out.println("SS,time," + rtt + "," + skew + "," + scoutId + "," + InetAddress.getLocalHost()
-                        + "," + serverEndpoint().getHost());
+                // rtt,skew,scoutid,ip,server_ip
+                SafeLog.report(ReportType.STALENESS_CALIB, rtt, skew, scoutId, InetAddress.getLocalHost()
+                        .toString(), serverEndpoint().getHost());
                 return true;
             }
             return false;

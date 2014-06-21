@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.application.social;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,7 +23,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import swift.client.SwiftImpl;
 import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.core.CRDT;
@@ -39,13 +37,14 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.stats.Tally;
 
 // implements the social network functionality
 // see wsocial_srv.h
 
 public class SwiftSocialOps {
-
     private static Logger logger = Logger.getLogger("swift.social");
 
     // FIXME Add sessions? Local login possible? Cookies?
@@ -210,7 +209,7 @@ public class SwiftSocialOps {
     }
 
     @SuppressWarnings("unchecked")
-    public String read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
+    public void read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
@@ -231,16 +230,16 @@ public class SwiftSocialOps {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
-            // SS,get,scoutid,key,curtime,size
-            return "SS,get," + server.getScout().getScoutId() + "," + NamingScheme.forUser(name) + ","
-                    + System.currentTimeMillis() + "," + msgs.size();
+            // scoutid,key,size
+            SafeLog.report(ReportType.STALENESS_READ, server.getScout().getScoutId(),
+                    NamingScheme.forUser(name), msgs.size());
             // ((ArrayList<Message>)msgs).get(0).getDate());
         }
     }
 
     // FIXME return error code?
     @SuppressWarnings("unchecked")
-    public String postMessage(String receiverName, String msg, long date) {
+    public void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
@@ -262,8 +261,9 @@ public class SwiftSocialOps {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
             }
-            // SS,put,scoutid,key,curtime
-            return "SS,put," + server.getScout().getScoutId() + "," + NamingScheme.forUser(receiverName) + "," + date;
+            // scoutid,key
+            SafeLog.report(ReportType.STALENESS_WRITE, server.getScout().getScoutId(),
+                    NamingScheme.forUser(receiverName));
         }
     }
 

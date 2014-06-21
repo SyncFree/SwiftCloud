@@ -6,24 +6,24 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.Properties;
 
+import swift.utils.SafeLog;
+
 public class Props {
 
-    public static Properties parseFile(String propName, PrintStream out) {
+    public static Properties parseFile(String propName) {
         try {
-            final Properties props = new Properties();            
+            final Properties props = new Properties();
             String filename = System.getProperty(propName);
             if (filename != null) {
                 BufferedReader br = new BufferedReader(new FileReader(filename));
                 props.load(br);
                 br.close();
-                if (out != null) {
-                    out.printf("; Read properties from: %s\n", filename);
+                SafeLog.printfComment("Read properties from: %s\n", filename);
 
-                    // Marek, naughty, naughty, you did break the statistics
-                    // scripts ;-)
-                    for (Object i : props.keySet())
-                        out.printf(";\t%s=%s\n", i, props.getProperty((String) i));
-                }
+                // Marek, naughty, naughty, you did break the statistics
+                // scripts ;-)
+                for (Object i : props.keySet())
+                    SafeLog.printfComment("\t%s=%s\n", i, props.getProperty((String) i));
             }
             // BACKWARD-COMPABILITY HACK:
             Properties processedProps = new Properties();
@@ -39,12 +39,12 @@ public class Props {
         }
     }
 
-    public static Properties parseFile(String propName, PrintStream out, String defaultFilename) {
+    public static Properties parseFile(String propName, String defaultFilename) {
         String filename = System.getProperty(propName);
         if (filename == null)
             System.setProperty(propName, defaultFilename);
 
-        return parseFile(propName, out);
+        return parseFile(propName);
     }
 
     public static String get(Properties props, String prop) {

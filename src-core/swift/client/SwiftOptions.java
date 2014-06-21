@@ -174,7 +174,7 @@ final public class SwiftOptions {
         final String computeMetadataStatistics = defaultValues.getProperty("swift.computeMetadataStatistics");
         if (computeMetadataStatistics != null) {
             if (Boolean.parseBoolean(computeMetadataStatistics)) {
-                metadataStatsCollector = new MetadataStatsCollectorImpl("unspecified-id", System.out);
+                metadataStatsCollector = new MetadataStatsCollectorImpl("unspecified-id");
             }
         }
     }

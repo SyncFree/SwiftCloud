@@ -19,7 +19,6 @@ package swift.application.social;
 import static java.lang.System.exit;
 import static sys.Sys.Sys;
 
-import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
@@ -31,6 +30,7 @@ import swift.client.SwiftOptions;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
+import swift.utils.SafeLog;
 import sys.ec2.ClosestDomain;
 import sys.herd.Shepard;
 import sys.scheduler.PeriodicTask;
@@ -56,7 +56,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         final String servers = Args.valueOf(args, "-servers", "localhost");
 
         String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
-        Properties properties = Props.parseFile("swiftsocial", System.out, propFile);
+        Properties properties = Props.parseFile("swiftsocial", propFile);
 
         System.err.println("Populating db with users...");
 
@@ -80,7 +80,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         }
         Threading.awaitTermination(pool, Integer.MAX_VALUE);
         Threading.sleep(5000);
-        System.out.println("\nFinished populating db with users.");
+        System.err.println("\nFinished populating db with users.");
     }
 
     public void doBenchmark(String[] args) {
@@ -102,17 +102,17 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         System.err.println(IP.localHostAddress() + " connecting to: " + server);
 
-        bufferedOutput = new PrintStream(System.out, false);
-
         super.populateWorkloadFromConfig();
 
-        bufferedOutput.printf(";\n;\targs=%s\n", Arrays.asList(args));
-        bufferedOutput.printf(";\tsite=%s\n", site);
-        bufferedOutput.printf(";\tnumberOfSites=%s\n", numberOfSites);
-        bufferedOutput.printf(";\tthreads=%s\n;\n", concurrentSessions);
-        bufferedOutput.printf(";\tnumberOfVirtualSites=%s\n", numberOfVirtualSites);
-        bufferedOutput.printf(";\tSurrogate=%s\n", server);
-        bufferedOutput.printf(";\tShepard=%s\n", shepard);
+        SafeLog.printfComment("\n");
+        SafeLog.printfComment("\targs=%s\n", Arrays.asList(args));
+        SafeLog.printfComment("\tsite=%s\n", site);
+        SafeLog.printfComment("\tnumberOfSites=%s\n", numberOfSites);
+        SafeLog.printfComment("\tthreads=%s\n", concurrentSessions);
+        SafeLog.printfComment("\tnumberOfVirtualSites=%s\n", numberOfVirtualSites);
+        SafeLog.printfComment("\tSurrogate=%s\n", server);
+        SafeLog.printfComment("\tShepard=%s\n", shepard);
+        SafeLog.printFormatExplanations();
 
         if (!shepard.isEmpty())
             Shepard.sheepJoinHerd(shepard);
@@ -138,7 +138,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         // report client progress every 1 seconds...
         new PeriodicTask(0.0, 1.0) {
             public void run() {
-                System.err.printf("Done: %s", Progress.percentage(commandsDone.get(), totalCommands.get()));
+                System.err.printf("Done: %s\n", Progress.percentage(commandsDone.get(), totalCommands.get()));
             }
         };
 
@@ -147,7 +147,8 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         Threading.awaitTermination(threadPool, Integer.MAX_VALUE);
 
         System.err.println("Session threads completed.");
-        System.err.println("Throughput: " + totalCommands.get() * 1000 / (System.currentTimeMillis() - startTime) + " txns/s");
+        System.err.println("Throughput: " + totalCommands.get() * 1000 / (System.currentTimeMillis() - startTime)
+                + " txns/s");
         System.exit(0);
     }
 
