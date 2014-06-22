@@ -11,6 +11,7 @@ import java.io.PrintStream;
 public class SafeLog {
     public static final char COMMENT_CHAR = '#';
 
+    // TODO: alternatively, just inline these things as methods for type safety
     public enum ReportType {
         STALENESS_READ("%s,%s,%d", "scoutid,object,#msgs"),
 
@@ -25,28 +26,28 @@ public class SafeLog {
         APP_OP("%s,%s,%d", "session_id,operation_name,duration_ms");
 
         private final String format;
-        private final String formatExplanation;
+        private final String semantics;
 
-        private ReportType(String format, String formatExplanation) {
+        private ReportType(String format, String semantics) {
             this.format = format;
-            this.formatExplanation = formatExplanation;
+            this.semantics = semantics;
         }
 
         public String getFormat() {
             return format;
         }
 
-        public void printFormatExplanation() {
+        public void printHeader() {
             bufferedOutput.printf("%c report type %s formatted as timestamp_ms,%s,%s\n", COMMENT_CHAR, name(), name(),
-                    formatExplanation);
+                    semantics);
         }
     }
 
     private static final PrintStream bufferedOutput = new PrintStream(System.out, false);
 
-    public static void printFormatExplanations() {
+    public static void printHeader() {
         for (final ReportType type : ReportType.values()) {
-            type.printFormatExplanation();
+            type.printHeader();
         }
     }
 
