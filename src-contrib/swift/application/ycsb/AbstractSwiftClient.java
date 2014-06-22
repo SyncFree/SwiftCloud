@@ -3,6 +3,7 @@ package swift.application.ycsb;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 import java.util.Vector;
 
 import swift.client.SwiftImpl;
@@ -18,12 +19,21 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.proto.MetadataStatsCollectorImpl;
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.Sys;
 
 import com.yahoo.ycsb.ByteIterator;
 import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 
+/**
+ * Abstract YCSB client for SwiftCloud that handles connection, configuration
+ * and errors, but does not define the actual database operations.
+ * 
+ * @author mzawirski
+ */
 public abstract class AbstractSwiftClient extends DB {
     public static final int ERROR_NETWORK = -1;
     public static final int ERROR_NOT_FOUND = -2;
@@ -34,12 +44,15 @@ public abstract class AbstractSwiftClient extends DB {
     public static final CachePolicy DEFAULT_CACHE_POLICY = CachePolicy.CACHED;
     public static final ObjectUpdatesListener DEFAULT_NOTIFICATIONS_SUBSCRIBER = TxnHandle.UPDATES_SUBSCRIBER;
     public static final boolean DEFAULT_ASYNC_COMMIT = false;
+    public static final boolean REPORT_EVERY_OPERATION = false;
 
     protected SwiftSession session;
     protected IsolationLevel isolationLevel = DEFAULT_ISOLATION_LEVEL;
     protected CachePolicy cachePolicy = DEFAULT_CACHE_POLICY;
     protected ObjectUpdatesListener notificationsSubscriber = DEFAULT_NOTIFICATIONS_SUBSCRIBER;
     protected boolean asyncCommit = DEFAULT_ASYNC_COMMIT;
+    private UUID sessionId;
+    private boolean reportEveryOperation = REPORT_EVERY_OPERATION;
 
     @Override
     public void init() throws DBException {
@@ -81,8 +94,15 @@ public abstract class AbstractSwiftClient extends DB {
         if (props.getProperty("swift.asyncCommit") != null) {
             asyncCommit = Boolean.getBoolean(props.getProperty("swift.asyncCommit"));
         }
+        if (props.getProperty("swift.reportEveryOperation") != null) {
+            reportEveryOperation = Boolean.getBoolean(props.getProperty("swift.reportEveryOperation"));
+        }
 
         final SwiftOptions options = new SwiftOptions(hostname, port, props);
+        sessionId = UUID.randomUUID();
+        if (options.hasMetadataStatsCollector()) {
+            options.setMetadataStatsCollector(new MetadataStatsCollectorImpl(sessionId.toString()));
+        }
         session = SwiftImpl.newSingleSessionInstance(options);
     }
 
@@ -98,6 +118,10 @@ public abstract class AbstractSwiftClient extends DB {
 
     @Override
     public int read(String table, String key, Set<String> fields, HashMap<String, ByteIterator> result) {
+        long startTimestamp = 0;
+        if (reportEveryOperation) {
+            startTimestamp = System.currentTimeMillis();
+        }
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, true);
@@ -110,6 +134,10 @@ public abstract class AbstractSwiftClient extends DB {
             return handleException(x);
         } finally {
             tryTerminateTxn(txn);
+            if (reportEveryOperation) {
+                final long durationMs = System.currentTimeMillis() - startTimestamp;
+                SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
+            }
         }
     }
 
@@ -121,6 +149,10 @@ public abstract class AbstractSwiftClient extends DB {
 
     @Override
     public int update(String table, String key, HashMap<String, ByteIterator> values) {
+        long startTimestamp = 0;
+        if (reportEveryOperation) {
+            startTimestamp = System.currentTimeMillis();
+        }
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
@@ -133,11 +165,19 @@ public abstract class AbstractSwiftClient extends DB {
             return handleException(x);
         } finally {
             tryTerminateTxn(txn);
+            if (reportEveryOperation) {
+                final long durationMs = System.currentTimeMillis() - startTimestamp;
+                SafeLog.report(ReportType.APP_OP, sessionId, "update", durationMs);
+            }
         }
     }
 
     @Override
     public int insert(String table, String key, HashMap<String, ByteIterator> values) {
+        long startTimestamp = 0;
+        if (reportEveryOperation) {
+            startTimestamp = System.currentTimeMillis();
+        }
         TxnHandle txn = null;
         try {
             // WISHME: blind updates would help here
@@ -151,6 +191,10 @@ public abstract class AbstractSwiftClient extends DB {
             return handleException(x);
         } finally {
             tryTerminateTxn(txn);
+            if (reportEveryOperation) {
+                final long durationMs = System.currentTimeMillis() - startTimestamp;
+                SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
+            }
         }
     }
 
