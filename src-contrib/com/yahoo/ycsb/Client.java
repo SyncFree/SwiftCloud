@@ -393,12 +393,12 @@ public class Client
 		MeasurementsExporter exporter = null;
 		try
 		{
-			// if no destination file is provided the results will be written to stdout
+			// if no destination file is provided the results will be written to stderr
 			OutputStream out;
 			String exportFile = props.getProperty("exportfile");
 			if (exportFile == null)
 			{
-				out = System.out;
+				out = System.err;
 			} else
 			{
 				out = new FileOutputStream(exportFile);
