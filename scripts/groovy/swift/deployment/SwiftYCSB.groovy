@@ -16,26 +16,25 @@ class SwiftYCSB extends SwiftBase {
         return res
     }
 
-    static void runClients(List scoutGroups, String config, int threads = 1, String heap ="512m" ) {
+    static void runClients(List scoutGroups, String config, String shepard, int threads = 1, String heap ="512m" ) {
         def hosts = []
-        
+
         scoutGroups.each{ hosts += it.all() }
-        
+
         println hosts
-        
+
         AtomicInteger n = new AtomicInteger();
         def resHandler = { host, res ->
             def str = n.incrementAndGet() + "/" + hosts.size() + (res < 1 ? " [ OK ]" : " [FAILED]") + " : " + host
             println str
         }
-        // TODO add shepard support
-        
+
         scoutGroups.each { grp ->
             Thread.startDaemon {
                 def cmd = { host ->
                     int index = hosts.indexOf( host );
                     def res = "nohup java -Xmx" + heap + " " + YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + grp.dc.surrogates[index % grp.dc.surrogates.size()] + " -threads " + threads +" "
-                    res += "> scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
+                    res += "-shepard " + shepard + " > scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
                     return res;
                 }
                 grp.deploy( cmd, resHandler, heap)

@@ -22,6 +22,8 @@ import java.io.*;
 import java.text.DecimalFormat;
 import java.util.*;
 
+import sys.herd.Shepard;
+
 import com.yahoo.ycsb.measurements.Measurements;
 import com.yahoo.ycsb.measurements.exporter.MeasurementsExporter;
 import com.yahoo.ycsb.measurements.exporter.TextMeasurementsExporter;
@@ -347,6 +349,7 @@ public class Client
 				"              \"threadcount\" property using -p");
 		System.out.println("  -target n: attempt to do n operations per second (default: unlimited) - can also\n" +
 				"             be specified as the \"target\" property using -p");
+		System.out.println("  -shepard addr: contact a shepard to synchronize start of multiple clients");
 		System.out.println("  -load:  run the loading phase of the workload");
 		System.out.println("  -t:  run the transactions phase of the workload (default)");
 		System.out.println("  -db dbname: specify the name of the DB to use (default: com.yahoo.ycsb.BasicDB) - \n" +
@@ -564,6 +567,17 @@ public class Client
 				//System.out.println("["+name+"]=["+value+"]");
 				argindex++;
 			}
+			else if (args[argindex].equals("-shepard"))
+			{
+			    argindex++;
+			    if (argindex>=args.length)
+                {
+                    usageMessage();
+                    System.exit(1);
+                }
+			    props.setProperty("shepard", args[argindex]);
+			    argindex++;
+			}
 			else
 			{
 				System.out.println("Unknown option "+args[argindex]);
@@ -722,6 +736,11 @@ public class Client
 
 			threads.add(t);
 			//t.start();
+		}
+
+		final String shepard = props.getProperty("shepard");
+		if (shepard != null && !shepard.isEmpty()) {
+		    Shepard.sheepJoinHerd(shepard);
 		}
 
 		StatusThread statusthread=null;

@@ -14,11 +14,8 @@ def __ = onControlC({
 
 
 EuropeEC2 = [
-    'ec2-54-72-81-159.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-112-193.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-218-225.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-120-219.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-152-221.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-186-5.eu-west-1.compute.amazonaws.com',
+    'ec2-54-76-167-242.eu-west-1.compute.amazonaws.com',
 ]
 
 // Optional argument - limit of scouts number
@@ -33,7 +30,6 @@ Threads = Integer.valueOf(args[1])
 Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
 ScoutsEU = SGroup( EuropeEC2[1..PerDCClientNodesLimit], Europe )
 Scouts = ( Topology.scouts() ).unique()
-// TODO: use Shepard
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
@@ -84,11 +80,10 @@ SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, YCSBProps, Threads)
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
 
-SwiftYCSB.runClients(Topology.scoutGroups, YCSBProps, Threads, "1024m")
+SwiftYCSB.runClients(Topology.scoutGroups, YCSBProps, ShepardAddr, Threads, "1024m")
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
-// TODO: use shepard
-// shep.take()
+shep.take()
 
 Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
