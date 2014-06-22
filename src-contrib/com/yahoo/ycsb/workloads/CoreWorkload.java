@@ -18,6 +18,7 @@
 package com.yahoo.ycsb.workloads;
 
 import java.util.Properties;
+
 import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.CounterGenerator;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
@@ -27,6 +28,7 @@ import com.yahoo.ycsb.generator.ConstantIntegerGenerator;
 import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
 import com.yahoo.ycsb.generator.HistogramGenerator;
 import com.yahoo.ycsb.generator.IntegerGenerator;
+import com.yahoo.ycsb.generator.IntegerGeneratorRemappingDecorator;
 import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
 import com.yahoo.ycsb.generator.SkewedLatestGenerator;
 import com.yahoo.ycsb.generator.UniformIntegerGenerator;
@@ -36,6 +38,7 @@ import com.yahoo.ycsb.measurements.Measurements;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.UUID;
 import java.util.Vector;
 
 /**
@@ -445,6 +448,12 @@ public class CoreWorkload extends Workload
 		ByteIterator data = new RandomByteIterator(fieldlengthgenerator.nextInt());
 		values.put(fieldname,data);
 		return values;
+	}
+	
+	@Override
+	public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
+	    final long jvmUid = UUID.randomUUID().getMostSignificantBits();
+        return new IntegerGeneratorRemappingDecorator(keysequence, jvmUid  + mythreadid);
 	}
 
 	/**
