@@ -5,13 +5,13 @@ import static swift.deployment.Tools.*
 
 class SwiftYCSB extends SwiftBase {
     static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
-    static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Xincgc -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
+    static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
 
     static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
 
         def cmd = INITDB_CMD + " -load -s -P " + config + " -p swift.hostname=" + server + " -threads " + threads +" "
-        def res = rshC( client, swift_app_cmd("-Xmx" + heap, cmd, "initdb-stdout.txt", "initdb-stderr.txt")).waitFor()
+        def res = rshC( client, swift_app_cmd_nostdout("-Xmx" + heap, cmd, "initdb-stderr.txt", "initdb-stdout.txt")).waitFor()
         println "OK.\n"
         return res
     }
@@ -33,11 +33,12 @@ class SwiftYCSB extends SwiftBase {
             Thread.startDaemon {
                 def cmd = { host ->
                     int index = hosts.indexOf( host );
-                    def res = "nohup java -Xmx" + heap + " " + YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + grp.dc.surrogates[index % grp.dc.surrogates.size()] + " -threads " + threads +" "
-                    res += "-shepard " + shepard + " > scout-stdout.txt 2> scout-stderr.txt < /dev/null &"
-                    return res;
+                    return "nohup " + swift_app_cmd_nostdout("-Xmx" + heap,
+                    YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + grp.dc.surrogates[index % grp.dc.surrogates.size()]
+                    + " -threads " + threads + " -shepard " + shepard + " ",
+                    "scout-stderr.txt", "scout-stdout.txt") +" < /dev/null &"
                 }
-                grp.deploy( cmd, resHandler, heap)
+                grp.deploy( cmd, resHandler)
             }
         }
         // Parallel.rsh( clients, cmd, resHandler, true, 500000)
@@ -54,6 +55,7 @@ class SwiftYCSB extends SwiftBase {
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.computeMetadataStatistics':'false',
+        'swift.reportEveryOperation':'false',
     ]
 
     // TODO: use properties file?

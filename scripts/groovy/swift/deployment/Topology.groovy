@@ -106,8 +106,8 @@ class Topology {
             Topology.scoutGroups += this
         }
 
-        void deploy( Closure cmd, Closure resHandler, String heap="512m") {
-            Parallel.rsh( scouts, cmd, resHandler, true, 500000)
+        void deploy( Closure cmd, Closure resHandler) {
+            Parallel.rsh( scouts, cmd, resHandler, false, 500000)
         }
 
 
