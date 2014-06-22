@@ -88,14 +88,14 @@ public abstract class AbstractSwiftClient extends DB {
             }
         }
         if (props.getProperty("swift.notifications") != null) {
-            notificationsSubscriber = Boolean.getBoolean(props.getProperty("swift.notifications")) ? TxnHandle.UPDATES_SUBSCRIBER
+            notificationsSubscriber = Boolean.parseBoolean(props.getProperty("swift.notifications")) ? TxnHandle.UPDATES_SUBSCRIBER
                     : null;
         }
         if (props.getProperty("swift.asyncCommit") != null) {
-            asyncCommit = Boolean.getBoolean(props.getProperty("swift.asyncCommit"));
+            asyncCommit = Boolean.parseBoolean(props.getProperty("swift.asyncCommit"));
         }
         if (props.getProperty("swift.reportEveryOperation") != null) {
-            reportEveryOperation = Boolean.getBoolean(props.getProperty("swift.reportEveryOperation"));
+            reportEveryOperation = Boolean.parseBoolean(props.getProperty("swift.reportEveryOperation"));
         }
 
         final SwiftOptions options = new SwiftOptions(hostname, port, props);
@@ -136,7 +136,7 @@ public abstract class AbstractSwiftClient extends DB {
             tryTerminateTxn(txn);
             if (reportEveryOperation) {
                 final long durationMs = System.currentTimeMillis() - startTimestamp;
-                SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
+                SafeLog.report(ReportType.APP_OP, sessionId, "read", durationMs);
             }
         }
     }
