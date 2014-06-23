@@ -21,7 +21,9 @@ package com.yahoo.ycsb;
 import java.io.*;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.Map.Entry;
 
+import swift.utils.SafeLog;
 import sys.herd.Shepard;
 
 import com.yahoo.ycsb.measurements.Measurements;
@@ -632,13 +634,17 @@ public class Client
 			targetperthreadperms=targetperthread/1000.0;
 		}	 
 
-		System.out.println("YCSB Client 0.1");
-		System.out.print("Command line:");
-		for (int i=0; i<args.length; i++)
-		{
-			System.out.print(" "+args[i]);
-		}
-		System.out.println();
+        SafeLog.printlnComment("YCSB Client 0.1");
+        String cmdLine = "Command line:";
+        for (int i = 0; i < args.length; i++) {
+            cmdLine += " " + args[i];
+        }
+        SafeLog.printlnComment(cmdLine);
+        SafeLog.printlnComment("Properties:");
+        for (Entry<Object, Object> entry : props.entrySet()) {
+            SafeLog.printfComment("\t%s=%s\n", entry.getKey(), entry.getValue());
+        }
+        SafeLog.printlnComment("");
 		System.err.println("Loading workload...");
 		
 		//show a warning message that creating the workload is taking a while

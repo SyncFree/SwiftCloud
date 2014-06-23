@@ -28,7 +28,7 @@ import com.yahoo.ycsb.generator.ConstantIntegerGenerator;
 import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
 import com.yahoo.ycsb.generator.HistogramGenerator;
 import com.yahoo.ycsb.generator.IntegerGenerator;
-import com.yahoo.ycsb.generator.IntegerGeneratorRemappingDecorator;
+import com.yahoo.ycsb.generator.ScrambledIntegerGeneratorDecorator;
 import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
 import com.yahoo.ycsb.generator.SkewedLatestGenerator;
 import com.yahoo.ycsb.generator.UniformIntegerGenerator;
@@ -276,6 +276,8 @@ public class CoreWorkload extends Workload
 	boolean orderedinserts;
 
 	int recordcount;
+
+    private int jvmUid;
 	
 	protected static IntegerGenerator getFieldLengthGenerator(Properties p) throws WorkloadException{
 		IntegerGenerator fieldlengthgenerator;
@@ -421,6 +423,7 @@ public class CoreWorkload extends Workload
 		{
 			throw new WorkloadException("Distribution \""+scanlengthdistrib+"\" not allowed for scan length");
 		}
+		jvmUid = Long.valueOf(UUID.randomUUID().getMostSignificantBits()).hashCode();
 	}
 
 	public String buildKeyName(long keynum) {
@@ -452,8 +455,7 @@ public class CoreWorkload extends Workload
 	
 	@Override
 	public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
-        final long jvmUid = UUID.randomUUID().getMostSignificantBits();
-        return new IntegerGeneratorRemappingDecorator(keysequence, recordcount, jvmUid + mythreadid);
+        return new ScrambledIntegerGeneratorDecorator(keysequence, recordcount, jvmUid + mythreadid);
     }
 
 	/**
