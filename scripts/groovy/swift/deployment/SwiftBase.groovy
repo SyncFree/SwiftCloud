@@ -12,7 +12,7 @@ class SwiftBase {
     }
 
     static String swift_app_cmd_nostdout( String heap, String exec, String stderr, String stdout )  {
-        return "java " + heap + " " + exec +  "2> >(tee -i " + stderr+ " 1>&2) > " + stdout
+        return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
     }
 
     static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers, String extraArgs) {
