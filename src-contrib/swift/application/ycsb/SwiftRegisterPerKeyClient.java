@@ -16,8 +16,7 @@ import com.yahoo.ycsb.StringByteIterator;
 
 /**
  * SwiftCloud YCSB client based on Last Writer Wins register. Key with fields is
- * stored as a map inside a LWW register. Every operation runs within a single
- * synchronous transaction.
+ * stored as a map inside a LWW register.
  * 
  * @author mzawirsk
  */

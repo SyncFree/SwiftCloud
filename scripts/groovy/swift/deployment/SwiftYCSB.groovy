@@ -4,8 +4,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import static swift.deployment.Tools.*
 
 class SwiftYCSB extends SwiftBase {
-    static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
-    static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db swift.application.ycsb.SwiftRegisterPerKeyClient"
+    static String YCSB_DRIVER = "swift.application.ycsb.SwiftMapPerKeyClient"
+    static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db " + YCSB_DRIVER
+    static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db " + YCSB_DRIVER
 
     static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config

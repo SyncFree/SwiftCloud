@@ -19,8 +19,7 @@ import com.yahoo.ycsb.StringByteIterator;
 /**
  * SwiftCloud YCSB client based on Last Writer Wins register and Set. Each
  * fields is represented as LWW register and a set of fields for a key is
- * repesented as Add-only Set. Every operation runs within a single synchronous
- * transaction.
+ * represented as Add-only Set.
  * 
  * @author mzawirsk
  */
