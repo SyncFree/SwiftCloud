@@ -35,7 +35,7 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 YCSBProps = "swiftycsb.properties"
 DbSize = 10000
-OpsNum = 100000
+OpsNum = 500000
 
 Duration = 240
 InterCmdDelay = 30
