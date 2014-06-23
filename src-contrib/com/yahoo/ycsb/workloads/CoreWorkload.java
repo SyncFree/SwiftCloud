@@ -452,9 +452,9 @@ public class CoreWorkload extends Workload
 	
 	@Override
 	public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
-	    final long jvmUid = UUID.randomUUID().getMostSignificantBits();
-        return new IntegerGeneratorRemappingDecorator(keysequence, jvmUid  + mythreadid);
-	}
+        final long jvmUid = UUID.randomUUID().getMostSignificantBits();
+        return new IntegerGeneratorRemappingDecorator(keysequence, recordcount, jvmUid + mythreadid);
+    }
 
 	/**
 	 * Do one insert operation. Because it will be called concurrently from multiple client threads, this 
