@@ -36,7 +36,7 @@ class SwiftYCSB extends SwiftBase {
                     int index = hosts.indexOf( host );
                     // Use tail, because ofr for unknown reason "2> (tee scout-stderr 1>&2)" closes tee prematurely
                     def res = "nohup java -Xmx" + heap + " " + YCSB_CMD + " -t -s -P " + config  + " -p swift.hostname=" + grp.dc.surrogates[index % grp.dc.surrogates.size()]
-                    res += " -threads " + threads + " -shepard " + shepard + " 2> scout-stderr.txt > scout-stdout.txt  < /dev/null & tail -f scout-stderr.txt &"
+                    res += " -threads " + threads + " -shepard " + shepard + " 2> scout-stderr.txt > scout-stdout.txt  < /dev/null & sleep 1; tail -f scout-stderr.txt &"
                 }
                 grp.deploy( cmd, resHandler)
             }
