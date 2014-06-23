@@ -53,7 +53,8 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 deployTo(AllMachines, SwiftYCSB.genPropsFile(['recordcount': DbSize.toString(),
-    'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true'], SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A).absolutePath, YCSBProps)
+    'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true', 'readproportion':'0',
+    'updateproportion':'1','fieldlength':'1'], SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A).absolutePath, YCSBProps)
 
 def shep = SwiftBase.runShepard( ShepardAddr, Duration, "Released" )
 
