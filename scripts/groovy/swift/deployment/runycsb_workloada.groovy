@@ -93,6 +93,7 @@ def dstDir="results/ycsb/workloada/" + new Date().format('MMMdd-') + System.curr
         String.format("DC-%s-SU-%s-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), Topology.totalScouts(), Threads, DbSize, OpsNum)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
+pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
 
 exec([
     "/bin/bash",

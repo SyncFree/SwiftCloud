@@ -138,6 +138,7 @@ def dstDir="results/swiftsocial/" + new Date().format('MMMdd-') +
         String.format("DC-%s-SU-%s-SC-%s-TH-%s-USERS-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), Topology.totalScouts(), Threads, DbSize)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
+pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
 props.renameTo(new File(dstDir, SwiftSocial_Props))
 
 exec([
