@@ -34,10 +34,6 @@ public class LWWRegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
         this.val = val;
     }
 
-    public V getVal() {
-        return this.val;
-    }
-
     @Override
     public void applyTo(LWWRegisterCRDT<V> register) {
         register.applySet(registerTimestamp, tiebreakingTimestamp, val);
