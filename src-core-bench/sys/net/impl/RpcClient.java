@@ -90,7 +90,7 @@ public class RpcClient {
         }
     }
 
-    public static void main(String[] args) throws UnknownHostException {
+    public static void main(String[] args) {
         Log.setLevel(Level.ALL);
 
         String serverAddr = args.length > 0 ? args[0] : "localhost";

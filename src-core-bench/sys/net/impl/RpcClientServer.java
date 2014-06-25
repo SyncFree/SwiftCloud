@@ -16,7 +16,6 @@
  *****************************************************************************/
 package sys.net.impl;
 
-import java.net.UnknownHostException;
 import java.util.logging.Logger;
 
 import sys.utils.Threading;
@@ -24,7 +23,7 @@ import sys.utils.Threading;
 public class RpcClientServer {
     public static Logger Log = Logger.getLogger(RpcClientServer.class.getName());
 
-    public static void main(final String[] args) throws UnknownHostException {
+    public static void main(final String[] args) {
 
         if (args.length == 0)
             RpcServer.main(new String[0]);
