@@ -102,22 +102,6 @@ public interface RpcHandle {
     Endpoint remoteEndpoint();
 
     /**
-     * By default deferred replies for a given send operation are disabled. Only
-     * the first reply will be accepted,
-     * 
-     * This method allows multiple replies to the same send operation to be
-     * received. The reply handler will be hard referenced internally up to the
-     * given timeout. Each new reply, refreshes the timeout. TODO. Explain the
-     * semantics of calling this at each end...
-     * 
-     * @param flag
-     *            - flag to control if accepting multiple replies for a send is
-     *            enabled or disabled.
-     * @return the handle that was modified.
-     */
-    RpcHandle enableDeferredReplies(long timeout);
-
-    /**
      * In blocking mode, this method returns the handle to the reply message.
      * 
      * @return The handle associated with the reply to the message sent that

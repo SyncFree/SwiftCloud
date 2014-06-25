@@ -50,6 +50,7 @@ public class KryoLib {
                 res.register(i.cl, i.id);
 
         res.setAsmEnabled(true);
+        res.setReferences(true);
         return res;
     }
 
@@ -57,7 +58,7 @@ public class KryoLib {
         for (_Registration i : registry)
             if (i.id == id) {
                 Log.severe("Already Registered..." + id);
-                Thread.dumpStack();
+                return;
             }
         registry.add(new _Registration(cl, null, id));
     }

@@ -91,6 +91,24 @@ public interface RpcEndpoint {
     RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler, int timeout);
 
     /**
+     * Sends an invocation message to a (listening) destination endpoint,
+     * blocking until a reply is received or the timeout expires.
+     * 
+     * @param dst
+     *            the destination of the invocation message
+     * @param m
+     *            the message being sent
+     * @param replyHandler
+     *            - the handler for processing the reply message
+     * 
+     * @param timout
+     *            - number of milliseconds to wait for the reply. <= 0 returns
+     *            immediately. FIXME: document MAX_TIMEOUT
+     * @return the handle associated for the message
+     */
+    RpcHandle send(final Endpoint dst, final RpcMessage m, final RpcHandler replyHandler, boolean streamingReplies);
+
+    /**
      * Sets the handler responsible for processing incoming invocation messages
      * 
      * @param handler

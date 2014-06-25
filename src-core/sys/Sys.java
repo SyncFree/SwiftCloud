@@ -39,7 +39,6 @@ public class Sys {
 
     public Random rg;
     public TaskScheduler scheduler;
-
     public AtomicLong uploadedBytes = new AtomicLong(1);
     public AtomicLong downloadedBytes = new AtomicLong(1);
     public String mainClass;

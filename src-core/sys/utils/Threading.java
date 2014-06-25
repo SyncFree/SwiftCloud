@@ -3,6 +3,7 @@ package sys.utils;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
@@ -116,6 +117,14 @@ final public class Threading {
     static public void synchronizedNotifyAllOn(Object o) {
         synchronized (o) {
             o.notifyAll();
+        }
+    }
+
+    public static <T> T takeFrom(SynchronousQueue<T> q) {
+        try {
+            return q.take();
+        } catch (InterruptedException e) {
+            return takeFrom(q);
         }
     }
 

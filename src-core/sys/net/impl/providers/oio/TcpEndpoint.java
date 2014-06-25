@@ -156,7 +156,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             Log.fine("Closed connection to: " + remote);
         }
 
-        synchronized public boolean send(final Message msg) {
+        public boolean send(final Message msg) {
             try {
                 int msgSize = outBuf.writeClassAndObject(msg, channel);
                 Sys.uploadedBytes.getAndAdd(msgSize);
@@ -220,6 +220,9 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 configureChannel(socket);
                 inBuf = new KryoInputBuffer();
                 outBuf = new KryoOutputBuffer();
+                this.send(new InitiatorInfo(localEndpoint));
+                handler.onConnect(this);
+                workers.execute(this);
             } catch (IOException x) {
                 cause = x;
                 isBroken = true;
@@ -227,10 +230,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 Log.warning("Cannot connect to: " + remote + " " + x.getMessage());
                 if (Log.isLoggable(Level.INFO))
                     x.printStackTrace();
+                Threading.sleep(50);
             }
-            this.send(new InitiatorInfo(localEndpoint));
-            handler.onConnect(this);
-            workers.execute(this);
         }
     }
 }

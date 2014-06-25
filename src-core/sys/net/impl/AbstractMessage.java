@@ -20,9 +20,6 @@ import sys.net.api.Message;
 
 abstract public class AbstractMessage implements Message {
 
-    /*
-     * TODO prevent this from being serialized...
-     */
     transient protected int size;
 
     /**

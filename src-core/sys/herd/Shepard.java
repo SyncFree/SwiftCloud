@@ -73,7 +73,7 @@ public class Shepard extends ShepardProtoHandler {
                     }
                 };
             }
-        }, 0).enableDeferredReplies(1200000);
+        }, true);
         barrier.acquireUninterruptibly();
         Log.info(IP.localHostAddressString() + " Let's GO!!!!!");
         System.err.println(IP.localHostAddressString() + " Let's GO!!!!!");
@@ -123,7 +123,6 @@ public class Shepard extends ShepardProtoHandler {
     long releaseTime = -1;
 
     synchronized public void onReceive(RpcHandle sheep, GrazingRequest request) {
-        sheep.enableDeferredReplies(Integer.MAX_VALUE);
         sheep.reply(new GrazingAccepted());
         waitingSheep.add(sheep);
         releaseTask.reSchedule(releaseTime < 0 ? 20.0 : 0);

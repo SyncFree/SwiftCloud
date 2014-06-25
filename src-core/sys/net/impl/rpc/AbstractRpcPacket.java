@@ -34,8 +34,8 @@ import com.esotericsoftware.kryo.io.Output;
 abstract class AbstractRpcPacket extends AbstractMessage implements Message, RpcHandle, RpcEndpoint, KryoSerializable {
 
     long handlerId; // destination service handler
-    long replyHandlerId; // reply handler, 0 = no reply expected.
-    int deferredRepliesTimeout = 0;
+    long replyHandlerId; // reply handler, 0 = no reply expected, negative ->
+                         // allow streaming replies...
 
     int timeout;
     long timestamp;
@@ -91,6 +91,19 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
         return null;
     }
 
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
+        RpcHandle reply = send(dst, m, RpcHandler.NONE, Integer.MAX_VALUE);
+        // System.err.printf("RTT for: %s  = %s\n", m, reply.rtt());
+        if (!reply.failed()) {
+            reply = reply.getReply();
+            if (reply != null)
+                return (T) reply.getPayload();
+        }
+        return null;
+    }
+
     @Override
     public boolean failed() {
         return failed;
@@ -117,10 +130,7 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
     }
 
     @Override
-    public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout) {
-        Thread.dumpStack();
-        return this;
-    }
+    abstract public RpcHandle send(Endpoint dst, RpcMessage m, RpcHandler replyHandler, int timeout);
 
     @SuppressWarnings("unchecked")
     @Override
@@ -151,7 +161,6 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
     final public void read(Kryo kryo, Input input) {
         this.handlerId = input.readLong();
         this.replyHandlerId = input.readLong();
-        this.deferredRepliesTimeout = input.readInt();
         this.timestamp = input.readLong();
         this.payload = (RpcMessage) kryo.readClassAndObject(input);
     }
@@ -160,7 +169,6 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
     final public void write(Kryo kryo, Output output) {
         output.writeLong(this.handlerId);
         output.writeLong(this.replyHandlerId);
-        output.writeInt(this.deferredRepliesTimeout);
         output.writeLong(this.timestamp);
         kryo.writeClassAndObject(output, payload);
     }

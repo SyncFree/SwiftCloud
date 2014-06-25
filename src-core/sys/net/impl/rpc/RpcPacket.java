@@ -21,6 +21,7 @@ import static sys.stats.RpcStats.RpcStats;
 
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
@@ -46,24 +47,22 @@ final public class RpcPacket extends AbstractRpcPacket {
         this.handler = handler;
         this.handlerId = service;
         this.replyHandlerId = service;
-        fac.handlers0.put(handlerId, this);
+        fac.handlers.put(handlerId, this);
     }
 
     RpcPacket(RpcFactoryImpl fac, Endpoint remote, RpcMessage payload, RpcPacket handle, RpcHandler replyhandler,
-            int timeout) {
+            int timeout, boolean streamingReplies) {
         this.fac = fac;
         this.remote = remote;
         this.timeout = timeout;
         this.payload = payload;
         this.handler = replyhandler;
         this.handlerId = handle.replyHandlerId;
-        this.deferredRepliesTimeout = handle.deferredRepliesTimeout;
 
         if (replyhandler != null) {
-            synchronized (fac.handlers1) {
-                this.replyHandlerId = ++g_handlers;
-                fac.handlers1.put(this.replyHandlerId, this);
-            }
+            long id = g_handlers.incrementAndGet();
+            this.replyHandlerId = streamingReplies ? -id : id;
+            fac.handlers.put(this.replyHandlerId, this);
         } else
             this.replyHandlerId = 0L;
     }
@@ -74,8 +73,18 @@ final public class RpcPacket extends AbstractRpcPacket {
     }
 
     @Override
+    public RpcHandle send(Endpoint dst, RpcMessage msg, RpcHandler replyHandler, boolean streamingReplies) {
+        return send(remote, msg, replyHandler, 0, false);
+    }
+
+    @Override
     public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
-        RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout);
+        return send(remote, msg, replyHandler, timeout, false);
+    }
+
+    private RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout,
+            boolean streamingReplies) {
+        RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout, streamingReplies);
         pkt.timestamp = System.currentTimeMillis();
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
@@ -97,7 +106,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 
     @Override
     public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
-        RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout);
+        RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout, false);
         pkt.timestamp = this.timestamp;
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
@@ -162,44 +171,25 @@ final public class RpcPacket extends AbstractRpcPacket {
         }
     }
 
-    @Override
-    public RpcHandle enableDeferredReplies(long timeout) {
-        deferredRepliesTimeout = (int) timeout;
-        synchronized (fac.handlers1) {
-            fac.handlers0.put(replyHandlerId, this);
-            fac.handlers1.remove(replyHandlerId);
-        }
-        return this;
+    public String toString2() {
+        return String.format("RPC(%s,%s,%s) : %s ", handlerId, replyHandlerId, this.handler, this.payload == null ? ""
+                : payload.getClass());
     }
 
     public String toString() {
-        return payload != null ? payload.getClass().toString() : String.format("RPC(%s,%s,%s)", handlerId,
-                replyHandlerId, this.handler);
+        return this.replyHandlerId + " " + (payload != null ? payload.getClass() : "null");
     }
 
     @Override
     public void deliverTo(TransportConnection conn, MessageHandler handler) {
-        ((RpcFactoryImpl) handler).onReceive(conn, this);
+        ((RpcFactoryImpl) handler).dispatch(conn, this);
     }
 
     // [0-MAX_SERVICE_ID[ are reserved for static service handlers.
-    static long g_handlers = RPC_MAX_SERVICE_ID;
+    static AtomicLong g_handlers = new AtomicLong(RPC_MAX_SERVICE_ID);
 
     @Override
     public RpcFactory getFactory() {
         return fac;
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T extends RpcMessage> T request(Endpoint dst, RpcMessage m) {
-        RpcHandle reply = send(dst, m, RpcHandler.NONE, Integer.MAX_VALUE);
-        // System.err.printf("RTT for: %s  = %s\n", m, reply.rtt());
-        if (!reply.failed()) {
-            reply = reply.getReply();
-            if (reply != null)
-                return (T) reply.getPayload();
-        }
-        return null;
     }
 }

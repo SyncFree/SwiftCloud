@@ -16,6 +16,8 @@
  *****************************************************************************/
 package sys.net.api.rpc;
 
+import java.util.concurrent.Executor;
+
 public interface RpcFactory {
 
     /**
@@ -58,4 +60,5 @@ public interface RpcFactory {
      */
     RpcEndpoint toDefaultService();
 
+    public void setExecutor(Executor executor);
 }
