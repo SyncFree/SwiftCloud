@@ -162,7 +162,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             DCSequencerServer.main(new String[] { "-name", "X" });
             DCServer.main(new String[] { "-servers", "localhost" });
 
-            args = new String[] { "-servers", "localhost", "-threads", "10", "-props", "swiftsocial-test.props" };
+            args = new String[] { "-servers", "localhost", "-threads", "2", "-props", "swiftsocial-test.props" };
             instance.initDB(args);
             instance.doBenchmark(args);
             exit(0);

@@ -54,6 +54,7 @@ public class SwiftSocialApp {
     protected boolean subscribeUpdates;
     protected boolean asyncCommit;
 
+    protected boolean dumpStalenessStats = false;
     protected int thinkTime;
     protected int numUsers;
     protected int userFriends;
@@ -160,7 +161,8 @@ public class SwiftSocialApp {
                 // socialClient.read(toks[1], new ArrayList<Message>(), new
                 // ArrayList<Message>());
                 String readTimeRecord = socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
-                bufferedOutput.println(readTimeRecord);
+                if (dumpStalenessStats)
+                    bufferedOutput.println(readTimeRecord);
                 break;
             }
         case SEE_FRIENDS:
@@ -176,13 +178,15 @@ public class SwiftSocialApp {
         case STATUS:
             if (toks.length == 2) {
                 final String postTimeRecord = socialClient.updateStatus(toks[1], System.currentTimeMillis());
-                bufferedOutput.println(postTimeRecord);
+                if (dumpStalenessStats)
+                    bufferedOutput.println(postTimeRecord);
                 break;
             }
         case POST:
             if (toks.length == 3) {
                 final String postTimeRecord = socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
-                bufferedOutput.println(postTimeRecord);
+                if (dumpStalenessStats)
+                    bufferedOutput.println(postTimeRecord);
                 break;
             }
         default:

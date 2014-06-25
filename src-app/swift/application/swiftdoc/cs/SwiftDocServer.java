@@ -40,13 +40,13 @@ import swift.client.AbstractObjectUpdatesListener;
 import swift.client.SwiftImpl;
 import swift.client.SwiftOptions;
 import swift.crdt.SequenceCRDT;
+import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CachePolicy;
 import swift.crdt.core.IsolationLevel;
 import swift.crdt.core.SwiftScout;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
-import swift.crdt.core.CRDT;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -116,7 +116,6 @@ public class SwiftDocServer {
             Networking.rpcBind(port, TransportProvider.DEFAULT).toService(0, new AppRpcHandler() {
 
                 public void onReceive(RpcHandle client, final InitScoutServer r) {
-                    client.enableDeferredReplies(Integer.MAX_VALUE);
                     getSession(client.remoteEndpoint(), client, d1, d2);
                     client.reply(new ServerACK(r));
                 }
@@ -175,7 +174,6 @@ public class SwiftDocServer {
         this.swift1 = swift12;
         this.swift2 = swift22;
         installClientNotifier();
-        this.clientHandle = client.enableDeferredReplies(Integer.MAX_VALUE);
     }
 
     public void begin() {
@@ -210,8 +208,8 @@ public class SwiftDocServer {
         try {
             NotificationHandler notifier = new NotificationHandler();
             final TxnHandle handle = swift2.beginTxn(isolationLevel, CachePolicy.CACHED, false);
-            SequenceCRDT<TextLine> doc = (SequenceCRDT<TextLine>) handle.get(j2, true,
-                    swift.crdt.SequenceCRDT.class, notifier);
+            SequenceCRDT<TextLine> doc = (SequenceCRDT<TextLine>) handle.get(j2, true, swift.crdt.SequenceCRDT.class,
+                    notifier);
             handle.commit();
             notifier.onObjectUpdate(handle, j2, doc);
         } catch (Exception e) {
