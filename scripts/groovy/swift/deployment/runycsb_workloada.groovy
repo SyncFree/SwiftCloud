@@ -34,7 +34,7 @@ ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 YCSBProps = "swiftycsb.properties"
-DbSize = 10000
+DbSize = 100000
 OpsNum = 500000
 
 Duration = 240
@@ -53,8 +53,8 @@ sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 deployTo(AllMachines, SwiftYCSB.genPropsFile(['recordcount': DbSize.toString(),
-    'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true', 'readproportion':'1',
-    'updateproportion':'0','fieldlength':'1',
+    'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true', 'readproportion':'0.5',
+    'updateproportion':'0.5','fieldlength':'1',
     'swift.computeMetadataStatistics':'false',
     //    'swift.cacheSize':'256',
     //    'swift.asyncCommit':'true',
