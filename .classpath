@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
-	<classpathentry excluding="swift/client/proto/BaseServer.java|swift/client/proto/FastRecentUpdatesReply.java|swift/client/proto/FastRecentUpdatesReplyHandler.java|swift/client/proto/FastRecentUpdatesRequest.java|swift/client/proto/GenerateTimestampReply.java|swift/client/proto/GenerateTimestampReplyHandler.java|swift/client/proto/GenerateTimestampRequest.java|swift/client/proto/KeepaliveReply.java|swift/client/proto/KeepaliveReplyHandler.java|swift/client/proto/KeepaliveRequest.java|swift/client/proto/RecentUpdatesReply.java|swift/client/proto/RecentUpdatesReplyHandler.java|swift/client/proto/RecentUpdatesRequest.java|swift/client/proto/SubscriptionType.java|swift/client/proto/SwiftServer.java|swift/dc/Handler.java|swift/dc/Request.java|swift/dc/RpcClient.java|swift/dc/TestClient.java|swift/dc/TestGetClient.java|swift/dc/TestGetNotifyClient.java|swift/dc/TestIncClient.java|swift/dc/proto/DHTSendNotification.java|swift/dc/proto/SequencerServer.java|swift/proto/DHTSendNotification.java|swift/proto/MultiSeqCommitUpdatesReply.java|swift/proto/MultiSeqCommitUpdatesReplyHandler.java|swift/proto/MultipleSeqCommitUpdatesRequest.java|swift/proto/SequencerServer.java|swift/proto/SilentFailRpcHandler.java|swift/pubsub/oldDcPubSubService.java|swift/pubsub/oldScoutPubSubService.java|sys/pubsub/impl/PubSubService.java|swift/proto/UpdatesNotification.java" kind="src" path="src-core"/>
+	<classpathentry excluding="swift/client/proto/BaseServer.java|swift/client/proto/FastRecentUpdatesReply.java|swift/client/proto/FastRecentUpdatesReplyHandler.java|swift/client/proto/FastRecentUpdatesRequest.java|swift/client/proto/GenerateTimestampReply.java|swift/client/proto/GenerateTimestampReplyHandler.java|swift/client/proto/GenerateTimestampRequest.java|swift/client/proto/KeepaliveReply.java|swift/client/proto/KeepaliveReplyHandler.java|swift/client/proto/KeepaliveRequest.java|swift/client/proto/RecentUpdatesReply.java|swift/client/proto/RecentUpdatesReplyHandler.java|swift/client/proto/RecentUpdatesRequest.java|swift/client/proto/SubscriptionType.java|swift/client/proto/SwiftServer.java|swift/dc/Handler.java|swift/dc/Request.java|swift/dc/RpcClient.java|swift/dc/TestClient.java|swift/dc/TestGetClient.java|swift/dc/TestGetNotifyClient.java|swift/dc/TestIncClient.java|swift/dc/proto/DHTSendNotification.java|swift/dc/proto/SequencerServer.java|swift/proto/DHTSendNotification.java|swift/proto/MultiSeqCommitUpdatesReply.java|swift/proto/MultiSeqCommitUpdatesReplyHandler.java|swift/proto/MultipleSeqCommitUpdatesRequest.java|swift/proto/SequencerServer.java|swift/proto/SilentFailRpcHandler.java|swift/pubsub/oldDcPubSubService.java|swift/pubsub/oldScoutPubSubService.java|sys/pubsub/impl/PubSubService.java|swift/proto/UpdatesNotification.java|sys/net/impl/providers/netty/TcpEndpoint2.java|swift/utils/FutureResult.java|swift/dc/CopyOfDCSurrogate.java" kind="src" path="src-core"/>
 	<classpathentry excluding="swift/client/SwiftImplTest.java" kind="src" path="src-core-test"/>
 	<classpathentry excluding="loria/" kind="src" path="src-contrib"/>
 	<classpathentry excluding="swift/application/filesystem/|swift/application/swiftset/" kind="src" path="src-app"/>
@@ -14,7 +14,6 @@
 	<classpathentry kind="lib" path="lib/core/xpp3_min-1.1.4c.jar"/>
 	<classpathentry kind="lib" path="lib/core/xstream-1.4.3.jar"/>
 	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
-	<classpathentry kind="lib" path="lib/core/netty-3.6.5.Final.jar"/>
 	<classpathentry exported="true" kind="con" path="GROOVY_SUPPORT"/>
 	<classpathentry kind="lib" path="lib/extras/tpcw/colt.jar"/>
 	<classpathentry kind="lib" path="lib/extras/tpcw/httpclient-4.1.1.jar"/>
@@ -29,5 +28,6 @@
 	<classpathentry kind="lib" path="lib/core/minlog-1.2.jar"/>
 	<classpathentry kind="lib" path="lib/core/reflectasm-1.09-shaded.jar"/>
 	<classpathentry kind="lib" path="lib/core/je-6.0.11.jar"/>
+	<classpathentry kind="lib" path="lib/core/netty-all-4.0.20.Final.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

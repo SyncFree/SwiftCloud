@@ -83,7 +83,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
     }
 
     @Override
-    public TransportConnection connect(Endpoint remote) {
+    public TransportConnection connect(final Endpoint remote) {
         try {
             workerGroup = new NioEventLoopGroup();
 

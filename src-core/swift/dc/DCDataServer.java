@@ -151,7 +151,7 @@ final class DCDataServer {
      */
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    void dhtRequest(Endpoint dst, final RpcMessage req, FutureResultHandler rh) {
+    void dhtRequest(Endpoint dst, final RpcMessage req, final FutureResultHandler rh) {
         dhtEndpoint.send(dst, req, new SwiftProtocolHandler() {
             public void onReceive(DHTExecCRDTReply reply) {
                 rh.onResult(reply.getResult());

@@ -223,7 +223,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     @SuppressWarnings("rawtypes")
-    private void handleFetchVersionRequest(RpcHandle conn, FetchObjectVersionRequest request) {
+    private void handleFetchVersionRequest(RpcHandle conn, final FetchObjectVersionRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
                     + request.getUid());
@@ -248,13 +248,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         CausalityClock estimatedDCStableVersionCopy = getEstimatedDCStableVersionCopy();
 
-        CausalityClock disasterSafeVVReply = request.isSendDCVector() ? disasterSafeVVReply = estimatedDCStableVersionCopy
-                .clone() : null;
+        final CausalityClock disasterSafeVVReply = request.isSendDCVector() ? estimatedDCStableVersionCopy.clone()
+                : null;
 
         // TODO: for nodes !request.isDisasterSafe() send it
         // less
         // frequently (it's for pruning only)
-        CausalityClock vvReply = !request.isDisasterSafeSession() && request.isSendDCVector() ? vvReply = estimatedDCVersionCopy
+        final CausalityClock vvReply = !request.isDisasterSafeSession() && request.isSendDCVector() ? estimatedDCVersionCopy
                 .clone() : null;
 
         dataServer.getCRDT(request.getUid(), request.getVersion(), request.getClientId(), request.hasSubscription(),
