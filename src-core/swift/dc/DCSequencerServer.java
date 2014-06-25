@@ -528,6 +528,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         }
         if (isBackup && !upgradeToPrimary())
             return;
+
         conn.reply(new LatestKnownClockReply(currentClockCopy(), stableClockCopy()));
     }
 
@@ -672,7 +673,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
     @Override
     public void onReceive(final RpcHandle conn, PingRequest request) {
-        PingReply reply = new PingReply( request.getTimeAtSender(), System.nanoTime());
+        PingReply reply = new PingReply(request.getTimeAtSender(), System.nanoTime());
         conn.reply(reply);
     }
 

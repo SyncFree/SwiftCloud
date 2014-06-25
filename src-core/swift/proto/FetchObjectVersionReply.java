@@ -119,7 +119,8 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        // ((SwiftProtocolHandler) handler).onReceive(conn, this);
+        if (handler != RpcHandler.NONE)
+            ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
     @Override

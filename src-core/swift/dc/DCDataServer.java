@@ -54,6 +54,7 @@ import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.DataServerPubSubService;
 import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.UpdateNotification;
+import swift.utils.FutureResultHandler;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
@@ -148,6 +149,19 @@ final class DCDataServer {
     /**
      * Start DHT subsystem...
      */
+
+    @SuppressWarnings({ "unchecked", "rawtypes" })
+    void dhtRequest(Endpoint dst, final RpcMessage req, FutureResultHandler rh) {
+        dhtEndpoint.send(dst, req, new SwiftProtocolHandler() {
+            public void onReceive(DHTExecCRDTReply reply) {
+                rh.onResult(reply.getResult());
+            }
+
+            public void onReceive(DHTGetCRDTReply reply) {
+                rh.onResult(reply.getObject());
+            }
+        }, 0);
+    }
 
     @SuppressWarnings("unchecked")
     <V> V dhtRequest(Endpoint dst, final RpcMessage req) {
@@ -304,13 +318,25 @@ final class DCDataServer {
         }
     }
 
-    // /**
-    // * Return null if CRDT does not exist
-    // */
-    // <V extends CRDT<V>> CRDTData<V> putCRDT(CRDTIdentifier id, CRDT<V> crdt,
-    // CausalityClock clk, CausalityClock prune) {
-    // return localPutCRDT( localSurrogate, id, crdt, clk, prune);
-    // }
+    /**
+     * Return null if CRDT does not exist
+     * 
+     * If clock equals to null, just return full CRDT
+     * 
+     * @param subscribe
+     *            Subscription type
+     * @return null if cannot fulfill request
+     */
+    void getCRDT(final CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed,
+            FutureResultHandler<ManagedCRDT> rh) {
+        Endpoint dst = DHT_Node.resolveKey(id.toString());
+        if (dst == null) {
+            rh.onResult(localGetCRDTObject(id, clk, clientId, isSubscribed));
+        } else {
+            dhtRequest(dst, new DHTGetCRDT(id, clk, clientId, isSubscribed), rh);
+        }
+    }
+
     /**
      * Return null if CRDT does not exist
      * 

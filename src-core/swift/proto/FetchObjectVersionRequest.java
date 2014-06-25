@@ -40,6 +40,8 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     protected boolean subscribe;
     protected boolean sendDCVector;
 
+    public transient RpcHandle replyHandle;
+
     public long timestamp = sys.Sys.Sys.timeMillis(); // FOR EVALUATION, TO BE
                                                       // REMOVED...
 
@@ -125,6 +127,10 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     public CausalityClock getDistasterDurableClock() {
         return null;
         // return disasterDurableClock;
+    }
+
+    public void setHandle(RpcHandle replyHandle) {
+        this.replyHandle = replyHandle;
     }
 
     @Override

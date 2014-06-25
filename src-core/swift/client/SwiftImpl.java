@@ -91,7 +91,6 @@ import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.scheduler.PeriodicTask;
-import sys.scheduler.Task;
 import sys.stats.DummyStats;
 import sys.stats.Stats;
 import sys.stats.StatsConstants;
@@ -424,7 +423,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         new PeriodicTask(10, 10) {
             public void run() {
-                clockSkewEstimate();
+                // clockSkewEstimate();
             }
         };
 

@@ -16,13 +16,13 @@
  *****************************************************************************/
 package swift.proto;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Output;
-
 import swift.clocks.CausalityClock;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Output;
 
 /**
  * Server reply to client's latest known clock request.
@@ -63,7 +63,8 @@ public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
-        // smd ((SwiftProtocolHandler) handler).onReceive(conn, this);
+        if (handler != RpcHandler.NONE)
+            ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
     @Override
