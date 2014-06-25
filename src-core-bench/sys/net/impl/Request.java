@@ -16,7 +16,6 @@
  *****************************************************************************/
 package sys.net.impl;
 
-import static sys.Sys.Sys;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
@@ -33,20 +32,13 @@ import com.esotericsoftware.kryo.io.Output;
  */
 public class Request implements RpcMessage, KryoSerializable {
 
-    public int val;
-    public double timestamp;
+    public long val;
 
     Request() {
     }
 
-    public Request(int val) {
+    public Request(long val) {
         this.val = val;
-        this.timestamp = Sys.currentTime();
-    }
-
-    public Request(int val, double ts) {
-        this.val = val;
-        this.timestamp = ts;
     }
 
     public String toString() {
@@ -60,13 +52,11 @@ public class Request implements RpcMessage, KryoSerializable {
 
     @Override
     final public void read(Kryo kryo, Input input) {
-        this.val = input.readInt();
-        this.timestamp = input.readDouble();
+        this.val = input.readLong();
     }
 
     @Override
     final public void write(Kryo kryo, Output output) {
-        output.writeInt(this.val);
-        output.writeDouble(this.timestamp);
+        output.writeLong(this.val);
     }
 }

@@ -20,8 +20,9 @@ import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
 import java.net.UnknownHostException;
-import java.util.SortedSet;
-import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -29,32 +30,32 @@ import sys.net.api.Endpoint;
 import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
-import sys.stats.Tally;
 import sys.utils.Threading;
 
 public class RpcClient {
     public static Logger Log = Logger.getLogger(RpcClient.class.getName());
 
-    static double sumRTT = 0, totRTT = 0;
+    static AtomicInteger g_counter = new AtomicInteger(-1);
+
+    static AtomicLong rttSum = new AtomicLong(0);
+    static AtomicLong rttCount = new AtomicLong(0);
 
     public void doIt(String serverAddr) {
+
+        int index = g_counter.incrementAndGet();
 
         RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
 
         final Endpoint server = Networking.resolve(serverAddr, RpcServer.PORT);
 
-        double T0 = Sys.currentTime();
+        double T0 = Sys.currentTime(), T = 0;
 
-        final SortedSet<Integer> values = new TreeSet<Integer>();
+        final ConcurrentHashMap<Long, Long> values = new ConcurrentHashMap<Long, Long>();
 
-        final Tally rtt = new Tally("rtt");
-        final Tally maxRTT = new Tally("max rtt");
-        for (int n = 0;; n++) {
-            synchronized (values) {
-                values.add(n);
-            }
+        for (long n = 0;; n++) {
 
-            RpcHandle h = endpoint.send(server, new Request(n), new Handler() {
+            values.put(n, System.nanoTime());
+            endpoint.send(server, new Request(n), new Handler() {
 
                 @Override
                 public void onFailure(RpcHandle handle) {
@@ -63,37 +64,28 @@ public class RpcClient {
 
                 @Override
                 public void onReceive(Reply r) {
-                    rtt.add(r.rtt() / 1000);
-                    // System.err.printf("%.1f/%.1f/%.1f - %.1f\n", rtt.min(),
-                    // rtt.average(), rtt.max(), maxRTT.average());
-                    if (rtt.numberObs() % 9999 == 0) {
-                        maxRTT.add(rtt.max());
-                        rtt.init();
-                    }
-                    synchronized (values) {
-                        values.remove(r.val);
-                    }
-                    sumRTT += r.rtt();
-                    totRTT++;
+                    long nanos = System.nanoTime() - values.remove(r.val);
+                    rttSum.addAndGet(nanos / 1000);
+                    rttCount.incrementAndGet();
                 }
 
-            });
+            }, 0);
 
-            h.getReply();
+            double now = Sys.currentTime();
+            if (index == 0 && (now - T) > 15) {
+                T = now;
+                final double total = rttCount.get();
+                double elapsed = Sys.currentTime() - T0;
+                System.out.printf(endpoint.localEndpoint()
+                        + " #total %.0f, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total, total / elapsed,
+                        values.size(), rttSum.get() / total);
 
-            int total = n;
-            if (total % 9999 == 0) {
-                synchronized (values) {
-                    System.out.printf(endpoint.localEndpoint()
-                            + " #total %d, RPCs/sec %.1f Lag %d rpcs, avg RTT %.0f us\n", total,
-                            +total / (Sys.currentTime() - T0), (values.isEmpty() ? 0 : (n - values.first())), sumRTT
-                                    / totRTT);
-                }
+                T0 = now;
+                rttCount.set(0);
+                rttSum.set(0);
             }
-            // System.out.printf("\rBytes sent: %s, received: %s",
-            // server.getOutgoingBytesCounter(),
-            // server.getIncomingBytesCounter());
-            while (values.size() > 1000)
+
+            while (values.size() > 100)
                 Threading.sleep(1);
         }
     }
@@ -104,6 +96,9 @@ public class RpcClient {
         String serverAddr = args.length > 0 ? args[0] : "localhost";
 
         sys.Sys.init();
+
+        KryoLib.register(Request.class, 0x100);
+        KryoLib.register(Reply.class, 0x101);
 
         new RpcClient().doIt(serverAddr);
     }

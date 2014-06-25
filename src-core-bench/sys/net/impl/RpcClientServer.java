@@ -26,16 +26,14 @@ public class RpcClientServer {
 
     public static void main(final String[] args) throws UnknownHostException {
 
-        KryoLib.register(Request.class, 0x100);
-        KryoLib.register(Reply.class, 0x101);
+        if (args.length == 0)
+            RpcServer.main(new String[0]);
 
-        RpcServer.main(new String[0]);
-
-        for (int i = 0; i < 1; i++)
-            Threading.newThread(true, new Runnable() {
+        for (int i = 0; i < 64; i++)
+            Threading.newThread(false, new Runnable() {
                 public void run() {
                     try {
-                        RpcClient.main(new String[0]);
+                        RpcClient.main(args);
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }

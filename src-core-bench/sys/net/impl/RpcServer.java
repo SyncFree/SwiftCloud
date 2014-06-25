@@ -36,8 +36,7 @@ public class RpcServer extends Handler {
 
     @Override
     public void onReceive(final RpcHandle handle, final Request req) {
-        // System.err.println("Server: " + req );
-        handle.reply(new Reply(req.val, req.timestamp));
+        handle.reply(new Reply(req.val));
     }
 
     /*
@@ -46,6 +45,9 @@ public class RpcServer extends Handler {
     public static void main(final String[] args) {
 
         Sys.init();
+
+        KryoLib.register(Request.class, 0x100);
+        KryoLib.register(Reply.class, 0x101);
 
         new RpcServer();
     }
