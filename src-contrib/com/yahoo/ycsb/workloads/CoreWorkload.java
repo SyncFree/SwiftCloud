@@ -18,6 +18,7 @@
 package com.yahoo.ycsb.workloads;
 
 import java.util.Properties;
+
 import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.CounterGenerator;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
@@ -27,6 +28,7 @@ import com.yahoo.ycsb.generator.ConstantIntegerGenerator;
 import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
 import com.yahoo.ycsb.generator.HistogramGenerator;
 import com.yahoo.ycsb.generator.IntegerGenerator;
+import com.yahoo.ycsb.generator.ScrambledIntegerGeneratorDecorator;
 import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
 import com.yahoo.ycsb.generator.SkewedLatestGenerator;
 import com.yahoo.ycsb.generator.UniformIntegerGenerator;
@@ -36,6 +38,7 @@ import com.yahoo.ycsb.measurements.Measurements;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.UUID;
 import java.util.Vector;
 
 /**
@@ -55,6 +58,7 @@ import java.util.Vector;
  * <LI><b>scanproportion</b>: what proportion of operations should be scans (default: 0)
  * <LI><b>readmodifywriteproportion</b>: what proportion of operations should be read a record, modify it, write it back (default: 0)
  * <LI><b>requestdistribution</b>: what distribution should be used to select the records to operate on - uniform, zipfian, hotspot, or latest (default: uniform)
+ * <LI><b>uniquerequestdistributionperclient</b>: should the distribution of request be unique per client and exhibit some per-client locality or not (default: false))
  * <LI><b>maxscanlength</b>: for scans, what is the maximum number of records to scan (default: 1000)
  * <LI><b>scanlengthdistribution</b>: for scans, what distribution should be used to choose the number of records to scan, for each scan, between 1 and maxscanlength (default: uniform)
  * <LI><b>insertorder</b>: should records be inserted in order by key ("ordered"), or in hashed order ("hashed") (default: hashed)
@@ -207,6 +211,19 @@ public class CoreWorkload extends Workload
 	 * The default distribution of requests across the keyspace
 	 */
 	public static final String REQUEST_DISTRIBUTION_PROPERTY_DEFAULT="uniform";
+	
+
+    /**
+     * The name of the propoerty that determines if the requests distribution
+     * should be unique per client thread (enforces access locality). Options
+     * are "true" and "false".
+     */
+    public static final String UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY = "uniquerequestdistributionperclient";
+
+    /**
+     * The default for {@link #UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY}.
+     */
+	private static final String UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY_DEFAULT = "false";
 
 	/**
 	 * The name of the property for the max scan length (number of records)
@@ -257,7 +274,7 @@ public class CoreWorkload extends Workload
    * Default value of the percentage operations accessing the hot set.
    */
   public static final String HOTSPOT_OPN_FRACTION_DEFAULT = "0.8";
-	
+
 	IntegerGenerator keysequence;
 
 	DiscreteGenerator operationchooser;
@@ -273,6 +290,12 @@ public class CoreWorkload extends Workload
 	boolean orderedinserts;
 
 	int recordcount;
+
+	int expectedrecordcount;
+
+    private int jvmUid;
+
+    private boolean uniqueRequestDistributionPerClient;
 	
 	protected static IntegerGenerator getFieldLengthGenerator(Properties p) throws WorkloadException{
 		IntegerGenerator fieldlengthgenerator;
@@ -314,7 +337,11 @@ public class CoreWorkload extends Workload
 		double scanproportion=Double.parseDouble(p.getProperty(SCAN_PROPORTION_PROPERTY,SCAN_PROPORTION_PROPERTY_DEFAULT));
 		double readmodifywriteproportion=Double.parseDouble(p.getProperty(READMODIFYWRITE_PROPORTION_PROPERTY,READMODIFYWRITE_PROPORTION_PROPERTY_DEFAULT));
 		recordcount=Integer.parseInt(p.getProperty(Client.RECORD_COUNT_PROPERTY));
+        expectedrecordcount = recordcount;
 		String requestdistrib=p.getProperty(REQUEST_DISTRIBUTION_PROPERTY,REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
+        uniqueRequestDistributionPerClient = Boolean.parseBoolean(p.getProperty(
+                UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY,
+                UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY_DEFAULT));
 		int maxscanlength=Integer.parseInt(p.getProperty(MAX_SCAN_LENGTH_PROPERTY,MAX_SCAN_LENGTH_PROPERTY_DEFAULT));
 		String scanlengthdistrib=p.getProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,SCAN_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT);
 		
@@ -334,6 +361,7 @@ public class CoreWorkload extends Workload
                     double frac       = Double.parseDouble(p.getProperty(ExponentialGenerator.EXPONENTIAL_FRAC_PROPERTY,
                                                                          ExponentialGenerator.EXPONENTIAL_FRAC_DEFAULT));
                     keychooser = new ExponentialGenerator(percentile, recordcount*frac);
+                    expectedrecordcount = (int) ((double) recordcount*frac);
 		}
 		else
 		{
@@ -385,6 +413,7 @@ public class CoreWorkload extends Workload
 			int expectednewkeys=(int)(((double)opcount)*insertproportion*2.0); //2 is fudge factor
 			
 			keychooser=new ScrambledZipfianGenerator(recordcount+expectednewkeys);
+			expectedrecordcount = recordcount + expectednewkeys;
 		}
 		else if (requestdistrib.compareTo("latest")==0)
 		{
@@ -398,8 +427,7 @@ public class CoreWorkload extends Workload
           HOTSPOT_OPN_FRACTION, HOTSPOT_OPN_FRACTION_DEFAULT));
       keychooser = new HotspotIntegerGenerator(0, recordcount - 1, 
           hotsetfraction, hotopnfraction);
-    }
-		else
+		} else
 		{
 			throw new WorkloadException("Unknown request distribution \""+requestdistrib+"\"");
 		}
@@ -418,6 +446,7 @@ public class CoreWorkload extends Workload
 		{
 			throw new WorkloadException("Distribution \""+scanlengthdistrib+"\" not allowed for scan length");
 		}
+		jvmUid = Long.valueOf(UUID.randomUUID().getMostSignificantBits()).hashCode();
 	}
 
 	public String buildKeyName(long keynum) {
@@ -446,6 +475,15 @@ public class CoreWorkload extends Workload
 		values.put(fieldname,data);
 		return values;
 	}
+	
+	@Override
+	public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
+	    if (uniqueRequestDistributionPerClient) {
+	        return new ScrambledIntegerGeneratorDecorator(keysequence, expectedrecordcount, jvmUid + mythreadid);
+	    } else {
+	        return null;
+	    }
+    }
 
 	/**
 	 * Do one insert operation. Because it will be called concurrently from multiple client threads, this 
@@ -476,50 +514,57 @@ public class CoreWorkload extends Workload
 
 		if (op.compareTo("READ")==0)
 		{
-			doTransactionRead(db);
+			doTransactionRead(db, threadstate);
 		}
 		else if (op.compareTo("UPDATE")==0)
 		{
-			doTransactionUpdate(db);
+			doTransactionUpdate(db, threadstate);
 		}
 		else if (op.compareTo("INSERT")==0)
 		{
-			doTransactionInsert(db);
+			doTransactionInsert(db, threadstate);
 		}
 		else if (op.compareTo("SCAN")==0)
 		{
-			doTransactionScan(db);
+			doTransactionScan(db, threadstate);
 		}
 		else
 		{
-			doTransactionReadModifyWrite(db);
+			doTransactionReadModifyWrite(db, threadstate);
 		}
 		
 		return true;
 	}
 
-    int nextKeynum() {
+    int nextKeynum(Object threadstate) {
+        final IntegerGenerator chooser;
+        if (uniqueRequestDistributionPerClient) {
+            chooser = (IntegerGenerator) threadstate;
+        } else {
+            chooser = keychooser;
+        }
         int keynum;
         if(keychooser instanceof ExponentialGenerator) {
             do
                 {
-                    keynum=transactioninsertkeysequence.lastInt() - keychooser.nextInt();
+                    keynum=transactioninsertkeysequence.lastInt() - chooser.nextInt();
                 }
             while(keynum < 0);
         } else {
             do
                 {
-                    keynum=keychooser.nextInt();
+                    keynum=chooser.nextInt();
                 }
+            // FIXME: does it work with Scrambled???
             while (keynum > transactioninsertkeysequence.lastInt());
         }
         return keynum;
     }
 
-	public void doTransactionRead(DB db)
+	public void doTransactionRead(DB db, Object threadstate)
 	{
 		//choose a random key
-		int keynum = nextKeynum();
+		int keynum = nextKeynum(threadstate);
 		
 		String keyname = buildKeyName(keynum);
 		
@@ -537,10 +582,10 @@ public class CoreWorkload extends Workload
 		db.read(table,keyname,fields,new HashMap<String,ByteIterator>());
 	}
 	
-	public void doTransactionReadModifyWrite(DB db)
+	public void doTransactionReadModifyWrite(DB db, Object threadstate)
 	{
 		//choose a random key
-		int keynum = nextKeynum();
+		int keynum = nextKeynum(threadstate);
 
 		String keyname = buildKeyName(keynum);
 
@@ -581,10 +626,10 @@ public class CoreWorkload extends Workload
 		Measurements.getMeasurements().measure("READ-MODIFY-WRITE", (int)((en-st)/1000));
 	}
 	
-	public void doTransactionScan(DB db)
+	public void doTransactionScan(DB db, Object threadstate)
 	{
 		//choose a random key
-		int keynum = nextKeynum();
+		int keynum = nextKeynum(threadstate);
 
 		String startkeyname = buildKeyName(keynum);
 		
@@ -605,10 +650,10 @@ public class CoreWorkload extends Workload
 		db.scan(table,startkeyname,len,fields,new Vector<HashMap<String,ByteIterator>>());
 	}
 
-	public void doTransactionUpdate(DB db)
+	public void doTransactionUpdate(DB db, Object threadstate)
 	{
 		//choose a random key
-		int keynum = nextKeynum();
+		int keynum = nextKeynum(threadstate);
 
 		String keyname=buildKeyName(keynum);
 
@@ -628,7 +673,7 @@ public class CoreWorkload extends Workload
 		db.update(table,keyname,values);
 	}
 
-	public void doTransactionInsert(DB db)
+	public void doTransactionInsert(DB db, Object threadstate)
 	{
 		//choose the next key
 		int keynum=transactioninsertkeysequence.nextInt();

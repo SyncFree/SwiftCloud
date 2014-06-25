@@ -21,6 +21,10 @@ package com.yahoo.ycsb;
 import java.io.*;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.Map.Entry;
+
+import swift.utils.SafeLog;
+import sys.herd.Shepard;
 
 import com.yahoo.ycsb.measurements.Measurements;
 import com.yahoo.ycsb.measurements.exporter.MeasurementsExporter;
@@ -347,6 +351,7 @@ public class Client
 				"              \"threadcount\" property using -p");
 		System.out.println("  -target n: attempt to do n operations per second (default: unlimited) - can also\n" +
 				"             be specified as the \"target\" property using -p");
+		System.out.println("  -shepard addr: contact a shepard to synchronize start of multiple clients");
 		System.out.println("  -load:  run the loading phase of the workload");
 		System.out.println("  -t:  run the transactions phase of the workload (default)");
 		System.out.println("  -db dbname: specify the name of the DB to use (default: com.yahoo.ycsb.BasicDB) - \n" +
@@ -390,12 +395,12 @@ public class Client
 		MeasurementsExporter exporter = null;
 		try
 		{
-			// if no destination file is provided the results will be written to stdout
+			// if no destination file is provided the results will be written to stderr
 			OutputStream out;
 			String exportFile = props.getProperty("exportfile");
 			if (exportFile == null)
 			{
-				out = System.out;
+				out = System.err;
 			} else
 			{
 				out = new FileOutputStream(exportFile);
@@ -564,6 +569,17 @@ public class Client
 				//System.out.println("["+name+"]=["+value+"]");
 				argindex++;
 			}
+			else if (args[argindex].equals("-shepard"))
+			{
+			    argindex++;
+			    if (argindex>=args.length)
+                {
+                    usageMessage();
+                    System.exit(1);
+                }
+			    props.setProperty("shepard", args[argindex]);
+			    argindex++;
+			}
 			else
 			{
 				System.out.println("Unknown option "+args[argindex]);
@@ -618,13 +634,17 @@ public class Client
 			targetperthreadperms=targetperthread/1000.0;
 		}	 
 
-		System.out.println("YCSB Client 0.1");
-		System.out.print("Command line:");
-		for (int i=0; i<args.length; i++)
-		{
-			System.out.print(" "+args[i]);
-		}
-		System.out.println();
+        SafeLog.printlnComment("YCSB Client 0.1");
+        String cmdLine = "Command line:";
+        for (int i = 0; i < args.length; i++) {
+            cmdLine += " " + args[i];
+        }
+        SafeLog.printlnComment(cmdLine);
+        SafeLog.printlnComment("Properties:");
+        for (Entry<Object, Object> entry : props.entrySet()) {
+            SafeLog.printfComment("\t%s=%s\n", entry.getKey(), entry.getValue());
+        }
+        SafeLog.printlnComment("");
 		System.err.println("Loading workload...");
 		
 		//show a warning message that creating the workload is taking a while
@@ -722,6 +742,11 @@ public class Client
 
 			threads.add(t);
 			//t.start();
+		}
+
+		final String shepard = props.getProperty("shepard");
+		if (shepard != null && !shepard.isEmpty()) {
+		    Shepard.sheepJoinHerd(shepard);
 		}
 
 		StatusThread statusthread=null;

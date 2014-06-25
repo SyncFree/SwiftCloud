@@ -16,7 +16,6 @@
  *****************************************************************************/
 package swift.application.social;
 
-import java.io.PrintStream;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -35,6 +34,8 @@ import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.exceptions.SwiftException;
 import swift.proto.MetadataStatsCollectorImpl;
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.utils.Args;
 import sys.utils.Progress;
 import sys.utils.Props;
@@ -54,15 +55,12 @@ public class SwiftSocialApp {
     protected boolean subscribeUpdates;
     protected boolean asyncCommit;
 
-    protected boolean dumpStalenessStats = false;
     protected int thinkTime;
     protected int numUsers;
     protected int userFriends;
     protected int biasedOps;
     protected int randomOps;
     protected int opGroups;
-
-    protected PrintStream bufferedOutput;
 
     protected AtomicInteger commandsDone = new AtomicInteger(0);
     protected AtomicInteger totalCommands = new AtomicInteger(0);
@@ -78,7 +76,7 @@ public class SwiftSocialApp {
 
     public void populateWorkloadFromConfig() {
 
-        props = Props.parseFile("swiftsocial", bufferedOutput, propFile);
+        props = Props.parseFile("swiftsocial", propFile);
         isolationLevel = IsolationLevel.valueOf(Props.get(props, "swift.isolationLevel"));
         cachePolicy = CachePolicy.valueOf(Props.get(props, "swift.cachePolicy"));
         subscribeUpdates = Props.boolValue(props, "swift.notifications", false);
@@ -103,7 +101,7 @@ public class SwiftSocialApp {
     public SwiftSocialOps getSwiftSocial(final String sessionId) {
         final SwiftOptions options = new SwiftOptions(server, DCConstants.SURROGATE_PORT, props);
         if (options.hasMetadataStatsCollector()) {
-            options.setMetadataStatsCollector(new MetadataStatsCollectorImpl(sessionId, bufferedOutput));
+            options.setMetadataStatsCollector(new MetadataStatsCollectorImpl(sessionId));
         }
         SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
         SwiftSocialOps socialClient = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
@@ -116,8 +114,7 @@ public class SwiftSocialApp {
 
         totalCommands.addAndGet(commands.size());
         final long sessionStartTime = System.currentTimeMillis();
-        final String initSessionLog = String.format("%d,%s,%d,%d", -1, "INIT", 0, sessionStartTime);
-        bufferedOutput.println(initSessionLog);
+        SafeLog.report(ReportType.APP_OP, sessionId, "INIT", 0);
 
         do
             for (String cmdLine : commands) {
@@ -125,8 +122,7 @@ public class SwiftSocialApp {
                 Commands cmd = runCommandLine(socialClient, cmdLine);
                 long txnEndTime = System.currentTimeMillis();
                 final long txnExecTime = txnEndTime - txnStartTime;
-                final String log = String.format("%s,%s,%d,%d", sessionId, cmd, txnExecTime, txnEndTime);
-                bufferedOutput.println(log);
+                SafeLog.report(ReportType.APP_OP, sessionId, cmd, txnExecTime);
 
                 Threading.sleep(thinkTime);
                 commandsDone.incrementAndGet();
@@ -137,8 +133,8 @@ public class SwiftSocialApp {
 
         final long now = System.currentTimeMillis();
         final long sessionExecTime = now - sessionStartTime;
-        bufferedOutput.println(String.format("%s,%s,%d,%d", sessionId, "TOTAL", sessionExecTime, now));
-        bufferedOutput.flush();
+        SafeLog.report(ReportType.APP_OP, sessionId, "TOTAL", sessionExecTime);
+        SafeLog.flush();
     }
 
     public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
@@ -158,11 +154,7 @@ public class SwiftSocialApp {
             }
         case READ:
             if (toks.length == 2) {
-                // socialClient.read(toks[1], new ArrayList<Message>(), new
-                // ArrayList<Message>());
-                String readTimeRecord = socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
-                if (dumpStalenessStats)
-                    bufferedOutput.println(readTimeRecord);
+                socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
                 break;
             }
         case SEE_FRIENDS:
@@ -177,16 +169,12 @@ public class SwiftSocialApp {
             }
         case STATUS:
             if (toks.length == 2) {
-                final String postTimeRecord = socialClient.updateStatus(toks[1], System.currentTimeMillis());
-                if (dumpStalenessStats)
-                    bufferedOutput.println(postTimeRecord);
+                socialClient.updateStatus(toks[1], System.currentTimeMillis());
                 break;
             }
         case POST:
             if (toks.length == 3) {
-                final String postTimeRecord = socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
-                if (dumpStalenessStats)
-                    bufferedOutput.println(postTimeRecord);
+                socialClient.postMessage(toks[1], toks[2], System.currentTimeMillis());
                 break;
             }
         default:
@@ -226,7 +214,7 @@ public class SwiftSocialApp {
                     System.err.println("Could not parse the birthdate: " + toks[4]);
                 }
                 client.registerUser(txn, toks[1], toks[2], toks[3], birthday, System.currentTimeMillis());
-                System.out.printf("\rDone: %s", Progress.percentage(counter.incrementAndGet(), total));
+                System.err.printf("Done: %s\n", Progress.percentage(counter.incrementAndGet(), total));
             }
             // Commit the last batch
             if (!txn.getStatus().isTerminated()) {

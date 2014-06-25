@@ -30,16 +30,18 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
     private static List<String> users = new ArrayList<String>();
     /** List of command line operations to generate user data */
     private static List<String> userData = new ArrayList<String>();
+
     /** Size of workload, i.e. number of operations */
     abstract public int size();
 
     /**
-     * Generates random user names and other (dummy, not semantically used) attributes such as
-     * password and date of birth.
-     * Uses a fixed, pre-determined random seed to ensure every site works on the same user data.
+     * Generates random user names and other (dummy, not semantically used)
+     * attributes such as password and date of birth. Uses a fixed,
+     * pre-determined random seed to ensure every site works on the same user
+     * data.
      */
     public static void generateUsers(int numUsers) {
-        System.out.println("Generating users and user data...");
+        System.err.println("Generating users and user data...");
         Random rg = new Random(6L);
         for (int i = 0; i < numUsers; i++) {
             byte[] tmp = new byte[6];
@@ -77,6 +79,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
      */
     static class Status extends Operation {
         String[] activities = new String[] { "Running Experiments", "Drinking Coffee", "Sleeping" };
+
         @Override
         String doLine(Random rg, String user, List<String> dummy) {
             int index = rg.nextInt(activities.length);
@@ -85,8 +88,8 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
     }
 
     /**
-     * Posts a message. Target is a randomly chosen user from a list of candidates
-     * (eg. friends).
+     * Posts a message. Target is a randomly chosen user from a list of
+     * candidates (eg. friends).
      */
     static class Post extends Operation {
         @Override
@@ -98,8 +101,8 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
     }
 
     /**
-     * Reads messages and events of a user. Target is a randomly chosen user from a
-     * list of candidates (eg. allusers).
+     * Reads messages and events of a user. Target is a randomly chosen user
+     * from a list of candidates (eg. allusers).
      */
     static class Read extends Operation {
         @Override
@@ -156,30 +159,39 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         }
     }
 
-
-    /** Defines the set of available operations and their frequency. Frequencies need to add up to 100. */
+    /**
+     * Defines the set of available operations and their frequency. Frequencies
+     * need to add up to 100.
+     */
     private static Operation[] ops = new Operation[] { new Status().freq(5), new Post().freq(5), new Read().freq(80),
             new Friend().freq(2), new SeeFriends().freq(8) };
 
     private static AtomicInteger doMixedCounter = new AtomicInteger(7);
 
-    /** 
-     * Generates a workload with a mixture of operations. 
-     * The workload represents a session for some randomly chosen user.
-     * Each session starts with a login and ends with a logout operations for this user.
-     * @param site from which to chose the user from, randomly chosen if site < 0
-     * @param friends_per_user number of friends per user
-     * @param ops_biased number of ops chosen with a bias to increase data locality
-     * @param ops_random number of randomly chosen ops
-     * @param ops_groups number of operation groups to generate 
-     * @param number_of_sites number of user partitions
+    /**
+     * Generates a workload with a mixture of operations. The workload
+     * represents a session for some randomly chosen user. Each session starts
+     * with a login and ends with a logout operations for this user.
+     * 
+     * @param site
+     *            from which to chose the user from, randomly chosen if site < 0
+     * @param friends_per_user
+     *            number of friends per user
+     * @param ops_biased
+     *            number of ops chosen with a bias to increase data locality
+     * @param ops_random
+     *            number of randomly chosen ops
+     * @param ops_groups
+     *            number of operation groups to generate
+     * @param number_of_sites
+     *            number of user partitions
      * @return workload represented as an iterable collection of operations
      */
     static public Workload doMixed(int site, int friends_per_user, final int ops_biased, final int ops_random,
             final int ops_groups, int number_of_sites) {
-       // Each workload has its own seed...
-        final Random rg = new Random(doMixedCounter.addAndGet(MAX_SITES + site)); 
-  
+        // Each workload has its own seed...
+        final Random rg = new Random(doMixedCounter.addAndGet(MAX_SITES + site));
+
         // Pick a user at random from this site's user partition
         site = site < 0 ? rg.nextInt(number_of_sites) : site; // fix site
         int partitionSize = users.size() / number_of_sites;
@@ -224,9 +236,9 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
                     for (int i = 0; i < ops_random; i++)
                         group.add(new Read().doLine(rg, user, users));
                 }
-                
+
                 groupCounter++;
-                
+
                 // last group ends with logout
                 if (groupCounter == ops_groups)
                     group.add(new Logout().doLine(rg, user, null));
@@ -251,7 +263,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
             public void remove() {
                 throw new RuntimeException("On demand workload generation; remove is not supported...");
             }
-            
+
             @Override
             public int size() {
                 return 2 + ops_groups * (ops_biased + ops_random);
@@ -268,7 +280,7 @@ abstract public class Workload implements Iterable<String>, Iterator<String> {
         int numUsers = 25000;
         Workload.generateUsers(numUsers);
         System.out.println("Generated " + numUsers + " users");
-        
+
         Workload res = Workload.doMixed(0, 25, 9, 2, 2, 10);
         System.out.println("Generated " + res.size() + " operations");
         for (String i : res)

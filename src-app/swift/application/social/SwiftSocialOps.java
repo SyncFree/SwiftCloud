@@ -37,13 +37,14 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.stats.Tally;
 
 // implements the social network functionality
 // see wsocial_srv.h
 
 public class SwiftSocialOps {
-
     private static Logger logger = Logger.getLogger("swift.social");
 
     // FIXME Add sessions? Local login possible? Cookies?
@@ -210,7 +211,7 @@ public class SwiftSocialOps {
     }
 
     @SuppressWarnings("unchecked")
-    public String read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
+    public void read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
@@ -225,12 +226,10 @@ public class SwiftSocialOps {
             msgs.addAll((get(txn, user.msgList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
             evnts.addAll((get(txn, user.eventList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
             commitTxn(txn);
-            // SS,get,scoutid,key,curtime,size
+
+            // scoutid,key,size
+            SafeLog.report(ReportType.STALENESS_READ, server.getScout().getScoutId(), user.msgList, msgs.size());
             // ((ArrayList<Message>)msgs).get(0).getDate());
-
-            return "SS,get," + server.getScout().getScoutId() + "," + user.msgList + "," + System.currentTimeMillis()
-                    + "," + msgs.size();
-
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
@@ -238,12 +237,11 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
         }
-        return null;
     }
 
     // FIXME return error code?
     @SuppressWarnings("unchecked")
-    public String postMessage(String receiverName, String msg, long date) {
+    public void postMessage(String receiverName, String msg, long date) {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
@@ -259,7 +257,8 @@ public class SwiftSocialOps {
             writeMessage(txn, newMsg, receiver.msgList, updatesSubscriber);
             writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
-            return "SS,put," + server.getScout().getScoutId() + "," + receiver.msgList + "," + date;
+            // scoutid,key
+            SafeLog.report(ReportType.STALENESS_WRITE, server.getScout().getScoutId(), receiver.msgList);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
         } finally {
@@ -267,10 +266,9 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
         }
-        return null;
     }
 
-    public String updateStatus(String msg, long date) {
+    public void updateStatus(String msg, long date) {
         logger.info("Update status for " + this.currentUser.loginName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
@@ -284,7 +282,8 @@ public class SwiftSocialOps {
             writeMessage(txn, newEvt, currentUser.eventList, updatesSubscriber);
             commitTxn(txn);
 
-            return "SS,put," + server.getScout().getScoutId() + "," + currentUser.msgList + "," + date;
+            // scoutid,key
+            SafeLog.report(ReportType.STALENESS_WRITE, server.getScout().getScoutId(), currentUser.msgList);
             // TODO Broadcast update to friends
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
@@ -293,7 +292,6 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
         }
-        return null;
     }
 
     void answerFriendRequest(String requester, boolean accept) {

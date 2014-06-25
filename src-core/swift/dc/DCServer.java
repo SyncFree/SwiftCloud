@@ -83,7 +83,9 @@ public class DCServer {
                 props.setProperty(DCConstants.BERKELEYDB_DIR, "db/default");
             }
         }
+        // TODO: What is that if statement for???
         if (!props.containsKey(DCConstants.DATABASE_CLASS)) {
+            // TODO: why should we disable it?
             props.setProperty(DCConstants.PRUNE_POLICY, "false");
         }
 

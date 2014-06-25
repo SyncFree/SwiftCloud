@@ -215,6 +215,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId());
         }
+        // conn.reply(new FetchObjectVersionReply(FetchStatus.OK, new
+        // ManagedCRDT<PutOnlyLWWMapCRDT<String, String>>(
+        // request.getUid(), new PutOnlyLWWMapCRDT<String,
+        // String>(request.getUid()), request.getVersion(), true),
+        // request.getVersion(), request.getVersion()));
+        // return;
+
         if (request.hasSubscription())
             getSession(request).subscribe(request.getUid());
 

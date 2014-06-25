@@ -136,6 +136,8 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
         totRPCs.incrementAndGet();
         double t0 = Sys.timeMillis();
 
+        // RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+
         final RpcPacket handler = getHandler(pkt.handlerId);
         if (handler != null) {
             pkt.fac = this;

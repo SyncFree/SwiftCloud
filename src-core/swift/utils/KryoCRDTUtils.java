@@ -36,6 +36,8 @@ import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.LWWRegisterUpdate;
 import swift.crdt.AddWinsSetAddUpdate;
 import swift.crdt.AddWinsSetRemoveUpdate;
+import swift.crdt.PutOnlyLWWMapCRDT;
+import swift.crdt.PutOnlyLWWMapUpdate;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
@@ -98,6 +100,7 @@ public class KryoCRDTUtils {
         registerable.register(ManagedCRDT.class, 0x56);
 
         registerable.register(LWWRegisterCRDT.class, 0x58);
+        registerable.register(PutOnlyLWWMapCRDT.class, 0x59);
         // 0x59
         // registerable.register(SetIds.class, 0x60);
         // registerable.register(SetIntegers.class, 0x61);
@@ -134,6 +137,7 @@ public class KryoCRDTUtils {
         registerable.register(AddWinsSetRemoveUpdate.class, 0x87);
         registerable.register(AddOnlySetCRDT.class, 0x88);
         registerable.register(AddOnlySetUpdate.class, 0x89);
+        registerable.register(PutOnlyLWWMapUpdate.class, 0x8A);
 
         registerable.register(CommitTSRequest.class, 0x8B);
         registerable.register(CommitTSReply.class, 0x8C);

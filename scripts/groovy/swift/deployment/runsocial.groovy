@@ -40,8 +40,8 @@ OregonEC2 = [
 	'ec2-54-186-190-139.us-west-2.compute.amazonaws.com',
 ]
 
-// Optional argument - limit of scouts number
 if (args.length < 2) {
+    System.err.println "usage: runsocial.groovy <limits on scouts number per DC> <threads per scout>"
     System.exit(1)
 }
 PerDCClientNodesLimit = Integer.valueOf(args[0])
@@ -86,11 +86,11 @@ deployTo(AllMachines, props.absolutePath, SwiftSocial_Props)
 deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 
 
-def shep = SwiftSocial.runShepard( ShepardAddr, Duration, "Released" )
+def shep = SwiftBase.runShepard( ShepardAddr, Duration, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySequencers(ShepardAddr,"1024m" )
+    datacenter.deploySequencers(ShepardAddr, "1024m")
 }
 
 Sleep(10)
@@ -106,7 +106,7 @@ println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
 def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props, "2048m")
+SwiftSocial2.initDB( INIT_DB_CLIENT, INIT_DB_DC, SwiftSocial_Props, "1024m")
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
@@ -125,6 +125,7 @@ def dstDir="results/staleness/swiftsocial/" + new Date().format('MMMdd-') +
         String.format("DC-%s-SU-%s-SC-%s-TH-%s-USERS-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), Topology.totalScouts(), Threads, DbSize)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
+pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
 props.renameTo(new File(dstDir, SwiftSocial_Props))
 
 exec([
