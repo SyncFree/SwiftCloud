@@ -92,4 +92,12 @@ public class NamingScheme {
     public static CRDTIdentifier forEvents(String loginName) {
         return new CRDTIdentifier("events", loginName);
     }
+    
+    /**
+     * @param loginName
+     * @return CRDT identifier for view counters
+     */
+    public static CRDTIdentifier forViewsCounter(String loginName) {
+        return new CRDTIdentifier("views", loginName);
+    }
 }

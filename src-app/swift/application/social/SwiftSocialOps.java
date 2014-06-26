@@ -24,6 +24,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.IntegerCRDT;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
@@ -180,6 +181,7 @@ public class SwiftSocialOps {
         txn.get(newUser.friendList, true, AddWinsSetCRDT.class, null);
         txn.get(newUser.inFriendReq, true, AddWinsSetCRDT.class, null);
         txn.get(newUser.outFriendReq, true, AddWinsSetCRDT.class, null);
+        txn.get(newUser.viewsCounter, true, IntegerCRDT.class, null);
 
         // Create registration event for user
         Message newEvt = new Message(fullName + " has registered!", loginName, date);
@@ -211,20 +213,29 @@ public class SwiftSocialOps {
     }
 
     @SuppressWarnings("unchecked")
-    public void read(final String name, final Collection<Message> msgs, final Collection<Message> evnts) {
+    public int read(final String name, final Collection<Message> msgs, final Collection<Message> evnts,
+            boolean readPageViewsCounter) {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
+        int currentPageViews = 0;
         try {
-            txn = server.beginTxn(isolationLevel, cachePolicy, true);
+            final boolean readOnly = !readPageViewsCounter;
+            txn = server.beginTxn(isolationLevel, cachePolicy, readOnly);
             LWWRegisterCRDT<User> reg = (LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(name), false,
                     LWWRegisterCRDT.class);
             user = reg.getValue();
 
-            bulkGet(txn, user.msgList, user.eventList);
+            bulkGet(txn, user.msgList, user.eventList, user.viewsCounter);
 
             msgs.addAll((get(txn, user.msgList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
             evnts.addAll((get(txn, user.eventList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
+            if (readPageViewsCounter) {
+                final IntegerCRDT pageViewsCounter = get(txn, user.viewsCounter, false, IntegerCRDT.class,
+                        updatesSubscriber);
+                currentPageViews = pageViewsCounter.getValue();
+                pageViewsCounter.add(1);
+            }
             commitTxn(txn);
 
             // scoutid,key,size
@@ -237,6 +248,7 @@ public class SwiftSocialOps {
                 txn.rollback();
             }
         }
+        return currentPageViews;
     }
 
     // FIXME return error code?
