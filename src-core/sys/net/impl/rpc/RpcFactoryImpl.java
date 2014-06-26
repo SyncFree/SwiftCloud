@@ -19,8 +19,11 @@ package sys.net.impl.rpc;
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRIES;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
+import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
+import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_TIMEOUT;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -59,7 +62,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
     @Override
     synchronized public RpcEndpoint toService(final int service, final RpcHandler handler) {
-        RpcPacket res = getHandler((long) service);
+        RpcPacket res = handlers.get((long) service);
         if (res == null)
             res = new RpcPacket(this, service, handler);
         return res;
@@ -119,40 +122,20 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
     }
 
     public void dispatch(final TransportConnection conn, final RpcPacket pkt) {
-
-        if (executor == null)
-            this.onReceive(conn, pkt);
-        else {
-            pkt.conn = conn;
-            this.executor.execute(new Runnable() {
-                public void run() {
-                    onReceive(pkt.conn, pkt);
-                }
-            });
-        }
-    }
-
-    public void onReceive(final TransportConnection conn, final RpcPacket pkt) {
         totRPCs.incrementAndGet();
-        double t0 = Sys.timeMillis();
 
-        // RpcStats.logReceivedRpcPacket(pkt, conn.remoteEndpoint());
+        long hid = pkt.handlerId;
+        final RpcPacket handler = hid < RPC_MAX_SERVICE_ID ? handlers.get(hid) : handlers.remove(hid);
 
-        final RpcPacket handler = getHandler(pkt.handlerId);
         if (handler != null) {
             pkt.fac = this;
             pkt.conn = conn;
             pkt.remote = conn.remoteEndpoint();
+            handler.timestamp = Sys.timeMillis();
             handler.deliver(pkt);
-
-            // System.out.printf("%s exec for: %s, took: %s\n",
-            // sys.Sys.Sys.mainClass, pkt.payload.getClass(), Sys.timeMillis() -
-            // t0);
-            // RpcStats.logRpcExecTime(pkt.payload.getClass(), Sys.timeMillis()
-            // - t0);
-
-        } else
-            Log.warning(sys.Sys.Sys.mainClass + " - No handler for:" + pkt.payload.getClass() + " " + pkt.handlerId);
+        } else {
+            Log.warning(sys.Sys.Sys.mainClass + " - No handler for: " + pkt.payload.getClass() + " " + pkt.handlerId);
+        }
     }
 
     @Override
@@ -165,63 +148,23 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
         Thread.dumpStack();
     }
 
-    RpcPacket getHandler(Long hid) {
-        RpcPacket res;
-
-        if (hid < RPC_MAX_SERVICE_ID) {
-            res = handlers.get(hid);
-            if (res != null) {
-                res.timestamp = Sys.timeMillis();
-                return res;
-            }
-        }
-        res = handlers.remove(hid);
-        if (res != null)
-            res.timestamp = Sys.timeMillis();
-        return res;
-    }
-
     final ConcurrentHashMap<Long, RpcPacket> handlers = new ConcurrentHashMap<Long, RpcPacket>();
 
     void initStaleHandlersGC_Task() {
-        // final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName() +
-        // ".gc");
-        //
-        // new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
-        // public void run() {
-        // double now = Sys.timeMillis();
-        // synchronized (handlers0) {
-        // for (Iterator<RpcPacket> it = handlers0.values().iterator();
-        // it.hasNext();) {
-        // RpcPacket p = it.next();
-        // if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) >
-        // p.deferredRepliesTimeout) {
-        // it.remove();
-        // }
-        // }
-        // Log.finest("initStaleHandlersGC_Task(): DeferredReplies Handlers: " +
-        // handlers0.size());
-        // }
-        // synchronized (handlers1) {
-        // List<Long> expired = new ArrayList<Long>();
-        // for (Iterator<RpcPacket> it = handlers1.values().iterator();
-        // it.hasNext();) {
-        // RpcPacket p = it.next();
-        //
-        // if (p.timestamp > 0 && (now - p.timestamp) >
-        // RPC_GC_STALE_HANDLERS_TIMEOUT)
-        // expired.add(p.handlerId);
-        // }
-        // for (Long i : expired) {
-        // handlers1.remove(i);
-        // Log.finest("GC'ing Handlers: " + i);
-        //
-        // }
-        // Log.finest("initStaleHandlersGC_Task(): Reply Handlers: " +
-        // handlers1.size());
-        // }
-        // }
-        // };
+        final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName() + ".gc");
+
+        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
+            public void run() {
+                double now = Sys.timeMillis();
+                for (Iterator<RpcPacket> it = handlers.values().iterator(); it.hasNext();) {
+                    RpcPacket p = it.next();
+                    if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_TIMEOUT) {
+                        it.remove();
+                    }
+                }
+                Log.finest("initStaleHandlersGC_Task(): DeferredReplies Handlers: " + handlers.size());
+            }
+        };
     }
 }
 

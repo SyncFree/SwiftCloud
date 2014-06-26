@@ -36,7 +36,7 @@ final public class RpcPacket extends AbstractRpcPacket {
 
     private static Logger Log = Logger.getLogger(RpcPacket.class.getName());
 
-    volatile SynchronousQueue<AbstractRpcPacket> queue;
+    SynchronousQueue<AbstractRpcPacket> queue;
 
     RpcPacket() {
     }
@@ -74,17 +74,16 @@ final public class RpcPacket extends AbstractRpcPacket {
 
     @Override
     public RpcHandle send(Endpoint dst, RpcMessage msg, RpcHandler replyHandler, boolean streamingReplies) {
-        return send(remote, msg, replyHandler, 0, false);
+        return send(dst, msg, replyHandler, 0, streamingReplies);
     }
 
     @Override
-    public RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout) {
-        return send(remote, msg, replyHandler, timeout, false);
+    public RpcHandle send(Endpoint dst, RpcMessage msg, RpcHandler replyHandler, int timeout) {
+        return send(dst, msg, replyHandler, timeout, false);
     }
 
-    private RpcHandle send(Endpoint remote, RpcMessage msg, RpcHandler replyHandler, int timeout,
-            boolean streamingReplies) {
-        RpcPacket pkt = new RpcPacket(fac, remote, msg, this, replyHandler, timeout, streamingReplies);
+    private RpcHandle send(Endpoint dst, RpcMessage msg, RpcHandler replyHandler, int timeout, boolean streamingReplies) {
+        RpcPacket pkt = new RpcPacket(fac, dst, msg, this, replyHandler, timeout, streamingReplies);
         pkt.timestamp = System.currentTimeMillis();
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
@@ -98,7 +97,7 @@ final public class RpcPacket extends AbstractRpcPacket {
             }
             return pkt;
         } else {
-            pkt.remote = remote;
+            pkt.remote = dst;
             pkt.sendRpcPacket(null, this);
             return pkt;
         }
