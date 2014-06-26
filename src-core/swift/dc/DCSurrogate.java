@@ -33,6 +33,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceArray;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -104,6 +105,17 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     CausalityClock estimatedDCVersion; // estimate of current DC state
     CausalityClock estimatedDCStableVersion; // estimate of current DC state
 
+    AtomicReference<CausalityClock> estimatedDCVersionShadow; // read only
+                                                              // estimate of
+                                                              // current DC
+                                                              // state
+    AtomicReference<CausalityClock> estimatedDCStableVersionShadow; // read only
+                                                                    // estimate
+                                                                    // of
+                                                                    // current
+                                                                    // DC
+    // state
+
     public SurrogatePubSubService suPubSub;
 
     ThreadPoolExecutor crdtExecutor;
@@ -157,6 +169,9 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             estimatedDCStableVersion.merge(clk);
         }
 
+        estimatedDCVersionShadow = new AtomicReference<CausalityClock>(estimatedDCVersion.clone());
+        estimatedDCStableVersionShadow = new AtomicReference<CausalityClock>(estimatedDCStableVersion.clone());
+
         logger.info("EstimatedDCVersion: " + estimatedDCVersion);
     }
 
@@ -165,26 +180,24 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     public CausalityClock getEstimatedDCVersionCopy() {
-        synchronized (estimatedDCVersion) {
-            return estimatedDCVersion.clone();
-        }
+        return estimatedDCVersionShadow.get().clone();
     }
 
     CausalityClock getEstimatedDCStableVersionCopy() {
-        synchronized (estimatedDCStableVersion) {
-            return estimatedDCStableVersion.clone();
-        }
+        return estimatedDCStableVersionShadow.get().clone();
     }
 
     public void updateEstimatedDCVersion(CausalityClock cc) {
         synchronized (estimatedDCVersion) {
             estimatedDCVersion.merge(cc);
+            estimatedDCVersionShadow.set(estimatedDCVersion.clone());
         }
     }
 
     public void updateEstimatedDCStableVersion(CausalityClock cc) {
         synchronized (estimatedDCStableVersion) {
             estimatedDCStableVersion.merge(cc);
+            estimatedDCStableVersionShadow.set(estimatedDCStableVersion.clone());
         }
     }
 
@@ -204,7 +217,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     public void onReceive(RpcHandle conn, LatestKnownClockReply reply) {
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("LatestKnownClockRequest: forwarding reply:" + reply.getClock());
+            logger.info("LatestKnownClockReply: clk:" + reply.getClock());
         }
 
         updateEstimatedDCVersion(reply.getClock());
@@ -414,14 +427,11 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                         + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
             }
             estimatedDCVersionCopy.record(txTs);
-            synchronized (estimatedDCVersion) {
-                updateEstimatedDCVersion(reply.getCurrVersion());
-                dataServer.dbServer.writeSysData("SYS_TABLE", "CURRENT_CLK", estimatedDCVersion);
-            }
-            synchronized (estimatedDCStableVersion) {
-                updateEstimatedDCStableVersion(reply.getStableVersion());
-                dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", estimatedDCStableVersion);
-            }
+            updateEstimatedDCVersion(reply.getCurrVersion());
+            dataServer.dbServer.writeSysData("SYS_TABLE", "CURRENT_CLK", getEstimatedDCVersionCopy());
+
+            updateEstimatedDCStableVersion(reply.getStableVersion());
+            dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", getEstimatedDCStableVersionCopy());
 
             if (txnOK.get() && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
                 if (logger.isLoggable(Level.INFO)) {
