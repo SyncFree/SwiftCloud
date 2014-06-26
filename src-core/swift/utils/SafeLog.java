@@ -10,18 +10,8 @@ import java.util.EnumSet;
  * @author mzawirski
  */
 public class SafeLog {
-    public static final char COMMENT_CHAR = '#';
-
-    // TODO: support file/properties-based configuration.
-    private static EnumSet<ReportType> enabledReportsEnumSet = EnumSet.noneOf(ReportType.class);
-    static {
-        ReportType.STALENESS_CALIB.setEnable(false);
-        ReportType.STALENESS_READ.setEnable(false);
-        ReportType.STALENESS_WRITE.setEnable(false);
-    }
-
     // TODO: alternatively, just inline these things as methods for type safety
-    public enum ReportType {
+    public static enum ReportType {
         STALENESS_READ("%s,%s,%d", "scoutid,object,#msgs"),
 
         STALENESS_WRITE("%s,%s", "scoutid,object"),
@@ -54,20 +44,18 @@ public class SafeLog {
         public boolean isEnabled() {
             return enabledReportsEnumSet.contains(this);
         }
-
-        public void setEnable(boolean enable) {
-            if (enable) {
-                enabledReportsEnumSet.add(this);
-            } else {
-                enabledReportsEnumSet.remove(this);
-            }
-        }
     }
+
+    public static final char COMMENT_CHAR = '#';
+
+    // TODO: support file/properties-based configuration.
+    private static EnumSet<ReportType> enabledReportsEnumSet = EnumSet.of(ReportType.METADATA, ReportType.APP_OP);
 
     private static final PrintStream bufferedOutput = new PrintStream(System.out, false);
 
     public static void printHeader() {
-        for (final ReportType type : ReportType.values()) {
+        printlnComment("The log includes the following reports:");
+        for (final ReportType type : enabledReportsEnumSet) {
             type.printHeader();
         }
     }
