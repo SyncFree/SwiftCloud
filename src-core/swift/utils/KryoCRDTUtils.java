@@ -36,8 +36,11 @@ import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.LWWRegisterUpdate;
 import swift.crdt.AddWinsSetAddUpdate;
 import swift.crdt.AddWinsSetRemoveUpdate;
+import swift.crdt.AbstractPutOnlyLWWMapCRDT;
+import swift.crdt.AbstractPutOnlyLWWMapUpdate;
 import swift.crdt.PutOnlyLWWMapCRDT;
-import swift.crdt.PutOnlyLWWMapUpdate;
+import swift.crdt.PutOnlyLWWStringMapCRDT;
+import swift.crdt.PutOnlyLWWStringMapUpdate;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
@@ -100,7 +103,11 @@ public class KryoCRDTUtils {
         registerable.register(ManagedCRDT.class, 0x56);
 
         registerable.register(LWWRegisterCRDT.class, 0x58);
-        registerable.register(PutOnlyLWWMapCRDT.class, 0x59);
+        registerable.register(AbstractPutOnlyLWWMapCRDT.class, 0x59);
+        registerable.register(AbstractPutOnlyLWWMapCRDT.LWWEntry.class, 0x60);
+        registerable.register(PutOnlyLWWMapCRDT.class, 0x61);
+        registerable.register(PutOnlyLWWStringMapCRDT.class, 0x62);
+        registerable.register(PutOnlyLWWStringMapUpdate.class, 0x63);
         // 0x59
         // registerable.register(SetIds.class, 0x60);
         // registerable.register(SetIntegers.class, 0x61);
@@ -121,7 +128,7 @@ public class KryoCRDTUtils {
         registerable.register(FetchObjectVersionRequest.class, 0x78);
         registerable.register(FetchObjectVersionReply.class, 0x79);
         registerable.register(FetchObjectVersionReply.FetchStatus.class, 0x7A);
-        
+
         registerable.register(UpdateNotification.class, 0x7B);
 
         registerable.register(LatestKnownClockRequest.class, 0x7F);
@@ -137,7 +144,7 @@ public class KryoCRDTUtils {
         registerable.register(AddWinsSetRemoveUpdate.class, 0x87);
         registerable.register(AddOnlySetCRDT.class, 0x88);
         registerable.register(AddOnlySetUpdate.class, 0x89);
-        registerable.register(PutOnlyLWWMapUpdate.class, 0x8A);
+        registerable.register(AbstractPutOnlyLWWMapUpdate.class, 0x8A);
 
         registerable.register(CommitTSRequest.class, 0x8B);
         registerable.register(CommitTSReply.class, 0x8C);

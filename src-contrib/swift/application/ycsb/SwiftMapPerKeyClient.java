@@ -4,7 +4,8 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import swift.crdt.PutOnlyLWWMapCRDT;
+import swift.crdt.AbstractPutOnlyLWWMapCRDT;
+import swift.crdt.PutOnlyLWWStringMapCRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -27,8 +28,8 @@ public class SwiftMapPerKeyClient extends AbstractSwiftClient {
             HashMap<String, ByteIterator> result) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        final PutOnlyLWWMapCRDT<String, String> map = (PutOnlyLWWMapCRDT<String, String>) txn.get(new CRDTIdentifier(
-                table, key), false, PutOnlyLWWMapCRDT.class, notificationsSubscriber);
+        final PutOnlyLWWStringMapCRDT map = txn.get(new CRDTIdentifier(table, key), false,
+                PutOnlyLWWStringMapCRDT.class, notificationsSubscriber);
         if (fields == null) {
             final HashMap<String, String> value = map.getValue();
             StringByteIterator.putAllAsByteIterators(result, value);
@@ -48,8 +49,8 @@ public class SwiftMapPerKeyClient extends AbstractSwiftClient {
     protected int updateImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        final PutOnlyLWWMapCRDT<String, String> map = (PutOnlyLWWMapCRDT<String, String>) txn.get(new CRDTIdentifier(
-                table, key), false, PutOnlyLWWMapCRDT.class, notificationsSubscriber);
+        final PutOnlyLWWStringMapCRDT map = txn.get(new CRDTIdentifier(table, key), false,
+                PutOnlyLWWStringMapCRDT.class, notificationsSubscriber);
         for (final Entry<String, ByteIterator> keyValue : values.entrySet()) {
             map.put(keyValue.getKey(), keyValue.getValue().toString());
         }
@@ -60,8 +61,8 @@ public class SwiftMapPerKeyClient extends AbstractSwiftClient {
     protected int insertImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        final PutOnlyLWWMapCRDT<String, String> map = (PutOnlyLWWMapCRDT<String, String>) txn.get(new CRDTIdentifier(
-                table, key), true, PutOnlyLWWMapCRDT.class, notificationsSubscriber);
+        final PutOnlyLWWStringMapCRDT map = txn.get(new CRDTIdentifier(table, key), true,
+                PutOnlyLWWStringMapCRDT.class, notificationsSubscriber);
         for (final Entry<String, ByteIterator> keyValue : values.entrySet()) {
             map.put(keyValue.getKey(), keyValue.getValue().toString());
         }

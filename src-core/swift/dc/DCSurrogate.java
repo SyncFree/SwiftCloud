@@ -229,10 +229,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId());
         }
         // conn.reply(new FetchObjectVersionReply(FetchStatus.OK, new
-        // ManagedCRDT<PutOnlyLWWMapCRDT<String, String>>(
-        // request.getUid(), new PutOnlyLWWMapCRDT<String,
-        // String>(request.getUid()), request.getVersion(), true),
-        // request.getVersion(), request.getVersion()));
+        // ManagedCRDT<PutOnlyLWWStringMapCRDT>(request
+        // .getUid(), new PutOnlyLWWStringMapCRDT(request.getUid()),
+        // request.getVersion(), true), request
+        // .getVersion(), request.getVersion()));
         // return;
 
         if (request.hasSubscription())
