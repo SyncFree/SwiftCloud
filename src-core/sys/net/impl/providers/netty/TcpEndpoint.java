@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -16,6 +17,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutorGroup;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,6 +29,7 @@ import sys.net.api.Message;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractLocalEndpoint;
 import sys.net.impl.KryoLib;
+import sys.net.impl.NetworkingConstants;
 import sys.net.impl.providers.InitiatorInfo;
 import sys.net.impl.providers.RemoteEndpointUpdater;
 
@@ -37,6 +41,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
     Endpoint localEndpoint;
     EventLoopGroup bossGroup;
     EventLoopGroup workerGroup;
+    static EventExecutorGroup executor = new DefaultEventExecutorGroup(NetworkingConstants.NETTY_EXECUTOR_THREADS);
 
     public TcpEndpoint(Endpoint local, int tcpPort) throws IOException {
         this.localEndpoint = local;
@@ -69,9 +74,11 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
                             ch.config().setAutoRead(true);
                             TcpChannel channel = new TcpChannel(ch);
                             ch.pipeline().addLast(channel, new KryoMessageEncoder());
+                            ch.pipeline().addLast(executor, new DispatchHandler(channel));
                         }
                     }).option(ChannelOption.SO_BACKLOG, 128).childOption(ChannelOption.SO_KEEPALIVE, true)
                     .childOption(ChannelOption.TCP_NODELAY, true);
+            b.childOption(ChannelOption.SO_RCVBUF, 1 << 18).childOption(ChannelOption.SO_SNDBUF, 1 << 18);
 
             b.bind(tcpPort).sync().awaitUninterruptibly();
             super.setSocketAddress(tcpPort);
@@ -91,7 +98,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
             b.group(workerGroup);
             b.channel(NioSocketChannel.class);
             b.option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.TCP_NODELAY, true);
-
+            b.option(ChannelOption.SO_RCVBUF, 1 << 18).option(ChannelOption.SO_SNDBUF, 1 << 18);
             final AtomicReference<TcpChannel> channel = new AtomicReference<TcpChannel>();
             b.handler(new ChannelInitializer<SocketChannel>() {
 
@@ -99,6 +106,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
                 public void initChannel(SocketChannel ch) throws Exception {
                     channel.set(new TcpChannel(ch, remote));
                     ch.pipeline().addLast(channel.get(), new KryoMessageEncoder());
+                    ch.pipeline().addLast(executor, new DispatchHandler(channel.get()));
                 }
             });
 
@@ -108,6 +116,24 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
         } catch (InterruptedException x) {
             x.printStackTrace();
             return null;
+        }
+    }
+
+    class DispatchHandler extends ChannelInboundHandlerAdapter {
+        TcpChannel channel;
+
+        DispatchHandler(TcpChannel channel) {
+            this.channel = channel;
+        }
+
+        public void channelRead(ChannelHandlerContext ctx, Object msg) {
+            try {
+                Message pkt = (Message) msg;
+                pkt.deliverTo(channel, handler);
+            } catch (Exception x) {
+                x.printStackTrace();
+                System.exit(0);
+            }
         }
     }
 
@@ -139,12 +165,7 @@ public class TcpEndpoint extends AbstractLocalEndpoint {
                     Message pkt = (Message) KryoLib.kryo().readClassAndObject(inBuf);
                     if (pkt != null) {
                         pkt.setSize(frameSize);
-                        try {
-                            pkt.deliverTo(this, handler);
-                        } catch (Exception x) {
-                            x.printStackTrace();
-                            System.exit(0);
-                        }
+                        out.add(pkt);
                     }
                 }
             }

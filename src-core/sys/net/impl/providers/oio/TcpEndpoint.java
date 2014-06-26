@@ -142,7 +142,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 }
             } catch (RuntimeException x) {
             } catch (IOException x) {
-                x.printStackTrace();
+                // x.printStackTrace();
                 Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
                 cause = x;
                 handler.onFailure(this);
@@ -156,7 +156,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             Log.fine("Closed connection to: " + remote);
         }
 
-        public boolean send(final Message msg) {
+        synchronized public boolean send(final Message msg) {
             try {
                 int msgSize = outBuf.writeClassAndObject(msg, channel);
                 Sys.uploadedBytes.getAndAdd(msgSize);
