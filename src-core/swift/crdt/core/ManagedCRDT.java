@@ -22,11 +22,17 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
+import swift.clocks.VersionVectorWithExceptions;
 
 /**
  * Generic manager of an operation-based CRDT implementation V that provides
@@ -46,7 +52,7 @@ import swift.clocks.TimestampMapping;
  * @param <V>
  *            type of operation-based CRDT
  */
-public class ManagedCRDT<V extends CRDT<V>> {
+public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
     // TODO: make costly assertion checks optional.
     private static final long serialVersionUID = 1L;
 
@@ -520,5 +526,29 @@ public class ManagedCRDT<V extends CRDT<V>> {
     public String toString() {
         return String.format("[id=%s,clock=%s,pruneClock=%s,registered=%b,checkpoint=%s,log=%s", id, clock, pruneClock,
                 registeredInStore, checkpoint, strippedLog);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input in) {
+        id = new CRDTIdentifier();
+        id.read(kryo, in);
+        clock = kryo.readObject(in, VersionVectorWithExceptions.class);
+        pruneClock = kryo.readObject(in, VersionVectorWithExceptions.class);
+        registeredInStore = in.readBoolean();
+        checkpoint = (V) kryo.readClassAndObject(in);
+        strippedLog = kryo.readObjectOrNull(in, LinkedList.class);
+        if (strippedLog == null) {
+            strippedLog = new LinkedList<>();
+        }
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        id.write(kryo, out);
+        kryo.writeObject(out, clock);
+        kryo.writeObject(out, pruneClock);
+        out.writeBoolean(registeredInStore);
+        kryo.writeClassAndObject(out, checkpoint);
+        kryo.writeObjectOrNull(out, strippedLog.isEmpty() ? null : strippedLog, LinkedList.class);
     }
 }

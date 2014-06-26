@@ -19,6 +19,10 @@ package swift.crdt.core;
 import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * Base class for operation-based CRDT objects.
  * <p>
@@ -47,9 +51,9 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
     // identifier of CRDT from which the object is derived
     protected CRDTIdentifier id;
     // handle to transaction within which the instance is used (can be null)
-    protected TxnHandle txn;
+    protected transient TxnHandle txn;
     // version of the object (can be null)
-    protected CausalityClock clock;
+    protected transient CausalityClock clock;
 
     /**
      * Kryo empty constructor, DO NOT USE for purposes other than serialization.
@@ -128,5 +132,14 @@ public abstract class BaseCRDT<V extends BaseCRDT<V>> implements CRDT<V> {
         v.txn = txnHandle;
         v.clock = clock;
         return v;
+    }
+
+    protected void baseWrite(Kryo kryo, Output output) {
+        id.write(kryo, output);
+    }
+
+    protected void baseRead(Kryo kryo, Input input) {
+        id = new CRDTIdentifier();
+        id.read(kryo, input);
     }
 }

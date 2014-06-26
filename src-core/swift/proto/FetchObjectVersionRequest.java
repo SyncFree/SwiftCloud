@@ -42,8 +42,8 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
 
     public transient RpcHandle replyHandle;
 
-    public long timestamp = sys.Sys.Sys.timeMillis(); // FOR EVALUATION, TO BE
-                                                      // REMOVED...
+    // public long timestamp = sys.Sys.Sys.timeMillis(); // FOR EVALUATION, TO
+    // BE REMOVED...
 
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
