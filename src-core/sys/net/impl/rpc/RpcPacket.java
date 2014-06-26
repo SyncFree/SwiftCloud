@@ -176,7 +176,8 @@ final public class RpcPacket extends AbstractRpcPacket {
     }
 
     public String toString() {
-        return this.replyHandlerId + " " + (payload != null ? payload.getClass() : "null");
+        return this.replyHandlerId + " "
+                + (payload != null ? payload.getClass() : "null" + " >>>" + fac.conMgr.connections);
     }
 
     @Override

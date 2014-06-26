@@ -34,5 +34,6 @@ public class InitiatorInfo extends AbstractMessage {
 
     public void deliverTo(final TransportConnection conn, final MessageHandler handler) {
         ((RemoteEndpointUpdater) conn).setRemoteEndpoint(local);
+        handler.onAccept(conn);
     }
 }
