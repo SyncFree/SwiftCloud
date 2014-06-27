@@ -642,12 +642,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             committedDisasterDurableUpdated = this.committedDisasterDurableVersion.merge(
                     newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
         }
-        if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
-            return;
-        }
         // quick hack: getSize() == 0 <=> initial value
         if (availableLocally || causalSnapshot.getSize() == 0) {
             causalSnapshot = getGlobalCommittedVersion(true);
+        }
+        if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
+            return;
         }
 
         // Find and clean new stable local txns logs that we won't need anymore.
