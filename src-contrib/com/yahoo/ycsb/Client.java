@@ -645,6 +645,7 @@ public class Client
             SafeLog.printfComment("\t%s=%s\n", entry.getKey(), entry.getValue());
         }
         SafeLog.printlnComment("");
+        SafeLog.printHeader();
 		System.err.println("Loading workload...");
 		
 		//show a warning message that creating the workload is taking a while

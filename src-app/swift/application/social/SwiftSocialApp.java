@@ -61,6 +61,7 @@ public class SwiftSocialApp {
     protected int biasedOps;
     protected int randomOps;
     protected int opGroups;
+    protected boolean recordPageViews;
 
     protected AtomicInteger commandsDone = new AtomicInteger(0);
     protected AtomicInteger totalCommands = new AtomicInteger(0);
@@ -87,6 +88,7 @@ public class SwiftSocialApp {
         biasedOps = Props.intValue(props, "swiftsocial.biasedOps", 9);
         randomOps = Props.intValue(props, "swiftsocial.randomOps", 1);
         opGroups = Props.intValue(props, "swiftsocial.opGroups", 500);
+        recordPageViews = Props.boolValue(props, "swiftsocial.recordPageViews", false);
         thinkTime = Props.intValue(props, "swiftsocial.thinkTime", 1000);
 
         Workload.generateUsers(numUsers);
@@ -154,7 +156,7 @@ public class SwiftSocialApp {
             }
         case READ:
             if (toks.length == 2) {
-                socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>());
+                socialClient.read(toks[1], new HashSet<Message>(), new HashSet<Message>(), recordPageViews);
                 break;
             }
         case SEE_FRIENDS:

@@ -75,6 +75,7 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.biasedOps':'9',
         'swiftsocial.randomOps':'1',
         'swiftsocial.opGroups':'10000',
+        'swiftsocial.recordPageViews':'false',
         'swiftsocial.thinkTime':'0'
     ]
 }

@@ -18,6 +18,11 @@ package swift.crdt.core;
 
 import java.io.Serializable;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 /**
  * System-wide unique identifier for CRDT object. Identification via table to
  * which the CRDT is associated and key under which the CRDT is stored.
@@ -26,7 +31,7 @@ import java.io.Serializable;
  * 
  */
 // TODO: Add type (w/generics) as part of id?
-public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTIdentifier> {
+public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTIdentifier>, KryoSerializable {
     private static final long serialVersionUID = 1L;
     private String table;
     private String key;
@@ -92,5 +97,17 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
     @Override
     public CRDTIdentifier clone() {
         return new CRDTIdentifier(table, key);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input in) {
+        table = kryo.readObject(in, String.class);
+        key = kryo.readObject(in, String.class);
+    }
+
+    @Override
+    public void write(Kryo kryo, Output out) {
+        kryo.writeObject(out, table);
+        kryo.writeObject(out, key);
     }
 }

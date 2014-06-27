@@ -36,6 +36,7 @@ public class User implements Copyable {
     CRDTIdentifier friendList;
     CRDTIdentifier inFriendReq;
     CRDTIdentifier outFriendReq;
+    CRDTIdentifier viewsCounter;
 
     // TODO Add photos?
     // CRDTIdentifier photoAlbumList;
@@ -52,11 +53,14 @@ public class User implements Copyable {
         this.userId = NamingScheme.forUser(loginName);
         this.birthday = birthday;
         this.active = active;
+        // FIXME: do we need these statically computed references??
+        // Is it for compatibility with Walter?
         this.msgList = NamingScheme.forMessages(loginName);
         this.eventList = NamingScheme.forEvents(loginName);
         this.friendList = NamingScheme.forFriends(loginName);
         this.inFriendReq = NamingScheme.forInFriendReq(loginName);
         this.outFriendReq = NamingScheme.forOutFriendReq(loginName);
+        this.viewsCounter = NamingScheme.forViewsCounter(loginName);
     }
 
     @Override
