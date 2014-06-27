@@ -151,7 +151,6 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
     final ConcurrentHashMap<Long, RpcPacket> handlers = new ConcurrentHashMap<Long, RpcPacket>();
 
     void initStaleHandlersGC_Task() {
-        final Logger Log = Logger.getLogger(RpcFactoryImpl.class.getName() + ".gc");
 
         new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
             public void run() {
@@ -170,7 +169,7 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
 final class ConnectionManager {
 
-    private final Logger Log = Logger.getLogger(ConnectionManager.class.toString());
+    private static Logger Log = Logger.getLogger(ConnectionManager.class.getName());
 
     final Endpoint localEndpoint;
 
