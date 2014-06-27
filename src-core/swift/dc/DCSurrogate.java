@@ -528,6 +528,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
+        static final long NOTIFICATION_PERIOD = 1000;
+
         final String clientId;
         Timestamp lastSeqNo;
         boolean disasterSafe;
@@ -544,6 +546,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (OPTIMIZED_VECTORS_IN_BATCH) {
                 lastSnapshotVector = ClockFactory.newClock();
             }
+
+            new PeriodicTask(0.0, NOTIFICATION_PERIOD * 0.001) {
+                public void run() {
+                    tryFireClientNotification();
+                }
+            };
         }
 
         public synchronized CausalityClock getMinVV() {
@@ -572,7 +580,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         long lastNotification = 0L;
-        static final long NOTIFICATION_PERIOD = 1000;
 
         List<CRDTObjectUpdatesGroup<?>> pending = new ArrayList<CRDTObjectUpdatesGroup<?>>();
 
