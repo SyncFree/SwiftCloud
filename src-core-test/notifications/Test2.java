@@ -13,10 +13,15 @@ import swift.crdt.core.ObjectUpdatesListener;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
+import swift.dc.DCSequencerServer;
+import swift.dc.DCServer;
 
 public class Test2 {
 
     public static void main(String[] args) throws Exception {
+
+        DCSequencerServer.main(new String[] { "-name", "X" });
+        DCServer.main(new String[] { "-servers", "localhost" });
 
         final CRDTIdentifier id = new CRDTIdentifier("/integers", "1");
 
@@ -29,14 +34,14 @@ public class Test2 {
         SwiftSession server = SwiftImpl.newSingleSessionInstance(options);
 
         for (;;) {
+            IntegerCRDT i = null;
+            TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             try {
-                TxnHandle txn = server.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
-                IntegerCRDT i = (IntegerCRDT) txn.get(id, false, IntegerCRDT.class, new ObjectUpdatesListener() {
+                i = (IntegerCRDT) txn.get(id, false, IntegerCRDT.class, new ObjectUpdatesListener() {
 
                     @Override
                     public void onObjectUpdate(TxnHandle txn, CRDTIdentifier id, CRDT<?> previousValue) {
-                        // System.err.println(id + "/>>>" +
-                        // previousValue.getValue());
+                        System.err.println(id + "/>>>" + previousValue.getValue());
                     }
 
                     @Override
@@ -45,9 +50,10 @@ public class Test2 {
                     }
                 });
                 System.err.println(i.getValue() + "/" + i.getClock());
-                txn.commit();
             } catch (Exception x) {
+                x.printStackTrace();
             }
+            txn.commit();
             Thread.sleep(1000);
         }
     }

@@ -11,15 +11,10 @@ import swift.crdt.core.IsolationLevel;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
-import swift.dc.DCSequencerServer;
-import swift.dc.DCServer;
 
 public class Test1 {
 
     public static void main(String[] args) throws Exception {
-
-        DCSequencerServer.main(new String[] { "-name", "X" });
-        DCServer.main(new String[] { "-servers", "localhost" });
 
         final CRDTIdentifier id = new CRDTIdentifier("/integers", "1");
 

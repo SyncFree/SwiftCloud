@@ -628,6 +628,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     iter.remove();
                 }
             }
+            if (objectsUpdates.isEmpty())
+                return snapshot;
 
             // Update client in any case.
             // if (objectsUpdates.isEmpty()) {
