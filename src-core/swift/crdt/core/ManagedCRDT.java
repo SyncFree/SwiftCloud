@@ -373,7 +373,9 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
                 throw new IllegalStateException("Object does not meet operation's dependencies");
             }
         } else if (dependenciesPolicy == CRDTOperationDependencyPolicy.RECORD_BLINDLY) {
-            clock.merge(dependencyClock);
+            if (dependencyClock != null) {
+                clock.merge(dependencyClock);
+            }
         } // else: dependenciesPolicy ==IGNORE
 
         if (ops.hasCreationState()) {
