@@ -382,7 +382,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final AtomicReferenceArray<ExecCRDTResult> results = new AtomicReferenceArray<ExecCRDTResult>(ops.size());
 
         if (ops.size() > 2) { // do multiple execCRDTs in parallel
-            final Semaphore s = new Semaphore(ops.size());
+            final Semaphore s = new Semaphore(0);
             for (final CRDTObjectUpdatesGroup<?> i : ops) {
                 final int j = pos++;
                 crdtExecutor.execute(new Runnable() {
@@ -398,7 +398,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     }
                 });
             }
-            s.acquireUninterruptibly();
+            s.acquireUninterruptibly(ops.size());
         } else {
             for (final CRDTObjectUpdatesGroup<?> i : ops) {
                 results.set(pos, execCRDT(i, snapshotClock, trxClock, txTs, cltTs, prvCltTs, estimatedDCVersionCopy));

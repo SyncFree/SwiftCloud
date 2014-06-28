@@ -28,7 +28,7 @@ public class RpcClientServer {
         if (args.length == 0)
             RpcServer.main(new String[0]);
 
-        for (int i = 0; i < 64; i++)
+        for (int i = 0; i < 10; i++)
             Threading.newThread(false, new Runnable() {
                 public void run() {
                     try {

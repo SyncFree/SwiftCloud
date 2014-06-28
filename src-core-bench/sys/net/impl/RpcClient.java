@@ -19,7 +19,6 @@ package sys.net.impl;
 import static sys.Sys.Sys;
 import static sys.net.api.Networking.Networking;
 
-import java.net.UnknownHostException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -85,7 +84,7 @@ public class RpcClient {
                 rttSum.set(0);
             }
 
-            while (values.size() > 100)
+            while (values.size() > 1000)
                 Threading.sleep(1);
         }
     }

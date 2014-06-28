@@ -9,7 +9,7 @@ swift.asyncQueue=50
 swift.cacheSize=512
 swift.computeMetadataStatistics=false
 
-swiftsocial.numUsers=6000
+swiftsocial.numUsers=1000
 swiftsocial.userFriends=25
 swiftsocial.biasedOps=9
 swiftsocial.randomOps=1

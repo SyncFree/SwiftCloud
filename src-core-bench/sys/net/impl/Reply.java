@@ -20,17 +20,12 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.KryoSerializable;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
-
 /**
  * 
  * @author smd
  * 
  */
-public class Reply implements RpcMessage, KryoSerializable {
+public class Reply implements RpcMessage {
 
     public long val;
 
@@ -53,14 +48,14 @@ public class Reply implements RpcMessage, KryoSerializable {
             ((Handler) handler).onReceive(this);
     }
 
-    @Override
-    final public void read(Kryo kryo, Input input) {
-        this.val = input.readLong();
-    }
-
-    @Override
-    final public void write(Kryo kryo, Output output) {
-        output.writeLong(this.val);
-    }
+    // @Override
+    // final public void read(Kryo kryo, Input input) {
+    // this.val = input.readLong();
+    // }
+    //
+    // @Override
+    // final public void write(Kryo kryo, Output output) {
+    // output.writeLong(this.val);
+    // }
 
 }

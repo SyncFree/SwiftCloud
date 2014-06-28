@@ -14,8 +14,10 @@ def __ = onControlC({
 
 
 EuropeEC2 = [
-    'ec2-54-76-186-5.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-167-242.eu-west-1.compute.amazonaws.com',
+    'planetlab-1.imperial.ac.uk',
+    'planetlab-2.imperial.ac.uk',
+    'planetlab-3.imperial.ac.uk',
+    'planetlab-4.imperial.ac.uk',
 ]
 
 // Optional argument - limit of scouts number
