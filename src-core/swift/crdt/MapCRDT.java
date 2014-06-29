@@ -72,7 +72,7 @@ public class MapCRDT<K, V> extends BaseCRDT<MapCRDT<K, V>> {
         if (value == null) {
             keysToElementsInstances.put(k, value = new HashMap<V, Set<TripleTimestamp>>());
         }
-        AddWinsUtils.applyAdd(value, e, uid, overwrittenInstances);
+        AddWinsUtils.applyUpdate(value, e, uid, overwrittenInstances);
     }
 
     public void removeU(K k, V e, TripleTimestamp uid, Set<TripleTimestamp> rset) {
@@ -80,12 +80,12 @@ public class MapCRDT<K, V> extends BaseCRDT<MapCRDT<K, V>> {
         if (value == null) {
             keysToElementsInstances.put(k, value = new HashMap<V, Set<TripleTimestamp>>());
         }
-        AddWinsUtils.applyRemove(value, e, rset);
+        AddWinsUtils.applyUpdate(value, e, null, rset);
     }
 
     @Override
     public MapCRDT<K, V> copy() {
-        return new MapCRDT<K,V>(id, txn, clock, keysToElementsInstances);
+        return new MapCRDT<K, V>(id, txn, clock, keysToElementsInstances);
     }
 
 }

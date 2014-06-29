@@ -4,8 +4,8 @@ import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import swift.crdt.AddOnlySetCRDT;
-import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.AddOnlyStringSetCRDT;
+import swift.crdt.LWWStringRegisterCRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -34,8 +34,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         // Then do separate reads, to trigger notifications too.
         for (final Entry<CRDTIdentifier, String> entry : ids.entrySet()) {
             @SuppressWarnings("unchecked")
-            final LWWRegisterCRDT<String> register = (LWWRegisterCRDT<String>) txn.get(entry.getKey(), false,
-                    LWWRegisterCRDT.class, notificationsSubscriber);
+            final LWWStringRegisterCRDT register = txn.get(entry.getKey(), false, LWWStringRegisterCRDT.class,
+                    notificationsSubscriber);
             final String value = register.getValue();
             if (value == null) {
                 return ERROR_NOT_FOUND;
@@ -56,8 +56,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         // Then do separate reads to trigger notifications too, and update.
         for (final Entry<CRDTIdentifier, String> entry : ids.entrySet()) {
             @SuppressWarnings("unchecked")
-            final LWWRegisterCRDT<String> register = (LWWRegisterCRDT<String>) txn.get(entry.getKey(), true,
-                    LWWRegisterCRDT.class, notificationsSubscriber);
+            final LWWStringRegisterCRDT register = txn.get(entry.getKey(), true, LWWStringRegisterCRDT.class,
+                    notificationsSubscriber);
             register.set(values.get(entry.getValue()).toString());
         }
         return 0;
@@ -67,8 +67,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
     protected int insertImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        AddOnlySetCRDT<String> fieldsInfo = (AddOnlySetCRDT<String>) txn.get(new CRDTIdentifier(table, key), true,
-                AddOnlySetCRDT.class, notificationsSubscriber);
+        AddOnlyStringSetCRDT fieldsInfo = txn.get(new CRDTIdentifier(table, key), true, AddOnlyStringSetCRDT.class,
+                notificationsSubscriber);
         for (final String field : values.keySet()) {
             fieldsInfo.add(field);
         }
@@ -77,8 +77,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         // Then do separate reads to trigger notifications too, and update.
         for (final Entry<CRDTIdentifier, String> entry : ids.entrySet()) {
             @SuppressWarnings("unchecked")
-            final LWWRegisterCRDT<String> register = (LWWRegisterCRDT<String>) txn.get(entry.getKey(), true,
-                    LWWRegisterCRDT.class, notificationsSubscriber);
+            final LWWStringRegisterCRDT register = txn.get(entry.getKey(), true, LWWStringRegisterCRDT.class,
+                    notificationsSubscriber);
             register.set(values.get(entry.getValue()).toString());
         }
         return 0;
@@ -90,8 +90,8 @@ public class SwiftRegisterPerFieldClient extends AbstractSwiftClient {
         if (fields == null) {
             // Retrieve information on fields.
             @SuppressWarnings("unchecked")
-            final AddOnlySetCRDT<String> fieldsInfo = (AddOnlySetCRDT<String>) txn.get(new CRDTIdentifier(table, key),
-                    create, AddOnlySetCRDT.class, notificationsSubscriber);
+            final AddOnlyStringSetCRDT fieldsInfo = txn.get(new CRDTIdentifier(table, key), create,
+                    AddOnlyStringSetCRDT.class, notificationsSubscriber);
             fields = fieldsInfo.getValue();
         }
         final HashMap<CRDTIdentifier, String> ids = new HashMap<CRDTIdentifier, String>(fields.size(), 2.0f);

@@ -31,7 +31,7 @@ import swift.crdt.core.TxnHandle;
  * the value are either immutable or that they are cloned! Keys must provide a
  * hashcode, since the internal representation uses HashMap.
  * 
- * @param <A>
+ * @param <T>
  *            concrete implementation type for some type of K and V
  * @param <K>
  *            type of the key of a map
@@ -39,7 +39,7 @@ import swift.crdt.core.TxnHandle;
  *            type of the value of a map
  * @author mzawirsk
  */
-public abstract class AbstractPutOnlyLWWMapCRDT<A extends AbstractPutOnlyLWWMapCRDT<A, K, V>, K, V> extends BaseCRDT<A> {
+public abstract class AbstractPutOnlyLWWMapCRDT<K, V, T extends AbstractPutOnlyLWWMapCRDT<K, V, T>> extends BaseCRDT<T> {
     public static class LWWEntry<V> {
         protected V val;
         protected long timestamp;
@@ -94,8 +94,8 @@ public abstract class AbstractPutOnlyLWWMapCRDT<A extends AbstractPutOnlyLWWMapC
         registerLocalOperation(generatePutDownstream(key, entry));
     }
 
-    protected AbstractPutOnlyLWWMapUpdate<A, K, V> generatePutDownstream(K key, LWWEntry<V> entry) {
-        return new AbstractPutOnlyLWWMapUpdate<A, K, V>(key, entry.timestamp, entry.timestampTiebreaker, entry.val);
+    protected PutOnlyLWWMapUpdate<K, V, T> generatePutDownstream(K key, LWWEntry<V> entry) {
+        return new PutOnlyLWWMapUpdate<K, V, T>(key, entry.timestamp, entry.timestampTiebreaker, entry.val);
     }
 
     public boolean contains(K key) {

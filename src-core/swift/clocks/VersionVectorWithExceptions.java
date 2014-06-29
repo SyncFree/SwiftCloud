@@ -133,14 +133,14 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
         @Override
         public void read(Kryo kryo, Input in) {
-            from = in.readLong();
-            to = in.readLong();
+            from = in.readVarLong(true);
+            to = in.readVarLong(true);
         }
 
         @Override
         public void write(Kryo kryo, Output out) {
-            out.writeLong(from);
-            out.writeLong(to);
+            out.writeVarLong(from, true);
+            out.writeVarLong(to, true);
         }
     }
 
@@ -921,10 +921,10 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     @Override
     public void read(Kryo kryo, Input in) {
         // numPairs = 0;
-        for (int i = in.readInt(); --i >= 0;) {
+        for (int i = in.readVarInt(true); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
             vv.put(in.readString().intern(), lli);
-            long numIntervalsOrOneOptimizedInterval = in.readLong();
+            long numIntervalsOrOneOptimizedInterval = in.readVarLong(true);
             if (numIntervalsOrOneOptimizedInterval < 0) {
                 // optimized interval
                 lli.add(new Interval(0, numIntervalsOrOneOptimizedInterval * -1));
@@ -941,15 +941,15 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
 
     @Override
     public void write(Kryo kryo, Output out) {
-        out.writeInt(vv.size());
+        out.writeVarInt(vv.size(), true);
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             out.writeString(e.getKey().intern());
             LinkedList<Interval> lli = e.getValue();
             if (lli.size() == 1 && lli.get(0).from == 0) {
                 // use optimized encoding for the common case
-                out.writeLong(lli.get(0).to * -1);
+                out.writeVarLong(lli.get(0).to * -1, true);
             } else {
-                out.writeLong(lli.size());
+                out.writeVarLong(lli.size(), true);
                 for (Interval ii : e.getValue())
                     ii.write(kryo, out);
             }

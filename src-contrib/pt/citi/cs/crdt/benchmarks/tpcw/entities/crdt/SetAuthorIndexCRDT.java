@@ -30,7 +30,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.AbstractAddWinsSetCRDT;
 import swift.crdt.AddWinsUtils;
-import swift.crdt.AddWinsSetAddUpdate;
+import swift.crdt.AddWinsSetUpdate;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
@@ -45,13 +45,12 @@ public class SetAuthorIndexCRDT extends AbstractAddWinsSetCRDT<AuthorIndex, SetA
 
     public SetAuthorIndexCRDT(final CRDTIdentifier id) {
         super(id, null, null);
-        elems = new HashMap<AuthorIndex, Set<TripleTimestamp>>();
+        createElementsInstances();
     }
 
-    private SetAuthorIndexCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
-            Map<AuthorIndex, Set<TripleTimestamp>> elems) {
+    private SetAuthorIndexCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
         super(id, txn, clock);
-        this.elems = elems;
+        createElementsInstances();
     }
 
     public void add(AuthorIndex e) {
@@ -62,7 +61,7 @@ public class SetAuthorIndexCRDT extends AbstractAddWinsSetCRDT<AuthorIndex, SetA
         cachedIndex = null;
         TripleTimestamp ts = nextTimestamp();
         final Set<TripleTimestamp> overwrittenInstances = AddWinsUtils.add(elems, e, ts);
-        registerLocalOperation(new AddWinsSetAddUpdate<AuthorIndex, SetAuthorIndexCRDT>(e, ts, overwrittenInstances));
+        registerLocalOperation(new AddWinsSetUpdate<AuthorIndex, SetAuthorIndexCRDT>(e, ts, overwrittenInstances));
     }
 
     /**
@@ -96,9 +95,14 @@ public class SetAuthorIndexCRDT extends AbstractAddWinsSetCRDT<AuthorIndex, SetA
 
     @Override
     public SetAuthorIndexCRDT copy() {
-        final HashMap<AuthorIndex, Set<TripleTimestamp>> newInstances = new HashMap<AuthorIndex, Set<TripleTimestamp>>();
-        AddWinsUtils.deepCopy(elems, newInstances);
-        return new SetAuthorIndexCRDT(id, txn, clock, newInstances);
+        SetAuthorIndexCRDT copy = new SetAuthorIndexCRDT(id, txn, clock);
+        AddWinsUtils.deepCopy(elems, copy.getElementsInstances());
+        return copy;
+    }
+
+    @Override
+    protected void createElementsInstances() {
+        elems = new HashMap<AuthorIndex, Set<TripleTimestamp>>();
     }
 
     @Override

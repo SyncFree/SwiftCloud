@@ -38,7 +38,7 @@ final public class TripleTimestamp implements Comparable<TripleTimestamp>, KryoS
     /** Stable client-assigned timestamp (transaction id) */
     protected Timestamp clientTimestamp;
     /** Stable component within a transaction */
-    protected long distinguishingCounter;
+    protected int distinguishingCounter;
 
     /**
      * WARNING Do not use: Empty constructor needed by Kryo
@@ -46,7 +46,7 @@ final public class TripleTimestamp implements Comparable<TripleTimestamp>, KryoS
     public TripleTimestamp() {
     }
 
-    TripleTimestamp(final Timestamp clientTimestamp, final long distinguishingCounter) {
+    TripleTimestamp(final Timestamp clientTimestamp, final int distinguishingCounter) {
         this.clientTimestamp = clientTimestamp;
         this.distinguishingCounter = distinguishingCounter;
     }
@@ -77,7 +77,7 @@ final public class TripleTimestamp implements Comparable<TripleTimestamp>, KryoS
     }
 
     public int hashCode() {
-        return getClientTimestamp().hashCode() ^ (int) distinguishingCounter;
+        return getClientTimestamp().hashCode() ^ distinguishingCounter;
     }
 
     public String toString() {
@@ -87,14 +87,14 @@ final public class TripleTimestamp implements Comparable<TripleTimestamp>, KryoS
 
     @Override
     public void read(Kryo kryo, Input in) {
-        this.distinguishingCounter = in.readLong();
+        this.distinguishingCounter = in.readVarInt(true);
         this.clientTimestamp = new Timestamp();
         this.clientTimestamp.read(kryo, in);
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        out.writeLong(this.distinguishingCounter);
+        out.writeVarInt(this.distinguishingCounter, true);
         clientTimestamp.write(kryo, out);
     }
 

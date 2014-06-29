@@ -44,13 +44,17 @@ public class AddWinsSortedSetCRDT<V extends Comparable<V>> extends AbstractAddWi
 
     public AddWinsSortedSetCRDT(CRDTIdentifier id) {
         super(id);
-        this.elemsInstances = new TreeMap<V, Set<TripleTimestamp>>();
+        createElementsInstances();
     }
 
-    private AddWinsSortedSetCRDT(CRDTIdentifier id, final TxnHandle txn, final CausalityClock clock,
-            SortedMap<V, Set<TripleTimestamp>> elemsInstances) {
+    private AddWinsSortedSetCRDT(CRDTIdentifier id, final TxnHandle txn, final CausalityClock clock) {
         super(id, txn, clock);
-        this.elemsInstances = elemsInstances;
+        createElementsInstances();
+    }
+
+    @Override
+    protected void createElementsInstances() {
+        this.elemsInstances = new TreeMap<V, Set<TripleTimestamp>>();
     }
 
     @Override
@@ -60,8 +64,8 @@ public class AddWinsSortedSetCRDT<V extends Comparable<V>> extends AbstractAddWi
 
     @Override
     public AddWinsSortedSetCRDT<V> copy() {
-        final SortedMap<V, Set<TripleTimestamp>> newInstances = new TreeMap<V, Set<TripleTimestamp>>();
-        AddWinsUtils.deepCopy(elemsInstances, newInstances);
-        return new AddWinsSortedSetCRDT<V>(id, txn, clock, newInstances);
+        AddWinsSortedSetCRDT<V> copy = new AddWinsSortedSetCRDT<V>(id, txn, clock);
+        AddWinsUtils.deepCopy(elemsInstances, copy.getElementsInstances());
+        return copy;
     }
 }

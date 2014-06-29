@@ -43,17 +43,23 @@ public final class AddWinsUtils {
         return elemsInstances.put(element, newInstances);
     }
 
-    public static <V> void applyAdd(Map<V, Set<TripleTimestamp>> elemsInstances, V element, TripleTimestamp instance,
-            Collection<?> overwrittenInstances) {
+    public static <V> void applyUpdate(Map<V, Set<TripleTimestamp>> elemsInstances, V element,
+            TripleTimestamp newInstance, Collection<?> overwrittenInstances) {
         Set<TripleTimestamp> instances = elemsInstances.get(element);
-        if (instances == null) {
+        if (instances == null && newInstance != null) {
             instances = new HashSet<TripleTimestamp>(SMALL_HASHSET_EXPECTED_CAPACITY);
             elemsInstances.put(element, instances);
-        } else if (overwrittenInstances != null) {
+        }
+        if (instances != null && overwrittenInstances != null) {
             // Self-cleaning GC.
             instances.removeAll(overwrittenInstances);
         }
-        instances.add(instance);
+        if (newInstance != null) {
+            instances.add(newInstance);
+        }
+        if (instances.isEmpty()) {
+            elemsInstances.remove(element);
+        }
     }
 
     public static <V> Set<TripleTimestamp> remove(Map<V, Set<TripleTimestamp>> elemsInstances, V element) {
@@ -62,14 +68,7 @@ public final class AddWinsUtils {
 
     public static <V> void applyRemove(Map<V, Set<TripleTimestamp>> elemsInstances, V element,
             Set<TripleTimestamp> removedInstances) {
-        Set<TripleTimestamp> instances = elemsInstances.get(element);
-        if (instances == null) {
-            return;
-        }
-        instances.removeAll(removedInstances);
-        if (instances.isEmpty()) {
-            elemsInstances.remove(element);
-        }
+        applyUpdate(elemsInstances, element, null, removedInstances);
     }
 
     public static <V, T extends Map<V, Set<TripleTimestamp>>> void deepCopy(T origInstances, T newInstances) {

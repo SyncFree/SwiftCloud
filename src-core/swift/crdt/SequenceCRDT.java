@@ -99,14 +99,14 @@ public class SequenceCRDT<V> extends BaseCRDT<SequenceCRDT<V>> {
         // Make sure to not affect existing view;
         // WISHME: could be done differently, if done consistently
         delinearize();
-        AddWinsUtils.applyRemove(setElems, posId, ids);
+        AddWinsUtils.applyUpdate(setElems, posId, null, ids);
     }
 
     protected void applyAdd(PosID<V> posId, TripleTimestamp id, Set<TripleTimestamp> overwrittenIds) {
         // Make sure to not affect existing view
         // WISHME: could be done differently, if done consistently
         delinearize();
-        AddWinsUtils.applyAdd(setElems, posId, id, overwrittenIds);
+        AddWinsUtils.applyUpdate(setElems, posId, id, overwrittenIds);
     }
 
     private List<PosID<V>> getOrComputePosIds() {

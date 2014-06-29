@@ -2,8 +2,8 @@ package swift.crdt;
 
 import swift.crdt.core.CRDTUpdate;
 
-public class AddOnlySetUpdate<V> implements CRDTUpdate<AddOnlySetCRDT<V>> {
-    private V element;
+public class AddOnlySetUpdate<I extends AbstractAddOnlySetCRDT<I, V>, V> implements CRDTUpdate<I> {
+    protected V element;
 
     // Kryo
     public AddOnlySetUpdate() {
@@ -14,7 +14,7 @@ public class AddOnlySetUpdate<V> implements CRDTUpdate<AddOnlySetCRDT<V>> {
     }
 
     @Override
-    public void applyTo(AddOnlySetCRDT<V> crdt) {
+    public void applyTo(I crdt) {
         crdt.applyAdd(element);
     }
 

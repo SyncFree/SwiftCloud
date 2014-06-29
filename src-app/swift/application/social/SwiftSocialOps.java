@@ -23,9 +23,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import swift.crdt.AddWinsIdSetCRDT;
+import swift.crdt.AddWinsMessageSetCRDT;
 import swift.crdt.AddWinsSetCRDT;
 import swift.crdt.IntegerCRDT;
 import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.LWWUserRegisterCRDT;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CachePolicy;
@@ -99,8 +102,8 @@ public class SwiftSocialOps {
             }
             txn = server.beginTxn(isolationLevel, loginCachePolicy, true);
             @SuppressWarnings("unchecked")
-            User user = (User) (txn.get(NamingScheme.forUser(loginName), false, LWWRegisterCRDT.class,
-                    updatesSubscriber)).getValue();
+            User user = txn.get(NamingScheme.forUser(loginName), false, LWWUserRegisterCRDT.class, updatesSubscriber)
+                    .getValue();
 
             // Check password
             // FIXME We actually need an external authentification mechanism, as
@@ -169,18 +172,17 @@ public class SwiftSocialOps {
         // FIXME How do we guarantee unique login names?
         // WalterSocial suggests using dedicated (non-replicated) login server.
 
-        LWWRegisterCRDT<User> reg = (LWWRegisterCRDT<User>) txn.get(NamingScheme.forUser(loginName), true,
-                LWWRegisterCRDT.class, null);
+        LWWUserRegisterCRDT reg = txn.get(NamingScheme.forUser(loginName), true, LWWUserRegisterCRDT.class, null);
 
         User newUser = new User(loginName, passwd, fullName, birthday, true);
         reg.set((User) newUser.copy());
 
         // Construct the associated sets with messages, friends etc.
-        txn.get(newUser.msgList, true, AddWinsSetCRDT.class, null);
-        txn.get(newUser.eventList, true, AddWinsSetCRDT.class, null);
-        txn.get(newUser.friendList, true, AddWinsSetCRDT.class, null);
-        txn.get(newUser.inFriendReq, true, AddWinsSetCRDT.class, null);
-        txn.get(newUser.outFriendReq, true, AddWinsSetCRDT.class, null);
+        txn.get(newUser.msgList, true, AddWinsMessageSetCRDT.class, null);
+        txn.get(newUser.eventList, true, AddWinsMessageSetCRDT.class, null);
+        txn.get(newUser.friendList, true, AddWinsIdSetCRDT.class, null);
+        txn.get(newUser.inFriendReq, true, AddWinsIdSetCRDT.class, null);
+        txn.get(newUser.outFriendReq, true, AddWinsIdSetCRDT.class, null);
         txn.get(newUser.viewsCounter, true, IntegerCRDT.class, null);
 
         // Create registration event for user
@@ -199,8 +201,8 @@ public class SwiftSocialOps {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
-            LWWRegisterCRDT<User> reg = (LWWRegisterCRDT<User>) get(txn,
-                    NamingScheme.forUser(this.currentUser.loginName), true, LWWRegisterCRDT.class, updatesSubscriber);
+            LWWUserRegisterCRDT reg = get(txn, NamingScheme.forUser(this.currentUser.loginName), true,
+                    LWWUserRegisterCRDT.class, updatesSubscriber);
             reg.set((User) currentUser.copy());
             commitTxn(txn);
         } catch (SwiftException e) {
@@ -222,14 +224,13 @@ public class SwiftSocialOps {
         try {
             final boolean readOnly = !readPageViewsCounter;
             txn = server.beginTxn(isolationLevel, cachePolicy, readOnly);
-            LWWRegisterCRDT<User> reg = (LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(name), false,
-                    LWWRegisterCRDT.class);
+            LWWUserRegisterCRDT reg = get(txn, NamingScheme.forUser(name), false, LWWUserRegisterCRDT.class);
             user = reg.getValue();
 
             bulkGet(txn, user.msgList, user.eventList, user.viewsCounter);
 
-            msgs.addAll((get(txn, user.msgList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
-            evnts.addAll((get(txn, user.eventList, false, AddWinsSetCRDT.class, updatesSubscriber)).getValue());
+            msgs.addAll((get(txn, user.msgList, false, AddWinsMessageSetCRDT.class, updatesSubscriber)).getValue());
+            evnts.addAll((get(txn, user.eventList, false, AddWinsMessageSetCRDT.class, updatesSubscriber)).getValue());
             if (readPageViewsCounter) {
                 final IntegerCRDT pageViewsCounter = get(txn, user.viewsCounter, false, IntegerCRDT.class,
                         updatesSubscriber);
@@ -261,8 +262,7 @@ public class SwiftSocialOps {
         TxnHandle txn = null;
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
-            User receiver = ((LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(receiverName), false,
-                    LWWRegisterCRDT.class)).getValue();
+            User receiver = get(txn, NamingScheme.forUser(receiverName), false, LWWUserRegisterCRDT.class).getValue();
 
             bulkGet(txn, receiver.msgList, currentUser.eventList);
 
@@ -312,16 +312,16 @@ public class SwiftSocialOps {
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain data of requesting user
-            User other = ((LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(requester), false,
-                    LWWRegisterCRDT.class)).getValue();
+            User other = get(txn, NamingScheme.forUser(requester), false, LWWUserRegisterCRDT.class).getValue();
 
             bulkGet(txn, currentUser.inFriendReq, other.outFriendReq);
 
             // Remove information for request
-            AddWinsSetCRDT inFriendReq = get(txn, currentUser.inFriendReq, false, AddWinsSetCRDT.class,
+            AddWinsIdSetCRDT inFriendReq = get(txn, currentUser.inFriendReq, false, AddWinsIdSetCRDT.class,
                     updatesSubscriber);
             inFriendReq.remove(NamingScheme.forUser(requester));
-            AddWinsSetCRDT outFriendReq = get(txn, other.outFriendReq, false, AddWinsSetCRDT.class, updatesSubscriber);
+            AddWinsIdSetCRDT outFriendReq = get(txn, other.outFriendReq, false, AddWinsIdSetCRDT.class,
+                    updatesSubscriber);
             outFriendReq.remove(NamingScheme.forUser(this.currentUser.loginName));
 
             // Befriend if accepted
@@ -351,15 +351,14 @@ public class SwiftSocialOps {
         try {
             txn = server.beginTxn(isolationLevel, cachePolicy, false);
             // Obtain data of friend
-            User other = ((LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(receiverName), false,
-                    LWWRegisterCRDT.class)).getValue();
+            User other = get(txn, NamingScheme.forUser(receiverName), false, LWWUserRegisterCRDT.class).getValue();
 
             bulkGet(txn, other.inFriendReq, currentUser.outFriendReq);
 
             // Add data for request
-            AddWinsSetCRDT inFriendReq = get(txn, other.inFriendReq, false, AddWinsSetCRDT.class, updatesSubscriber);
+            AddWinsIdSetCRDT inFriendReq = get(txn, other.inFriendReq, false, AddWinsIdSetCRDT.class, updatesSubscriber);
             inFriendReq.add(NamingScheme.forUser(currentUser.loginName));
-            AddWinsSetCRDT outFriendReq = get(txn, currentUser.outFriendReq, false, AddWinsSetCRDT.class,
+            AddWinsIdSetCRDT outFriendReq = get(txn, currentUser.outFriendReq, false, AddWinsIdSetCRDT.class,
                     updatesSubscriber);
             outFriendReq.add(NamingScheme.forUser(receiverName));
 
@@ -382,15 +381,15 @@ public class SwiftSocialOps {
             bulkGet(txn, NamingScheme.forUser(receiverName), currentUser.friendList);
 
             // Obtain new friend's data
-            User friend = ((LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(receiverName), false,
-                    LWWRegisterCRDT.class)).getValue();
+            User friend = get(txn, NamingScheme.forUser(receiverName), false, LWWUserRegisterCRDT.class).getValue();
 
             // Register him as my friend
-            AddWinsSetCRDT friends = get(txn, currentUser.friendList, false, AddWinsSetCRDT.class, updatesSubscriber);
+            AddWinsIdSetCRDT friends = get(txn, currentUser.friendList, false, AddWinsIdSetCRDT.class,
+                    updatesSubscriber);
             friends.add(NamingScheme.forUser(receiverName));
 
             // Register me as his friend
-            AddWinsSetCRDT requesterFriends = get(txn, friend.friendList, false, AddWinsSetCRDT.class,
+            AddWinsIdSetCRDT requesterFriends = get(txn, friend.friendList, false, AddWinsIdSetCRDT.class,
                     updatesSubscriber);
             requesterFriends.add(NamingScheme.forUser(this.currentUser.loginName));
             commitTxn(txn);
@@ -411,17 +410,16 @@ public class SwiftSocialOps {
             txn = server.beginTxn(isolationLevel, cachePolicy, true);
             // Obtain user data
 
-            User user = ((LWWRegisterCRDT<User>) get(txn, NamingScheme.forUser(name), false, LWWRegisterCRDT.class,
-                    updatesSubscriber)).getValue();
+            User user = get(txn, NamingScheme.forUser(name), false, LWWUserRegisterCRDT.class, updatesSubscriber)
+                    .getValue();
 
-            Set<CRDTIdentifier> friendIds = get(txn, user.friendList, false, AddWinsSetCRDT.class, updatesSubscriber)
+            Set<CRDTIdentifier> friendIds = get(txn, user.friendList, false, AddWinsIdSetCRDT.class, updatesSubscriber)
                     .getValue();
 
             bulkGet(txn, friendIds);
 
             for (CRDTIdentifier f : friendIds) {
-                User u = ((LWWRegisterCRDT<User>) get(txn, f, false, LWWRegisterCRDT.class, updatesSubscriber))
-                        .getValue();
+                User u = get(txn, f, false, LWWUserRegisterCRDT.class, updatesSubscriber).getValue();
                 friends.add(new Friend(u.fullName, f));
             }
             commitTxn(txn);
@@ -437,7 +435,7 @@ public class SwiftSocialOps {
 
     private void writeMessage(TxnHandle txn, Message msg, CRDTIdentifier set, ObjectUpdatesListener listener)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
-        AddWinsSetCRDT messages = txn.get(set, false, AddWinsSetCRDT.class, listener);
+        AddWinsMessageSetCRDT messages = txn.get(set, false, AddWinsMessageSetCRDT.class, listener);
         messages.add(msg);
     }
 
@@ -473,12 +471,12 @@ public class SwiftSocialOps {
     Tally getLatency = new Tally("GetLatency");
 
     @SuppressWarnings("unchecked")
-    <V extends CRDT<V>, T extends CRDT<V>> T get(TxnHandle txn, CRDTIdentifier id, boolean create, Class<V> classOfT)
+    <V extends CRDT<V>> V get(TxnHandle txn, CRDTIdentifier id, boolean create, Class<V> classOfT)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
-        T res = (T) bulkRes.remove(id);
+        V res = (V) bulkRes.remove(id);
         if (res == null)
-            res = (T) txn.get(id, create, classOfT);
+            res = (V) txn.get(id, create, classOfT);
 
         return res;
     }

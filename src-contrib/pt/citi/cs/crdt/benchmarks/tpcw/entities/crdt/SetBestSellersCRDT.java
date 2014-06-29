@@ -43,13 +43,12 @@ public class SetBestSellersCRDT extends AbstractAddWinsSetCRDT<BestSellerEntry, 
 
     public SetBestSellersCRDT(CRDTIdentifier id) {
         super(id, null, null);
-        this.elems = new HashMap<BestSellerEntry, Set<TripleTimestamp>>();
+        createElementsInstances();
     }
 
-    private SetBestSellersCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
-            Map<BestSellerEntry, Set<TripleTimestamp>> elems) {
+    private SetBestSellersCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
         super(id, txn, clock);
-        this.elems = elems;
+        createElementsInstances();
     }
 
     /**
@@ -86,13 +85,18 @@ public class SetBestSellersCRDT extends AbstractAddWinsSetCRDT<BestSellerEntry, 
 
     @Override
     public SetBestSellersCRDT copy() {
-        Map<BestSellerEntry, Set<TripleTimestamp>> newElems = new HashMap<BestSellerEntry, Set<TripleTimestamp>>();
-        AddWinsUtils.deepCopy(elems, newElems);
-        return new SetBestSellersCRDT(id, txn, clock, newElems);
+        SetBestSellersCRDT copy = new SetBestSellersCRDT(id, txn, clock);
+        AddWinsUtils.deepCopy(elems, copy.getElementsInstances());
+        return copy;
     }
 
     @Override
     protected Map<BestSellerEntry, Set<TripleTimestamp>> getElementsInstances() {
         return elems;
+    }
+
+    @Override
+    protected void createElementsInstances() {
+        this.elems = new HashMap<BestSellerEntry, Set<TripleTimestamp>>();
     }
 }

@@ -16,40 +16,49 @@
  *****************************************************************************/
 package swift.crdt;
 
+import java.util.HashMap;
+
+import com.esotericsoftware.kryo.KryoSerializable;
+
 import swift.clocks.CausalityClock;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
 /**
- * Generic register CRDT with Last Writer Wins resolution policy for concurrent
- * assignments. WARNING: When assigning to a register, make sure that the
- * elements in the set are either immutable or that they are cloned!
+ * LWW register CRDT optimized for storing map of strings. WARNING: When
+ * assigning a map to a register, make sure that the map is immutable (e.g., a
+ * private copy).
  * 
- * 
- * @param <V>
- *            type of the content of a register
  * @author mzawirsk
  */
 // TODO: it used to be that Register's content was copyable, but nothing was
 // copied actually in the implementation? Current solution is consistent with
 // Set CRDTs, but perhaps suboptimal - we could enforce clonability of V and
 // clone values just after the API calls.
-public class LWWRegisterCRDT<V> extends AbstractLWWRegisterCRDT<V, LWWRegisterCRDT<V>> {
+public class LWWStringMapRegisterCRDT extends
+        AbstractLWWRegisterCRDT<HashMap<String, String>, LWWStringMapRegisterCRDT> {
     // Kryo
-    public LWWRegisterCRDT() {
+    public LWWStringMapRegisterCRDT() {
     }
 
-    public LWWRegisterCRDT(CRDTIdentifier uid) {
+    public LWWStringMapRegisterCRDT(CRDTIdentifier uid) {
         super(uid);
     }
 
-    private LWWRegisterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
-            LWWRegisterUpdate<V, LWWRegisterCRDT<V>> lastUpdate) {
+    private LWWStringMapRegisterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
+            LWWRegisterUpdate<HashMap<String, String>, LWWStringMapRegisterCRDT> lastUpdate) {
         super(id, txn, clock, lastUpdate);
     }
 
     @Override
-    public LWWRegisterCRDT<V> copy() {
-        return new LWWRegisterCRDT<V>(id, txn, clock, lastUpdate);
+    protected LWWStringMapRegisterUpdate generateUpdate(long registerTimestamp, TripleTimestamp tiebreakingTimestamp,
+            HashMap<String, String> value) {
+        return new LWWStringMapRegisterUpdate(registerTimestamp, tiebreakingTimestamp, value);
+    }
+
+    @Override
+    public LWWStringMapRegisterCRDT copy() {
+        return new LWWStringMapRegisterCRDT(id, txn, clock, lastUpdate);
     }
 }

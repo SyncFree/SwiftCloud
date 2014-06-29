@@ -3,7 +3,7 @@ package swift.application.ycsb;
 import java.util.HashMap;
 import java.util.Set;
 
-import swift.crdt.LWWRegisterCRDT;
+import swift.crdt.LWWStringMapRegisterCRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 import swift.exceptions.NetworkException;
@@ -25,8 +25,8 @@ public class SwiftRegisterPerKeyClient extends AbstractSwiftClient {
             HashMap<String, ByteIterator> result) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        final LWWRegisterCRDT<HashMap<String, String>> register = (LWWRegisterCRDT<HashMap<String, String>>) txn.get(
-                new CRDTIdentifier(table, key), false, LWWRegisterCRDT.class, notificationsSubscriber);
+        final LWWStringMapRegisterCRDT register = txn.get(new CRDTIdentifier(table, key), false,
+                LWWStringMapRegisterCRDT.class, notificationsSubscriber);
         final HashMap<String, String> value = register.getValue();
         if (value == null) {
             return ERROR_NOT_FOUND;
@@ -45,8 +45,8 @@ public class SwiftRegisterPerKeyClient extends AbstractSwiftClient {
     protected int updateImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        final LWWRegisterCRDT<HashMap<String, String>> register = (LWWRegisterCRDT<HashMap<String, String>>) txn.get(
-                new CRDTIdentifier(table, key), false, LWWRegisterCRDT.class, notificationsSubscriber);
+        final LWWStringMapRegisterCRDT register = txn.get(new CRDTIdentifier(table, key), false,
+                LWWStringMapRegisterCRDT.class, notificationsSubscriber);
         final HashMap<String, String> value = register.getValue();
         if (value == null) {
             return ERROR_NOT_FOUND;
@@ -62,8 +62,8 @@ public class SwiftRegisterPerKeyClient extends AbstractSwiftClient {
     protected int insertImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
         @SuppressWarnings("unchecked")
-        final LWWRegisterCRDT<HashMap<String, String>> register = (LWWRegisterCRDT<HashMap<String, String>>) txn.get(
-                new CRDTIdentifier(table, key), true, LWWRegisterCRDT.class, notificationsSubscriber);
+        final LWWStringMapRegisterCRDT register = txn.get(new CRDTIdentifier(table, key), true,
+                LWWStringMapRegisterCRDT.class, notificationsSubscriber);
         final HashMap<String, String> value = StringByteIterator.getStringMap(values);
         register.set(value);
 

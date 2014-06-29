@@ -43,13 +43,17 @@ public class AddWinsSetCRDT<V> extends AbstractAddWinsSetCRDT<V, AddWinsSetCRDT<
 
     public AddWinsSetCRDT(CRDTIdentifier id) {
         super(id);
-        this.elemsInstances = new HashMap<V, Set<TripleTimestamp>>();
+        createElementsInstances();
     }
 
-    private AddWinsSetCRDT(CRDTIdentifier id, final TxnHandle txn, final CausalityClock clock,
-            Map<V, Set<TripleTimestamp>> elemsInstances) {
+    private AddWinsSetCRDT(CRDTIdentifier id, final TxnHandle txn, final CausalityClock clock) {
         super(id, txn, clock);
-        this.elemsInstances = elemsInstances;
+        createElementsInstances();
+    }
+
+    @Override
+    protected void createElementsInstances() {
+        this.elemsInstances = new HashMap<V, Set<TripleTimestamp>>();
     }
 
     @Override
@@ -59,8 +63,8 @@ public class AddWinsSetCRDT<V> extends AbstractAddWinsSetCRDT<V, AddWinsSetCRDT<
 
     @Override
     public AddWinsSetCRDT<V> copy() {
-        final HashMap<V, Set<TripleTimestamp>> newInstances = new HashMap<V, Set<TripleTimestamp>>();
-        AddWinsUtils.deepCopy(elemsInstances, newInstances);
-        return new AddWinsSetCRDT<V>(id, txn, clock, newInstances);
+        final AddWinsSetCRDT<V> copy = new AddWinsSetCRDT<V>(id, txn, clock);
+        AddWinsUtils.deepCopy(elemsInstances, copy.getElementsInstances());
+        return copy;
     }
 }

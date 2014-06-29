@@ -34,7 +34,7 @@ import com.esotericsoftware.kryo.io.Output;
  * 
  * @author mzawirsk
  */
-public class PutOnlyLWWStringMapCRDT extends AbstractPutOnlyLWWMapCRDT<PutOnlyLWWStringMapCRDT, String, String>
+public class PutOnlyLWWStringMapCRDT extends AbstractPutOnlyLWWMapCRDT<String, String, PutOnlyLWWStringMapCRDT>
         implements KryoSerializable {
     // Kryo
     public PutOnlyLWWStringMapCRDT() {
@@ -63,12 +63,12 @@ public class PutOnlyLWWStringMapCRDT extends AbstractPutOnlyLWWMapCRDT<PutOnlyLW
     @Override
     public void write(Kryo kryo, Output output) {
         baseWrite(kryo, output);
-        output.writeInt(entries.size());
+        output.writeVarInt(entries.size(), true);
         for (final Entry<String, LWWEntry<String>> entry : entries.entrySet()) {
             output.writeString(entry.getKey());
             final LWWEntry<String> nestedEntry = entry.getValue();
             output.writeString(nestedEntry.val);
-            output.writeLong(nestedEntry.timestamp);
+            output.writeVarLong(nestedEntry.timestamp, true);
             nestedEntry.timestampTiebreaker.write(kryo, output);
         }
     }
@@ -76,13 +76,13 @@ public class PutOnlyLWWStringMapCRDT extends AbstractPutOnlyLWWMapCRDT<PutOnlyLW
     @Override
     public void read(Kryo kryo, Input input) {
         baseRead(kryo, input);
-        final int entriesSize = input.readInt();
+        final int entriesSize = input.readVarInt(true);
         this.entries = new HashMap<String, LWWEntry<String>>(entriesSize);
         for (int i = 0; i < entriesSize; i++) {
             final String key = input.readString();
             final LWWEntry<String> entry = new LWWEntry<String>();
             entry.val = input.readString();
-            entry.timestamp = input.readLong();
+            entry.timestamp = input.readVarLong(true);
             entry.timestampTiebreaker = new TripleTimestamp();
             entry.timestampTiebreaker.read(kryo, input);
             entries.put(key, entry);

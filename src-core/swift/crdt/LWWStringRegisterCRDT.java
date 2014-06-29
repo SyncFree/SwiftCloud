@@ -16,39 +16,38 @@
  *****************************************************************************/
 package swift.crdt;
 
-import java.util.HashMap;
-
 import swift.clocks.CausalityClock;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
 /**
- * An generic version of {@link AbstractPutOnlyLWWMapCRDT} for any provided key
- * and value type.
+ * LWW register CRDT optimized for storing strings.
  * 
- * @see PutOnlyLWWStringMapCRDT for an optimized version
  * @author mzawirsk
  */
-public class PutOnlyLWWMapCRDT<K, V> extends AbstractPutOnlyLWWMapCRDT<K, V, PutOnlyLWWMapCRDT<K, V>> {
+public class LWWStringRegisterCRDT extends AbstractLWWRegisterCRDT<String, LWWStringRegisterCRDT> {
     // Kryo
-    public PutOnlyLWWMapCRDT() {
+    public LWWStringRegisterCRDT() {
     }
 
-    public PutOnlyLWWMapCRDT(CRDTIdentifier uid) {
+    public LWWStringRegisterCRDT(CRDTIdentifier uid) {
         super(uid);
     }
 
-    private PutOnlyLWWMapCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock, HashMap<K, LWWEntry<V>> entries) {
-        super(id, txn, clock, entries);
+    private LWWStringRegisterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
+            LWWRegisterUpdate<String, LWWStringRegisterCRDT> lastUpdate) {
+        super(id, txn, clock, lastUpdate);
     }
 
     @Override
-    protected PutOnlyLWWMapUpdate<K, V, PutOnlyLWWMapCRDT<K, V>> generatePutDownstream(K key, LWWEntry<V> entry) {
-        return new PutOnlyLWWMapUpdate<>(key, entry.timestamp, entry.timestampTiebreaker, entry.val);
+    protected LWWStringRegisterUpdate generateUpdate(long registerTimestamp, TripleTimestamp tiebreakingTimestamp,
+            String value) {
+        return new LWWStringRegisterUpdate(registerTimestamp, tiebreakingTimestamp, value);
     }
 
     @Override
-    public PutOnlyLWWMapCRDT<K, V> copy() {
-        return new PutOnlyLWWMapCRDT<K, V>(id, txn, clock, new HashMap<K, LWWEntry<V>>(entries));
+    public LWWStringRegisterCRDT copy() {
+        return new LWWStringRegisterCRDT(id, txn, clock, lastUpdate);
     }
 }

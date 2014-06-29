@@ -44,13 +44,12 @@ public class SetIndexByDateCRDT extends AbstractAddWinsSetCRDT<OrderInfo, SetInd
 
     public SetIndexByDateCRDT(final CRDTIdentifier id) {
         super(id, null, null);
-        this.elems = new HashMap<OrderInfo, Set<TripleTimestamp>>();
+        createElementsInstances();
     }
 
-    private SetIndexByDateCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
-            Map<OrderInfo, Set<TripleTimestamp>> elems) {
+    private SetIndexByDateCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock) {
         super(id, txn, clock);
-        this.elems = elems;
+        createElementsInstances();
     }
 
     /**
@@ -86,13 +85,18 @@ public class SetIndexByDateCRDT extends AbstractAddWinsSetCRDT<OrderInfo, SetInd
 
     @Override
     public SetIndexByDateCRDT copy() {
-        final HashMap<OrderInfo, Set<TripleTimestamp>> newInstances = new HashMap<OrderInfo, Set<TripleTimestamp>>();
-        AddWinsUtils.deepCopy(elems, newInstances);
-        return new SetIndexByDateCRDT(id, txn, clock, newInstances);
+        SetIndexByDateCRDT copy = new SetIndexByDateCRDT(id, txn, clock);
+        AddWinsUtils.deepCopy(elems, copy.getElementsInstances());
+        return copy;
     }
 
     @Override
     protected Map<OrderInfo, Set<TripleTimestamp>> getElementsInstances() {
         return elems;
+    }
+
+    @Override
+    protected void createElementsInstances() {
+        this.elems = new HashMap<OrderInfo, Set<TripleTimestamp>>();
     }
 }

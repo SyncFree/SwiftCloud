@@ -16,40 +16,45 @@
  *****************************************************************************/
 package swift.crdt;
 
+import swift.application.social.User;
 import swift.clocks.CausalityClock;
+import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.TxnHandle;
 
 /**
- * Generic register CRDT with Last Writer Wins resolution policy for concurrent
- * assignments. WARNING: When assigning to a register, make sure that the
- * elements in the set are either immutable or that they are cloned!
+ * LWW register CRDT optimized for storing SwiftSocial Users data. WARNING: When
+ * assigning a value to a register, make sure that the User value is immutable
+ * (e.g., a private copy).
  * 
- * 
- * @param <V>
- *            type of the content of a register
  * @author mzawirsk
  */
 // TODO: it used to be that Register's content was copyable, but nothing was
 // copied actually in the implementation? Current solution is consistent with
 // Set CRDTs, but perhaps suboptimal - we could enforce clonability of V and
 // clone values just after the API calls.
-public class LWWRegisterCRDT<V> extends AbstractLWWRegisterCRDT<V, LWWRegisterCRDT<V>> {
+public class LWWUserRegisterCRDT extends AbstractLWWRegisterCRDT<User, LWWUserRegisterCRDT> {
     // Kryo
-    public LWWRegisterCRDT() {
+    public LWWUserRegisterCRDT() {
     }
 
-    public LWWRegisterCRDT(CRDTIdentifier uid) {
+    public LWWUserRegisterCRDT(CRDTIdentifier uid) {
         super(uid);
     }
 
-    private LWWRegisterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
-            LWWRegisterUpdate<V, LWWRegisterCRDT<V>> lastUpdate) {
+    private LWWUserRegisterCRDT(CRDTIdentifier id, TxnHandle txn, CausalityClock clock,
+            LWWRegisterUpdate<User, LWWUserRegisterCRDT> lastUpdate) {
         super(id, txn, clock, lastUpdate);
     }
 
     @Override
-    public LWWRegisterCRDT<V> copy() {
-        return new LWWRegisterCRDT<V>(id, txn, clock, lastUpdate);
+    protected LWWRegisterUpdate<User, LWWUserRegisterCRDT> generateUpdate(long registerTimestamp,
+            TripleTimestamp tiebreakingTimestamp, User value) {
+        return new LWWUserRegisterUpdate(registerTimestamp, tiebreakingTimestamp, value);
+    }
+
+    @Override
+    public LWWUserRegisterCRDT copy() {
+        return new LWWUserRegisterCRDT(id, txn, clock, lastUpdate);
     }
 }

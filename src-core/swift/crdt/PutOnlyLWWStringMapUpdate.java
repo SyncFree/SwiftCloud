@@ -7,7 +7,7 @@ import com.esotericsoftware.kryo.io.Output;
 
 import swift.clocks.TripleTimestamp;
 
-public class PutOnlyLWWStringMapUpdate extends AbstractPutOnlyLWWMapUpdate<PutOnlyLWWStringMapCRDT, String, String> implements
+public class PutOnlyLWWStringMapUpdate extends PutOnlyLWWMapUpdate<String, String, PutOnlyLWWStringMapCRDT> implements
         KryoSerializable {
 
     public PutOnlyLWWStringMapUpdate() {

@@ -18,7 +18,12 @@ package swift.application.social;
 
 import java.util.Date;
 
-public class Message implements Cloneable, java.io.Serializable, Comparable<Message> {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class Message implements Cloneable, java.io.Serializable, Comparable<Message>, KryoSerializable {
     private static final long serialVersionUID = 1L;
     private String msg;
     private String sender;
@@ -73,6 +78,20 @@ public class Message implements Cloneable, java.io.Serializable, Comparable<Mess
 
     public long getDate() {
         return date;
+    }
+
+    @Override
+    public void write(Kryo kryo, Output output) {
+        output.writeString(msg);
+        output.writeString(sender);
+        output.writeLong(date);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input input) {
+        msg = input.readString();
+        sender = input.readString();
+        date = input.readLong();
     }
 
 }

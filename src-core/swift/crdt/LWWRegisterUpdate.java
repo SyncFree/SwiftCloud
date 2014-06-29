@@ -19,7 +19,13 @@ package swift.crdt;
 import swift.clocks.TripleTimestamp;
 import swift.crdt.core.CRDTUpdate;
 
-public class LWWRegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
+public class LWWRegisterUpdate<V, T extends AbstractLWWRegisterCRDT<V, T>> implements CRDTUpdate<T>,
+        Comparable<LWWRegisterUpdate<V, T>>, KryoSerializable {
     protected V val;
     protected long registerTimestamp;
     protected TripleTimestamp tiebreakingTimestamp;
@@ -35,12 +41,57 @@ public class LWWRegisterUpdate<V> implements CRDTUpdate<LWWRegisterCRDT<V>> {
     }
 
     @Override
-    public void applyTo(LWWRegisterCRDT<V> register) {
-        register.applySet(registerTimestamp, tiebreakingTimestamp, val);
+    public void applyTo(T register) {
+        register.applySet(this);
     }
 
     @Override
     public Object getValueWithoutMetadata() {
         return val;
+    }
+
+    @Override
+    public void write(Kryo kryo, Output output) {
+        output.writeBoolean(val != null);
+        if (val != null) {
+            writeValue(kryo, output);
+        }
+        output.writeVarLong(registerTimestamp, true);
+        tiebreakingTimestamp.write(kryo, output);
+    }
+
+    protected void writeValue(Kryo kryo, Output output) {
+        kryo.writeClassAndObject(output, val);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input input) {
+        if (input.readBoolean()) {
+            readValue(kryo, input);
+        }
+        registerTimestamp = input.readVarLong(true);
+        tiebreakingTimestamp = new TripleTimestamp();
+        tiebreakingTimestamp.read(kryo, input);
+    }
+
+    protected void readValue(Kryo kryo, Input input) {
+        val = (V) kryo.readClassAndObject(input);
+    }
+
+    @Override
+    public int compareTo(LWWRegisterUpdate<V, T> o) {
+        if (this.registerTimestamp != o.registerTimestamp) {
+            return Long.signum(this.registerTimestamp - o.registerTimestamp);
+        }
+        if (this.tiebreakingTimestamp == null && o.tiebreakingTimestamp != null) {
+            return -1;
+        }
+        if (this.tiebreakingTimestamp != null && o.tiebreakingTimestamp == null) {
+            return 1;
+        }
+        if (this.tiebreakingTimestamp == null && o.tiebreakingTimestamp == null) {
+            return 0;
+        }
+        return this.tiebreakingTimestamp.compareTo(o.tiebreakingTimestamp);
     }
 }

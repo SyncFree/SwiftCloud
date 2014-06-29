@@ -195,11 +195,11 @@ public class DirectoryCRDT extends BaseCRDT<DirectoryCRDT> {
     }
 
     protected void applyCreate(CRDTIdentifier entry, TripleTimestamp ts, Set<TripleTimestamp> overwrittenTimestamps) {
-        AddWinsUtils.applyAdd(dir, entry, ts, overwrittenTimestamps);
+        AddWinsUtils.applyUpdate(dir, entry, ts, overwrittenTimestamps);
     }
 
     protected void applyRemove(CRDTIdentifier key, Set<TripleTimestamp> toBeRemoved) {
-        AddWinsUtils.applyRemove(dir, key, toBeRemoved);
+        AddWinsUtils.applyUpdate(dir, key, null, toBeRemoved);
     }
 
     @Override

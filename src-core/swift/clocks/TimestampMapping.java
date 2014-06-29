@@ -46,7 +46,7 @@ final public class TimestampMapping implements Copyable, KryoSerializable, KryoC
     /**
      * USED by Kyro and copy
      */
-    TimestampMapping() {
+    public TimestampMapping() {
     }
 
     /**

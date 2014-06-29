@@ -25,7 +25,7 @@ package swift.clocks;
 public class IncrementalTripleTimestampGenerator implements TimestampSource<TripleTimestamp> {
 
     protected Timestamp clientTimestamp;
-    protected long last;
+    protected int last;
 
     // for Kryo
     IncrementalTripleTimestampGenerator() {
@@ -33,7 +33,7 @@ public class IncrementalTripleTimestampGenerator implements TimestampSource<Trip
 
     public IncrementalTripleTimestampGenerator(Timestamp clientTimestamp) {
         this.clientTimestamp = clientTimestamp;
-        this.last = Timestamp.MIN_VALUE;
+        this.last = 0;
     }
 
     @Override

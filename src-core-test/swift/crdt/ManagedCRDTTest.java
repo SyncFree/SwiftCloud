@@ -101,8 +101,8 @@ public class ManagedCRDTTest {
                 mapping, null, dependency);
         for (int i = 0; i < elements.length; i++) {
             final Set<TripleTimestamp> emptySet = Collections.emptySet();
-            group.append(new AddWinsSetAddUpdate<Integer, AddWinsSetCRDT<Integer>>(elements[i],
-                    generator.generateNew(), emptySet));
+            group.append(new AddWinsSetUpdate<Integer, AddWinsSetCRDT<Integer>>(elements[i], generator.generateNew(),
+                    emptySet));
         }
         return group;
     }

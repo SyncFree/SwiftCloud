@@ -18,10 +18,15 @@ package swift.application.social;
 
 import java.util.Date;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.Copyable;
 
-public class User implements Copyable {
+public class User implements Copyable, KryoSerializable {
     CRDTIdentifier userId;
     String loginName;
     String password;
@@ -84,6 +89,46 @@ public class User implements Copyable {
         sb.append(fullName).append(", born ");
         sb.append(new Date(birthday));
         return sb.toString();
+    }
+
+    @Override
+    public void write(Kryo kryo, Output output) {
+        userId.write(kryo, output);
+        output.writeString(loginName);
+        output.writeString(password);
+        output.writeBoolean(active);
+        output.writeString(fullName);
+        output.writeLong(birthday);
+        eventList.write(kryo, output);
+        msgList.write(kryo, output);
+        friendList.write(kryo, output);
+        inFriendReq.write(kryo, output);
+        outFriendReq.write(kryo, output);
+        viewsCounter.write(kryo, output);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input input) {
+        userId = new CRDTIdentifier();
+        userId.read(kryo, input);
+        loginName = input.readString();
+        password = input.readString();
+        active = input.readBoolean();
+        fullName = input.readString();
+        birthday = input.readLong();
+
+        eventList = new CRDTIdentifier();
+        eventList.read(kryo, input);
+        msgList = new CRDTIdentifier();
+        msgList.read(kryo, input);
+        friendList = new CRDTIdentifier();
+        friendList.read(kryo, input);
+        inFriendReq = new CRDTIdentifier();
+        inFriendReq.read(kryo, input);
+        outFriendReq = new CRDTIdentifier();
+        outFriendReq.read(kryo, input);
+        viewsCounter = new CRDTIdentifier();
+        viewsCounter.read(kryo, input);
     }
 
 }

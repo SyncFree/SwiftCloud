@@ -23,22 +23,36 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import swift.application.social.Message;
+import swift.application.social.User;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
 import swift.clocks.TripleTimestamp;
 import swift.clocks.VersionVectorWithExceptions;
+import swift.crdt.AbstractAddOnlySetCRDT;
+import swift.crdt.AbstractAddWinsSetCRDT;
+import swift.crdt.AbstractLWWRegisterCRDT;
+import swift.crdt.AbstractPutOnlyLWWMapCRDT;
 import swift.crdt.AddOnlySetCRDT;
 import swift.crdt.AddOnlySetUpdate;
+import swift.crdt.AddOnlyStringSetCRDT;
+import swift.crdt.AddOnlyStringSetUpdate;
+import swift.crdt.AddWinsMessageSetCRDT;
+import swift.crdt.AddWinsMessageSetUpdate;
 import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.AddWinsSetUpdate;
 import swift.crdt.IntegerCRDT;
 import swift.crdt.IntegerUpdate;
 import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.LWWRegisterUpdate;
-import swift.crdt.AddWinsSetAddUpdate;
-import swift.crdt.AddWinsSetRemoveUpdate;
-import swift.crdt.AbstractPutOnlyLWWMapCRDT;
-import swift.crdt.AbstractPutOnlyLWWMapUpdate;
+import swift.crdt.LWWStringMapRegisterCRDT;
+import swift.crdt.LWWStringMapRegisterUpdate;
+import swift.crdt.LWWStringRegisterCRDT;
+import swift.crdt.LWWStringRegisterUpdate;
+import swift.crdt.LWWUserRegisterCRDT;
+import swift.crdt.LWWUserRegisterUpdate;
 import swift.crdt.PutOnlyLWWMapCRDT;
+import swift.crdt.PutOnlyLWWMapUpdate;
 import swift.crdt.PutOnlyLWWStringMapCRDT;
 import swift.crdt.PutOnlyLWWStringMapUpdate;
 import swift.crdt.core.CRDTIdentifier;
@@ -93,72 +107,90 @@ public class KryoCRDTUtils {
     public static void registerCRDTClasses(Registerable registerable) {
 
         // FIXME: remove dependency from src-core to src-app!
+        int classId = 0x50;
 
-        registerable.register(Timestamp.class, 0x50);
-        registerable.register(TripleTimestamp.class, 0x51);
-        registerable.register(VersionVectorWithExceptions.class, 0x52);
-        registerable.register(VersionVectorWithExceptions.Interval.class, 0x53);
-        registerable.register(TimestampMapping.class, 0x54);
-        registerable.register(CRDTIdentifier.class, 0x55);
-        registerable.register(ManagedCRDT.class, 0x56);
+        // Java primitives
+        registerable.register(ArrayList.class, classId++);
+        registerable.register(LinkedList.class, classId++);
+        registerable.register(TreeMap.class, classId++);
+        registerable.register(HashMap.class, classId++);
+        registerable.register(Map.Entry.class, classId++);
+        registerable.register(TreeSet.class, classId++);
 
-        registerable.register(LWWRegisterCRDT.class, 0x58);
-        registerable.register(AbstractPutOnlyLWWMapCRDT.class, 0x59);
-        registerable.register(AbstractPutOnlyLWWMapCRDT.LWWEntry.class, 0x60);
-        registerable.register(PutOnlyLWWMapCRDT.class, 0x61);
-        registerable.register(PutOnlyLWWStringMapCRDT.class, 0x62);
-        registerable.register(PutOnlyLWWStringMapUpdate.class, 0x63);
-        // 0x59
-        // registerable.register(SetIds.class, 0x60);
-        // registerable.register(SetIntegers.class, 0x61);
-        // registerable.register(SetMsg.class, 0x62);
-        // registerable.register(SetStrings.class, 0x63);
-        // registerable.register(SetVersioned.class, 0x64);
-        registerable.register(IntegerCRDT.class, 0x6D);
+        // Metadata
+        registerable.register(Timestamp.class, classId++);
+        registerable.register(TripleTimestamp.class, classId++);
+        registerable.register(VersionVectorWithExceptions.class, classId++);
+        registerable.register(VersionVectorWithExceptions.Interval.class, classId++);
+        registerable.register(TimestampMapping.class, classId++);
+        registerable.register(CRDTIdentifier.class, classId++);
+        registerable.register(ManagedCRDT.class, classId++);
+        registerable.register(CRDTObjectUpdatesGroup.class, classId++);
 
-        registerable.register(ClientRequest.class, 0x70);
-        registerable.register(CommitUpdatesRequest.class, 0x71);
-        registerable.register(CommitUpdatesReply.class, 0x72);
-        registerable.register(CommitUpdatesReply.CommitStatus.class, 0x73);
-        registerable.register(BatchCommitUpdatesRequest.class, 0x74);
-        registerable.register(BatchCommitUpdatesReply.class, 0x75);
-        registerable.register(BatchUpdatesNotification.class, 0x76);
+        // DC protocol
+        registerable.register(CommitTSRequest.class, classId++);
+        registerable.register(CommitTSReply.class, classId++);
+        registerable.register(DHTExecCRDT.class, classId++);
+        registerable.register(DHTExecCRDTReply.class, classId++);
+        registerable.register(DHTGetCRDT.class, classId++);
+        registerable.register(DHTGetCRDTReply.class, classId++);
 
-        registerable.register(FetchObjectDeltaRequest.class, 0x77);
-        registerable.register(FetchObjectVersionRequest.class, 0x78);
-        registerable.register(FetchObjectVersionReply.class, 0x79);
-        registerable.register(FetchObjectVersionReply.FetchStatus.class, 0x7A);
+        // Client-DC protocol
+        registerable.register(ClientRequest.class, classId++);
+        registerable.register(CommitUpdatesRequest.class, classId++);
+        registerable.register(CommitUpdatesReply.class, classId++);
+        registerable.register(CommitUpdatesReply.CommitStatus.class, classId++);
+        registerable.register(BatchCommitUpdatesRequest.class, classId++);
+        registerable.register(BatchCommitUpdatesReply.class, classId++);
+        registerable.register(BatchUpdatesNotification.class, classId++);
+        registerable.register(UpdateNotification.class, classId++);
 
-        registerable.register(UpdateNotification.class, 0x7B);
+        registerable.register(FetchObjectDeltaRequest.class, classId++);
+        registerable.register(FetchObjectVersionRequest.class, classId++);
+        registerable.register(FetchObjectVersionReply.class, classId++);
+        registerable.register(FetchObjectVersionReply.FetchStatus.class, classId++);
 
-        registerable.register(LatestKnownClockRequest.class, 0x7F);
-        registerable.register(LatestKnownClockReply.class, 0x80);
+        registerable.register(LatestKnownClockRequest.class, classId++);
+        registerable.register(LatestKnownClockReply.class, classId++);
 
-        registerable.register(UnsubscribeUpdatesRequest.class, 0x81);
+        registerable.register(UnsubscribeUpdatesRequest.class, classId++);
 
-        registerable.register(CRDTObjectUpdatesGroup.class, 0x82);
-        registerable.register(AddWinsSetCRDT.class, 0x83);
-        registerable.register(IntegerUpdate.class, 0x84);
-        registerable.register(LWWRegisterUpdate.class, 0x85);
-        registerable.register(AddWinsSetAddUpdate.class, 0x86);
-        registerable.register(AddWinsSetRemoveUpdate.class, 0x87);
-        registerable.register(AddOnlySetCRDT.class, 0x88);
-        registerable.register(AddOnlySetUpdate.class, 0x89);
-        registerable.register(AbstractPutOnlyLWWMapUpdate.class, 0x8A);
+        // SwiftSocial objects
+        registerable.register(User.class, classId++);
+        registerable.register(Message.class, classId++);
 
-        registerable.register(CommitTSRequest.class, 0x8B);
-        registerable.register(CommitTSReply.class, 0x8C);
-        registerable.register(DHTExecCRDT.class, 0x8D);
-        registerable.register(DHTExecCRDTReply.class, 0x8E);
-        registerable.register(DHTGetCRDT.class, 0x8F);
-        registerable.register(DHTGetCRDTReply.class, 0x90);
+        // CRDTs
+        registerable.register(IntegerCRDT.class, classId++);
+        registerable.register(IntegerUpdate.class, classId++);
 
-        registerable.register(ArrayList.class, 0xA0);
-        registerable.register(LinkedList.class, 0xA1);
-        registerable.register(TreeMap.class, 0xA2);
-        registerable.register(HashMap.class, 0xA3);
-        registerable.register(Map.Entry.class, 0xA4);
-        registerable.register(TreeSet.class, 0xA5);
+        registerable.register(AbstractLWWRegisterCRDT.class, classId++);
+        registerable.register(LWWRegisterUpdate.class, classId++);
+        registerable.register(LWWRegisterCRDT.class, classId++);
+        registerable.register(LWWStringRegisterCRDT.class, classId++);
+        registerable.register(LWWStringRegisterUpdate.class, classId++);
+        registerable.register(LWWStringMapRegisterCRDT.class, classId++);
+        registerable.register(LWWStringMapRegisterUpdate.class, classId++);
+        registerable.register(LWWUserRegisterCRDT.class, classId++);
+        registerable.register(LWWUserRegisterUpdate.class, classId++);
+
+        registerable.register(AbstractPutOnlyLWWMapCRDT.class, classId++);
+        registerable.register(AbstractPutOnlyLWWMapCRDT.LWWEntry.class, classId++);
+        registerable.register(PutOnlyLWWMapUpdate.class, classId++);
+        registerable.register(PutOnlyLWWMapCRDT.class, classId++);
+        registerable.register(PutOnlyLWWStringMapCRDT.class, classId++);
+        registerable.register(PutOnlyLWWStringMapUpdate.class, classId++);
+
+        registerable.register(AbstractAddOnlySetCRDT.class, classId++);
+        registerable.register(AddOnlySetUpdate.class, classId++);
+        registerable.register(AddOnlySetCRDT.class, classId++);
+        registerable.register(AddOnlyStringSetCRDT.class, classId++);
+        registerable.register(AddOnlyStringSetUpdate.class, classId++);
+
+        registerable.register(AbstractAddWinsSetCRDT.class, classId++);
+        registerable.register(AddWinsSetUpdate.class, classId++);
+        registerable.register(AddWinsSetCRDT.class, classId++);
+        registerable.register(AddWinsMessageSetCRDT.class, classId++);
+        registerable.register(AddWinsMessageSetUpdate.class, classId++);
 
     }
 }

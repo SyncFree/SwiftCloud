@@ -20,10 +20,16 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.Timestamp;
 import swift.clocks.TimestampMapping;
+import swift.clocks.VersionVectorWithExceptions;
 
 /**
  * Representation of an atomic sequence of update operations on an object.
@@ -42,7 +48,7 @@ import swift.clocks.TimestampMapping;
  * 
  * @author mzawirsk
  */
-public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
+public class CRDTObjectUpdatesGroup<V extends CRDT<V>> implements KryoSerializable {
 
     protected CRDTIdentifier id;
     protected CausalityClock dependencyClock;
@@ -239,5 +245,37 @@ public class CRDTObjectUpdatesGroup<V extends CRDT<V>> {
     @Override
     public String toString() {
         return String.format("[id=%s,deps=%s,ts=%s,ops=%s", id, dependencyClock, timestampMapping, operations);
+    }
+
+    @Override
+    public void write(Kryo kryo, Output output) {
+        output.writeBoolean(id != null);
+        if (id != null) {
+            id.write(kryo, output);
+        }
+        kryo.writeObjectOrNull(output, dependencyClock, VersionVectorWithExceptions.class);
+        timestampMapping.write(kryo, output);
+        output.writeVarInt(operations.size(), true);
+        for (final CRDTUpdate<V> update : operations) {
+            kryo.writeClassAndObject(output, update);
+        }
+        kryo.writeClassAndObject(output, creationState);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input input) {
+        if (input.readBoolean()) {
+            id = new CRDTIdentifier();
+            id.read(kryo, input);
+        }
+        dependencyClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
+        timestampMapping = new TimestampMapping();
+        timestampMapping.read(kryo, input);
+        final int operationsNumber = input.readVarInt(true);
+        operations = new LinkedList<>();
+        for (int i = 0; i < operationsNumber; i++) {
+            operations.add((CRDTUpdate<V>) kryo.readClassAndObject(input));
+        }
+        creationState = (V) kryo.readClassAndObject(input);
     }
 }
