@@ -42,6 +42,10 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
+import swift.crdt.AbstractLWWRegisterCRDT;
+import swift.crdt.LWWStringMapRegisterCRDT;
+import swift.crdt.LWWStringMapRegisterUpdate;
+import swift.crdt.PutOnlyLWWStringMapCRDT;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
@@ -228,6 +232,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("FetchObjectVersionRequest client = " + request.getClientId());
         }
+        // LWWStringMapRegisterCRDT initialCheckpoint = new
+        // LWWStringMapRegisterCRDT(request.getUid());
+        // FAKE_INIT_UPDATE.applyTo(initialCheckpoint);
+        // conn.reply(new FetchObjectVersionReply(FetchStatus.OK, new
+        // ManagedCRDT<LWWStringMapRegisterCRDT>(request
+        // .getUid(), initialCheckpoint, request.getVersion(), true),
+        // request.getVersion(), request.getVersion()));
+        // return;
         // conn.reply(new FetchObjectVersionReply(FetchStatus.OK, new
         // ManagedCRDT<PutOnlyLWWStringMapCRDT>(request
         // .getUid(), new PutOnlyLWWStringMapCRDT(request.getUid()),
@@ -682,6 +694,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     private Map<String, ClientSession> sessions = new HashMap<String, ClientSession>();
+    private static LWWStringMapRegisterUpdate FAKE_INIT_UPDATE = new LWWStringMapRegisterUpdate(1,
+            AbstractLWWRegisterCRDT.INIT_TIMESTAMP, new HashMap<String, String>());
 
     // Map<String, Object> evaluateStaleReads(FetchObjectVersionRequest request,
     // CausalityClock estimatedDCVersionCopy,
