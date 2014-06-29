@@ -17,6 +17,7 @@
 package swift.proto;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.VersionVectorWithExceptions;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.ManagedCRDT;
 import sys.net.api.rpc.RpcHandle;
@@ -24,6 +25,8 @@ import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
@@ -31,7 +34,7 @@ import com.esotericsoftware.kryo.io.Output;
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
+public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, KryoSerializable {
     public enum FetchStatus {
         /**
          * The reply contains requested version.
@@ -190,5 +193,23 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable {
 
         collector.recordStats(this, totalSize, versionSize, valueSize, globalMetadata, 1, maxVectorSize,
                 maxExceptionsNum);
+    }
+
+    @Override
+    public void write(Kryo kryo, Output output) {
+        output.writeVarInt(status.ordinal(), true);
+        kryo.writeClassAndObject(output, crdt);
+        kryo.writeObjectOrNull(output, estimatedLatestKnownClock, VersionVectorWithExceptions.class);
+        kryo.writeObjectOrNull(output, estimatedDisasterDurableLatestKnownClock, VersionVectorWithExceptions.class);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input input) {
+        final int ordinal = input.readVarInt(true);
+        // If ordinal is out range, then ArrayIndexOutOfBoundException fires.
+        status = FetchStatus.values()[ordinal];
+        crdt = (ManagedCRDT<?>) kryo.readClassAndObject(input);
+        estimatedLatestKnownClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
+        estimatedDisasterDurableLatestKnownClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
     }
 }

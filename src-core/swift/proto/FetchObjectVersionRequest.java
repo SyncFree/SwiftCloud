@@ -17,11 +17,14 @@
 package swift.proto;
 
 import swift.clocks.CausalityClock;
+import swift.clocks.VersionVectorWithExceptions;
 import swift.crdt.core.CRDTIdentifier;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoSerializable;
+import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
@@ -29,7 +32,7 @@ import com.esotericsoftware.kryo.io.Output;
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionRequest extends ClientRequest implements MetadataSamplable {
+public class FetchObjectVersionRequest extends ClientRequest implements MetadataSamplable, KryoSerializable {
     protected CRDTIdentifier uid;
     // TODO: could be derived from client's session?
     protected CausalityClock version;
@@ -152,5 +155,36 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
 
         collector.recordStats(this, totalSize, 0, 0, globalMetadata, 1, version.getSize(),
                 version.getExceptionsNumber());
+    }
+
+    @Override
+    public void write(Kryo kryo, Output output) {
+        baseWrite(kryo, output);
+        uid.write(kryo, output);
+        ((VersionVectorWithExceptions) version).write(kryo, output);
+        byte options = 0;
+        if (strictUnprunedVersion) {
+            options |= 1;
+        }
+        if (subscribe) {
+            options |= 1 << 1;
+        }
+        if (sendDCVector) {
+            options |= 1 << 2;
+        }
+        output.writeByte(options);
+    }
+
+    @Override
+    public void read(Kryo kryo, Input input) {
+        baseRead(kryo, input);
+        uid = new CRDTIdentifier();
+        uid.read(kryo, input);
+        version = new VersionVectorWithExceptions();
+        ((VersionVectorWithExceptions) version).read(kryo, input);
+        final byte options = input.readByte();
+        strictUnprunedVersion = (options & 1) != 0;
+        subscribe = (options & (1 << 1)) != 0;
+        sendDCVector = (options & (1 << 2)) != 0;
     }
 }

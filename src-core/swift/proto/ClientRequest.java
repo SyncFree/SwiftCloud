@@ -16,6 +16,10 @@
  *****************************************************************************/
 package swift.proto;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
+
 import sys.net.api.rpc.RpcMessage;
 
 /**
@@ -46,5 +50,15 @@ public abstract class ClientRequest implements RpcMessage {
 
     public boolean isDisasterSafeSession() {
         return disasterSafeSession;
+    }
+
+    protected void baseWrite(Kryo kryo, Output output) {
+        output.writeString(clientId);
+        output.writeBoolean(disasterSafeSession);
+    }
+
+    protected void baseRead(Kryo kryo, Input input) {
+        clientId = input.readString();
+        disasterSafeSession = input.readBoolean();
     }
 }
