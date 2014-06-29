@@ -139,10 +139,17 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             });
         }
 
-        // report client progress every 1 seconds...
-        new PeriodicTask(0.0, 1.0) {
+        // report client progress every 10 seconds...
+        final int PERIOD = 10;
+        new PeriodicTask(0.0, 0.0 + PERIOD) {
+            private int lastDone;
+
             public void run() {
-                System.err.printf("Done: %s\n", Progress.percentage(commandsDone.get(), totalCommands.get()));
+                final int recentDone = commandsDone.get();
+                final int throughput = (recentDone - lastDone) / PERIOD;
+                lastDone = recentDone;
+                System.err.printf("Done: %s, throughput %d op/s\n",
+                        Progress.percentage(recentDone, totalCommands.get()), throughput);
             }
         };
 

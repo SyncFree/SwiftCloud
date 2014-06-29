@@ -20,7 +20,6 @@ EuropeEC2 = [
     'planetlab-4.imperial.ac.uk',
 ]
 
-// Optional argument - limit of scouts number
 if (args.length < 2) {
     System.err.println "usage: runycsb_workloada.groovy <limits on scouts number per DC> <threads per scout>"
     System.exit(1)
@@ -57,7 +56,7 @@ deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 deployTo(AllMachines, SwiftYCSB.genPropsFile(['recordcount': DbSize.toString(),
     'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true', 'readproportion':'0.5',
     'updateproportion':'0.5','fieldlength':'1',
-    'swift.computeMetadataStatistics':'false',
+    //    'swift.reports':'APP_OP,METADATA',
     //    'swift.cacheSize':'256',
     //    'swift.asyncCommit':'true',
     //    'swift.notifications':'true',

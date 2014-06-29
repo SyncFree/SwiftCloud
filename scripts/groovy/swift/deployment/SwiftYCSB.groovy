@@ -54,8 +54,7 @@ class SwiftYCSB extends SwiftBase {
         'swift.causalNotifications':'false',
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
-        'swift.computeMetadataStatistics':'false',
-        'swift.reportEveryOperation':'false',
+        'swift.reports':'APP_OP',
     ]
 
     // TODO: use properties file?

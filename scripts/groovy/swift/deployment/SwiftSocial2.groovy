@@ -19,9 +19,9 @@ class SwiftSocial2 extends SwiftBase {
         println "OK.\n"
         return res
     }
-    
-    
-     static int prepareDB( String client, String server, String config, int threads, String heap = "512m") {
+
+
+    static int prepareDB( String client, String server, String config, int threads, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
 
         def cmd = "-Dswiftsocial=" + config + " " + INITDB_CMD + " -prepareDB -threads " + threads + " "
@@ -69,7 +69,7 @@ class SwiftSocial2 extends SwiftBase {
         'swift.notifications':'true',
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
-        'swift.computeMetadataStatistics':'true',
+        'swift.reports':'APP_OP', // 'APP_OP,METADATA'
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
         'swiftsocial.biasedOps':'9',

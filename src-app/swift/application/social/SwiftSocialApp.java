@@ -102,10 +102,7 @@ public class SwiftSocialApp {
 
     public SwiftSocialOps getSwiftSocial(final String sessionId) {
         final SwiftOptions options = new SwiftOptions(server, DCConstants.SURROGATE_PORT, props);
-        if (options.hasMetadataStatsCollector()) {
-            options.setMetadataStatsCollector(new MetadataStatsCollectorImpl(sessionId));
-        }
-        SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options);
+        SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options, sessionId);
         SwiftSocialOps socialClient = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
                 asyncCommit);
         return socialClient;

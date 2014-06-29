@@ -19,7 +19,6 @@ import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
 import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
-import swift.proto.MetadataStatsCollectorImpl;
 import swift.utils.SafeLog;
 import swift.utils.SafeLog.ReportType;
 import sys.Sys;
@@ -100,10 +99,7 @@ public abstract class AbstractSwiftClient extends DB {
 
         final SwiftOptions options = new SwiftOptions(hostname, port, props);
         sessionId = UUID.randomUUID();
-        if (options.hasMetadataStatsCollector()) {
-            options.setMetadataStatsCollector(new MetadataStatsCollectorImpl(sessionId.toString()));
-        }
-        session = SwiftImpl.newSingleSessionInstance(options);
+        session = SwiftImpl.newSingleSessionInstance(options, sessionId.toString());
     }
 
     @Override

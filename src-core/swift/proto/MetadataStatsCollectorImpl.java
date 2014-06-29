@@ -33,7 +33,7 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return ReportType.METADATA.isEnabled();
     }
 
     @Override

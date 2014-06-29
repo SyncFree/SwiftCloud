@@ -79,6 +79,7 @@ import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
+import swift.proto.MetadataStatsCollectorImpl;
 import swift.proto.PingReply;
 import swift.proto.PingRequest;
 import swift.proto.SwiftProtocolHandler;
@@ -154,10 +155,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
      * @see SwiftOptions
      */
     public static SwiftSession newSingleSessionInstance(final SwiftOptions options) {
+        return newSingleSessionInstance(options, "default-session-id");
+    }
+
+    public static SwiftSession newSingleSessionInstance(SwiftOptions options, String sessionId) {
         Endpoint[] servers = parseEndpoints(options.getServerHostname());
         final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers,
-                new LRUObjectsCache(options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
-        return sharedImpl.newSession("singleton-session");
+                new LRUObjectsCache(options.getCacheEvictionTimeMillis(), options.getCacheSize()), options, sessionId);
+        return sharedImpl.newSession(sessionId);
     }
 
     /**
@@ -172,7 +177,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         Endpoint[] servers = parseEndpoints(options.getServerHostname());
 
         return new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers, new LRUObjectsCache(
-                options.getCacheEvictionTimeMillis(), options.getCacheSize()), options);
+                options.getCacheEvictionTimeMillis(), options.getCacheSize()), options, "multi-session-instance");
     }
 
     private static String generateScoutId() {
@@ -285,7 +290,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private final boolean assumeAtomicCausalNotifications;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
-            final SwiftOptions options) {
+            final SwiftOptions options, String sessionId) {
         this.scoutId = generateScoutId();
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
@@ -305,7 +310,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
         this.cacheStats = new CoarseCacheStats(stats);
 
-        this.metadataStatsCollector = options.getMetadataStatsCollector();
+        this.metadataStatsCollector = new MetadataStatsCollectorImpl(sessionId);
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();

@@ -2,6 +2,7 @@ package swift.utils;
 
 import java.io.PrintStream;
 import java.util.EnumSet;
+import java.util.logging.Logger;
 
 /**
  * Shared logging class for safe reporting of predefined types of values from
@@ -47,10 +48,11 @@ public class SafeLog {
     }
 
     public static final char COMMENT_CHAR = '#';
-
-    // TODO: support file/properties-based configuration.
-    private static EnumSet<ReportType> enabledReportsEnumSet = EnumSet.of(ReportType.METADATA, ReportType.APP_OP);
-
+    private static Logger logger = Logger.getLogger(SafeLog.class.getName());
+    private static EnumSet<ReportType> enabledReportsEnumSet = EnumSet.noneOf(ReportType.class);
+    static {
+        configureReportsFromProperties();
+    }
     private static final PrintStream bufferedOutput = new PrintStream(System.out, false);
 
     public static void printHeader() {
@@ -78,5 +80,21 @@ public class SafeLog {
 
     public static void printlnComment(String comment) {
         bufferedOutput.println(COMMENT_CHAR + comment);
+    }
+
+    // TODO: fix potential synchronization race during init.
+    private synchronized static void configureReportsFromProperties() {
+        String reports = System.getProperty("swift.reports");
+        if (reports == null) {
+            return;
+        }
+        for (final String report : reports.split(",")) {
+            try {
+                enabledReportsEnumSet.add(ReportType.valueOf(report));
+                logger.info("Configured report " + report);
+            } catch (IllegalArgumentException x) {
+                logger.warning("Unrecognized report type " + report + " - ignoring");
+            }
+        }
     }
 }

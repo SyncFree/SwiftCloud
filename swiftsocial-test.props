@@ -15,3 +15,4 @@ swiftsocial.biasedOps=9
 swiftsocial.randomOps=1
 swiftsocial.opGroups=10000
 swiftsocial.thinkTime=10
+swiftsocial.recordPageViews=true
