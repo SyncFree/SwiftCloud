@@ -46,7 +46,7 @@ import com.esotericsoftware.kryo.io.Output;
 // clone values just after the API calls.
 public abstract class AbstractLWWRegisterCRDT<V, T extends AbstractLWWRegisterCRDT<V, T>> extends BaseCRDT<T> implements
         TxnGetterSetter<V>, KryoSerializable {
-    public static TripleTimestamp INIT_TIMESTAMP = new IncrementalTripleTimestampGenerator(new Timestamp("", 0))
+    public static TripleTimestamp INIT_TIMESTAMP = new IncrementalTripleTimestampGenerator(new Timestamp("", 1))
             .generateNew();
     protected LWWRegisterUpdate<V, T> lastUpdate;
 

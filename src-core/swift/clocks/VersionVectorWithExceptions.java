@@ -925,11 +925,11 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
             LinkedList<Interval> lli = new LinkedList<Interval>();
             vv.put(in.readString().intern(), lli);
             long numIntervalsOrOneOptimizedInterval = in.readVarLong(true);
-            if (numIntervalsOrOneOptimizedInterval < 0) {
+            if (numIntervalsOrOneOptimizedInterval > 0) {
                 // optimized interval
-                lli.add(new Interval(0, numIntervalsOrOneOptimizedInterval * -1));
+                lli.add(new Interval(1, numIntervalsOrOneOptimizedInterval));
             } else {
-                for (long j = numIntervalsOrOneOptimizedInterval; --j >= 0;) {
+                for (long j = numIntervalsOrOneOptimizedInterval * -1; --j >= 0;) {
                     Interval ii = new Interval();
                     ii.read(kryo, in);
                     lli.add(ii);
@@ -945,11 +945,11 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
             out.writeString(e.getKey().intern());
             LinkedList<Interval> lli = e.getValue();
-            if (lli.size() == 1 && lli.get(0).from == 0) {
+            if (lli.size() == 1 && lli.get(0).from == 1) {
                 // use optimized encoding for the common case
-                out.writeVarLong(lli.get(0).to * -1, true);
+                out.writeVarLong(lli.get(0).to, true);
             } else {
-                out.writeVarLong(lli.size(), true);
+                out.writeVarLong(lli.size() * -1, true);
                 for (Interval ii : e.getValue())
                     ii.write(kryo, out);
             }
