@@ -4,8 +4,6 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.EnumSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -125,7 +123,7 @@ public class SafeLog {
             bufferedOutput.close();
             enabledReportsEnumSet.clear();
         } catch (IOException e) {
-            logger.warning("Cannot flush stdout: " + e);
+            logger.warning("Cannot close stdout: " + e);
         }
     }
 
