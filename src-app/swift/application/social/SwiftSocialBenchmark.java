@@ -57,6 +57,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
         Properties properties = Props.parseFile("swiftsocial", propFile);
+        SafeLog.configureReportsFromProperties(properties);
 
         System.err.println("Populating db with users...");
 
@@ -108,14 +109,14 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         super.populateWorkloadFromConfig();
 
-        SafeLog.printfComment("\n");
-        SafeLog.printfComment("\targs=%s\n", Arrays.asList(args));
-        SafeLog.printfComment("\tsite=%s\n", site);
-        SafeLog.printfComment("\tnumberOfSites=%s\n", numberOfSites);
-        SafeLog.printfComment("\tthreads=%s\n", concurrentSessions);
-        SafeLog.printfComment("\tnumberOfVirtualSites=%s\n", numberOfVirtualSites);
-        SafeLog.printfComment("\tSurrogate=%s\n", server);
-        SafeLog.printfComment("\tShepard=%s\n", shepard);
+        SafeLog.printlnComment("");
+        SafeLog.printlnComment(String.format("\targs=%s", Arrays.asList(args)));
+        SafeLog.printlnComment(String.format("\tsite=%s", site));
+        SafeLog.printlnComment(String.format("\tnumberOfSites=%s", numberOfSites));
+        SafeLog.printlnComment(String.format("\tthreads=%s", concurrentSessions));
+        SafeLog.printlnComment(String.format("\tnumberOfVirtualSites=%s", numberOfVirtualSites));
+        SafeLog.printlnComment(String.format("\tSurrogate=%s", server));
+        SafeLog.printlnComment(String.format("\tShepard=%s", shepard));
         SafeLog.printHeader();
 
         if (!shepard.isEmpty())

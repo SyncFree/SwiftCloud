@@ -634,6 +634,7 @@ public class Client
 			targetperthreadperms=targetperthread/1000.0;
 		}	 
 
+		SafeLog.configureReportsFromProperties(props);
         SafeLog.printlnComment("YCSB Client 0.1");
         String cmdLine = "Command line:";
         for (int i = 0; i < args.length; i++) {
@@ -642,7 +643,7 @@ public class Client
         SafeLog.printlnComment(cmdLine);
         SafeLog.printlnComment("Properties:");
         for (Entry<Object, Object> entry : props.entrySet()) {
-            SafeLog.printfComment("\t%s=%s\n", entry.getKey(), entry.getValue());
+            SafeLog.printlnComment(String.format("\t%s=%s", entry.getKey(), entry.getValue()));
         }
         SafeLog.printlnComment("");
         SafeLog.printHeader();

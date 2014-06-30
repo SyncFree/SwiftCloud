@@ -3,7 +3,6 @@ package sys.utils;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Properties;
 
 import swift.utils.SafeLog;
@@ -18,12 +17,12 @@ public class Props {
                 BufferedReader br = new BufferedReader(new FileReader(filename));
                 props.load(br);
                 br.close();
-                SafeLog.printfComment("Read properties from: %s\n", filename);
+                SafeLog.printlnComment(String.format("Read properties from: %s", filename));
 
                 // Marek, naughty, naughty, you did break the statistics
                 // scripts ;-)
                 for (Object i : props.keySet())
-                    SafeLog.printfComment("\t%s=%s\n", i, props.getProperty((String) i));
+                    SafeLog.printlnComment(String.format("\t%s=%s", i, props.getProperty((String) i)));
             }
             // BACKWARD-COMPABILITY HACK:
             Properties processedProps = new Properties();
