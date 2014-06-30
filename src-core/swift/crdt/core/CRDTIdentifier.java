@@ -45,8 +45,8 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
         if (table == null || "".equals(table) || key == null || "".equals(key)) {
             throw new NullPointerException("CRDTIdentifier cannot have empty table or key");
         }
-        this.table = table;
-        this.key = key;
+        this.table = table.intern();
+        this.key = key.intern();
     }
 
     private String getId() {
@@ -101,8 +101,8 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
 
     @Override
     public void read(Kryo kryo, Input in) {
-        table = kryo.readObject(in, String.class);
-        key = kryo.readObject(in, String.class);
+        table = kryo.readObject(in, String.class).intern();
+        key = kryo.readObject(in, String.class).intern();
     }
 
     @Override
