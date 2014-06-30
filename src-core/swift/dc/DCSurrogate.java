@@ -43,9 +43,7 @@ import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
 import swift.crdt.AbstractLWWRegisterCRDT;
-import swift.crdt.LWWStringMapRegisterCRDT;
 import swift.crdt.LWWStringMapRegisterUpdate;
-import swift.crdt.PutOnlyLWWStringMapCRDT;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
@@ -648,8 +646,9 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     iter.remove();
                 }
             }
-            if (objectsUpdates.isEmpty())
-                return snapshot;
+
+            // if (objectsUpdates.isEmpty())
+            // return snapshot;
 
             // Update client in any case.
             // if (objectsUpdates.isEmpty()) {
