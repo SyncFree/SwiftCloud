@@ -20,6 +20,7 @@ import static java.lang.System.exit;
 import static sys.Sys.Sys;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -31,6 +32,7 @@ import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
 import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.ec2.ClosestDomain;
 import sys.herd.Shepard;
 import sys.scheduler.PeriodicTask;
@@ -57,7 +59,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
         Properties properties = Props.parseFile("swiftsocial", propFile);
-        SafeLog.configureReportsFromProperties(properties);
+        SafeLog.configure(properties);
 
         System.err.println("Populating db with users...");
 
@@ -174,6 +176,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             DCServer.main(new String[] { "-servers", "localhost" });
 
             args = new String[] { "-servers", "localhost", "-threads", "2", "-props", "swiftsocial-test.props" };
+            SafeLog.configure(EnumSet.of(ReportType.APP_OP));
             instance.initDB(args);
             instance.doBenchmark(args);
             exit(0);

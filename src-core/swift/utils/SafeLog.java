@@ -4,6 +4,8 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.EnumSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
 
@@ -53,20 +55,33 @@ public class SafeLog {
     private static EnumSet<ReportType> enabledReportsEnumSet = EnumSet.noneOf(ReportType.class);
     private static final BufferedWriter bufferedOutput = new BufferedWriter(new OutputStreamWriter(System.out));
 
-    // TODO: fix potential synchronization race during init.
-    public synchronized static void configureReportsFromProperties(Properties props) {
-        String reports = props.getProperty("swift.reports");
-        if (reports == null) {
+    public synchronized static void configure(Properties props) {
+        String reportsProp = props.getProperty("swift.reports");
+        if (reportsProp == null) {
             return;
         }
-        for (final String report : reports.split(",")) {
+        final EnumSet<ReportType> reports = EnumSet.noneOf(ReportType.class);
+        for (final String report : reportsProp.split(",")) {
             try {
-                enabledReportsEnumSet.add(ReportType.valueOf(report));
-                logger.info("Configured report " + report);
+                reports.add(ReportType.valueOf(report));
             } catch (IllegalArgumentException x) {
                 logger.warning("Unrecognized report type " + report + " - ignoring");
             }
         }
+        configure(reports);
+    }
+
+    public synchronized static void configure(EnumSet<ReportType> reports) {
+        for (final ReportType report : reports) {
+            enabledReportsEnumSet.add(report);
+            logger.info("Configured report " + report);
+        }
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                SafeLog.close();
+            }
+        });
     }
 
     public static void printHeader() {
@@ -76,48 +91,51 @@ public class SafeLog {
         }
     }
 
-    public static void report(ReportType type, Object... args) {
+    public synchronized static void report(ReportType type, Object... args) {
         if (!type.isEnabled()) {
             return;
         }
         if (args.length != type.getFieldsNumber()) {
             logger.warning("Misformated report " + type + ": " + args);
         }
-        synchronized (bufferedOutput) {
-            try {
-                bufferedOutput.write(Long.toString(System.currentTimeMillis()));
+        try {
+            bufferedOutput.write(Long.toString(System.currentTimeMillis()));
+            bufferedOutput.write(',');
+            bufferedOutput.write(type.name());
+            for (final Object arg : args) {
                 bufferedOutput.write(',');
-                bufferedOutput.write(type.name());
-                for (final Object arg : args) {
-                    bufferedOutput.write(',');
-                    bufferedOutput.write(arg.toString());
-                }
-                bufferedOutput.write('\n');
-            } catch (IOException e) {
-                logger.warning("Cannot write to stdout: " + e);
+                bufferedOutput.write(arg.toString());
             }
+            bufferedOutput.write('\n');
+        } catch (IOException e) {
+            logger.warning("Cannot write to stdout: " + e);
         }
     }
 
-    public static void flush() {
-        synchronized (bufferedOutput) {
-            try {
-                bufferedOutput.flush();
-            } catch (IOException e) {
-                logger.warning("Cannot flush stdout: " + e);
-            }
+    public synchronized static void flush() {
+        try {
+            bufferedOutput.flush();
+        } catch (IOException e) {
+            logger.warning("Cannot flush stdout: " + e);
         }
     }
 
-    public static void printlnComment(String comment) {
-        synchronized (bufferedOutput) {
-            try {
-                bufferedOutput.write(COMMENT_CHAR);
-                bufferedOutput.write(comment);
-                bufferedOutput.write('\n');
-            } catch (IOException e) {
-                logger.warning("Cannot write to stdout: " + e);
-            }
+    public synchronized static void close() {
+        try {
+            bufferedOutput.close();
+            enabledReportsEnumSet.clear();
+        } catch (IOException e) {
+            logger.warning("Cannot flush stdout: " + e);
+        }
+    }
+
+    public synchronized static void printlnComment(String comment) {
+        try {
+            bufferedOutput.write(COMMENT_CHAR);
+            bufferedOutput.write(comment);
+            bufferedOutput.write('\n');
+        } catch (IOException e) {
+            logger.warning("Cannot write to stdout: " + e);
         }
     }
 }

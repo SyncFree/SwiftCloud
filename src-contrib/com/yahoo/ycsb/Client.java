@@ -634,7 +634,7 @@ public class Client
 			targetperthreadperms=targetperthread/1000.0;
 		}	 
 
-		SafeLog.configureReportsFromProperties(props);
+		SafeLog.configure(props);
         SafeLog.printlnComment("YCSB Client 0.1");
         String cmdLine = "Command line:";
         for (int i = 0; i < args.length; i++) {

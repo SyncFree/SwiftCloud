@@ -78,7 +78,7 @@ public class SwiftSocialApp {
     public void populateWorkloadFromConfig() {
 
         props = Props.parseFile("swiftsocial", propFile);
-        SafeLog.configureReportsFromProperties(props);
+        SafeLog.configure(props);
         isolationLevel = IsolationLevel.valueOf(Props.get(props, "swift.isolationLevel"));
         cachePolicy = CachePolicy.valueOf(Props.get(props, "swift.cachePolicy"));
         subscribeUpdates = Props.boolValue(props, "swift.notifications", false);
