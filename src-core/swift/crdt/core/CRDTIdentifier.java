@@ -101,13 +101,13 @@ public class CRDTIdentifier implements Cloneable, Serializable, Comparable<CRDTI
 
     @Override
     public void read(Kryo kryo, Input in) {
-        table = kryo.readObject(in, String.class).intern();
-        key = kryo.readObject(in, String.class).intern();
+        table = in.readString();
+        key = in.readString();
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        kryo.writeObject(out, table);
-        kryo.writeObject(out, key);
+        out.writeAscii(table);
+        out.writeAscii(key);
     }
 }
