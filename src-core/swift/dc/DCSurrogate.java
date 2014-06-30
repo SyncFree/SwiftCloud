@@ -312,6 +312,11 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                                     crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
                                 final FetchObjectVersionReply.FetchStatus status = (finalCmpClk == CMP_CLOCK.CMP_ISDOMINATED || finalCmpClk == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                                         : FetchStatus.OK;
+                                if (status == FetchStatus.VERSION_NOT_FOUND) {
+                                    logger.warning("Requested version " + request.getVersion() + " of object "
+                                            + request.getUid() + " not available; local version: "
+                                            + finalEstimatedDCVersionCopy);
+                                }
                                 if (logger.isLoggable(Level.INFO)) {
                                     logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/"
                                             + request.getUid());
