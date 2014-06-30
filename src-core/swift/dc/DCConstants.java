@@ -59,7 +59,7 @@ public class DCConstants {
 
     public static final int DEFAULT_TRXIDTIME = 5000;
 
-    public static final long PRUNING_INTERVAL = 1000; // set to
+    public static final long PRUNING_INTERVAL = 1000000; // set to
                                                       // 1000 *
                                                       // 60 * 60
                                                       // * 24 for
