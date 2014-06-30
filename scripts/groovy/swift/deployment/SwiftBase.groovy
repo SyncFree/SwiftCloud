@@ -15,6 +15,10 @@ class SwiftBase {
         return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
     }
 
+    static String swift_app_cmd_nooutput( String heap, String exec, String stderr, String stdout )  {
+        return "java " + heap + " " + exec +  "2> " + stderr+ " > " + stdout
+    }
+    
     static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers, String extraArgs) {
         def res  = SEQUENCER_CMD + " -name " + siteId + " -shepard " + shepard + " -servers "
         servers.each { res += it + " "}
