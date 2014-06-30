@@ -164,6 +164,7 @@ class Tools {
             f.mkdirs()
             [
                 "scp",
+                "-C",
                 String.format("%s@%s:%s", userName(), host, src),
                 f.absolutePath + "/" + dst
             ]
