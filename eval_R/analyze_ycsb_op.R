@@ -26,8 +26,13 @@ file_list <- (paste(toplevel_path,file_list,sep="/"))
 
 p <- list()
 d <- data.frame()
-i <- 1
-j <- grep(paste("TH-",i,sep=""),file_list)
+dc <- 1
+su <- 1
+sc <- 8
+th <- 4
+records <- "100000"
+ops <- "50000"
+j <- grep(paste("DC",dc,"SU",su,"SC",sc,"TH",th,"records",records,"operations",ops,sep="-"),file_list)
 
 #Sort by number of threads
 for (file in file_list[j]){
@@ -52,7 +57,7 @@ summary(d)
 #ggsave(scatter.plot, file=paste("~/data_eval/fig/timeline-TH",i,".pdf",collapse=""), scale=1)
 
 #CDF Plot
-cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) + ggtitle (paste("TH",i))
+cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) + ggtitle (paste("TH",th))
 cdf.plot
 #Histogram
 #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
@@ -62,4 +67,4 @@ rm(d)
 
 #p <- do.call(grid.arrange,p)
 
-ggsave(cdf.plot, file=paste("~/data_eval/fig/cdf-TH",i,".pdf",collapse=""), scale=1)
+ggsave(cdf.plot, file=paste("~/data_eval/fig/cdf-TH",th,".pdf",collapse=""), scale=1)
