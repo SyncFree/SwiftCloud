@@ -923,7 +923,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         // numPairs = 0;
         for (int i = in.readVarInt(true); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
-            vv.put(in.readString().intern(), lli);
+            vv.put(kryo.readObject(in, String.class).intern(), lli);
             long numIntervalsOrOneOptimizedInterval = in.readVarLong(true);
             if (numIntervalsOrOneOptimizedInterval > 0) {
                 // optimized interval
@@ -943,7 +943,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     public void write(Kryo kryo, Output out) {
         out.writeVarInt(vv.size(), true);
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
-            out.writeString(e.getKey().intern());
+            kryo.writeObject(out, e.getKey().intern());
             LinkedList<Interval> lli = e.getValue();
             if (lli.size() == 1 && lli.get(0).from == 1) {
                 // use optimized encoding for the common case
