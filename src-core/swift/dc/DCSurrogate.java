@@ -282,6 +282,9 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         final CausalityClock disasterSafeVVReply = request.isSendDCVector() ? estimatedDCStableVersionCopy.clone()
                 : null;
+        if (disasterSafeVVReply != null) {
+            disasterSafeVVReply.intersect(estimatedDCVersionCopy);
+        }
 
         // TODO: for nodes !request.isDisasterSafe() send it
         // less
