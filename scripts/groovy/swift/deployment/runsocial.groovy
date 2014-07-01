@@ -123,7 +123,7 @@ pnuke(AllMachines, "java", 60)
 
 def dstDir="results/staleness/swiftsocial/" + new Date().format('MMMdd-') +
         System.currentTimeMillis() + "-" + Version + "-" +
-        String.format("DC-%s-SU-%s-SC-%s-TH-%s-USERS-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), Topology.totalScouts(), Threads, DbSize)
+        String.format("DC-%s-SU-%s-pruning-%d-SC-%s-TH-%s-USERS-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, Topology.totalScouts(), Threads, DbSize)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
