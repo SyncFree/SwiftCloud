@@ -232,6 +232,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     @Override
     public boolean record(Timestamp cc) {
         long v = cc.getCounter();
+        
         LinkedList<Interval> l = vv.get(cc.getIdentifier());
 
         // first timestamp registered for site
@@ -928,12 +929,13 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         for (int i = in.readVarInt(true); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
             vv.put(kryo.readObject(in, String.class).intern(), lli);
-            long numIntervalsOrOneOptimizedInterval = in.readVarLong(true);
-            if (numIntervalsOrOneOptimizedInterval > 0) {
+            long optimizedInterval = in.readVarLong(true);
+            if (optimizedInterval > 0) {
                 // optimized interval
-                lli.add(new Interval(1, numIntervalsOrOneOptimizedInterval));
+                lli.add(new Interval(1, optimizedInterval));
             } else {
-                for (long j = numIntervalsOrOneOptimizedInterval * -1; --j >= 0;) {
+                final int numberOfIntervals = in.readVarInt(true);
+                for (int j = 0; j < numberOfIntervals; j++) {
                     Interval ii = new Interval();
                     ii.read(kryo, in);
                     lli.add(ii);
@@ -953,7 +955,8 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
                 // use optimized encoding for the common case
                 out.writeVarLong(lli.get(0).to, true);
             } else {
-                out.writeVarLong(lli.size() * -1, true);
+                out.writeVarLong(0, true);
+                out.writeVarInt(lli.size(), true);
                 for (Interval ii : e.getValue())
                     ii.write(kryo, out);
             }
