@@ -1047,7 +1047,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (fetchReply.getEstimatedCommittedVersion() != null) {
                 clock.merge(fetchReply.getEstimatedCommittedVersion());
             }
-            clock.recordAllUntil(requestedScoutVersion);
+            if (requestedScoutVersion != null) {
+                clock.recordAllUntil(requestedScoutVersion);
+            }
             crdt = new ManagedCRDT<V>(request.getUid(), checkpoint, clock, false);
             break;
         case VERSION_NOT_FOUND:

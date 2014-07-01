@@ -51,6 +51,9 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     }
 
     public Timestamp(String siteid, long counter) {
+        if (counter <= MIN_VALUE) {
+            throw new IllegalArgumentException("Timestamp counter out of allowed range: " + counter + " <=" + MIN_VALUE);
+        }
         this.siteid = siteid;
         this.counter = counter;
     }

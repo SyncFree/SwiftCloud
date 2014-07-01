@@ -743,7 +743,11 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
      */
     @Override
     public Timestamp getLatest(String siteid) {
-        return new Timestamp(siteid, getLatestCounter(siteid));
+        final long value = getLatestCounter(siteid);
+        if (value <= Timestamp.MIN_VALUE) {
+            return null;
+        }
+        return new Timestamp(siteid, value);
     }
 
     /**
