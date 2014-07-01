@@ -14,46 +14,39 @@ def __ = onControlC({
 
 
 EuropeEC2 = [
-    'ec2-54-76-253-182.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-12-60.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-12-63.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-12-7.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-12-61.eu-west-1.compute.amazonaws.com'
+    // first node is a DC
+    'ec2-54-88-184-220.compute-1.amazonaws.com',
+    'ec2-54-88-3-105.compute-1.amazonaws.com'
 ]
 
 NVirginiaEC2 = [
-    'ec2-54-86-89-171.compute-1.amazonaws.com',
-    'ec2-54-88-141-139.compute-1.amazonaws.com',
-    'ec2-54-88-191-167.compute-1.amazonaws.com',
-    'ec2-54-88-160-165.compute-1.amazonaws.com',
-    'ec2-54-88-187-239.compute-1.amazonaws.com'
+    // first node is a DC
+    'ec2-54-88-184-220.compute-1.amazonaws.com',
+    'ec2-54-88-3-105.compute-1.amazonaws.com'
 ]
 
 OregonEC2 = [
-    'ec2-54-76-217-44.eu-west-1.compute.amazonaws.com',
-    // 'ec2-54-191-31-66.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-49-168.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-29-100.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-54-93.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-54-108.us-west-2.compute.amazonaws.com'
+    // first node is a DC
+    'ec2-54-88-184-220.compute-1.amazonaws.com',
+    'ec2-54-88-3-105.compute-1.amazonaws.com'
 ]
 
 
 
-if (args.length < 2) {
-    System.err.println "usage: runycsb_workloada.groovy <limits on scouts number per DC> <threads per scout>"
+if (args.length < 1) {
+    System.err.println "usage: runycsb_workloada.groovy <threads per scout> [limit on scouts number per DC]"
     System.exit(1)
 }
-PerDCClientNodesLimit = Integer.valueOf(args[0])
-Threads = Integer.valueOf(args[1])
+Threads = Integer.valueOf(args[0])
+PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MAX_VALUE
 
 
 Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
-//NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
-//Oregon = DC([OregonEC2[0]], [OregonEC2[0]])
-ScoutsEU = SGroup( EuropeEC2[1..PerDCClientNodesLimit], Europe )
-//ScoutsNV = SGroup( NVirginiaEC2[1..PerDCClientNodesLimit], NVirginia)
-//ScoutsOR = SGroup( OregonEC2[1..PerDCClientNodesLimit],  Oregon )
+NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
+Oregon = DC([OregonEC2[0]], [OregonEC2[0]])
+ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
+ScoutsNV = SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
+ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
