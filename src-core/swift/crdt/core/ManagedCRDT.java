@@ -511,6 +511,7 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
         result.pruneClock = versioningLowerBound.clone();
         result.pruneClock.intersect(result.clock);
         result.pruneClock.merge(pruneClock);
+        // TODO: option: trim holes?
         result.registeredInStore = registeredInStore;
         result.checkpoint = checkpoint.copy();
         result.strippedLog = new LinkedList<CRDTObjectUpdatesGroup<V>>();
@@ -522,6 +523,21 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
             }
         }
         return result;
+    }
+
+    /**
+     * Discard all updates more recent than the provided version (exclusive).
+     * 
+     * @param version
+     */
+    public void discardRecentUpdates(CausalityClock version) {
+        for (final Iterator<CRDTObjectUpdatesGroup<V>> updatesIter = strippedLog.iterator(); updatesIter.hasNext();) {
+            final CRDTObjectUpdatesGroup<V> updates = updatesIter.next();
+            if (!updates.anyTimestampIncluded(version)) {
+                updatesIter.remove();
+            }
+        }
+        clock.intersect(version);
     }
 
     @Override

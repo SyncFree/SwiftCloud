@@ -305,9 +305,18 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                         } else {
                             synchronized (crdt) {
                                 crdt.augmentWithDCClockWithoutMappings(finalEstimatedDCVersionCopy);
-
                                 if (cltLastSeqNo != null)
                                     crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
+
+                                // TODO: move it to data nodes
+                                if (!request.isSendMoreRecentUpdates()) {
+                                    CausalityClock restriction = (CausalityClock) request.getVersion().copy();
+                                    if (cltLastSeqNo != null) {
+                                        restriction.recordAllUntil(cltLastSeqNo);
+                                    }
+                                    crdt.discardRecentUpdates(request.getVersion());
+                                }
+
                                 final FetchObjectVersionReply.FetchStatus status = (finalCmpClk == CMP_CLOCK.CMP_ISDOMINATED || finalCmpClk == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
                                         : FetchStatus.OK;
                                 if (status == FetchStatus.VERSION_NOT_FOUND) {

@@ -765,7 +765,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             boolean fetchError = false;
             try {
-                fetchObjectVersion(txn, id, create, classOfV, fetchClock, false, updatesListener != null);
+                fetchObjectVersion(txn, id, create, classOfV, fetchClock, true, updatesListener != null);
             } catch (VersionNotFoundException x) {
                 if (fetchStrictlyRequired) {
                     throw x;
@@ -815,7 +815,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         while (true) {
             try {
-                fetchObjectVersion(txn, id, create, classOfV, version.clone(), true, updatesListener != null);
+                final boolean sendMoreRecentUpdates = updatesListener != null;
+                final boolean subscribeUpdates = updatesListener != null;
+                fetchObjectVersion(txn, id, create, classOfV, version.clone(), sendMoreRecentUpdates, subscribeUpdates);
             } catch (InterruptedException x) {
                 throw new NetworkException("Scout was shut down while  fetching an object: " + x.getMessage());
             }
@@ -933,17 +935,17 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     private <V extends CRDT<V>> void fetchObjectVersion(final AbstractTxnHandle txn, CRDTIdentifier id, boolean create,
-            Class<V> classOfV, final CausalityClock version, final boolean strictUnprunedVersion,
+            Class<V> classOfV, final CausalityClock version, final boolean sendMoreRecentUpdates,
             final boolean subscribeUpdates) throws WrongTypeException, NoSuchObjectException, VersionNotFoundException,
             NetworkException, InterruptedException {
         // WISHME: Add a real delta-log shipping support?
 
-        fetchObjectFromScratch(txn, id, create, classOfV, version, strictUnprunedVersion, subscribeUpdates);
+        fetchObjectFromScratch(txn, id, create, classOfV, version, sendMoreRecentUpdates, subscribeUpdates);
     }
 
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void fetchObjectFromScratch(final AbstractTxnHandle txn, CRDTIdentifier id,
-            boolean create, Class<V> classOfV, CausalityClock version, boolean strictUnprunedVersion,
+            boolean create, Class<V> classOfV, CausalityClock version, boolean sendMoreRecentUpdates,
             boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
             NetworkException, InterruptedException {
 
@@ -957,7 +959,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         final Timestamp requestedScoutVersion = version.getLatest(scoutId);
         version.drop(this.scoutId);
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, disasterSafe, id,
-                version, strictUnprunedVersion, subscribeUpdates, !assumeAtomicCausalNotifications);
+                version, sendMoreRecentUpdates, subscribeUpdates, !assumeAtomicCausalNotifications);
 
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create, requestedScoutVersion);
     }
@@ -1388,7 +1390,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     // FIXME: <V extends TxnLocalCRDT<V>> should be really part
                     // of ID, because if the object does not exist, we are
                     // grilled here with passing interface as V - it will crash
-                    fetchObjectVersion(null, id, false, CRDT.class, version, false, true);
+                    fetchObjectVersion(null, id, false, CRDT.class, version, true, true);
                 } catch (SwiftException x) {
                     logger.warning("could not fetch the latest version of an object for notifications purposes: "
                             + x.getMessage());

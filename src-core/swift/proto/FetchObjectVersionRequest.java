@@ -39,7 +39,7 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     // FIXME: make these things optional? Used only by evaluation.
     // protected CausalityClock clock;
     // protected CausalityClock disasterDurableClock;
-    protected boolean strictUnprunedVersion;
+    protected boolean sendMoreRecentUpdates;
     protected boolean subscribe;
     protected boolean sendDCVector;
 
@@ -55,12 +55,12 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     }
 
     public FetchObjectVersionRequest(String clientId, boolean disasterSafe, CRDTIdentifier uid, CausalityClock version,
-            final boolean strictUnprunedVersion, boolean subscribe, boolean sendDCVersion) {
+            final boolean sendMoreRecentUpdates, boolean subscribe, boolean sendDCVersion) {
         super(clientId, disasterSafe);
         this.uid = uid;
         this.version = version;
         this.subscribe = subscribe;
-        this.strictUnprunedVersion = strictUnprunedVersion;
+        this.sendMoreRecentUpdates = sendMoreRecentUpdates;
         this.sendDCVector = sendDCVersion;
     }
 
@@ -101,11 +101,11 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     }
 
     /**
-     * @return true strictly this (unpruned) version needs to be available in
-     *         the reply; otherwise a more recent version is acceptable
+     * @return true if more recent updates than the requested version should be
+     *         send in the reply
      */
-    public boolean isStrictAvailableVersion() {
-        return strictUnprunedVersion;
+    public boolean isSendMoreRecentUpdates() {
+        return sendMoreRecentUpdates;
     }
 
     @Override
@@ -163,7 +163,7 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
         uid.write(kryo, output);
         ((VersionVectorWithExceptions) version).write(kryo, output);
         byte options = 0;
-        if (strictUnprunedVersion) {
+        if (sendMoreRecentUpdates) {
             options |= 1;
         }
         if (subscribe) {
@@ -183,7 +183,7 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
         version = new VersionVectorWithExceptions();
         ((VersionVectorWithExceptions) version).read(kryo, input);
         final byte options = input.readByte();
-        strictUnprunedVersion = (options & 1) != 0;
+        sendMoreRecentUpdates = (options & 1) != 0;
         subscribe = (options & (1 << 1)) != 0;
         sendDCVector = (options & (1 << 2)) != 0;
     }
