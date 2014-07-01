@@ -131,7 +131,7 @@ class Tools {
     static void pnuke( List hosts, String pattern, int timeout) {
         println "KILLALL " + pattern
         AtomicInteger n = new AtomicInteger();
-        def cmd = { "killall " + pattern + "; sleep 1; killall -9 " + pattern }
+        def cmd = { "killall " + pattern + " && (sleep 1; killall -9 " + pattern + "; exit 0); exit \$?"}
         def resHandler = { host, res ->
             def str = n.incrementAndGet() + "/" + hosts.size() + (res == 0 ? " [ OK ]" : (res == 1 ? " [NO KILL]" : " [FAILED]")) + " : " + host
             println str
