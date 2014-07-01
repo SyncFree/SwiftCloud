@@ -512,7 +512,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
         generalExecutor.execute(new Runnable() {
             public void run() {
-                ClientSession session = getSession("Sequencer", false);
+                ClientSession session = getSession(request.getCltTimestamp().getIdentifier(), false);
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
                 CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
                 doOneCommit(session, request, snapshotClock);
