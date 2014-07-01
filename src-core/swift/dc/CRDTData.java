@@ -73,14 +73,14 @@ public class CRDTData<V extends CRDT<V>> {
         this.empty = true;
     }
 
-    boolean pruneIfPossible() {
+    boolean pruneIfPossible(final int pruningInterval) {
         long curTime = System.currentTimeMillis();
         if (lastPrunedTime == -1) {
             lastPrunedTime = curTime;
             lastPrunedClock = (CausalityClock) clock.copy();
             lastPrunedClock.trim();
         }
-        if (lastPrunedTime + DCConstants.PRUNING_INTERVAL < curTime) {
+        if (lastPrunedTime + pruningInterval < curTime) {
             crdt.prune(lastPrunedClock, false);
             pruneClock = lastPrunedClock;
             lastPrunedTime = curTime;

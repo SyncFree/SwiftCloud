@@ -78,7 +78,7 @@ final class DCDataServer {
     String localSurrogateId;
 
     DCNodeDatabase dbServer;
-    static public boolean prune;
+    final int pruningInterval;
 
     Set<CRDTData<?>> modified;
 
@@ -96,7 +96,12 @@ final class DCDataServer {
         this.dsPubSub = new DataServerPubSubService(localSurrogateId, executor, surrogate);
         this.suPubSub = suPubSub;
 
-        prune = Boolean.parseBoolean(props.getProperty(DCConstants.PRUNE_POLICY));
+        final String pruningIntervalString = props.getProperty(DCConstants.PRUNING_INTERVAL_PROPERTY);
+        if (pruningIntervalString != null) {
+            pruningInterval= Integer.valueOf(pruningIntervalString);
+        } else {
+            pruningInterval = DCConstants.DEFAULT_PRUNING_INTERVAL_MS;
+        }
 
         initStore();
         initData(props);
@@ -416,7 +421,7 @@ final class DCDataServer {
                 // sure after the switch to op-based.
                 data = localPutCRDT(crdt);
             }
-            data.pruneIfPossible();
+            data.pruneIfPossible(pruningInterval);
 
             // crdt.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
             // //

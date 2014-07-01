@@ -51,9 +51,11 @@ Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
-YCSBProps = "swiftycsb.properties"
+
+
 DbSize = 100000
 OpsNum = 1000000
+PruningIntervalMillis = 1000
 
 Duration = 240
 InterCmdDelay = 30
@@ -70,6 +72,7 @@ println "==== BUILDING JAR for version " + Version + "..."
 sh("ant -buildfile smd-jar-build.xml").waitFor()
 deployTo(AllMachines, "swiftcloud.jar")
 deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
+YCSBProps = "swiftycsb.properties"
 deployTo(AllMachines, SwiftYCSB.genPropsFile(['recordcount': DbSize.toString(),
     'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true', 'readproportion':'0.5',
     'updateproportion':'0.5','fieldlength':'1',
@@ -90,7 +93,7 @@ Topology.datacenters.each { datacenter ->
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySurrogates(ShepardAddr, "1536m")
+    datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis, "1536m")
 }
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="

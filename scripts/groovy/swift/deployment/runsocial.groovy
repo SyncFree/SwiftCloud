@@ -63,6 +63,7 @@ Duration = 180
 InterCmdDelay = 25
 SwiftSocial_Props = "swiftsocial-test.props"
 
+PruningIntervalMillis = 1000
 //DbSize = 200*Scouts.size()*Threads
 DbSize = 50000
 props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString()], SwiftSocial2.DEFAULT_PROPS)
@@ -96,7 +97,7 @@ Topology.datacenters.each { datacenter ->
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySurrogates(ShepardAddr, "2048m")
+    datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis, "2048m")
 }
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="

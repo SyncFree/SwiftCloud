@@ -89,6 +89,9 @@ public class DCServer {
             props.setProperty(DCConstants.PRUNE_POLICY, "false");
         }
 
+        props.setProperty(DCConstants.PRUNING_INTERVAL_PROPERTY,
+                Args.valueOf(args, "-pruningMs", DCConstants.DEFAULT_PRUNING_INTERVAL_MS) + "");
+
         String sequencerNode = Args.valueOf(args, "-sequencer", "localhost");
         int portSurrogate = Args.valueOf(args, "-portSurrogate", SURROGATE_PORT);
         String siteId = Args.valueOf(args, "-name", "X0");
