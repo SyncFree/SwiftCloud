@@ -2,11 +2,12 @@ package swift.pubsub;
 
 import static sys.net.api.Networking.Networking;
 
-import java.util.Collections;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 
 import swift.crdt.core.CRDTIdentifier;
 import swift.dc.DCConstants;
@@ -23,11 +24,12 @@ import sys.scheduler.Task;
 import sys.utils.FifoQueue;
 
 abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> implements SwiftSubscriber {
+    private final static Object dummyVal = new Object();
 
     final Endpoint suPubSub;
     final RpcEndpoint endpoint;
 
-    final Set<CRDTIdentifier> unsubscriptions = Collections.synchronizedSet(new HashSet<CRDTIdentifier>());
+    final Map<CRDTIdentifier, Object> unsubscriptions = new ConcurrentHashMap<CRDTIdentifier, Object>();
 
     final Task updater;
     final FifoQueue<SwiftNotification> fifoQueue;
@@ -66,19 +68,18 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
     }
 
     private void updateSurrogatePubSub() {
-        final Set<CRDTIdentifier> uset = new HashSet<CRDTIdentifier>(unsubscriptions);
+        final Set<CRDTIdentifier> uset = new HashSet<CRDTIdentifier>(unsubscriptions.keySet());
         final UnsubscribeUpdatesRequest request = new UnsubscribeUpdatesRequest(-1L, super.id(), disasterSafeSession,
                 uset);
         request.recordMetadataSample(statsCollector);
         endpoint.send(suPubSub, request, new SwiftProtocolHandler() {
             public void onReceive(RpcHandle conn, UnsubscribeUpdatesReply ack) {
-                unsubscriptions.removeAll(uset);
+                unsubscriptions.keySet().removeAll(uset);
                 ack.recordMetadataSample(statsCollector);
             }
         }, 0);
     }
 
-    // TODO Q: no synchronization required for these two methods??
     public void subscribe(CRDTIdentifier key) {
         unsubscriptions.remove(key);
         super.subscribe(key, this);
@@ -86,7 +87,7 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
 
     public void unsubscribe(CRDTIdentifier key) {
         if (super.unsubscribe(key, this)) {
-            unsubscriptions.add(key);
+            unsubscriptions.put(key, dummyVal);
             if (!updater.isScheduled())
                 updater.reSchedule(0.1);
         }
