@@ -232,7 +232,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     @Override
     public boolean record(Timestamp cc) {
         long v = cc.getCounter();
-        
+
         LinkedList<Interval> l = vv.get(cc.getIdentifier());
 
         // first timestamp registered for site
@@ -928,7 +928,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
         // numPairs = 0;
         for (int i = in.readVarInt(true); --i >= 0;) {
             LinkedList<Interval> lli = new LinkedList<Interval>();
-            vv.put(kryo.readObject(in, String.class).intern(), lli);
+            vv.put(Timestamp.createSiteIdRef(in.readString()), lli);
             long optimizedInterval = in.readVarLong(true);
             if (optimizedInterval > 0) {
                 // optimized interval
@@ -949,7 +949,7 @@ public class VersionVectorWithExceptions implements CausalityClock, KryoSerializ
     public void write(Kryo kryo, Output out) {
         out.writeVarInt(vv.size(), true);
         for (Map.Entry<String, LinkedList<Interval>> e : vv.entrySet()) {
-            kryo.writeObject(out, e.getKey().intern());
+            out.writeAscii(e.getKey());
             LinkedList<Interval> lli = e.getValue();
             if (lli.size() == 1 && lli.get(0).from == 1) {
                 // use optimized encoding for the common case

@@ -40,6 +40,14 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
      */
     public static final long MIN_VALUE = 0L;
 
+    /**
+     * @param siteId
+     * @return creates a reference to a possibly shared instance of siteId
+     */
+    public static String createSiteIdRef(String siteId) {
+        return siteId.intern();
+    }
+
     private static final long serialVersionUID = 1L;
     private String siteid;
     private long counter;
@@ -54,7 +62,7 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
         if (counter <= MIN_VALUE) {
             throw new IllegalArgumentException("Timestamp counter out of allowed range: " + counter + " <=" + MIN_VALUE);
         }
-        this.siteid = siteid;
+        this.siteid = createSiteIdRef(siteid);
         this.counter = counter;
     }
 
@@ -127,13 +135,13 @@ final public class Timestamp implements Serializable, Comparable<Timestamp>, Kry
     /************ FOR KRYO ***************/
     @Override
     public void read(Kryo kryo, Input in) {
-        this.siteid = kryo.readObject(in, String.class).intern(); // s2s(in.readString());
+        this.siteid = createSiteIdRef(in.readString());
         this.counter = in.readVarLong(true);
     }
 
     @Override
     public void write(Kryo kryo, Output out) {
-        kryo.writeObject(out, this.siteid.intern());
+        out.writeAscii(this.siteid);
         out.writeVarLong(this.counter, true);
     }
 
