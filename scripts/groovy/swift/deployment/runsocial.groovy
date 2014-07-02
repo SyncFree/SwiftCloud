@@ -15,7 +15,7 @@ def __ = onControlC({
 
 EuropeEC2 = [
     'ec2-54-77-18-173.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-7-59.eu-west-1.compute.amazonaws.com',
+    'ec2-54-72-130-92.eu-west-1.compute.amazonaws.com'
 ]
 
 NorthVirginiaEC2 = []
@@ -48,7 +48,7 @@ DbSize = 200*Scouts.size()*Threads
 // DbSize = 50000
 SwiftSocial_Props = "swiftsocial-test.props"
 props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString(),
-    'swift.reports':'APP_OP,METADATA'], SwiftSocial2.DEFAULT_PROPS)
+    'swift.reports':'APP_OP'] +  SwiftBase.CACHING_NOTIFICATIONS_PROPS, SwiftSocial2.DEFAULT_PROPS)
 
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 

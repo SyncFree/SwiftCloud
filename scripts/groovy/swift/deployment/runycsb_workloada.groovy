@@ -75,13 +75,8 @@ deployTo(AllMachines, "stuff/logging.properties", "logging.properties")
 YCSBProps = "swiftycsb.properties"
 deployTo(AllMachines, SwiftYCSB.genPropsFile(['recordcount': DbSize.toString(),
     'operationcount':OpsNum.toString(), 'swift.reportEveryOperation':'true', 'readproportion':'0.5',
-    'updateproportion':'0.5','fieldlength':'1',
-    //    'swift.reports':'APP_OP,METADATA',
-    //    'swift.cacheSize':'256',
-    //    'swift.asyncCommit':'true',
-    //    'swift.notifications':'true',
-    //    'swift.causalNotifications':'true'
-], SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A).absolutePath, YCSBProps)
+    'updateproportion':'0.5','fieldlength':'1'] + SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS,
+    SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A).absolutePath, YCSBProps)
 
 def shep = SwiftBase.runShepard( ShepardAddr, Duration, "Released" )
 

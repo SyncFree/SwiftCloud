@@ -9,6 +9,16 @@ class SwiftBase {
     static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCSequencerServer"
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties sys.herd.Shepard"
 
+    static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
+        'swift.asyncCommit':'true',
+        'swift.notifications':'true',
+        'swift.causalNotifications':'true']
+    static NO_CACHING_NOTIFICATIONS_PROPS = [
+        'swift.cacheSize':'0',
+        'swift.asyncCommit':'false',
+        'swift.notifications':'false',
+        'swift.causalNotifications':'false']
+
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
         return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
     }
@@ -36,7 +46,7 @@ class SwiftBase {
         return res + extraArgs + " "
     }
 
-	static void runEachAsSequencer( List sequencers, List surrogates, String seqHeap) {
+    static void runEachAsSequencer( List sequencers, List surrogates, String seqHeap) {
         println "==== STARTING DATACENTER SEQUENCERS ===="
 
         sequencers.each { host ->
@@ -47,8 +57,8 @@ class SwiftBase {
         }
         println "\nOK"
     }
- 
- 	static void runEachAsSurrogate( List surrogates, String sequencer, String heap) {
+
+    static void runEachAsSurrogate( List surrogates, String sequencer, String heap) {
         println "==== STARTING DATACENTER SURROGATES ===="
 
         surrogates.each { host ->
