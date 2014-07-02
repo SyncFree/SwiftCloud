@@ -558,8 +558,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         static final long NOTIFICATION_PERIOD = 1000;
 
         final String clientId;
-        Timestamp lastSeqNo;
         boolean disasterSafe;
+        volatile Timestamp lastSeqNo;
         private CausalityClock clientFakeVectorKnowledge;
         private CausalityClock lastSnapshotVector;
 
@@ -586,6 +586,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         public ClientSession setClientEndpoint(Endpoint remote) {
+            // TODO: make it volatile too?
             super.setRemote(remote);
             return this;
         }
