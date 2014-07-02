@@ -87,7 +87,7 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
     protected final IsolationLevel isolationLevel;
     protected CachePolicy cachePolicy;
     protected final TimestampMapping timestampMapping;
-    protected final CausalityClock updatesDependencyClock;
+    protected volatile CausalityClock updatesDependencyClock;
     protected final IncrementalTripleTimestampGenerator timestampSource;
     protected final Map<CRDTIdentifier, CRDTObjectUpdatesGroup<?>> localObjectOperations;
     protected TxnStatus status;
@@ -352,7 +352,8 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
         return localObjectOperations.get(id);
     }
 
-    synchronized CausalityClock getUpdatesDependencyClock() {
+    // not synchronized to avoid deadlocks with SwiftImpl
+    CausalityClock getUpdatesDependencyClock() {
         return updatesDependencyClock;
     }
 
@@ -382,7 +383,10 @@ abstract class AbstractTxnHandle implements TxnHandle, Comparable<AbstractTxnHan
      */
     protected boolean updateUpdatesDependencyClock(final CausalityClock clock) {
         assertStatus(TxnStatus.PENDING, TxnStatus.COMMITTED_LOCAL);
-        if (updatesDependencyClock.merge(clock).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
+        final CausalityClock newClock = updatesDependencyClock.clone();
+        final CMP_CLOCK cmp = newClock.merge(clock);
+        updatesDependencyClock = newClock;
+        if (cmp.is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
             durableLog.writeEntry(getId(), clock);
             return true;
         }

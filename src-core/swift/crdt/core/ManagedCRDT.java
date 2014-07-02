@@ -212,14 +212,12 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
      *            purposes (merged with existing pruningPoint)
      * @param checkVersionClock
      *            when true, pruningPoint is checked against {@link #getClock()}
-     * @throws IllegalArgumentException
-     *             provided checkVersionClock has been specified and
-     *             {@link #getClock()} is concurrent or dominated by
-     *             pruningPoint
+     *            and the pruning takes place only when it is safe; otherwise,
+     *            clock is merged with purningPoint
      */
     public void prune(CausalityClock pruningPoint, boolean checkVersionClock) {
         if (checkVersionClock && clock.compareTo(pruningPoint).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
-            throw new IllegalStateException("Cannot prune concurrently or later than updates clock of this version");
+            return;
         }
 
         clock.merge(pruningPoint);

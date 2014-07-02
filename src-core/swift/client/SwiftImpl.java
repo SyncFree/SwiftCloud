@@ -24,6 +24,7 @@ import java.lang.reflect.Constructor;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -281,7 +282,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private CounterSignalSource ongoingObjectFetchesStats;
     private ValueSignalSource batchSizeOnCommitStats;
-    private CausalityClock nextPruneClock;
     // A vector that represents a locally available snapshot
     // TODO: unify with globalCommitted vectors;
     private CausalityClock causalSnapshot;
@@ -347,9 +347,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 objectsCache.augmentAllWithDCCausalClockWithoutMappings(batch.getNewVersion());
                 updateCommittedVersions(batch.isNewVersionDisasterSafe() ? null : batch.getNewVersion(),
                         batch.isNewVersionDisasterSafe() ? batch.getNewVersion() : null, true);
-                batch.recordMetadataSample(metadataStatsCollector);
 
-                tryPrune();
+                tryPruneObjects(batch.keys().toArray(new CRDTIdentifier[] {}));
+                batch.recordMetadataSample(metadataStatsCollector);
             }
         };
 
@@ -437,23 +437,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         getDCClockEstimates();
-    }
-
-    protected synchronized void tryPrune() {
-        if (nextPruneClock != null) {
-            // for (final AbstractTxnHandle txn : pendingTxns) {
-            // if (txn.getUpdatesDependencyClock().compareTo(nextPruneClock)
-            // .is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
-            // // Pruning is unsafe at this stage.
-            // return;
-            // }
-            // }
-            // objectsCache.pruneAll(nextPruneClock);
-            // nextPruneClock = null;
-        } else {
-            // TODO: use causalSnapshot
-            nextPruneClock = getNextReadVersion(true);
-        }
     }
 
     public void stop(boolean waitForCommit) {
@@ -568,7 +551,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // TODO Q: is this flag really respected everywhere or should the
             // whole code assume only one option?
             if (assumeAtomicCausalNotifications && cachePolicy == CachePolicy.CACHED) {
-                snapshotClock = getNextReadVersion(true);
+                snapshotClock = getNextTransactionSnapshot(true);
             } else {
                 if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
@@ -579,7 +562,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 // dominates
                 // clock of all previous SI transaction (monotonic reads), since
                 // commitedVersion only grows.
-                snapshotClock = getNextReadVersion(true);
+                snapshotClock = getNextTransactionSnapshot(true);
             }
             // For Read Your Writes and Monotonic Reads (the latter necessary
             // only if isolation level changes)
@@ -600,6 +583,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             return siTxn;
 
         case REPEATABLE_READS:
+            logger.warning("using REPEATABLE_READS isolation level is NOT RECOMMENDED anymore, poorly supported in the recent version");
             // TODO Q: do we ever use RR in any recent experiments?
             final RepeatableReadsTxnHandle rrTxn;
             if (readOnly) {
@@ -718,7 +702,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         return result;
     }
 
-    private synchronized CausalityClock getNextReadVersion(boolean copy) {
+    private synchronized CausalityClock getNextTransactionSnapshot(boolean copy) {
         if (assumeAtomicCausalNotifications) {
             if (copy) {
                 return causalSnapshot.clone();
@@ -726,6 +710,30 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             return causalSnapshot;
         }
         return getGlobalCommittedVersion(copy);
+    }
+
+    // invariant: getNextReadLowerBound() <= getNextTransactionSnapshot()
+    private synchronized CausalityClock getNextReadLowerBound() {
+        final CausalityClock lowerBound = committedDisasterDurableVersion.clone();
+        lowerBound.intersect(getNextTransactionSnapshot(false));
+        for (final AbstractTxnHandle txn : pendingTxns) {
+            lowerBound.intersect(txn.getUpdatesDependencyClock());
+        }
+        lowerBound.drop(getScoutId());
+        return lowerBound;
+    }
+
+    private synchronized void tryPruneObjects(CRDTIdentifier... ids) {
+        // TODO: prune every n-th calls?
+        final CausalityClock pruneClock = getNextReadLowerBound();
+        // Rule of thumb: when (potentially) adding updates, try to
+        // clean up the old ones.
+        for (final CRDTIdentifier id : ids) {
+            final ManagedCRDT<?> crdt = SwiftImpl.this.objectsCache.getWithoutTouch(id);
+            if (crdt != null) {
+                crdt.prune(pruneClock, true);
+            }
+        }
     }
 
     @Override
@@ -758,7 +766,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             synchronized (this) {
                 fetchStrictlyRequired = (cachePolicy == CachePolicy.STRICTLY_MOST_RECENT || objectsCache
                         .getAndTouch(id) == null);
-                fetchClock = getNextReadVersion(true);
+                fetchClock = getNextTransactionSnapshot(true);
                 // fetchClock.merge(lastLocallyCommittedTxnClock);
                 // Try to get the latest one.
             }
@@ -881,7 +889,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // prior scout's transactions (the most recent thing we would like
             // to read).
 
-            clock = getNextReadVersion(true);
+            clock = getNextTransactionSnapshot(true);
             clock.merge(lastLocallyCommittedTxnClock);
 
             if (concurrentOpenTransactions && !txn.isReadOnly()) {
@@ -912,7 +920,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         } catch (IllegalStateException x) {
 
             // No appropriate version found in the object from the cache.
-            throw new VersionNotFoundException("Object not available in the cache in appropriate version: "
+            throw new VersionNotFoundException("Object " + id + " not available in the cache in appropriate version: "
                     + x.getMessage());
         }
 
@@ -1131,9 +1139,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // See if anybody is interested in new updates on this object.
             if (sessionsSubs != null) {
                 for (final UpdateSubscriptionWithListener subscription : sessionsSubs.values()) {
-                    handleObjectNewVersionTryNotify(crdt.getUID(), subscription, cacheCRDT);
+                    handleObjectNewVersionTryNotify(cacheCRDT.getUID(), subscription, cacheCRDT);
                 }
             }
+            tryPruneObjects(cacheCRDT.getUID());
         }
 
         if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
@@ -1237,8 +1246,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             }
         }
-        // FIXME: when to prune?
-        // crdt.prune(update.getPruneClock(), true);
     }
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id,
@@ -1270,7 +1277,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         Map<TimestampMapping, CRDTIdentifier> uncommittedUpdates = new HashMap<TimestampMapping, CRDTIdentifier>();
         for (final TimestampMapping tm : timestampMappings) {
             if (!tm.anyTimestampIncluded(subscription.readVersion)) {
-                if (tm.anyTimestampIncluded(getNextReadVersion(false))
+                if (tm.anyTimestampIncluded(getNextTransactionSnapshot(false))
                         || tm.anyTimestampIncluded(lastLocallyCommittedTxnClock)) {
                     executorService.execute(subscription.generateNotificationAndDiscard(this, id));
                     return;
@@ -1313,11 +1320,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
             final CRDT<V> newView;
             try {
-                final CausalityClock nextClock = getNextReadVersion(true);
+                final CausalityClock nextClock = getNextTransactionSnapshot(true);
                 nextClock.merge(lastLocallyCommittedTxnClock);
                 newView = newCrdtVersion.getVersion(nextClock, subscription.txn);
             } catch (IllegalStateException x2) {
-                logger.warning("Object has been pruned since notification was set up, and investigating the observable view due to incompatible version");
+                logger.warning("Object has been pruned since notification was set up, and investigating the observable view is impossible due to incompatible version");
                 return;
             }
             if (!newView.getValue().equals(subscription.crdtView.getValue())) {
@@ -1383,7 +1390,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     if (!objectSessionsUpdateSubscriptions.containsKey(id)) {
                         return;
                     }
-                    version = getNextReadVersion(true);
+                    version = getNextReadLowerBound();
                     version.merge(lastLocallyCommittedTxnClock);
                 }
                 try {
@@ -1587,12 +1594,20 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     for (final Timestamp systemTimestamp : txn.getTimestampMapping().getSystemTimestamps()) {
                         systemTxnClock.record(systemTimestamp);
                     }
+
+                    final Collection<CRDTObjectUpdatesGroup<?>> allUpdates = txn.getAllUpdates();
+                    CRDTIdentifier[] updatedObjectIds = new CRDTIdentifier[allUpdates.size()];
+                    int idIdx = 0;
                     // Record new mappings for updated objects.
-                    for (final CRDTObjectUpdatesGroup update : txn.getAllUpdates()) {
-                        applyLocalObjectUpdates(objectsCache.getWithoutTouch(update.getTargetUID()), txn);
+                    for (final CRDTObjectUpdatesGroup update : allUpdates) {
+                        final CRDTIdentifier id = update.getTargetUID();
+                        updatedObjectIds[idIdx++] = id;
+                        final ManagedCRDT<?> crdt = objectsCache.getWithoutTouch(id);
+                        applyLocalObjectUpdates(crdt, txn);
                     }
                     // Advance clock of all objects.
                     objectsCache.augmentAllWithDCCausalClockWithoutMappings(systemTxnClock);
+                    tryPruneObjects(updatedObjectIds);
                     break;
                 case COMMITTED_WITH_KNOWN_CLOCK_RANGE:
                     // lastGloballyCommittedTxnClock.merge(reply.getImpreciseCommitClock());
@@ -1625,7 +1640,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         asyncFetchAndSubscribeObjectUpdates(opsGroup.getTargetUID());
                     }
                 }
-                tryPrune();
             }
         }
     }
