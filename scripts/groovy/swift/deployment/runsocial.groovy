@@ -14,59 +14,41 @@ def __ = onControlC({
 
 
 EuropeEC2 = [
-    'ec2-54-76-97-88.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-97-22.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-97-90.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-97-43.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-97-87.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-97-89.eu-west-1.compute.amazonaws.com'
+    'ec2-54-77-18-173.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-7-59.eu-west-1.compute.amazonaws.com',
 ]
 
-NorthVirginiaEC2 = [
-    'ec2-54-208-254-68.compute-1.amazonaws.com',
-    'ec2-54-209-2-181.compute-1.amazonaws.com',
-    'ec2-54-208-250-210.compute-1.amazonaws.com',
-    'ec2-54-208-211-241.compute-1.amazonaws.com',
-    'ec2-54-208-254-152.compute-1.amazonaws.com',
-    'ec2-54-208-243-237.compute-1.amazonaws.com'
-]
+NorthVirginiaEC2 = []
 
-OregonEC2 = [
-    'ec2-54-187-133-163.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-2-201.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-216-42.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-249-241.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-27-94.us-west-2.compute.amazonaws.com',
-	'ec2-54-186-190-139.us-west-2.compute.amazonaws.com',
-]
+OregonEC2 = []
 
-if (args.length < 2) {
-    System.err.println "usage: runsocial.groovy <limits on scouts number per DC> <threads per scout>"
+if (args.length < 1) {
+    System.err.println "usage: runsocial.groovy <threads per scout> [limit on scouts number per DC]"
     System.exit(1)
 }
-PerDCClientNodesLimit = Integer.valueOf(args[0])
-Threads = Integer.valueOf(args[1])
+Threads = Integer.valueOf(args[0])
+PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MAX_VALUE
 
-Europe = DC([EuropeEC2[0]], [EuropeEC2[0], EuropeEC2[0]])
-NorthVirginia = DC([NorthVirginiaEC2[0]], [NorthVirginiaEC2[0], NorthVirginiaEC2[0]])
-Oregon = DC([OregonEC2[0]], [OregonEC2[0], OregonEC2[0]])
-
-ScoutsEU = SGroup( EuropeEC2[1..PerDCClientNodesLimit], NorthVirginia )
-ScoutsNorthVirginia = SGroup(NorthVirginiaEC2[1..PerDCClientNodesLimit], Oregon )
-ScoutsOregon = SGroup(OregonEC2[1..PerDCClientNodesLimit], Europe )
+Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
+//NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
+//Oregon = DC([OregonEC2[0]], [OregonEC2[0]])
+ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
+//ScoutsNV = SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
+//ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
 
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 
 // Threads = 4
-Duration = 180
+Duration = 240
 InterCmdDelay = 25
-SwiftSocial_Props = "swiftsocial-test.props"
 
-PruningIntervalMillis = 1000
+PruningIntervalMillis = 5000
 //DbSize = 200*Scouts.size()*Threads
 DbSize = 50000
-props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString()], SwiftSocial2.DEFAULT_PROPS)
+SwiftSocial_Props = "swiftsocial-test.props"
+props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString(),
+    'swift.reports':'APP_OP,METADATA'], SwiftSocial2.DEFAULT_PROPS)
 
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
