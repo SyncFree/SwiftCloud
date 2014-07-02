@@ -17,10 +17,10 @@
 package sys.pubsub.impl;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
@@ -34,7 +34,12 @@ public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Pub
 
     protected AbstractPubSub(String id) {
         this.id = id;
-        this.subscribers = new HashMap<T, Set<Subscriber<T>>>();
+        this.subscribers = new ConcurrentHashMap<T, Set<Subscriber<T>>>(); // TODO
+                                                                           // remove
+                                                                           // redundant
+                                                                           // synchronized
+                                                                           // bits
+                                                                           // below...
     }
 
     @Override
