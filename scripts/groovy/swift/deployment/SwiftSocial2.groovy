@@ -48,7 +48,7 @@ class SwiftSocial2 extends SwiftBase {
                 def cmd = { host ->
                     int index = hosts.indexOf( host );
                     String partition = index + "/" + hosts.size()
-                    def res = "nohup java -Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "
+                    def res = "nohup java " + SwiftBase.YOUR_KIT_PROFILER_JAVA_OPTION + "-Xmx" + heap + " -Dswiftsocial=" + config + " " + SCOUT_CMD + " run -shepard " + shepard + " -threads " + threads + " -partition " + partition + " -servers "
                     res += " " + grp.dc.surrogates[index % grp.dc.surrogates.size()]
                     res += " > scout-stdout.txt 2> scout-stderr.txt < /dev/null & sleep 1; tail -f scout-stderr.txt &"
                     return res;

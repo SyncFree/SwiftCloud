@@ -3,20 +3,22 @@ package swift.deployment
 import static swift.deployment.Tools.*
 
 class SwiftBase {
+    static boolean ENABLE_YOUR_KIT_PROFILER = false
+    static String YOUR_KIT_PROFILER_JAVA_OPTION =  ENABLE_YOUR_KIT_PROFILER ? " -agentpath:yjp/bin/linux-x86-64/libyjpagent.so " : ""
     static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCServer"
     static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCSequencerServer"
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties sys.herd.Shepard"
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
-        return "java " + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
+        return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
     }
 
     static String swift_app_cmd_nostdout( String heap, String exec, String stderr, String stdout )  {
-        return "java " + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
+        return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec +  "2> >(tee " + stderr+ " 1>&2) > " + stdout
     }
 
     static String swift_app_cmd_nooutput( String heap, String exec, String stderr, String stdout )  {
-        return "java " + heap + " " + exec +  "2> " + stderr+ " > " + stdout
+        return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec +  "2> " + stderr+ " > " + stdout
     }
     
     static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers, String extraArgs) {

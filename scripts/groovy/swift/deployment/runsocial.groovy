@@ -44,8 +44,8 @@ Duration = 240
 InterCmdDelay = 25
 
 PruningIntervalMillis = 5000
-//DbSize = 200*Scouts.size()*Threads
-DbSize = 50000
+DbSize = 200*Scouts.size()*Threads
+// DbSize = 50000
 SwiftSocial_Props = "swiftsocial-test.props"
 props = SwiftBase.genPropsFile(['swiftsocial.numUsers':DbSize.toString(),
     'swift.reports':'APP_OP,METADATA'], SwiftSocial2.DEFAULT_PROPS)
