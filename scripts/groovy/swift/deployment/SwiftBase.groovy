@@ -106,11 +106,11 @@ class SwiftBase {
         return queue
     }
 
-    static File genPropsFile(Map props, Map defaultProps = []) {
+    static File genPropsFile(Map props, Map defaultProps = [:]) {
         File f = File.createTempFile("swif-", ".props")
         PrintWriter pw = f.newPrintWriter()
-        (defaultProps.keySet() + props.keySet()).unique().each { k ->
-            pw.printf("%s=%s\n", k, props.get(k) ? props.get(k) : defaultProps.get(k) );
+        (props + defaultProps).each { k, v ->
+            pw.printf("%s=%s\n", k, v);
         }
         pw.close()
         return f
