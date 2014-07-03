@@ -653,6 +653,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         break;
                     }
                 }
+                for (final AbstractTxnHandle pendingTxn : pendingTxns) {
+                    if (!txnMapping.allSystemTimestampsIncluded(pendingTxn.getUpdatesDependencyClock())) {
+                        notNeeded = false;
+                        break;
+                    }
+                }
                 if (notNeeded) {
                     stableTxnsToDiscard = evaluatedTxns + 1;
                 } else {
@@ -718,6 +724,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         lowerBound.intersect(getNextTransactionSnapshot(false));
         for (final AbstractTxnHandle txn : pendingTxns) {
             lowerBound.intersect(txn.getUpdatesDependencyClock());
+        }
+        for (final CausalityClock fetchedVersion : fetchVersionsInProgress) {
+            lowerBound.intersect(fetchedVersion);
         }
         lowerBound.drop(getScoutId());
         return lowerBound;

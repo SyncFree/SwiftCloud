@@ -307,6 +307,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                                 crdt.augmentWithDCClockWithoutMappings(finalEstimatedDCVersionCopy);
                                 if (cltLastSeqNo != null)
                                     crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
+                                // TODO: move it data node; currently they sort
+                                // of do it in
+                                // ManagedCRDT.copyWithRestrictedVersioning, but
+                                // it currently lacks
+                                // finalEstimatedDCVersionCopy
+                                crdt.prune(request.getVersion(), true);
 
                                 // TODO: move it to data nodes
                                 if (!request.isSendMoreRecentUpdates()) {
