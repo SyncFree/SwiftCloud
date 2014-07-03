@@ -512,7 +512,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
         generalExecutor.execute(new Runnable() {
             public void run() {
-                ClientSession session = getSession("Sequencer", false);
+                ClientSession session = getSession(request.getCltTimestamp().getIdentifier(), false);
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
                 CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
                 doOneCommit(session, request, snapshotClock);
@@ -546,7 +546,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
-        static final long NOTIFICATION_PERIOD = 1000;
 
         final String clientId;
         Timestamp lastSeqNo;
@@ -565,7 +564,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 lastSnapshotVector = ClockFactory.newClock();
             }
 
-            new PeriodicTask(0.0, NOTIFICATION_PERIOD * 0.001) {
+            new PeriodicTask(0.0, DCConstants.NOTIFICATION_PERIOD * 0.001) {
                 public void run() {
                     tryFireClientNotification();
                 }
@@ -602,6 +601,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         List<CRDTObjectUpdatesGroup<?>> pending = new ArrayList<CRDTObjectUpdatesGroup<?>>();
 
         synchronized public void onNotification(final UpdateNotification update) {
+
             if (update.srcId.equals(clientId)) {
                 // Ignore
                 return;
@@ -614,13 +614,15 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         protected synchronized CausalityClock tryFireClientNotification() {
             long now = Sys.Sys.timeMillis();
-            if (now <= (lastNotification + NOTIFICATION_PERIOD)) {
+            if (now <= (lastNotification + DCConstants.NOTIFICATION_PERIOD)) {
                 return null;
             }
-            CausalityClock snapshot = suPubSub.minDcVersion();
+
+            final CausalityClock snapshot = suPubSub.minDcVersion();
             if (disasterSafe) {
                 snapshot.intersect(getEstimatedDCStableVersionCopy());
             }
+
             if (OPTIMIZED_VECTORS_IN_BATCH) {
                 for (final String dcId : lastSnapshotVector.getSiteIds()) {
                     if (lastSnapshotVector.includes(snapshot.getLatest(dcId))) {
@@ -647,9 +649,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 }
             }
 
-            // if (objectsUpdates.isEmpty())
-            // return snapshot;
-
             // Update client in any case.
             // if (objectsUpdates.isEmpty()) {
             // return null;
@@ -660,7 +659,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             // transaction if necessary.
 
             if (FAKE_PRACTI_DEPOT_VECTORS) {
-                CausalityClock fakeVector = ClockFactory.newClock();
+                final CausalityClock fakeVector = ClockFactory.newClock();
                 // We compare against the stale vector matchin snapshot, but
                 // these entries
                 // would need to be eventually send anyways.
@@ -672,16 +671,23 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     }
                 }
                 clientFakeVectorKnowledge.merge(fakeVector);
-                super.onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
-                        objectsUpdates, fakeVector)));
+                generalExecutor.execute(new Runnable() {
+                    public void run() {
+                        onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
+                                objectsUpdates, fakeVector)));
+                    }
+                });
             } else {
-                super.onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
-                        objectsUpdates)));
+                generalExecutor.execute(new Runnable() {
+                    public void run() {
+                        onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
+                                objectsUpdates)));
+                    }
+                });
             }
             lastNotification = now;
             return snapshot;
         }
-
     }
 
     synchronized public ClientSession getSession(ClientRequest clientRequest) {

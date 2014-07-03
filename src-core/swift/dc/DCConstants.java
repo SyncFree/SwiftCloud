@@ -60,13 +60,14 @@ public class DCConstants {
     public static final int DEFAULT_TRXIDTIME = 5000;
 
     public static final long PRUNING_INTERVAL = 1000000; // set to
-                                                      // 1000 *
-                                                      // 60 * 60
-                                                      // * 24 for
-                                                      // pruning
-                                                      // once a
-                                                      // day
+                                                         // 1000 *
+                                                         // 60 * 60
+                                                         // * 24 for
+                                                         // pruning
+                                                         // once a
+                                                         // day
 
     public static final boolean DEFAULT_DB_NULL = true;
 
+    public static final int NOTIFICATION_PERIOD = 1000;
 }
