@@ -11,7 +11,7 @@ abstract public class RemoteSubscriber<T> implements Subscriber<T> {
     final String id;
     final RpcEndpoint endpoint;
 
-    protected Endpoint remote;
+    protected volatile Endpoint remote;
 
     public RemoteSubscriber(String id, RpcEndpoint endpoint, Endpoint remote) {
         this.id = id;

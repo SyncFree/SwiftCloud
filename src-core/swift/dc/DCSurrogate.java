@@ -527,6 +527,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
         generalExecutor.execute(new Runnable() {
             public void run() {
+                // FIXME: disasterSafe=false should not be passed here.
                 ClientSession session = getSession(request.getCltTimestamp().getIdentifier(), false);
                 List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
                 CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
@@ -592,7 +593,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
 
         public ClientSession setClientEndpoint(Endpoint remote) {
-            // TODO: make it volatile too?
             super.setRemote(remote);
             return this;
         }

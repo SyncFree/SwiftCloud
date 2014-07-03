@@ -98,7 +98,7 @@ final class DCDataServer {
 
         final String pruningIntervalString = props.getProperty(DCConstants.PRUNING_INTERVAL_PROPERTY);
         if (pruningIntervalString != null) {
-            pruningInterval= Integer.valueOf(pruningIntervalString);
+            pruningInterval = Integer.valueOf(pruningIntervalString);
         } else {
             pruningInterval = DCConstants.DEFAULT_PRUNING_INTERVAL_MS;
         }
@@ -273,6 +273,8 @@ final class DCDataServer {
      * @return
      */
     CRDTData<?> getDatabaseEntry(CRDTIdentifier id) {
+        // TODO: this synchronization could be replaced with an optimistic
+        // multiton pattern + ConcurrentHashMap.putIfAbsent
         Map<String, CRDTData<?>> m;
         synchronized (db) {
             m = db.get(id.getTable());
