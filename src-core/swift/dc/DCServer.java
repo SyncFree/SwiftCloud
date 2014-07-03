@@ -52,10 +52,10 @@ public class DCServer {
     protected void init() {
     }
 
-    public void startSurrogServer(String siteId, int port4Clients, int port4Sequencers) {
+    public void startSurrogServer(String siteId, int port4Clients, int port4Sequencers, int portSequencer) {
         Sys.init();
 
-        Endpoint sequencer = Networking.resolve(sequencerHost, SEQUENCER_PORT);
+        Endpoint sequencer = Networking.resolve(sequencerHost, portSequencer);
 
         server = new DCSurrogate(siteId, port4Clients, port4Sequencers, sequencer, props);
     }
@@ -93,7 +93,9 @@ public class DCServer {
                 Args.valueOf(args, "-pruningMs", DCConstants.DEFAULT_PRUNING_INTERVAL_MS) + "");
 
         String sequencerNode = Args.valueOf(args, "-sequencer", "localhost");
+        int portSequencer = Args.valueOf(args, "-portSequencer", SEQUENCER_PORT);
         int portSurrogate = Args.valueOf(args, "-portSurrogate", SURROGATE_PORT);
+        int port4Sequencers = Args.valueOf(args, "-portSurrogateForSequencers", SURROGATE_PORT_FOR_SEQUENCERS);
         String siteId = Args.valueOf(args, "-name", "X0");
 
         for (int i = 0; i < args.length; i++) {
@@ -110,6 +112,6 @@ public class DCServer {
         String shepard = Args.valueOf(args, "-shepard", sequencerNode);
         Herd.setDefaultShepard(shepard);
 
-        new DCServer(sequencerNode, props).startSurrogServer(siteId, portSurrogate, SURROGATE_PORT_FOR_SEQUENCERS);
+        new DCServer(sequencerNode, props).startSurrogServer(siteId, portSurrogate, port4Sequencers, portSequencer);
     }
 }
