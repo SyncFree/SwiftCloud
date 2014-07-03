@@ -71,9 +71,12 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
     // id under which the CRDT is globally known and uniquely identified
     protected CRDTIdentifier id;
     // clock with the current local state of this CRDT, comprises all timestamps
-    // of updates performed on this replica
+    // of updates performed on this replica; node ids may include one scout id
     protected CausalityClock clock;
-    // clock of the checkpoint state only
+    // clock of the checkpoint state only; this clock represents the latest
+    // pruned update of each actor; i.e., if there are no updates pruned, the
+    // pruneClock does NOT change; does not include any scout ids (only
+    // DC-timestamped updates are pruned).
     protected CausalityClock pruneClock;
     // registration status
     protected boolean registeredInStore;
@@ -221,13 +224,18 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
         }
 
         clock.merge(pruningPoint);
-        final CMP_CLOCK cmpPrune = pruneClock.merge(pruningPoint);
+        final CMP_CLOCK cmpPrune = pruneClock.compareTo(pruningPoint);
         if (cmpPrune.is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
             for (final Iterator<CRDTObjectUpdatesGroup<V>> updatesIter = strippedLog.iterator(); updatesIter.hasNext();) {
                 final CRDTObjectUpdatesGroup<V> updates = updatesIter.next();
-                if (updates.anyTimestampIncluded(pruneClock)) {
+                if (updates.anyTimestampIncluded(pruningPoint)) {
                     updates.applyTo(checkpoint);
                     updatesIter.remove();
+                    for (final Timestamp ts : updates.getTimestamps()) {
+                        if (!ts.equals(updates.getClientTimestamp())) {
+                            pruneClock.recordAllUntil(ts);
+                        }
+                    }
                 }
             }
         }
@@ -328,7 +336,7 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
                     if (mergedUpdate != null) {
                         mergedUpdate.mergeSystemTimestamps(thisUpdate);
                     }
-                    // else: skip - it may be in the checkpoint, while
+                    // else: skip - it is in the checkpoint, while
                     // pruneClock does not contain scout's entry. See note
                     // in #augmentWithScoutClock
                 } else {
@@ -506,16 +514,21 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
         result.id = id;
         result.clock = clock.clone();
 
-        result.pruneClock = versioningLowerBound.clone();
-        result.pruneClock.intersect(result.clock);
-        result.pruneClock.merge(pruneClock);
-        // TODO: option: trim holes?
+        final CausalityClock targetPruningPoint = versioningLowerBound.clone();
+        targetPruningPoint.intersect(result.clock);
+        targetPruningPoint.merge(pruneClock);
+        result.pruneClock = pruneClock.clone();
         result.registeredInStore = registeredInStore;
         result.checkpoint = checkpoint.copy();
         result.strippedLog = new LinkedList<CRDTObjectUpdatesGroup<V>>();
         for (final CRDTObjectUpdatesGroup<V> updates : strippedLog) {
-            if (updates.anyTimestampIncluded(result.pruneClock)) {
+            if (updates.anyTimestampIncluded(targetPruningPoint)) {
                 updates.applyTo(result.checkpoint);
+                for (final Timestamp ts : updates.getTimestamps()) {
+                    if (!ts.equals(updates.getClientTimestamp())) {
+                        result.pruneClock.recordAllUntil(ts);
+                    }
+                }
             } else {
                 result.strippedLog.add(updates.strippedWithCopiedTimestampMappings());
             }
