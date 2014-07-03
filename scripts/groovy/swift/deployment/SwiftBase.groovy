@@ -66,7 +66,7 @@ class SwiftBase {
         }
         println "\nOK"
     }
-       
+
     static void runEachAsDatacentre( List datacentres, String seqHeap, String surHeap ) {
         println "==== STARTING DATACENTER SERVERS ===="
 
@@ -76,8 +76,8 @@ class SwiftBase {
             def sequencer = srv
             def other_sequencers = datacentres.clone() - srv
             def name = "X" + sequencers.indexOf(host)
-            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "seq-stdout.txt", "seq-stderr.txt" ))
-            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "sur-stdout.txt", "sur-stderr.txt" ))
+            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, [srv], other_sequencers), "seq-stderr.txt", "seq-stdout.txt" ))
+            rshC(surrogate, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( sequencer ), "sur-stderr.txt", "sur-stdout.txt" ))
             i++;
         }
         println "\nOK"
