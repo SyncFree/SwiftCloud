@@ -24,8 +24,10 @@ public class SafeLog {
 
         METADATA(9, "timestamp_ms,session_id,message_name," + "total_message_size,version_or_update_size,value_size,"
                 + "explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num"),
+                
+        APP_OP(3, "session_id,operation_name,duration_ms"),
 
-        APP_OP(3, "session_id,operation_name,duration_ms");
+        IDEMPOTENCE_GUARD_SIZE(1, "entries");
 
         private final int fieldsNumber;
         private final String semantics;

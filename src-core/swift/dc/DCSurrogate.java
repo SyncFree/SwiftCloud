@@ -74,6 +74,8 @@ import swift.pubsub.SwiftNotification;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
 import swift.utils.FutureResultHandler;
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.Sys;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
@@ -700,19 +702,25 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     }
 
-    synchronized public ClientSession getSession(ClientRequest clientRequest) {
-        ClientSession session = sessions.get(clientRequest.getClientId());
-        if (session == null) {
-            sessions.put(clientRequest.getClientId(), session = new ClientSession(clientRequest.getClientId(),
-                    clientRequest.isDisasterSafeSession()));
-        }
-        return session;
+    public ClientSession getSession(ClientRequest clientRequest) {
+        return getSession(clientRequest.getClientId(), clientRequest.isDisasterSafeSession());
     }
 
-    synchronized public ClientSession getSession(String clientId, boolean disasterSafe) {
-        ClientSession session = sessions.get(clientId);
-        if (session == null)
-            sessions.put(clientId, session = new ClientSession(clientId, disasterSafe));
+    public ClientSession getSession(String clientId, boolean disasterSafe) {
+        ClientSession session;
+        int newSize = -1;
+        // TODO: this synchronization could be replaced with an optimistic
+        // multiton pattern + ConcurrentHashMap.putIfAbsent
+        synchronized (this) {
+            session = sessions.get(clientId);
+            if (session == null) {
+                sessions.put(clientId, session = new ClientSession(clientId, disasterSafe));
+                newSize = sessions.size();
+            }
+        }
+        if (ReportType.IDEMPOTENCE_GUARD_SIZE.isEnabled() && newSize != -1) {
+            SafeLog.report(ReportType.IDEMPOTENCE_GUARD_SIZE, newSize);
+        }
         return session;
     }
 
