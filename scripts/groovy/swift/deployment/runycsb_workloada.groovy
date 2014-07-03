@@ -53,7 +53,7 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 
 
-DbSize = 100000
+DbSize = 10000 // 100000
 OpsNum = 1000000
 PruningIntervalMillis = 1000
 
