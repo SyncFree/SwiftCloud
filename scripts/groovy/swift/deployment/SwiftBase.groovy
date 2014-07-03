@@ -53,7 +53,7 @@ class SwiftBase {
             def sequencer = host
             def other_sequencers = sequencers.clone() - host
             def name = siteId(sequencers.indexOf(host))
-            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, surrogates, other_sequencers), "seq-stdout.txt", "seq-stderr.txt" ))
+            rshC(sequencer, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(name, surrogates, other_sequencers), "seq-stderr.txt" , "seq-stdout.txt"))
         }
         println "\nOK"
     }
