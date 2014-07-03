@@ -109,7 +109,7 @@ class SwiftBase {
     static File genPropsFile(Map props, Map defaultProps = [:]) {
         File f = File.createTempFile("swif-", ".props")
         PrintWriter pw = f.newPrintWriter()
-        (props + defaultProps).each { k, v ->
+        (defaultProps + props).each { k, v ->
             pw.printf("%s=%s\n", k, v);
         }
         pw.close()

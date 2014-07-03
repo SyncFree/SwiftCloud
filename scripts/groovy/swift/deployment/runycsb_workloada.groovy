@@ -63,9 +63,11 @@ Duration = 480
 InterCmdDelay = 30
 
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
-    'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1']
-REPORTS = ['swift.reports':'APP_OP,METADATA']
-OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS + ['swift.disasterSafe':'false']
+    'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1',
+    'uniquerequestdistributionperclient':'true',
+]
+REPORTS = ['swift.reports':'APP_OP,STALENESS_READ,STALENESS_WRITE,STALENESS_CALIB', 'swift.reportEveryOperation':'true']
+OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + REPORTS + OPTIONS
 
 // Options for DB initialization

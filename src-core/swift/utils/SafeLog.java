@@ -57,7 +57,7 @@ public class SafeLog {
 
     public synchronized static void configure(Properties props) {
         String reportsProp = props.getProperty("swift.reports");
-        if (reportsProp == null) {
+        if (reportsProp == null || reportsProp.isEmpty()) {
             return;
         }
         final EnumSet<ReportType> reports = EnumSet.noneOf(ReportType.class);
