@@ -50,7 +50,7 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
             }
         };
 
-        this.suPubSub = Networking.resolve(surrogate.getHost(), DCConstants.PUBSUB_PORT);
+        this.suPubSub = Networking.resolve(surrogate.getHost(), surrogate.getPort() + 1);
         this.endpoint = Networking.rpcConnect().toService(0, new SwiftProtocolHandler() {
             @Override
             public void onReceive(RpcHandle conn, SwiftNotification evt) {

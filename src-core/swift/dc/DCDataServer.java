@@ -90,7 +90,8 @@ final class DCDataServer {
     RpcEndpoint dhtEndpoint;
     DCSurrogate surrogate;
 
-    DCDataServer(DCSurrogate surrogate, Properties props, SurrogatePubSubService suPubSub) {
+    DCDataServer(DCSurrogate surrogate, Properties props, SurrogatePubSubService suPubSub, int dhtPort) {
+        sys.dht.DHT_Node.DHT_PORT = dhtPort;
         this.surrogate = surrogate;
         this.localSurrogateId = surrogate.getId();
         this.dsPubSub = new DataServerPubSubService(localSurrogateId, executor, surrogate);

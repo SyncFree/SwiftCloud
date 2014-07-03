@@ -59,7 +59,16 @@ public class DCServer {
 
         server = new DCSurrogate(siteId, port4Clients, port4Sequencers, sequencer, props);
     }
-
+    
+    
+    /*
+     * For starting two DCs in the same machine use the following parameters:
+     * DC1: -sequencer localhost -portSequencer 29996 -portSurrogate 29997 -portSurrogateForSequencers 29995 -name S1
+     * DC2: -sequencer localhost -portSequencer 39996 -portSurrogate 39997 -portSurrogateForSequencers 39995 -name S2
+     * Sequencers:
+     * SEQ 1: -servers localhost:29995 -name S1 -port 29996 -sequencers localhost:39996
+     * SEQ 2: -servers localhost:39995 -name S1 -port 39996 -sequencers localhost:29996
+     */
     public static void main(String[] args) {
 
         final Properties props = new Properties();
@@ -93,8 +102,10 @@ public class DCServer {
                 Args.valueOf(args, "-pruningMs", DCConstants.DEFAULT_PRUNING_INTERVAL_MS) + "");
 
         String sequencerNode = Args.valueOf(args, "-sequencer", "localhost");
+//        int pubsubPort = Args.valueOf(args, "-portPubSub", DCConstants.PUBSUB_PORT);
         int portSequencer = Args.valueOf(args, "-portSequencer", SEQUENCER_PORT);
         int portSurrogate = Args.valueOf(args, "-portSurrogate", SURROGATE_PORT);
+        sys.dht.DHT_Node.DHT_PORT = portSurrogate + 2;
         int port4Sequencers = Args.valueOf(args, "-portSurrogateForSequencers", SURROGATE_PORT_FOR_SEQUENCERS);
         String siteId = Args.valueOf(args, "-name", "X0");
 
