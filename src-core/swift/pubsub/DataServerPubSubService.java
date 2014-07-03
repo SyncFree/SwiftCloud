@@ -31,7 +31,6 @@ public class DataServerPubSubService extends AbstractPubSub<CRDTIdentifier> {
     @Override
     synchronized public void publish(final Notifyable<CRDTIdentifier> info) {
         CausalityClock vrs = surrogate.getEstimatedDCVersionCopy();
-        vrs.trim();
         final SwiftNotification evt = new SwiftNotification(surrogate.getId(), vrs, info);
 
         for (Subscriber<CRDTIdentifier> i : subscribers(info.key(), true)) {

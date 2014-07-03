@@ -23,8 +23,13 @@ public class ObjectUpdatesInfo {
         this.id = id;
         this.dirty = true;
         this.updates = new ArrayList<CRDTObjectUpdatesGroup<?>>();
-        updates.add(update.strippedWithCopiedTimestampMappings());
+        if (update != null)
+            updates.add(update.strippedWithCopiedTimestampMappings());
         this.pruneClock = pruneClock;
+    }
+
+    public ObjectUpdatesInfo(CRDTIdentifier id) {
+        this.id = id;
     }
 
     public ObjectUpdatesInfo(CRDTIdentifier id, CausalityClock pruneClock, List<CRDTObjectUpdatesGroup<?>> updates,

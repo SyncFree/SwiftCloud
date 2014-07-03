@@ -60,6 +60,7 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
+import sys.scheduler.PeriodicTask;
 import sys.utils.Threading;
 
 /**
@@ -90,6 +91,8 @@ final class DCDataServer {
     RpcEndpoint dhtEndpoint;
     DCSurrogate surrogate;
 
+    CRDTIdentifier heartBeat = new CRDTIdentifier("heart", "beat");
+
     DCDataServer(DCSurrogate surrogate, Properties props, SurrogatePubSubService suPubSub) {
         this.surrogate = surrogate;
         this.localSurrogateId = surrogate.getId();
@@ -110,6 +113,14 @@ final class DCDataServer {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("Data server ready...");
         }
+
+        dsPubSub.subscribe(localSurrogateId, heartBeat, suPubSub);
+
+        new PeriodicTask(1.0, DCConstants.NOTIFICATION_PERIOD * 0.001) {
+            public void run() {
+                dsPubSub.publish(new UpdateNotification("ds", heartBeat));
+            }
+        };
     }
 
     /**
@@ -438,8 +449,8 @@ final class DCDataServer {
             if (prvCltTs != null)
                 data.crdt.augmentWithScoutClockWithoutMappings(prvCltTs);
 
-            // Assumption: dependencies are checked at sequencer level, since
-            // causality and dependencies are given at inter-object level.
+            // Assumption: dependencies are checked the server, prior to
+            // execution...
             data.crdt.execute((CRDTObjectUpdatesGroup) grp, CRDTOperationDependencyPolicy.RECORD_BLINDLY);
             data.crdt.augmentWithDCClockWithoutMappings(curDCVersion);
 

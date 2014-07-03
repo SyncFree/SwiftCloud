@@ -29,6 +29,11 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
         this.srcId = srcId;
     }
 
+    public UpdateNotification(String srcId, CRDTIdentifier uid) {
+        this.srcId = srcId;
+        this.info = new ObjectUpdatesInfo(uid);
+    }
+
     @Override
     public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
         for (Subscriber<CRDTIdentifier> i : pubsub.subscribers(info.getId(), true))
