@@ -14,7 +14,6 @@
 	<classpathentry kind="lib" path="lib/core/xpp3_min-1.1.4c.jar"/>
 	<classpathentry kind="lib" path="lib/core/xstream-1.4.3.jar"/>
 	<classpathentry kind="lib" path="lib/extras/diffutils-1.2.1.jar"/>
-	<classpathentry exported="true" kind="con" path="GROOVY_SUPPORT"/>
 	<classpathentry kind="lib" path="lib/extras/tpcw/colt.jar"/>
 	<classpathentry kind="lib" path="lib/extras/tpcw/httpclient-4.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/extras/tpcw/jackson-core-asl-1.7.5.jar"/>
