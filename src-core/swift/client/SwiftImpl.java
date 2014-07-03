@@ -337,6 +337,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.scoutPubSub = new ScoutPubSubService(scoutId, disasterSafe, serverEndpoint(), metadataStatsCollector) {
 
             public void onNotification(final BatchUpdatesNotification batch) {
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("( " + getScoutId() + ") Received notification with vector " + batch.getNewVersion()
+                            + " containing updates to " + batch.getObjectsUpdates().size() + " objects");
+                }
+
                 // FIXME: handle broken FIFO channel?
                 for (Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : batch.getObjectsUpdates()
                         .entrySet()) {
@@ -578,7 +583,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             addPendingTxn(siTxn);
             if (logger.isLoggable(Level.INFO)) {
-                logger.info("SI " + siTxn + " started with snapshot point: " + snapshotClock);
+                logger.info("(" + getScoutId() + ") SI " + siTxn + " started with snapshot point: " + snapshotClock);
             }
             return siTxn;
 
@@ -634,6 +639,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // quick hack: getSize() == 0 <=> initial value
         if (availableLocally || causalSnapshot.getSize() == 0) {
             causalSnapshot = getGlobalCommittedVersion(true);
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("( " + getScoutId() + ") set next causal snapshot to = " + causalSnapshot);
+            }
         }
         if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
             return;
