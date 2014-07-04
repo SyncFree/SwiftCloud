@@ -47,6 +47,7 @@ final public class SwiftOptions {
 
     private String serverHostname;
     private int serverPort;
+    private int pubsubPort;
     private boolean disasterSafe = DEFAULT_DISASTER_SAFE;
     private boolean concurrentOpenTransactions = DEFAULT_CONCURRENT_OPEN_TRANSACTIONS;
     private int maxAsyncTransactionsQueued = DEFAULT_MAX_ASYNC_TRANSACTIONS_QUEUED;

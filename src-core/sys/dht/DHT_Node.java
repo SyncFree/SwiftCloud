@@ -27,7 +27,7 @@ import sys.net.api.Endpoint;
 import sys.utils.IP;
 
 public class DHT_Node {
-    public static final int DHT_PORT = 27777;
+    public static int DHT_PORT = 29999;
 
     private static Logger Log = Logger.getLogger(DHT_Node.class.getName());
 

@@ -73,7 +73,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
                 handle.reply(new UnsubscribeUpdatesReply(request.getId()));
             }
         };
-        this.endpoint = Networking.rpcBind(DCConstants.PUBSUB_PORT).toService(0, handler);
+        this.endpoint = Networking.rpcBind(surrogate.pubsubPort).toService(0, handler);
     }
 
     public RpcEndpoint endpoint() {

@@ -46,7 +46,7 @@ public class DataServerPubSubService extends AbstractPubSub<CRDTIdentifier> {
     synchronized public void subscribe(CRDTIdentifier key, Endpoint remote) {
         RemoteSwiftSubscriber rs = remoteSubscribers.get(remote);
         if (rs == null)
-            remoteSubscribers.put(remote, rs = new RemoteSwiftSubscriber("surrogate-" + remote, endpoint, remote));
+            remoteSubscribers.put(remote, rs = new RemoteSwiftSubscriber("surrogate-" + remote, endpoint, remote, surrogate.pubsubPort));
         super.subscribe(key, rs);
     }
 

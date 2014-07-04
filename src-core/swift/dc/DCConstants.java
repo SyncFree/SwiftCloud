@@ -27,11 +27,13 @@ import java.util.logging.Logger;
 public class DCConstants {
     public static final Logger DCLogger = Logger.getLogger("swift.dc");
 
-    public static final int SEQUENCER_PORT = 29998;
-    public static final int SURROGATE_PORT = 29999;
-    public static final int SURROGATE_PORT_FOR_SEQUENCERS = 29996;
+    public static final int SEQUENCER_PORT = 29996;
+    public static final int SURROGATE_PORT = 29997;
+        //PUBSUB_PORT = SURROGATE_PORT + 1
+        //DhtNode.DHT_PORT = SURROGATE_PORT + 2
+//    public static final int PUBSUB_PORT = 30003;
+    public static final int SURROGATE_PORT_FOR_SEQUENCERS = 29995;
 
-    public static final int PUBSUB_PORT = 30003;
 
     public static final long INTERSEQ_RETRY = 5000; // period for retyring
                                                     // re-sending data between

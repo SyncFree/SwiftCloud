@@ -121,6 +121,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     // state
 
     public SurrogatePubSubService suPubSub;
+    public int pubsubPort;
 
     ThreadPoolExecutor crdtExecutor;
     Executor generalExecutor = Executors.newCachedThreadPool();
@@ -128,6 +129,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
         this.siteId = siteId;
         this.surrogateId = "s" + System.nanoTime();
+        this.pubsubPort = port4Clients + 1;
 
         this.sequencerServerEndpoint = sequencerEndpoint;
         this.cltEndpoint4Sequencer = Networking.rpcConnect().toDefaultService();
@@ -141,7 +143,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         srvEndpoint4Sequencer.getFactory().setExecutor(Executors.newFixedThreadPool(2));
 
         suPubSub = new SurrogatePubSubService(generalExecutor, this);
-        dataServer = new DCDataServer(this, props, suPubSub);
+        dataServer = new DCDataServer(this, props, suPubSub, port4Clients + 2);
 
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(512);
         crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, workQueue);

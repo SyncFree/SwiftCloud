@@ -15,11 +15,11 @@ public class RemoteSwiftSubscriber extends RemoteSubscriber<CRDTIdentifier> impl
     AtomicLong fifoSeq = new AtomicLong(0L);
 
     public RemoteSwiftSubscriber(String clientId, RpcEndpoint endpoint) {
-        super(clientId, endpoint, null);
+       super(clientId, endpoint, null);
     }
 
-    public RemoteSwiftSubscriber(String clientId, RpcEndpoint endpoint, Endpoint remote) {
-        super(clientId, endpoint, new RemoteEndpoint(remote.getHost(), DCConstants.PUBSUB_PORT));
+    public RemoteSwiftSubscriber(String clientId, RpcEndpoint endpoint, Endpoint remote, int pubsubPort) {
+        super(clientId, endpoint, new RemoteEndpoint(remote.getHost(), pubsubPort));
     }
 
     public void onNotification(Notifyable<CRDTIdentifier> info) {
