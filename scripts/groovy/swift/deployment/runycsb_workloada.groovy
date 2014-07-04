@@ -63,16 +63,17 @@ IncomingOpPerSecLimit = 10000000 // :-)
 IncomingOpPerSecPerClientLimit = IncomingOpPerSecLimit / Scouts.size()
 
 Duration = 480
+DurationShepardGrace = 6
 InterCmdDelay = 30
 
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
     'target':IncomingOpPerSecPerClientLimit,
     'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1',
-    'uniquerequestdistributionperclient':'true',
+     'uniquerequestdistributionperclient':'true',
 ]
-REPORTS = ['swift.reports':'APP_OP,STALENESS_READ,STALENESS_WRITE,STALENESS_CALIB', 'swift.reportEveryOperation':'true']
+REPORTS = ['swift.reports':'APP_OP', 'swift.reportEveryOperation':'true']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
-YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + REPORTS + OPTIONS
+YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + REPORTS + OPTIONS + ['maxexecutiontime' : Duration]
 
 // Options for DB initialization
 INIT_NO_REPORTS = ['swift.reports':'']
@@ -97,7 +98,7 @@ deployTo(AllMachines, SwiftYCSB.genPropsFile(YCSB_PROPS).absolutePath, YCSBProps
 INITYCSBProps = "swiftycsb-init.properties"
 deployTo(AllMachines, SwiftYCSB.genPropsFile(INIT_YCSB_PROPS).absolutePath, INITYCSBProps)
 
-def shep = SwiftBase.runShepard( ShepardAddr, Duration, "Released" )
+def shep = SwiftBase.runShepard( ShepardAddr, Duration + DurationShepardGrace, "Released" )
 
 println "==== LAUNCHING SEQUENCERS"
 Topology.datacenters.each { datacenter ->
