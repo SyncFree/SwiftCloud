@@ -496,10 +496,13 @@ public class CoreWorkload extends Workload
 		int keynum=keysequence.nextInt();
 		String dbkey = buildKeyName(keynum);
 		HashMap<String, ByteIterator> values = buildValues();
-		if (db.insert(table,dbkey,values) == 0)
+		final boolean code = db.insert(table,dbkey,values) == 0;
+        if (code)
 			return true;
-		else
+		else {
+		    System.err.println("DB INIT: failed to insert object " + dbkey + ", DB error code: " + code);
 			return false;
+		}
 	}
 
 	/**
