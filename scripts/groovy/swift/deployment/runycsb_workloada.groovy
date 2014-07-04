@@ -59,10 +59,14 @@ DbSize = 10000 // 100000
 OpsNum = 1000000
 PruningIntervalMillis = 10000
 
+IncomingOpPerSecLimit = 10000000 // :-)
+IncomingOpPerSecPerClientLimit = IncomingOpPerSecLimit / Scouts.size()
+
 Duration = 480
 InterCmdDelay = 30
 
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
+    'target':IncomingOpPerSecPerClientLimit,
     'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1',
     'uniquerequestdistributionperclient':'true',
 ]
