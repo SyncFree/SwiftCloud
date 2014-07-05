@@ -16,20 +16,14 @@ def __ = onControlC({
 
 EuropeEC2 = [
     // first node is a DC
-    'ec2-54-76-108-59.eu-west-1.compute.amazonaws.com',
-    'ec2-54-76-177-207.eu-west-1.compute.amazonaws.com'
 ]
 
 NVirginiaEC2 = [
     // first node is a DC
-    'ec2-54-84-124-179.compute-1.amazonaws.com',
-    'ec2-54-88-178-222.compute-1.amazonaws.com'
 ]
 
 OregonEC2 = [
     // first node is a DC
-    'ec2-54-191-90-224.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-83-161.us-west-2.compute.amazonaws.com'
 ]
 
 
@@ -43,19 +37,29 @@ PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MA
 
 // TOPOLOGY
 
-Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
-NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
-Oregon = DC([OregonEC2[0]], [OregonEC2[0]])
-ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
-ScoutsNV = SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
-ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
+// Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
+// NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
+Oregon =  DC([
+    'ec2-54-191-58-163.us-west-2.compute.amazonaws.com'
+], [
+    'ec2-54-191-58-163.us-west-2.compute.amazonaws.com'
+]) //DC([OregonEC2[0]], [OregonEC2[0]])
+//ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
+ScoutsNV = SGroup([
+    'ec2-54-86-186-130.compute-1.amazonaws.com',
+    'ec2-54-86-2-205.compute-1.amazonaws.com',
+    'ec2-54-88-176-92.compute-1.amazonaws.com',
+    'ec2-54-88-172-201.compute-1.amazonaws.com'
+], Oregon)
+//SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
+//ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 
 // OPTIONS
-DbSize = 10000 // 100000
+DbSize = 1000 // 100000
 OpsNum = 1000000
 PruningIntervalMillis = 10000
 
@@ -69,9 +73,9 @@ InterCmdDelay = 30
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
     'target':IncomingOpPerSecPerClientLimit,
     'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1',
-     'uniquerequestdistributionperclient':'true',
+    'uniquerequestdistributionperclient':'true',
 ]
-REPORTS = ['swift.reports':'APP_OP', 'swift.reportEveryOperation':'true']
+REPORTS = ['swift.reports':'APP_OP,METADATA', 'swift.reportEveryOperation':'true']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + REPORTS + OPTIONS + ['maxexecutiontime' : Duration]
 
