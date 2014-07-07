@@ -91,10 +91,10 @@ class RepeatableReadsTxnHandle extends AbstractTxnHandle {
         CRDT<V> localView = (CRDT<V>) objectViewsCache.get(id);
         if (localView != null && updatesListener != null) {
             // force another read to install the listener and discard it
-            manager.getObjectVersionTxnView(this, id, null, create, classOfV, updatesListener);
+            manager.getObjectVersion(this, id, null, create, classOfV, updatesListener);
         }
         if (localView == null) {
-            localView = manager.getObjectLatestVersionTxnView(this, id, cachePolicy, create, classOfV, updatesListener);
+            localView = manager.getObjectLatestVersion(this, id, cachePolicy, create, classOfV, updatesListener);
             objectViewsCache.put(id, localView);
             updateUpdatesDependencyClock(localView.getClock());
         }

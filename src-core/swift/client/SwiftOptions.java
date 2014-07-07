@@ -18,6 +18,8 @@ package swift.client;
 
 import java.util.Properties;
 
+import swift.client.SwiftImpl.CacheUpdateProtocol;
+
 /**
  * Options for Swift scout instance.
  * 
@@ -43,7 +45,7 @@ final public class SwiftOptions {
 
     public static final boolean DEFAULT_COMPUTE_METADATA_STATISTICS = false;
 
-    public static final boolean DEFAULT_CAUSAL_NOTIFICATIONS = true;
+    public static final CacheUpdateProtocol DEFAULT_CACHE_PROTOCOL = CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM;
 
     private String serverHostname;
     private int serverPort;
@@ -59,7 +61,7 @@ final public class SwiftOptions {
     private int maxCommitBatchSize = DEFAULT_MAX_COMMIT_BATCH_SIZE;
     private String logFilename = DEFAULT_LOG_FILENAME;
     private boolean logFlushOnCommit = DEFAULT_LOG_FLUSH_ON_COMMIT;
-    private boolean causalNotifications = DEFAULT_CAUSAL_NOTIFICATIONS;
+    private CacheUpdateProtocol cacheUpdateProtocol = DEFAULT_CACHE_PROTOCOL;
 
     private boolean enableStatistics = DEFAULT_ENABLE_STATISTICS;
     private boolean overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
@@ -160,9 +162,9 @@ final public class SwiftOptions {
         if (overwriteStatisticsDirString != null) {
             this.overwriteStatisticsDir = Boolean.parseBoolean(overwriteStatisticsDirString);
         }
-        final String causalNotificationsString = defaultValues.getProperty("swift.causalNotifications");
-        if (causalNotificationsString != null) {
-            this.causalNotifications = Boolean.parseBoolean(causalNotificationsString);
+        final String cacheUpdateProtocolString = defaultValues.getProperty("swift.cacheUpdateProtocol");
+        if (cacheUpdateProtocolString != null) {
+            this.cacheUpdateProtocol = CacheUpdateProtocol.valueOf(cacheUpdateProtocolString);
         }
     }
 
@@ -205,13 +207,8 @@ final public class SwiftOptions {
         return disasterSafe;
     }
 
-    /**
-     * @return true if the scout should assume notifications are delivered
-     *         atomically in causal order for the cache as a whole.
-     * 
-     */
-    public boolean assumeAtomicCausalNotifications() {
-        return causalNotifications;
+    public CacheUpdateProtocol getCacheUpdateProtocol() {
+        return cacheUpdateProtocol;
     }
 
     /**
@@ -374,14 +371,8 @@ final public class SwiftOptions {
         this.logFlushOnCommit = logFlushOnCommit;
     }
 
-    /**
-     * 
-     * @param flag
-     *            true if the scout should assume notifications are delivered
-     *            atomically and in causal order for the whole cache.
-     */
-    public void setCausalNotifications(boolean flag) {
-        this.causalNotifications = flag;
+    public void setCacheUpdateProtocol(CacheUpdateProtocol value) {
+        this.cacheUpdateProtocol = value;
     }
 
     public void setStatisticsOutputFolder(String outputFolder, boolean overwriteExistingDir) {

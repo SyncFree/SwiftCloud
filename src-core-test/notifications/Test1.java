@@ -3,6 +3,7 @@ package notifications;
 import java.util.Properties;
 
 import swift.client.SwiftImpl;
+import swift.client.SwiftImpl.CacheUpdateProtocol;
 import swift.client.SwiftOptions;
 import swift.crdt.IntegerCRDT;
 import swift.crdt.core.CRDTIdentifier;
@@ -19,8 +20,8 @@ public class Test1 {
         final CRDTIdentifier id = new CRDTIdentifier("/integers", "1");
 
         final SwiftOptions options = new SwiftOptions("localhost", DCConstants.SURROGATE_PORT, new Properties());
-        options.assumeAtomicCausalNotifications();
-        options.setCausalNotifications(true);
+        options.getCacheUpdateProtocol();
+        options.setCacheUpdateProtocol(CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM);
         options.setCacheSize(100);
         options.setDisasterSafe(true);
 

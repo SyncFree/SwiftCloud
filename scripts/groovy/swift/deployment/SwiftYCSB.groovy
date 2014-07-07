@@ -51,7 +51,7 @@ class SwiftYCSB extends SwiftBase {
         'swift.cacheSize':'0',
         'swift.asyncCommit':'false',
         'swift.notifications':'false',
-        'swift.causalNotifications':'false',
+        'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED',
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.reports':'APP_OP',

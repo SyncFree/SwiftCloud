@@ -109,7 +109,7 @@ import sys.utils.Threading;
  * support one or multiple client sessions.
  * 
  * @see Swift, TxnManager
- * @author mzawirski
+ * @author mzawirski,smd
  */
 // DISCLAIMER: this class is an unmanageable monolithic monster, as a result of
 // continued design decision changes over the project. It includes many legacy
@@ -118,6 +118,24 @@ import sys.utils.Threading;
 // transaction mode, although an unrelated legacy code may coexist.
 // TODO: drop legacy functionality, divide into smaller components.
 public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
+    /**
+     * A mode of cache protocol. This serves as a quick hack to try different
+     * versions of the protocols within the same codebase. In practice, these
+     * protocols should be combined in a less ad-hoc way.
+     */
+    public enum CacheUpdateProtocol {
+        /**
+         * Assumes there is no objects in the cache or that the objects are
+         * updated independently. DOES NOT WORK WELL WITH NOTIFICATIONS.
+         */
+        NO_CACHE_OR_UNCOORDINATED,
+        /**
+         * Cache is updated via a causal stream of server-initiated
+         * notifications.
+         */
+        CAUSAL_NOTIFICATIONS_STREAM,
+    }
+
     // Temporary Nuno's hack:
     public static final boolean DEFAULT_LISTENER_FOR_GET = false;
     static ObjectUpdatesListener DEFAULT_LISTENER = new AbstractObjectUpdatesListener() {
@@ -226,7 +244,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private final ReturnableTimestampSourceDecorator<Timestamp> clientTimestampGenerator;
 
     // Set of versions for fetch requests in progress.
-    // private final Set<CausalityClock> fetchVersionsInProgress;
     private final Set<CausalityClock> fetchVersionsInProgress;
 
     private Set<AbstractTxnHandle> pendingTxns;
@@ -284,10 +301,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private ValueSignalSource batchSizeOnCommitStats;
     // A vector that represents a locally available snapshot
     // TODO: unify with globalCommitted vectors;
-    private CausalityClock causalSnapshot;
+    private CausalityClock nextAvailableSnapshot;
 
     SortedSet<CRDTIdentifier> notified = new TreeSet<CRDTIdentifier>();
-    private final boolean assumeAtomicCausalNotifications;
+    private final CacheUpdateProtocol cacheUpdateProtocol;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
             final SwiftOptions options, String sessionId) {
@@ -300,7 +317,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.localEndpoint = localEndpoint;
         this.serverEndpoints = serverEndpoints;
         this.objectsCache = objectsCache;
-        this.assumeAtomicCausalNotifications = options.assumeAtomicCausalNotifications();
+        this.cacheUpdateProtocol = options.getCacheUpdateProtocol();
 
         if (options.isEnableStatistics()) {
             this.stats = StatsImpl.getInstance("scout-" + scoutId, StatsImpl.SAMPLING_INTERVAL_MILLIS,
@@ -317,7 +334,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.lastLocallyCommittedTxnClock = ClockFactory.newClock();
         // this.lastGloballyCommittedTxnClock = ClockFactory.newClock();
         this.committedDisasterDurableVersion = ClockFactory.newClock();
-        this.causalSnapshot = ClockFactory.newClock();
+        this.nextAvailableSnapshot = ClockFactory.newClock();
 
         this.committedVersion = ClockFactory.newClock();
         this.clientTimestampGenerator = new ReturnableTimestampSourceDecorator<Timestamp>(
@@ -347,11 +364,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         .entrySet()) {
                     applyObjectUpdates(entry.getKey(), entry.getValue());
                 }
-                // FIXME: handle cache expansionconcurrent to the notification
-                // use epoch numbers?
+                // FIXME: handle cache expansion concurrent to the notification.
+                // Use epoch numbers?
                 objectsCache.augmentAllWithDCCausalClockWithoutMappings(batch.getNewVersion());
-                updateCommittedVersions(batch.isNewVersionDisasterSafe() ? null : batch.getNewVersion(),
-                        batch.isNewVersionDisasterSafe() ? batch.getNewVersion() : null, true);
+                final CausalityClock nextSnapshot = updateCommittedVersions(batch.isNewVersionDisasterSafe() ? null
+                        : batch.getNewVersion(), batch.isNewVersionDisasterSafe() ? batch.getNewVersion() : null, false);
+                if (cacheUpdateProtocol == CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM) {
+                    updateNextAvailableSnapshot(nextSnapshot);
+                }
 
                 tryPruneObjects(batch.keys().toArray(new CRDTIdentifier[] {}));
                 batch.recordMetadataSample(metadataStatsCollector);
@@ -361,6 +381,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.objectsCache.setEvictionListener(new EvictionListener() {
             public void onEviction(CRDTIdentifier id) {
                 scoutPubSub.unsubscribe(id);
+                // FIXME: remove from objectSessionsUpdateSubscriptions too??
             }
         });
 
@@ -537,7 +558,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         if (reply != null) {
             reply.recordMetadataSample(metadataStatsCollector);
             reply.getDistasterDurableClock().intersect(reply.getClock());
-            updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock(), false);
+            final CausalityClock snapshotClock = updateCommittedVersions(reply.getClock(),
+                    reply.getDistasterDurableClock(), false);
+            updateNextAvailableSnapshot(snapshotClock);
             return true;
         } else
             return false;
@@ -553,22 +576,16 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
             final CausalityClock snapshotClock;
-            // TODO Q: is this flag really respected everywhere or should the
-            // whole code assume only one option?
-            if (assumeAtomicCausalNotifications && cachePolicy == CachePolicy.CACHED) {
-                snapshotClock = getNextTransactionSnapshot(true);
-            } else {
-                if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                    if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                        throw new NetworkException("timed out to get transaction snapshot point");
-                    }
+            if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                    throw new NetworkException("timed out to get transaction snapshot point");
                 }
-                // Invariant: for SI snapshotClock of a new transaction
-                // dominates
-                // clock of all previous SI transaction (monotonic reads), since
-                // commitedVersion only grows.
-                snapshotClock = getNextTransactionSnapshot(true);
             }
+            // Invariant: for SI snapshotClock of a new transaction
+            // dominates
+            // clock of all previous SI transaction (monotonic reads), since
+            // commitedVersion only grows.
+            snapshotClock = getNextTransactionSnapshot(true);
             // For Read Your Writes and Monotonic Reads (the latter necessary
             // only if isolation level changes)
             snapshotClock.merge(lastLocallyCommittedTxnClock);
@@ -624,8 +641,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         clientTimestampGenerator.returnLastTimestamp();
     }
 
-    private synchronized void updateCommittedVersions(final CausalityClock newCommittedVersion,
-            final CausalityClock newCommittedDisasterDurableVersion, boolean availableLocally) {
+    private synchronized CausalityClock updateCommittedVersions(final CausalityClock newCommittedVersion,
+            final CausalityClock newCommittedDisasterDurableVersion, boolean returnCopy) {
         boolean committedVersionUpdated = false;
         if (newCommittedVersion != null) {
             committedVersionUpdated = this.committedVersion.merge(newCommittedVersion).is(CMP_CLOCK.CMP_ISDOMINATED,
@@ -636,15 +653,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             committedDisasterDurableUpdated = this.committedDisasterDurableVersion.merge(
                     newCommittedDisasterDurableVersion).is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT);
         }
-        // quick hack: getSize() == 0 <=> initial value
-        if (availableLocally || causalSnapshot.getSize() == 0) {
-            causalSnapshot = getGlobalCommittedVersion(true);
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("( " + getScoutId() + ") set next causal snapshot to = " + causalSnapshot);
-            }
-        }
         if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
-            return;
+            return getGlobalCommittedVersion(returnCopy);
         }
 
         // Find and clean new stable local txns logs that we won't need anymore.
@@ -700,6 +710,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             }
         }
+        return getGlobalCommittedVersion(returnCopy);
+    }
+
+    private void updateNextAvailableSnapshot(CausalityClock causalityClock) {
+        if (nextAvailableSnapshot.hasEventFrom(getScoutId())) {
+            logger.warning("(" + getScoutId() + ") nextAvailableSnapshot clock includes scout's timestamp: "
+                    + causalityClock);
+        }
+        nextAvailableSnapshot = causalityClock.clone();
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info("( " + getScoutId() + ") set next causal snapshot to = " + nextAvailableSnapshot);
+        }
     }
 
     private synchronized CausalityClock getGlobalCommittedVersion(boolean copy) {
@@ -717,13 +739,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     private synchronized CausalityClock getNextTransactionSnapshot(boolean copy) {
-        if (assumeAtomicCausalNotifications) {
-            if (copy) {
-                return causalSnapshot.clone();
-            }
-            return causalSnapshot;
+        if (cacheUpdateProtocol == CacheUpdateProtocol.NO_CACHE_OR_UNCOORDINATED) {
+            return getGlobalCommittedVersion(copy);
         }
-        return getGlobalCommittedVersion(copy);
+        if (copy) {
+            return nextAvailableSnapshot.clone();
+        }
+        return nextAvailableSnapshot;
     }
 
     // invariant: getNextReadLowerBound() <= getNextTransactionSnapshot()
@@ -754,7 +776,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     @Override
-    public <V extends CRDT<V>> V getObjectLatestVersionTxnView(AbstractTxnHandle txn, CRDTIdentifier id,
+    public <V extends CRDT<V>> V getObjectLatestVersion(AbstractTxnHandle txn, CRDTIdentifier id,
             CachePolicy cachePolicy, boolean create, Class<V> classOfV, final ObjectUpdatesListener updatesListener)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException {
 
@@ -763,7 +785,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             if (cachePolicy == CachePolicy.CACHED) {
                 try {
-                    final V view = getCachedObjectForTxn(txn, id, null, classOfV, updatesListener, false);
+                    final V view = getCachedObjectVersion(txn, id, null, classOfV, updatesListener, false);
                     cacheStats.addCacheHit(id);
                     return view;
                 } catch (NoSuchObjectException x) {
@@ -810,7 +832,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // Pass other exceptions through.
 
             try {
-                return getCachedObjectForTxn(txn, id, null, classOfV, updatesListener, !fetchError);
+                return getCachedObjectVersion(txn, id, null, classOfV, updatesListener, !fetchError);
             } catch (NoSuchObjectException x) {
                 logger.warning("Object not found in the cache just after fetch (retrying): " + x);
             } catch (VersionNotFoundException x) {
@@ -820,14 +842,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     @Override
-    public <V extends CRDT<V>> V getObjectVersionTxnView(AbstractTxnHandle txn, final CRDTIdentifier id,
+    public <V extends CRDT<V>> V getObjectVersion(AbstractTxnHandle txn, final CRDTIdentifier id,
             final CausalityClock version, final boolean create, Class<V> classOfV,
             final ObjectUpdatesListener updatesListener) throws WrongTypeException, NoSuchObjectException,
             VersionNotFoundException, NetworkException {
         assertPendingTransaction(txn);
 
         try {
-            final V view = getCachedObjectForTxn(txn, id, version, classOfV, updatesListener, false);
+            final V view = getCachedObjectVersion(txn, id, version, classOfV, updatesListener, false);
             cacheStats.addCacheHit(id);
             return view;
         } catch (NoSuchObjectException x) {
@@ -848,7 +870,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
 
             try {
-                return getCachedObjectForTxn(txn, id, version.clone(), classOfV, updatesListener, true);
+                return getCachedObjectVersion(txn, id, version.clone(), classOfV, updatesListener, true);
                 // TODO: does it work? it used to fail (hotfix: drop scout's
                 // entry from version) as reported by smduarte:
                 // WITH SI, at least, FAILS AFTER 10min running, as
@@ -885,12 +907,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
      * @throws VersionNotFoundException
      */
     @SuppressWarnings("unchecked")
-    private synchronized <V extends CRDT<V>> V getCachedObjectForTxn(final AbstractTxnHandle txn, CRDTIdentifier id,
+    private synchronized <V extends CRDT<V>> V getCachedObjectVersion(final AbstractTxnHandle txn, CRDTIdentifier id,
             CausalityClock clock, Class<V> classOfV, ObjectUpdatesListener updatesListener, boolean justFetched)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException {
-
-        // System.err.println("---->" + id + "      " + clock);
-
         ManagedCRDT<V> crdt;
         try {
             crdt = (ManagedCRDT<V>) objectsCache.getAndTouch(id);
@@ -925,12 +944,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // TODO: Discuss. This is a very aggressive caching mode.
         }
 
-        // Experimentally removed this suspicious heuristic
-        // if (txn.isolationLevel == IsolationLevel.SNAPSHOT_ISOLATION &&
-        // assumeAtomicCausalNotifications
-        // && txn.cachePolicy == CachePolicy.CACHED)
-        // clock.intersect(crdt.getClock());
-
         final V crdtView;
         try {
             crdtView = crdt.getVersion(clock, txn);
@@ -938,10 +951,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             // No appropriate version found in the object from the cache.
             throw new VersionNotFoundException("Object " + id + " not available in the cache in appropriate version: "
-                    + x.getMessage());
+                    + x.getMessage() + "; object state: "+ crdt);
         }
 
         if (updatesListener != null) {
+            assertNotificationsCompatibleMode();
             if (updatesListener.isSubscriptionOnly()) {
                 addUpdateSubscriptionNoListener(crdt, !justFetched);
             } else {
@@ -968,23 +982,34 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         fetchObjectFromScratch(txn, id, create, classOfV, version, sendMoreRecentUpdates, subscribeUpdates);
     }
 
+    private void assertNotificationsCompatibleMode() {
+        if (cacheUpdateProtocol != CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM) {
+            logger.warning("requested object notifications are incompatible with the protocol mode "
+                    + cacheUpdateProtocol);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private <V extends CRDT<V>> void fetchObjectFromScratch(final AbstractTxnHandle txn, CRDTIdentifier id,
             boolean create, Class<V> classOfV, CausalityClock version, boolean sendMoreRecentUpdates,
             boolean subscribeUpdates) throws NoSuchObjectException, WrongTypeException, VersionNotFoundException,
             NetworkException, InterruptedException {
 
-        // TODO Q: what is this?
-        if (subscribeUpdates)
+        if (subscribeUpdates) {
+            assertNotificationsCompatibleMode();
+            // Why does it appear here and not on getVersion path?
             scoutPubSub.subscribe(id, scoutPubSub);
-        else
+        } else {
+            // TODO Q: what is this?!?
             subscribeUpdates = scoutPubSub.isSubscribed(id);
+        }
 
         // Record and drop scout's entry from the requested clock (efficiency?).
         final Timestamp requestedScoutVersion = version.getLatest(scoutId);
         version.drop(this.scoutId);
         final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, disasterSafe, id,
-                version, sendMoreRecentUpdates, subscribeUpdates, !assumeAtomicCausalNotifications);
+                version, sendMoreRecentUpdates, subscribeUpdates,
+                cacheUpdateProtocol == CacheUpdateProtocol.NO_CACHE_OR_UNCOORDINATED);
 
         doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create, requestedScoutVersion);
     }
@@ -1339,6 +1364,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             try {
                 final CausalityClock nextClock = getNextTransactionSnapshot(true);
                 nextClock.merge(lastLocallyCommittedTxnClock);
+                // TODO: use pruneClock instead, it should have precise info
                 newView = newCrdtVersion.getVersion(nextClock, subscription.txn);
             } catch (IllegalStateException x2) {
                 logger.warning("Object has been pruned since notification was set up, and investigating the observable view is impossible due to incompatible version");
@@ -1411,7 +1437,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     version.merge(lastLocallyCommittedTxnClock);
                 }
                 try {
-                    // FIXME: <V extends TxnLocalCRDT<V>> should be really part
+                    // FIXME: <V extends CRDT<V>> should be really part
                     // of ID, because if the object does not exist, we are
                     // grilled here with passing interface as V - it will crash
                     fetchObjectVersion(null, id, false, CRDT.class, version, true, true);
