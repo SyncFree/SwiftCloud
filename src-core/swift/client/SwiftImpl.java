@@ -1235,12 +1235,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 throw new WrongTypeException(e.getMessage());
             }
 
-            if (cacheCRDT == null
-                    || crdt.getClock().compareTo(cacheCRDT.getClock())
-                            .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_EQUALS)) {
-                // If clock >= cacheCrdt.clock, it 1) does not make sense to
-                // merge, 2) received version may have different pruneClock,
-                // which could be either helpful or not depending on the case.
+            if (cacheCRDT == null) {
                 objectsCache.add(crdt, txn == null ? -1L : txn.serial);
                 cacheCRDT = crdt;
             } else {
