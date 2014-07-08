@@ -13,6 +13,11 @@ class SwiftBase {
         'swift.asyncCommit':'true',
         'swift.notifications':'true',
         'swift.cacheUpdateProtocol':'CAUSAL_NOTIFICATIONS_STREAM']
+    static CACHING_PERIODIC_REFRESH_PROPS = ['swift.cacheSize':'256',
+        'swift.asyncCommit':'true',
+        'swift.notifications':'false',
+        'swift.cacheUpdateProtocol':'CAUSAL_PERIODIC_REFRESH',
+        'swift.cacheRefreshPeriodMillis' : '1000']
     static NO_CACHING_NOTIFICATIONS_PROPS = [
         'swift.cacheSize':'0',
         'swift.asyncCommit':'false',
@@ -30,7 +35,7 @@ class SwiftBase {
     static String swift_app_cmd_nooutput( String heap, String exec, String stderr, String stdout )  {
         return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec +  "2> " + stderr+ " > " + stdout
     }
-    
+
     static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers, String extraArgs) {
         def res  = SEQUENCER_CMD + " -name " + siteId + " -shepard " + shepard + " -servers "
         servers.each { res += it + " "}

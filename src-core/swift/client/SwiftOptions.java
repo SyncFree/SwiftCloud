@@ -46,6 +46,7 @@ final public class SwiftOptions {
     public static final boolean DEFAULT_COMPUTE_METADATA_STATISTICS = false;
 
     public static final CacheUpdateProtocol DEFAULT_CACHE_PROTOCOL = CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM;
+    private static final int DEFAULT_CACHE_REFRESH_PERIOD_MILLIS = 1000;
 
     private String serverHostname;
     private int serverPort;
@@ -62,6 +63,7 @@ final public class SwiftOptions {
     private String logFilename = DEFAULT_LOG_FILENAME;
     private boolean logFlushOnCommit = DEFAULT_LOG_FLUSH_ON_COMMIT;
     private CacheUpdateProtocol cacheUpdateProtocol = DEFAULT_CACHE_PROTOCOL;
+    private int cacheRefreshPeriodMillis = DEFAULT_CACHE_REFRESH_PERIOD_MILLIS;
 
     private boolean enableStatistics = DEFAULT_ENABLE_STATISTICS;
     private boolean overwriteStatisticsDir = DEFAULT_OVERWRITE_STATISTICS_DIR;
@@ -165,6 +167,11 @@ final public class SwiftOptions {
         final String cacheUpdateProtocolString = defaultValues.getProperty("swift.cacheUpdateProtocol");
         if (cacheUpdateProtocolString != null) {
             this.cacheUpdateProtocol = CacheUpdateProtocol.valueOf(cacheUpdateProtocolString);
+        }
+
+        final String cacheRefreshPeriodMillisString = defaultValues.getProperty("swift.cacheRefreshPeriodMillis");
+        if (cacheRefreshPeriodMillisString != null) {
+            this.cacheRefreshPeriodMillis = Integer.valueOf(cacheRefreshPeriodMillisString);
         }
     }
 
@@ -395,5 +402,13 @@ final public class SwiftOptions {
 
     public void setEnableStatistics(boolean enableStatistics) {
         this.enableStatistics = enableStatistics;
+    }
+
+    public int getCacheRefreshPeriodMillis() {
+        return cacheRefreshPeriodMillis;
+    }
+
+    public void setCacheRefreshPeriodMillis(int cacheRefreshPeriodMillis) {
+        this.cacheRefreshPeriodMillis = cacheRefreshPeriodMillis;
     }
 }

@@ -36,8 +36,10 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -94,6 +96,7 @@ import swift.utils.SafeLog.ReportType;
 import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
 import sys.scheduler.PeriodicTask;
 import sys.stats.DummyStats;
 import sys.stats.Stats;
@@ -134,6 +137,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
          * notifications.
          */
         CAUSAL_NOTIFICATIONS_STREAM,
+        /**
+         * Cache is updated via a periodic refresh request initiated by the
+         * client. DOES NOT WORK WELL WITH NOTIFICATIONS.
+         */
+        CAUSAL_PERIODIC_REFRESH
     }
 
     // Temporary Nuno's hack:
@@ -147,6 +155,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     // Experimental feature: share dependency clock in a commit batch to reduce
     // metadata size.
     public static final boolean USE_SHARED_DEPENDENCIES_IN_COMMIT_BATCH = true;
+    private final double cacheRefreshPeriodSec;
 
     // TODO: complete server failover
 
@@ -318,6 +327,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.serverEndpoints = serverEndpoints;
         this.objectsCache = objectsCache;
         this.cacheUpdateProtocol = options.getCacheUpdateProtocol();
+        this.cacheRefreshPeriodSec = ((double) options.getCacheRefreshPeriodMillis()) / 1000.0;
 
         if (options.isEnableStatistics()) {
             this.stats = StatsImpl.getInstance("scout-" + scoutId, StatsImpl.SAMPLING_INTERVAL_MILLIS,
@@ -462,6 +472,15 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             };
         }
 
+        if (cacheUpdateProtocol == CacheUpdateProtocol.CAUSAL_PERIODIC_REFRESH) {
+            new PeriodicTask(cacheRefreshPeriodSec, cacheRefreshPeriodSec) {
+                @Override
+                public void run() {
+                    refreshCache();
+                }
+            };
+        }
+
         getDCClockEstimates();
     }
 
@@ -548,6 +567,82 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             return false;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    private void refreshCache() {
+        final CausalityClock version = getGlobalCommittedVersion(true);
+        version.merge(lastLocallyCommittedTxnClock);
+        // Record and drop scout's entry from the requested clock (efficiency?).
+        final Timestamp requestedScoutVersion = version.getLatest(scoutId);
+        version.drop(this.scoutId);
+
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info(getScoutId() + ": " + "Refreshing cache to version " + version);
+        }
+        synchronized (this) {
+            fetchVersionsInProgress.add(version);
+            ongoingObjectFetchesStats.incCounter();
+        }
+        try {
+            final HashMap<CRDTIdentifier, FetchObjectVersionRequest> idRequests = new HashMap<>();
+            final ConcurrentHashMap<CRDTIdentifier, FetchObjectVersionReply> idReplies = new ConcurrentHashMap<>();
+            final Semaphore repliesAvailable = new Semaphore(0);
+            final Set<CRDTIdentifier> ids = objectsCache.getIds();
+            // TODO: USE BATCH REQUEST!
+            // Send requests and collect all replies.
+            for (final CRDTIdentifier id : ids) {
+                final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, disasterSafe, id,
+                        version, false, false, false);
+                idRequests.put(id, fetchRequest);
+                localEndpoint.send(serverEndpoint(), fetchRequest, new SwiftProtocolHandler() {
+                    @Override
+                    protected void onReceive(RpcHandle conn, FetchObjectVersionReply reply) {
+                        if (idReplies.put(fetchRequest.getUid(), reply) == null) {
+                            repliesAvailable.release();
+                            fetchRequest.recordMetadataSample(metadataStatsCollector);
+                            reply.recordMetadataSample(metadataStatsCollector);
+                        }
+                    }
+                }, 0);
+            }
+            // Wait until all replies arrive.
+            try {
+                repliesAvailable.acquire(ids.size());
+            } catch (InterruptedException e) {
+                return;
+            }
+
+            synchronized (this) {
+                // Wait until no txn executes to avoid versioning problems.
+                while (!pendingTxns.isEmpty()) {
+                    try {
+                        this.wait();
+                    } catch (InterruptedException e) {
+                        return;
+                    }
+                }
+
+                // Apply all and advance next snapshot clock.
+                for (final FetchObjectVersionRequest request : idRequests.values()) {
+                    try {
+                        // FIXME: <V extends CRDT<V>> should be really part of
+                        // ID, because the code below is not type-safe.
+                        handleFetchObjectReply(null, request, idReplies.get(request.getUid()), CRDT.class, false,
+                                requestedScoutVersion);
+                    } catch (SwiftException x) {
+                        logger.warning(getScoutId() + ": "
+                                + "could not fetch the latest version of an object for cache refresh purposes: "
+                                + x.getMessage());
+                    }
+                }
+                updateNextAvailableSnapshot(version);
+            }
+        } finally {
+            synchronized (this) {
+                fetchVersionsInProgress.remove(version);
+                ongoingObjectFetchesStats.decCounter();
+            }
         }
     }
 
@@ -1544,6 +1639,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (logger.isLoggable(Level.INFO)) {
                 logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
             }
+            // Notify periodic refresh thread.
+            this.notifyAll();
         }
         removePendingTxn(txn);
     }
