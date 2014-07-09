@@ -73,7 +73,9 @@ InterCmdDelay = 30
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
     'target':IncomingOpPerSecPerClientLimit,
     'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1',
-    'uniquerequestdistributionperclient':'true',
+    'localrequestdistribution':'zipfian',
+    'localrecordcount':'1000',
+    'localrequestproportion':'1',
 ]
 REPORTS = ['swift.reports':'APP_OP,METADATA', 'swift.reportEveryOperation':'true']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS

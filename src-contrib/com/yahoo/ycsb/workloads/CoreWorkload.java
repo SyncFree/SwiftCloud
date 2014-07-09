@@ -20,6 +20,7 @@ package com.yahoo.ycsb.workloads;
 import java.util.Properties;
 
 import com.yahoo.ycsb.*;
+import com.yahoo.ycsb.generator.CombinerIntegerGeneratorDecorator;
 import com.yahoo.ycsb.generator.CounterGenerator;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
 import com.yahoo.ycsb.generator.ExponentialGenerator;
@@ -58,7 +59,9 @@ import java.util.Vector;
  * <LI><b>scanproportion</b>: what proportion of operations should be scans (default: 0)
  * <LI><b>readmodifywriteproportion</b>: what proportion of operations should be read a record, modify it, write it back (default: 0)
  * <LI><b>requestdistribution</b>: what distribution should be used to select the records to operate on - uniform, zipfian, hotspot, or latest (default: uniform)
- * <LI><b>uniquerequestdistributionperclient</b>: should the distribution of request be unique per client and exhibit some per-client locality or not (default: false))
+ * <LI><b>localrequestdistribution</b>: what local distribution should be used to select the records to operate on a local fraction of database - uniform or zipfian (default: uniform)
+ * <LI><b>localrequestproportion</b>: what fraction of requests should be served by the local request distribution (default: 0)
+ * <LI><b>localrecordcount</b>: keyspace size of local distribution (default: 100)
  * <LI><b>maxscanlength</b>: for scans, what is the maximum number of records to scan (default: 1000)
  * <LI><b>scanlengthdistribution</b>: for scans, what distribution should be used to choose the number of records to scan, for each scan, between 1 and maxscanlength (default: uniform)
  * <LI><b>insertorder</b>: should records be inserted in order by key ("ordered"), or in hashed order ("hashed") (default: hashed)
@@ -212,18 +215,35 @@ public class CoreWorkload extends Workload
 	 */
 	public static final String REQUEST_DISTRIBUTION_PROPERTY_DEFAULT="uniform";
 	
-
-    /**
-     * The name of the propoerty that determines if the requests distribution
-     * should be unique per client thread (enforces access locality). Options
-     * are "true" and "false".
+	/**
+     * The name of the property for the the session-local distribution of requests across the keyspace. Options are "zipfian" or "uniform".
      */
-    public static final String UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY = "uniquerequestdistributionperclient";
-
+    public static final String LOCAL_REQUEST_DISTRIBUTION_PROPERTY="localrequestdistribution";
+    
     /**
-     * The default for {@link #UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY}.
+     * The default session-local distribution of requests across the session keyspace
      */
-	private static final String UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY_DEFAULT = "false";
+    public static final String LOCAL_REQUEST_DISTRIBUTION_PROPERTY_DEFAULT="uniform";
+    
+    /**
+     * The property that defines the fraction of requests served from the local distribution.
+     */
+    public static final String LOCAL_REQUEST_PROPORTION_PROPERTY="localrequestproportion";
+    
+    /**
+     * The default fraction of requests server by the session distribution
+     */
+    public static final String LOCAL_REQUEST_PROPORTION_PROPERTY_DEFAULT="0";
+    
+    /**
+     * The property that defines the keyspace size of local distribution.
+     */
+    public static final String LOCAL_RECORD_COUNT_PROPERTY="localrecordcount";
+    
+    /**
+     * The default size of local distribution keyspace.
+     */
+    public static final String LOCAL_RECORD_COUNT_DEFAULT="100";
 
 	/**
 	 * The name of the property for the max scan length (number of records)
@@ -280,6 +300,12 @@ public class CoreWorkload extends Workload
 	DiscreteGenerator operationchooser;
 
 	IntegerGenerator keychooser;
+	
+	IntegerGenerator localkeychooser;
+	
+	double localrequestproportion;
+	
+	int localrecordcount;
 
 	Generator fieldchooser;
 
@@ -290,13 +316,11 @@ public class CoreWorkload extends Workload
 	boolean orderedinserts;
 
 	int recordcount;
-
+	
 	int expectedrecordcount;
 
     private int jvmUid;
 
-    private boolean uniqueRequestDistributionPerClient;
-	
 	protected static IntegerGenerator getFieldLengthGenerator(Properties p) throws WorkloadException{
 		IntegerGenerator fieldlengthgenerator;
 		String fieldlengthdistribution = p.getProperty(FIELD_LENGTH_DISTRIBUTION_PROPERTY, FIELD_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT);
@@ -339,9 +363,9 @@ public class CoreWorkload extends Workload
 		recordcount=Integer.parseInt(p.getProperty(Client.RECORD_COUNT_PROPERTY));
         expectedrecordcount = recordcount;
 		String requestdistrib=p.getProperty(REQUEST_DISTRIBUTION_PROPERTY,REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
-        uniqueRequestDistributionPerClient = Boolean.parseBoolean(p.getProperty(
-                UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY,
-                UNIQUE_REQUEST_DISTRIBUTION_PER_CLIENT_PROPERTY_DEFAULT));
+		String localrequestdistrib=p.getProperty(LOCAL_REQUEST_DISTRIBUTION_PROPERTY,LOCAL_REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
+		localrequestproportion=Double.parseDouble(p.getProperty(LOCAL_REQUEST_PROPORTION_PROPERTY,LOCAL_REQUEST_PROPORTION_PROPERTY_DEFAULT));
+		localrecordcount=Integer.parseInt(p.getProperty(LOCAL_RECORD_COUNT_PROPERTY,LOCAL_RECORD_COUNT_DEFAULT));
 		int maxscanlength=Integer.parseInt(p.getProperty(MAX_SCAN_LENGTH_PROPERTY,MAX_SCAN_LENGTH_PROPERTY_DEFAULT));
 		String scanlengthdistrib=p.getProperty(SCAN_LENGTH_DISTRIBUTION_PROPERTY,SCAN_LENGTH_DISTRIBUTION_PROPERTY_DEFAULT);
 		
@@ -431,6 +455,29 @@ public class CoreWorkload extends Workload
 		{
 			throw new WorkloadException("Unknown request distribution \""+requestdistrib+"\"");
 		}
+		
+        if (localrequestdistrib.compareTo("uniform")==0)
+        {
+            localkeychooser=new UniformIntegerGenerator(0,localrecordcount-1);
+        }
+        else if (localrequestdistrib.compareTo("zipfian")==0)
+        {
+            //it does this by generating a random "next key" in part by taking the modulus over the number of keys
+            //if the number of keys changes, this would shift the modulus, and we don't want that to change which keys are popular
+            //so we'll actually construct the scrambled zipfian generator with a keyspace that is larger than exists at the beginning
+            //of the test. that is, we'll predict the number of inserts, and tell the scrambled zipfian generator the number of existing keys
+            //plus the number of predicted keys as the total keyspace. then, if the generator picks a key that hasn't been inserted yet, will
+            //just ignore it and pick another key. this way, the size of the keyspace doesn't change from the perspective of the scrambled zipfian generator
+            
+            int opcount=Integer.parseInt(p.getProperty(Client.OPERATION_COUNT_PROPERTY));
+            int expectednewkeys=(int)(((double)opcount)*insertproportion*2.0*localrequestproportion); //2 is fudge factor
+            
+            localkeychooser=new ScrambledZipfianGenerator(localrecordcount+expectednewkeys);
+        }
+        else 
+		{
+            throw new WorkloadException("Unknown local request distribution \""+localrequestdistrib+"\"");
+		}
 
 		fieldchooser=new UniformIntegerGenerator(0,fieldcount-1);
 		
@@ -478,8 +525,9 @@ public class CoreWorkload extends Workload
 	
 	@Override
 	public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
-	    if (uniqueRequestDistributionPerClient) {
-	        return new ScrambledIntegerGeneratorDecorator(keysequence, expectedrecordcount, jvmUid + mythreadid);
+	    if (localrequestproportion > 0) {
+            return new CombinerIntegerGeneratorDecorator(keychooser, new ScrambledIntegerGeneratorDecorator(localkeychooser,
+                    expectedrecordcount, jvmUid + mythreadid), localrequestproportion);
 	    } else {
 	        return null;
 	    }
@@ -541,7 +589,7 @@ public class CoreWorkload extends Workload
 
     int nextKeynum(Object threadstate) {
         final IntegerGenerator chooser;
-        if (uniqueRequestDistributionPerClient) {
+        if (localrequestproportion > 0) {
             chooser = (IntegerGenerator) threadstate;
         } else {
             chooser = keychooser;
