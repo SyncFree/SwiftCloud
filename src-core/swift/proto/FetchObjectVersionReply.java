@@ -47,7 +47,11 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, K
         /**
          * The requested version of an object is available in the store.
          */
-        VERSION_NOT_FOUND
+        VERSION_MISSING,
+        /**
+         * The requested version of an object was pruned from the store.
+         */
+        VERSION_PRUNED
     }
 
     protected FetchStatus status;

@@ -365,7 +365,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             public void onNotification(final BatchUpdatesNotification batch) {
                 if (logger.isLoggable(Level.INFO)) {
-                    logger.info("( " + getScoutId() + ") Received notification with vector " + batch.getNewVersion()
+                    logger.info(getScoutId() + ": " + "Received notification with vector " + batch.getNewVersion()
                             + " containing updates to " + batch.getObjectsUpdates().size() + " objects");
                 }
 
@@ -452,8 +452,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 log = new KryoDiskLog(options.getLogFilename());
             } catch (FileNotFoundException x) {
                 // TODO: Propagate the exception
-                logger.warning("Could not create a log file " + options.getLogFilename() + " (using no log instead): "
-                        + x);
+                logger.warning(getScoutId() + ": " + "Could not create a log file " + options.getLogFilename()
+                        + " (using no log instead): " + x);
             }
         }
         if (!options.isLogFlushOnCommit()) {
@@ -485,14 +485,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     public void stop(boolean waitForCommit) {
-        logger.info("Stopping scout");
+        logger.info(getScoutId() + ": " + "Stopping scout");
         synchronized (this) {
             if (stopFlag) {
-                logger.warning("Scout is already stopped");
+                logger.warning(getScoutId() + ": " + "Scout is already stopped");
                 return;
             }
             if (!pendingTxns.isEmpty()) {
-                logger.warning("Stopping while there are pending transactions!");
+                logger.warning(getScoutId() + ": " + "Stopping while there are pending transactions!");
 
                 try {
                     stats.dump();
@@ -515,16 +515,16 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             durableLog.close();
         } catch (InterruptedException e) {
-            logger.warning(e.getMessage());
+            logger.warning(getScoutId() + ": " + e.getMessage());
         }
-        logger.info("scout stopped");
+        logger.info(getScoutId() + ": " + "scout stopped");
         cacheStats.printAndReset();
 
         try {
             stats.dump();
             stats.terminate();
         } catch (IOException e) {
-            logger.warning("Couldn't write statistics file: cause: " + e);
+            logger.warning(getScoutId() + ": " + "Couldn't write statistics file: cause: " + e);
         }
     }
 
@@ -695,12 +695,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             addPendingTxn(siTxn);
             if (logger.isLoggable(Level.INFO)) {
-                logger.info("(" + getScoutId() + ") SI " + siTxn + " started with snapshot point: " + snapshotClock);
+                logger.info(getScoutId() + ": " + "SI " + siTxn + " started with snapshot point: " + snapshotClock);
             }
             return siTxn;
 
         case REPEATABLE_READS:
-            logger.warning("using REPEATABLE_READS isolation level is NOT RECOMMENDED anymore, poorly supported in the recent version");
+            logger.warning(getScoutId()
+                    + ": "
+                    + "using REPEATABLE_READS isolation level is NOT RECOMMENDED anymore, poorly supported in the recent version");
             // TODO Q: do we ever use RR in any recent experiments?
             final RepeatableReadsTxnHandle rrTxn;
             if (readOnly) {
@@ -711,7 +713,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             addPendingTxn(rrTxn);
             if (logger.isLoggable(Level.INFO)) {
-                logger.info("REPEATABLE READS  " + rrTxn + " started");
+                logger.info(getScoutId() + ": " + "REPEATABLE READS  " + rrTxn + " started");
             }
             return rrTxn;
 
@@ -750,6 +752,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
         if (!committedVersionUpdated && !committedDisasterDurableUpdated) {
             return getGlobalCommittedVersion(returnCopy);
+        }
+
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info(getScoutId() + ": " + "Updated committed vector to " + committedVersion
+                    + ", and disaster durable to " + committedDisasterDurableVersion);
         }
 
         // Find and clean new stable local txns logs that we won't need anymore.
@@ -810,12 +817,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private void updateNextAvailableSnapshot(CausalityClock causalityClock) {
         if (nextAvailableSnapshot.hasEventFrom(getScoutId())) {
-            logger.warning("(" + getScoutId() + ") nextAvailableSnapshot clock includes scout's timestamp: "
+            logger.warning(getScoutId() + ": " + "nextAvailableSnapshot clock includes scout's timestamp: "
                     + causalityClock);
         }
         nextAvailableSnapshot = causalityClock.clone();
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("( " + getScoutId() + ") set next causal snapshot to = " + nextAvailableSnapshot);
+            logger.info(getScoutId() + ": " + "set next snapshot to = " + nextAvailableSnapshot);
         }
     }
 
@@ -888,7 +895,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     // Ok, let's try to fetch then.
                 } catch (VersionNotFoundException x) {
                     cacheStats.addCacheMissBizarre(id);
-                    logger.info("No self-consistent version found in cache: " + x);
+                    logger.info(getScoutId() + ": " + "No self-consistent version found in cache: " + x);
                 }
             }
         }
@@ -929,9 +936,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             try {
                 return getCachedObjectVersion(txn, id, null, classOfV, updatesListener, !fetchError);
             } catch (NoSuchObjectException x) {
-                logger.warning("Object not found in the cache just after fetch (retrying): " + x);
+                logger.warning(getScoutId() + ": " + "Object not found in the cache just after fetch (retrying): " + x);
             } catch (VersionNotFoundException x) {
-                logger.warning("No self-consistent version found in cache (retrying): " + x);
+                logger.warning(getScoutId() + ": " + "No self-consistent version found in cache (retrying): " + x);
             }
         }
     }
@@ -978,9 +985,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 // equal to the object updates clock
                 // ([OXcsOsX5RSurtRuQtdXdtQ==:[1-1],X0:[1-3894]])
             } catch (NoSuchObjectException x) {
-                logger.warning("Object not found in the cache just after fetch (retrying): " + x);
+                logger.warning(getScoutId() + ": " + "Object not found in the cache just after fetch (retrying): " + x);
             } catch (VersionNotFoundException x) {
-                logger.warning("Object not found in appropriate version, probably pruned: " + x);
+                logger.warning(getScoutId() + ": " + "Object not found in appropriate version, probably pruned: " + x);
                 throw x;
             }
         }
@@ -1046,7 +1053,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             // No appropriate version found in the object from the cache.
             throw new VersionNotFoundException("Object " + id + " not available in the cache in appropriate version: "
-                    + x.getMessage() + "; object state: "+ crdt);
+                    + x.getMessage() + "; object state: " + crdt);
         }
 
         if (updatesListener != null) {
@@ -1062,7 +1069,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
 
             if (txn.isReadOnly() && !crdt.isRegisteredInStore()) {
-                logger.warning("The read-only transaction request for updates listener on inexisting object cannot be fulfilled");
+                logger.warning(getScoutId()
+                        + ": "
+                        + "The read-only transaction request for updates listener on inexisting object cannot be fulfilled");
             }
         }
         return crdtView;
@@ -1079,8 +1088,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private void assertNotificationsCompatibleMode() {
         if (cacheUpdateProtocol != CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM) {
-            logger.warning("requested object notifications are incompatible with the protocol mode "
-                    + cacheUpdateProtocol);
+            logger.warning(getScoutId() + ": "
+                    + "requested object notifications are incompatible with the protocol mode " + cacheUpdateProtocol);
         }
     }
 
@@ -1122,7 +1131,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         try {
             final long firstRequestTimestamp = System.currentTimeMillis();
             FetchObjectVersionReply reply;
+            boolean firstTry = true;
             do {
+                if (!firstTry) {
+                    logger.warning(getScoutId() + ": " + "retrying fetch");
+                }
+
                 final long requestDeadline = deadlineMillis - (System.currentTimeMillis() - firstRequestTimestamp);
                 if (requestDeadline <= 0) {
                     throw new NetworkException("Deadline exceeded to get appropriate answer from the store;"
@@ -1140,7 +1154,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 fetchRequest.recordMetadataSample(metadataStatsCollector);
                 reply.recordMetadataSample(metadataStatsCollector);
 
-            } while (!processFetchObjectReply(txn, fetchRequest, reply, classOfV, create, requestedScoutVersion));
+                firstTry = false;
+            } while (!handleFetchObjectReply(txn, fetchRequest, reply, classOfV, create, requestedScoutVersion));
         } finally {
             synchronized (this) {
                 fetchVersionsInProgress.remove(fetchRequest.getVersion());
@@ -1152,7 +1167,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     /**
      * @return when the request was successful
      */
-    private <V extends CRDT<V>> boolean processFetchObjectReply(final AbstractTxnHandle txn,
+    private <V extends CRDT<V>> boolean handleFetchObjectReply(final AbstractTxnHandle txn,
             final FetchObjectVersionRequest request, final FetchObjectVersionReply fetchReply, Class<V> classOfV,
             boolean create, Timestamp requestedScoutVersion) throws NoSuchObjectException, WrongTypeException {
         final ManagedCRDT<V> crdt;
@@ -1199,7 +1214,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             crdt = new ManagedCRDT<V>(request.getUid(), checkpoint, clock, false);
             break;
-        case VERSION_NOT_FOUND:
+        case VERSION_MISSING:
+        case VERSION_PRUNED:
         case OK:
             try {
                 crdt = (ManagedCRDT<V>) fetchReply.getCrdt();
@@ -1242,8 +1258,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 try {
                     cacheCRDT.merge(crdt);
                 } catch (IllegalStateException x) {
-                    logger.warning("Merging incoming object version " + crdt.getClock() + " with the cached version "
-                            + cacheCRDT.getClock() + " has failed with our heuristic - dropping cached version" + x);
+                    logger.warning(getScoutId() + ": " + "Merging incoming object version " + crdt.getClock()
+                            + " with the cached version " + cacheCRDT.getClock()
+                            + " has failed with our heuristic - dropping cached version" + x);
                     cacheCRDT = crdt;
                     objectsCache.add(crdt, txn == null ? -1L : txn.serial);
                 }
@@ -1277,13 +1294,19 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             tryPruneObjects(cacheCRDT.getUID());
         }
 
-        if (fetchReply.getStatus() == FetchStatus.VERSION_NOT_FOUND) {
+        if (fetchReply.getStatus() == FetchStatus.VERSION_PRUNED) {
+            logger.warning(getScoutId() + ": " + "requested object " + request.getUid() + " version "
+                    + request.getVersion() + " pruned at the DC " + crdt.getPruneClock());
+        }
+
+        if (fetchReply.getStatus() == FetchStatus.VERSION_MISSING) {
             // System.err.println( sys.Sys.Sys.mainClass + "&&&&&&&&&&" +
             // fetchReply.getEstimatedCommittedVersion() + "/" +
             // fetchReply.getVersion() + "/wanted:" + request.getVersion() +
             // "ownCLOCK:" + committedVersion );
 
-            logger.warning("requested object version not found in the store, retrying fetch");
+            logger.warning(getScoutId() + ": " + "requested object " + request.getUid() + " version "
+                    + request.getVersion() + " not (yet) replicated at the DC " + crdt.getClock());
             return false;
         }
         return true;
@@ -1293,7 +1316,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private void applyLocalObjectUpdates(ManagedCRDT cachedCRDT, final AbstractTxnHandle localTxn) {
         // Try to apply changes in a cached copy of an object.
         if (cachedCRDT == null) {
-            logger.warning("object evicted from the local cache, cannot apply local transaction changes");
+            logger.warning(getScoutId() + ": "
+                    + "object evicted from the local cache, cannot apply local transaction changes");
             return;
         }
 
@@ -1318,7 +1342,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
      */
     private synchronized void applyObjectUpdates(CRDTIdentifier id, List<CRDTObjectUpdatesGroup<?>> ops) {
         if (stopFlag) {
-            logger.info("Update received after scout has been stopped -> ignoring");
+            logger.info(getScoutId() + ": " + "Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -1331,7 +1355,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         if (crdt == null) {
             // Ooops, we evicted the object from the cache.
-            logger.info("cannot apply received updates on object " + id + " evicted from the cache; re-fetching");
+            logger.info(getScoutId() + ": " + "cannot apply received updates on object " + id
+                    + " evicted from the cache; re-fetching");
             if (sessionsSubs != null) {
                 if (!sessionsSubs.isEmpty()) {
                     if (!ops.isEmpty()) {
@@ -1366,8 +1391,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             if (!newUpdate) {
                 if (logger.isLoggable(Level.INFO)) {
-                    logger.info("update " + op.getClientTimestamp() + " was already included in the state of object "
-                            + id);
+                    logger.info(getScoutId() + ": " + "update " + op.getClientTimestamp()
+                            + " was already included in the state of object " + id);
                 }
                 // Already applied update.
                 continue;
@@ -1383,7 +1408,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id,
             UpdateSubscriptionWithListener subscription, TimestampMapping... timestampMappings) {
         if (stopFlag) {
-            logger.info("Update received after scout has been stopped -> ignoring");
+            logger.info(getScoutId() + ": " + "Update received after scout has been stopped -> ignoring");
             return;
         }
         // System.err.printf("My CLOCK:---->%s\n",
@@ -1431,7 +1456,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             }
             ids.add(entry.getValue());
             if (logger.isLoggable(Level.INFO)) {
-                logger.info("Update on object " + id + " visible, but not committed, delaying notification");
+                logger.info(getScoutId() + ": " + "Update on object " + id
+                        + " visible, but not committed, delaying notification");
             }
         }
     }
@@ -1439,7 +1465,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private synchronized <V extends CRDT<V>> void handleObjectNewVersionTryNotify(CRDTIdentifier id,
             final UpdateSubscriptionWithListener subscription, final ManagedCRDT<V> newCrdtVersion) {
         if (stopFlag) {
-            logger.info("Update received after scout has been stopped -> ignoring");
+            logger.info(getScoutId() + ": " + "Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -1449,7 +1475,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         } catch (IllegalArgumentException x) {
             // Object has been pruned since then, approximate by comparing old
             // and new txn views. This is a very bizzare case.
-            logger.warning("Object has been pruned since notification was set up, needs to investigate the observable view");
+            logger.warning(getScoutId() + ": "
+                    + "Object has been pruned since notification was set up, needs to investigate the observable view");
             final CRDT<V> newView;
             try {
                 final CausalityClock nextClock = getNextTransactionSnapshot(true);
@@ -1457,7 +1484,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 // TODO: use pruneClock instead, it should have precise info
                 newView = newCrdtVersion.getVersion(nextClock, subscription.txn);
             } catch (IllegalStateException x2) {
-                logger.warning("Object has been pruned since notification was set up, and investigating the observable view is impossible due to incompatible version");
+                logger.warning(getScoutId()
+                        + ": "
+                        + "Object has been pruned since notification was set up, and investigating the observable view is impossible due to incompatible version");
                 return;
             }
             if (!newView.getValue().equals(subscription.crdtView.getValue())) {
@@ -1511,7 +1540,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private void asyncFetchAndSubscribeObjectUpdates(final CRDTIdentifier id) {
 
         if (stopFlag) {
-            logger.info("Update received after scout has been stopped -> ignoring");
+            logger.info(getScoutId() + ": " + "Update received after scout has been stopped -> ignoring");
             return;
         }
 
@@ -1532,7 +1561,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     // grilled here with passing interface as V - it will crash
                     fetchObjectVersion(null, id, false, CRDT.class, version, true, true);
                 } catch (SwiftException x) {
-                    logger.warning("could not fetch the latest version of an object for notifications purposes: "
+                    logger.warning(getScoutId() + ": "
+                            + "could not fetch the latest version of an object for notifications purposes: "
                             + x.getMessage());
                 } catch (InterruptedException x) {
                     // Scout was closed.
@@ -1562,7 +1592,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     public synchronized void discardTxn(AbstractTxnHandle txn) {
         assertPendingTransaction(txn);
         removePendingTxn(txn);
-        logger.info("local transaction " + txn.getTimestampMapping() + " rolled back");
+        logger.info(getScoutId() + ": " + "local transaction " + txn.getTimestampMapping() + " rolled back");
         if (requiresGlobalCommit(txn)) {
             // Need to create and commit a dummy transaction, we cannot
             // returnLastTimestamp :-(
@@ -1595,7 +1625,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         assertRunning();
         txn.markLocallyCommitted();
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("transaction " + txn.getTimestampMapping() + " committed locally");
+            logger.info(getScoutId() + ": " + "transaction " + txn.getTimestampMapping() + " committed locally");
         }
 
         if (requiresGlobalCommit(txn)) {
@@ -1632,7 +1662,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             txn.markGloballyCommitted(null);
             removeEvictionProtection(txn);
             if (logger.isLoggable(Level.INFO)) {
-                logger.info("read-only transaction " + txn.getTimestampMapping() + " will not commit globally");
+                logger.info(getScoutId() + ": " + "read-only transaction " + txn.getTimestampMapping()
+                        + " will not commit globally");
             }
             // Notify periodic refresh thread.
             this.notifyAll();
@@ -1762,7 +1793,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 globallyCommittedUnstableTxns.addLast(txn);
 
                 if (logger.isLoggable(Level.INFO)) {
-                    logger.info("transaction " + txn.getTimestampMapping() + " commited globally");
+                    logger.info(getScoutId() + ": " + "transaction " + txn.getTimestampMapping() + " commited globally");
                 }
 
                 // Subscribe updates for newly created objects if they were
@@ -1784,7 +1815,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // transactions.
         while (locallyCommittedTxnsOrderedQueue.size() >= maxAsyncTransactionsQueued
                 && locallyCommittedTxnsOrderedQueue.first().compareTo(txn) < 0) {
-            logger.warning("Asynchronous commit queue is full - blocking the transaction commit");
+            logger.warning(getScoutId() + ": " + "Asynchronous commit queue is full - blocking the transaction commit");
             try {
                 this.wait();
             } catch (InterruptedException e) {
@@ -1890,7 +1921,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 batchSizeOnCommitStats.setValue(transactionsToCommit.size());
                 if (stopFlag && (transactionsToCommit.isEmpty() || !stopGracefully)) {
                     if (!transactionsToCommit.isEmpty()) {
-                        logger.warning("Scout ungraceful stop, some transactions may not have globally committed");
+                        logger.warning(getScoutId() + ": "
+                                + "Scout ungraceful stop, some transactions may not have globally committed");
                     }
                     return;
                 }

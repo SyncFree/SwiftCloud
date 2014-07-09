@@ -321,13 +321,22 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                                     crdt.discardRecentUpdates(restriction);
                                 }
 
-                                final FetchObjectVersionReply.FetchStatus status = (finalCmpClk == CMP_CLOCK.CMP_ISDOMINATED || finalCmpClk == CMP_CLOCK.CMP_CONCURRENT) ? FetchStatus.VERSION_NOT_FOUND
-                                        : FetchStatus.OK;
-                                if (status == FetchStatus.VERSION_NOT_FOUND) {
+                                final FetchObjectVersionReply.FetchStatus status;
+                                if (finalCmpClk.is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
                                     logger.warning("Requested version " + request.getVersion() + " of object "
-                                            + request.getUid() + " not available; local version: "
-                                            + finalEstimatedDCVersionCopy);
+                                            + request.getUid() + " missing; local version: "
+                                            + finalEstimatedDCVersionCopy + " pruned as of " + crdt.getPruneClock());
+                                    status = FetchStatus.VERSION_MISSING;
+                                } else if (crdt.getPruneClock().compareTo(request.getVersion())
+                                                .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_CONCURRENT)) {
+                                    logger.warning("Requested version " + request.getVersion() + " of object "
+                                            + request.getUid() + " is pruned; local version: "
+                                            + finalEstimatedDCVersionCopy + " pruned as of " + crdt.getPruneClock());
+                                    status  = FetchStatus.VERSION_PRUNED;
+                                } else {
+                                    status = FetchStatus.OK;
                                 }
+
                                 if (logger.isLoggable(Level.INFO)) {
                                     logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/"
                                             + request.getUid());
