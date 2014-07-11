@@ -189,7 +189,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     void execPending() {
-        Threading.newThread(true, new Runnable() {
+        Thread th = Threading.newThread(true, new Runnable() {
             public void run() {
                 for (;;) {
                     SeqCommitUpdatesRequest req = null;
@@ -227,7 +227,9 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                         Threading.synchronizedWaitOn(pendingOps, 50);
                 }
             }
-        }).start();
+        });
+        th.setPriority(th.getPriority() - 1);
+        th.start();
     }
 
     void addPending(SeqCommitUpdatesRequest request) {
@@ -387,8 +389,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 }
             }
         });
-        t.setDaemon(true);
-        t.setPriority(Thread.currentThread().getPriority());
+        t.setPriority(Thread.currentThread().getPriority()-1);
         t.start();
     }
 
