@@ -219,8 +219,14 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
      *            clock is merged with purningPoint
      */
     public void prune(CausalityClock pruningPoint, boolean checkVersionClock) {
-        if (checkVersionClock && clock.compareTo(pruningPoint).is(CMP_CLOCK.CMP_CONCURRENT, CMP_CLOCK.CMP_ISDOMINATED)) {
-            return;
+        if (checkVersionClock) {
+            final CMP_CLOCK cmp = clock.compareTo(pruningPoint);
+            if (cmp == CMP_CLOCK.CMP_CONCURRENT) {
+                // TODO: try to do something smarter?
+                return;
+            } else if (cmp == CMP_CLOCK.CMP_ISDOMINATED) {
+                pruningPoint = clock.clone();
+            }
         }
 
         clock.merge(pruningPoint);
@@ -542,6 +548,8 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
      * @param version
      */
     public void discardRecentUpdates(CausalityClock version) {
+        version.clone();
+        version.merge(pruneClock);
         for (final Iterator<CRDTObjectUpdatesGroup<V>> updatesIter = strippedLog.iterator(); updatesIter.hasNext();) {
             final CRDTObjectUpdatesGroup<V> updates = updatesIter.next();
             if (!updates.anyTimestampIncluded(version)) {

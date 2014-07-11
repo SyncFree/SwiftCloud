@@ -97,10 +97,10 @@ class SnapshotIsolationTxnHandle extends AbstractTxnHandle implements TxnHandle 
         CRDT<V> localView = (CRDT<V>) objectViewsCache.get(id);
         if (localView != null && updatesListener != null) {
             // force another read to install the listener and discard it
-            manager.getObjectVersionTxnView(this, id, localView.getClock(), create, classOfV, updatesListener);
+            manager.getObjectVersion(this, id, localView.getClock(), create, classOfV, updatesListener);
         }
         if (localView == null) {
-            localView = manager.getObjectVersionTxnView(this, id, getUpdatesDependencyClock().clone(), create, classOfV,
+            localView = manager.getObjectVersion(this, id, getUpdatesDependencyClock().clone(), create, classOfV,
                     updatesListener);
             objectViewsCache.put(id, localView);
         }

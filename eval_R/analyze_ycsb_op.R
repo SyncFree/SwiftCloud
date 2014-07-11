@@ -17,9 +17,10 @@ preprocess_OP <- function (data){
 #file <- paste(path,"test_ycsb.csv",sep="/")
 
 
-toplevel_path <- "~/data_eval/50reads-50updates";
+toplevel_path <- "/home/zawir/workspace/swiftcloud/results/ycsb/workloada/remote-caching-session-locality/"
+# "~/data_eval/50reads-50updates/"
 
-#file <- "~/data_eval/50reads-50updates/Jun29-1404068293230-c09289b5-DC-1-SU-1-SC-8-TH-4-records-100000-operations-500000/ec2-54-72-34-188.eu-west-1.compute.amazonaws.com/scout-stdout.log"
+#file <- "~/data_eval/50reads-50updates/remote-caching/"
 
 file_list <- list.files(toplevel_path, pattern="*scout-stdout.log",recursive=TRUE)
 file_list <- (paste(toplevel_path,file_list,sep="/"))
@@ -28,11 +29,12 @@ p <- list()
 d <- data.frame()
 dc <- 1
 su <- 1
-sc <- 8
-th <- 4
-records <- "100000"
-ops <- "50000"
-j <- grep(paste("DC",dc,"SU",su,"SC",sc,"TH",th,"records",records,"operations",ops,sep="-"),file_list)
+sc <- 4
+th <- 24
+pruning <- 10000
+records <- "1000"
+ops <- "1000000"
+j <- grep(paste("DC",dc,"SU",su,"pruning",pruning,"SC",sc,"TH",th,"records",records,"operations",ops,sep="-"),file_list)
 
 #Sort by number of threads
 for (file in file_list[j]){
@@ -48,13 +50,22 @@ names(d) <- c("timestamp","type","sessionId","operation","duration")
 summary(d)
 #Filter out the rows where duration couldn't be parsed due to 
 d <- subset(d,!is.na(d$duration))
+
+# Common tasks for YCSB and SwiftSocial experiments:
+# TODO: remove header and tail entries
+# TODO: aggregated throughput computation
+
 summary(d)
 
+# PLOTS
+format_ext <- ".png"
 
 #!Making scatter plots takes quite long for our data with > 1.000.000 entries!
 #Scatterplot for distribution over time
-#scatter.plot <- ggplot(d, aes(timestamp,duration)) + + geom_point(aes(color=operation))
-#ggsave(scatter.plot, file=paste("~/data_eval/fig/timeline-TH",i,".pdf",collapse=""), scale=1)
+
+# sampled_subset <- df[sample(nrow(df),n),]
+scatter.plot <- ggplot(d, aes(timestamp,duration)) + geom_point(aes(color=operation))
+ggsave(scatter.plot, file=paste(toplevel_path, "timeline-TH",th,format_ext,collapse=""), scale=1)
 
 #CDF Plot
 cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) + ggtitle (paste("TH",th))
@@ -67,4 +78,5 @@ rm(d)
 
 #p <- do.call(grid.arrange,p)
 
-ggsave(cdf.plot, file=paste("~/data_eval/fig/cdf-TH",th,".pdf",collapse=""), scale=1)
+ggsave(cdf.plot, file=paste(toplevel_path, "cdf-TH",th,format_ext,collapse=""), scale=1)
+

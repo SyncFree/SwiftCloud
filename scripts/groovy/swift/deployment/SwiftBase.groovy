@@ -12,12 +12,17 @@ class SwiftBase {
     static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
         'swift.asyncCommit':'true',
         'swift.notifications':'true',
-        'swift.causalNotifications':'true']
+        'swift.cacheUpdateProtocol':'CAUSAL_NOTIFICATIONS_STREAM']
+    static CACHING_PERIODIC_REFRESH_PROPS = ['swift.cacheSize':'256',
+        'swift.asyncCommit':'true',
+        'swift.notifications':'false',
+        'swift.cacheUpdateProtocol':'CAUSAL_PERIODIC_REFRESH',
+        'swift.cacheRefreshPeriodMillis' : '1000']
     static NO_CACHING_NOTIFICATIONS_PROPS = [
         'swift.cacheSize':'0',
         'swift.asyncCommit':'false',
         'swift.notifications':'false',
-        'swift.causalNotifications':'false']
+        'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED']
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
         return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
@@ -30,7 +35,7 @@ class SwiftBase {
     static String swift_app_cmd_nooutput( String heap, String exec, String stderr, String stdout )  {
         return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec +  "2> " + stderr+ " > " + stdout
     }
-    
+
     static String sequencerCmd( String siteId, String shepard, List servers, List otherSequencers, String extraArgs) {
         def res  = SEQUENCER_CMD + " -name " + siteId + " -shepard " + shepard + " -servers "
         servers.each { res += it + " "}

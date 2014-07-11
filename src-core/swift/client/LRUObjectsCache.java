@@ -51,6 +51,7 @@ class LRUObjectsCache {
     private final int maxElements;
     private final long evictionTimeMillis;
     private Map<CRDTIdentifier, Entry> entries;
+    // TODO: what are shadow entries for?
     private Map<CRDTIdentifier, Entry> shadowEntries;
     private Set<Long> evictionProtections;
 
@@ -145,6 +146,10 @@ class LRUObjectsCache {
     synchronized public ManagedCRDT<?> getWithoutTouch(final CRDTIdentifier id) {
         final Entry entry = shadowEntries.get(id);
         return entry == null ? null : entry.getObject();
+    }
+
+    public synchronized Set<CRDTIdentifier> getIds() {
+        return new HashSet<>(entries.keySet());
     }
 
     /**
