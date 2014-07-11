@@ -30,11 +30,13 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
- * Server reply to object version fetch request.
+ * Server reply to version fetch request for a number of objects. The order of
+ * elements in the reply may corresponds to the order of elements in
+ * {@link BatchFetchObjectVersionRequest}.
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, KryoSerializable {
+public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplable, KryoSerializable {
     public enum FetchStatus {
         /**
          * The reply contains requested version.
@@ -54,27 +56,33 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, K
         VERSION_PRUNED
     }
 
-    protected FetchStatus status;
-    protected ManagedCRDT<?> crdt;
+    protected FetchStatus[] statuses;
+    protected ManagedCRDT[] crdts;
     protected CausalityClock estimatedLatestKnownClock;
     protected CausalityClock estimatedDisasterDurableLatestKnownClock;
 
     // public Map<String, Object> staleReadsInfo;
 
     // Fake constructor for Kryo serialization. Do NOT use.
-    FetchObjectVersionReply() {
+    BatchFetchObjectVersionReply() {
     }
 
-    public FetchObjectVersionReply(FetchStatus status, ManagedCRDT<?> crdt, CausalityClock estimatedLatestKnownClock,
+    public BatchFetchObjectVersionReply(final int batchSize, CausalityClock estimatedLatestKnownClock,
             CausalityClock estimatedDisasterDurableLatestKnownClock) {
-
-        this.crdt = crdt;
-        this.status = status;
+        this.crdts = new ManagedCRDT[batchSize];
+        this.statuses = new FetchStatus[batchSize];
         this.estimatedLatestKnownClock = estimatedLatestKnownClock;
         this.estimatedDisasterDurableLatestKnownClock = estimatedDisasterDurableLatestKnownClock;
         if (estimatedLatestKnownClock != null && estimatedDisasterDurableLatestKnownClock != null) {
             // TODO: use diff over here?
             this.estimatedDisasterDurableLatestKnownClock.intersect(estimatedLatestKnownClock);
+        }
+    }
+
+    public void setReply(final int index, final FetchStatus status, final ManagedCRDT crdt) {
+        synchronized (this) {
+            statuses[index] = status;
+            crdts[index] = crdt;
         }
     }
 
@@ -90,23 +98,29 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, K
     // this.staleReadsInfo = staleReadsInfo;
     // }
 
-    /**
-     * @return status code of the reply
-     */
-    public FetchStatus getStatus() {
-        return status;
+    public int getBatchSize() {
+        return statuses.length;
     }
 
     /**
-     * @return state of an object requested by the client; null if
-     *         {@link #getStatus()} is {@link FetchStatus#OBJECT_NOT_FOUND}.
+     * @return status code of the reply identified by idx, where 0 <= idx <
+     *         getBatchSize()
+     */
+    public FetchStatus getStatus(final int idx) {
+        return statuses[idx];
+    }
+
+    /**
+     * @return state of an object requested identified by idx, where 0 <= idx <
+     *         getBatchSize(); null if {@link #getStatus()} is
+     *         {@link FetchStatus#OBJECT_NOT_FOUND}.
      */
     // Old docs, not true anymore: if {@link #getStatus()} is {@link
     // FetchStatus#OK} then the object is
     // pruned from history at most to the level specified by version in
     // the original client request;
-    public ManagedCRDT<?> getCrdt() {
-        return crdt;
+    public ManagedCRDT<?> getCrdt(int idx) {
+        return crdts[idx];
     }
 
     /**
@@ -156,28 +170,31 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, K
 
         int versionSize = 0;
         int valueSize = 0;
-        if (crdt != null) {
-            maxExceptionsNum = Math.max(crdt.getClock().getExceptionsNumber(), maxExceptionsNum);
+        for (final ManagedCRDT crdt : crdts) {
+            if (crdt != null) {
+                maxExceptionsNum = Math.max(crdt.getClock().getExceptionsNumber(), maxExceptionsNum);
 
-            kryo = collector.getFreshKryo();
-            buffer = collector.getFreshKryoBuffer();
-            kryo.writeObject(buffer, crdt.getUID());
-            // TODO: be more precise w.r.t version (we should get the requested
-            // version, not the latest)
-            final CRDT version = crdt.getLatestVersion(null);
-            kryo.writeObject(buffer, version);
-            versionSize = buffer.position();
+                kryo = collector.getFreshKryo();
+                buffer = collector.getFreshKryoBuffer();
+                kryo.writeObject(buffer, crdt.getUID());
+                // TODO: be more precise w.r.t version (we should get the
+                // requested
+                // version, not the latest)
+                final CRDT version = crdt.getLatestVersion(null);
+                kryo.writeObject(buffer, version);
+                versionSize += buffer.position();
 
-            kryo = collector.getFreshKryo();
-            buffer = collector.getFreshKryoBuffer();
-            kryo.writeObject(buffer, crdt.getUID());
-            final Object value = version.getValue();
-            if (value != null) {
-                kryo.writeObject(buffer, value);
-            } else {
-                kryo.writeObject(buffer, false);
+                kryo = collector.getFreshKryo();
+                buffer = collector.getFreshKryoBuffer();
+                kryo.writeObject(buffer, crdt.getUID());
+                final Object value = version.getValue();
+                if (value != null) {
+                    kryo.writeObject(buffer, value);
+                } else {
+                    kryo.writeObject(buffer, false);
+                }
+                valueSize += buffer.position();
             }
-            valueSize = buffer.position();
         }
 
         kryo = collector.getFreshKryo();
@@ -188,10 +205,12 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, K
         if (estimatedLatestKnownClock != null) {
             kryo.writeObject(buffer, estimatedLatestKnownClock);
         }
-        if (crdt != null) {
-            kryo.writeObject(buffer, crdt.getClock());
-            kryo.writeObject(buffer, crdt.getPruneClock());
-            kryo.writeObject(buffer, crdt.getUpdatesTimestampMappingsSince(crdt.getPruneClock()));
+        for (ManagedCRDT crdt : crdts) {
+            if (crdt != null) {
+                kryo.writeObject(buffer, crdt.getClock());
+                kryo.writeObject(buffer, crdt.getPruneClock());
+                kryo.writeObject(buffer, crdt.getUpdatesTimestampMappingsSince(crdt.getPruneClock()));
+            }
         }
         final int globalMetadata = buffer.position();
 
@@ -201,18 +220,28 @@ public class FetchObjectVersionReply implements RpcMessage, MetadataSamplable, K
 
     @Override
     public void write(Kryo kryo, Output output) {
-        output.writeVarInt(status.ordinal(), true);
-        kryo.writeClassAndObject(output, crdt);
+        final int batchSize = getBatchSize();
+        output.writeVarInt(batchSize, true);
+        for (int i = 0; i < batchSize; i++) {
+            output.writeVarInt(statuses[i].ordinal(), true);
+            kryo.writeClassAndObject(output, crdts[i]);
+        }
         kryo.writeObjectOrNull(output, estimatedLatestKnownClock, VersionVectorWithExceptions.class);
         kryo.writeObjectOrNull(output, estimatedDisasterDurableLatestKnownClock, VersionVectorWithExceptions.class);
     }
 
     @Override
     public void read(Kryo kryo, Input input) {
-        final int ordinal = input.readVarInt(true);
-        // If ordinal is out range, then ArrayIndexOutOfBoundException fires.
-        status = FetchStatus.values()[ordinal];
-        crdt = (ManagedCRDT<?>) kryo.readClassAndObject(input);
+        final int batchSize = input.readVarInt(true);
+        statuses = new FetchStatus[batchSize];
+        crdts = new ManagedCRDT[batchSize];
+        for (int i = 0; i < batchSize; i++) {
+            final int ordinal = input.readVarInt(true);
+            // If ordinal is out range, then ArrayIndexOutOfBoundException
+            // fires.
+            statuses[i] = FetchStatus.values()[ordinal];
+            crdts[i] = (ManagedCRDT) kryo.readClassAndObject(input);
+        }
         estimatedLatestKnownClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
         estimatedDisasterDurableLatestKnownClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
     }

@@ -50,15 +50,15 @@ import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.ManagedCRDT;
 import swift.proto.BatchCommitUpdatesReply;
 import swift.proto.BatchCommitUpdatesRequest;
+import swift.proto.BatchFetchObjectVersionReply;
+import swift.proto.BatchFetchObjectVersionReply.FetchStatus;
+import swift.proto.BatchFetchObjectVersionRequest;
 import swift.proto.ClientRequest;
 import swift.proto.CommitTSReply;
 import swift.proto.CommitTSRequest;
 import swift.proto.CommitUpdatesReply;
 import swift.proto.CommitUpdatesReply.CommitStatus;
 import swift.proto.CommitUpdatesRequest;
-import swift.proto.FetchObjectVersionReply;
-import swift.proto.FetchObjectVersionReply.FetchStatus;
-import swift.proto.FetchObjectVersionRequest;
 import swift.proto.GenerateDCTimestampReply;
 import swift.proto.GenerateDCTimestampRequest;
 import swift.proto.LatestKnownClockReply;
@@ -230,9 +230,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         updateEstimatedDCStableVersion(reply.getDistasterDurableClock());
     }
 
-    public void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
+    public void onReceive(RpcHandle conn, final BatchFetchObjectVersionRequest request) {
         if (logger.isLoggable(Level.INFO)) {
-            logger.info("FetchObjectVersionRequest client = " + request.getClientId());
+            logger.info("BatchFetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
+                    + request.getUids());
         }
         // LWWStringMapRegisterCRDT initialCheckpoint = new
         // LWWStringMapRegisterCRDT(request.getUid());
@@ -249,21 +250,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         // .getVersion(), request.getVersion()));
         // return;
 
-        if (request.hasSubscription())
-            getSession(request).subscribe(request.getUid());
-
-        request.setHandle(conn);
-        handleFetchVersionRequest(conn, request);
-    }
-
-    @SuppressWarnings("rawtypes")
-    private void handleFetchVersionRequest(RpcHandle conn, final FetchObjectVersionRequest request) {
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info("FetchObjectVersionRequest client = " + request.getClientId() + "; crdt id = "
-                    + request.getUid());
+        if (request.hasSubscription()) {
+            for (final CRDTIdentifier id : request.getUids()) {
+                getSession(request).subscribe(id);
+            }
         }
-        final ClientSession session = getSession(request);
 
+        final ClientSession session = getSession(request);
         final Timestamp cltLastSeqNo = session.getLastSeqNo();
 
         CMP_CLOCK cmp = CMP_CLOCK.CMP_EQUALS;
@@ -288,66 +281,82 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             disasterSafeVVReply.intersect(estimatedDCVersionCopy);
         }
 
-        // TODO: for nodes !request.isDisasterSafe() send it
-        // less
+        // TODO: for nodes !request.isDisasterSafe() send it less
         // frequently (it's for pruning only)
         final CausalityClock vvReply = !request.isDisasterSafeSession() && request.isSendDCVector() ? estimatedDCVersionCopy
                 .clone() : null;
 
-        dataServer.getCRDT(request.getUid(), request.getVersion(), request.getClientId(), request.hasSubscription(),
-                new FutureResultHandler<ManagedCRDT>() {
-                    @Override
-                    public void onResult(ManagedCRDT crdt) {
+        final BatchFetchObjectVersionReply reply = new BatchFetchObjectVersionReply(request.getBatchSize(), vvReply,
+                disasterSafeVVReply);
 
-                        if (crdt == null) {
-                            if (logger.isLoggable(Level.INFO)) {
-                                logger.info("END FetchObjectVersionRequest not found:" + request.getUid());
-                            }
-                            request.replyHandle.reply(new FetchObjectVersionReply(
-                                    FetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null, vvReply,
-                                    disasterSafeVVReply));
-                        } else {
-                            synchronized (crdt) {
-                                crdt.augmentWithDCClockWithoutMappings(finalEstimatedDCVersionCopy);
-                                if (cltLastSeqNo != null)
-                                    crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
-
-                                // TODO: move it to data nodes
-                                if (!request.isSendMoreRecentUpdates()) {
-                                    CausalityClock restriction = (CausalityClock) request.getVersion().copy();
-                                    if (cltLastSeqNo != null) {
-                                        restriction.recordAllUntil(cltLastSeqNo);
-                                    }
-                                    crdt.discardRecentUpdates(restriction);
-                                }
-
-                                final FetchObjectVersionReply.FetchStatus status;
-                                if (finalCmpClk.is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
-                                    logger.warning("Requested version " + request.getVersion() + " of object "
-                                            + request.getUid() + " missing; local version: "
-                                            + finalEstimatedDCVersionCopy + " pruned as of " + crdt.getPruneClock());
-                                    status = FetchStatus.VERSION_MISSING;
-                                } else if (crdt.getPruneClock().compareTo(request.getVersion())
-                                                .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_CONCURRENT)) {
-                                    logger.warning("Requested version " + request.getVersion() + " of object "
-                                            + request.getUid() + " is pruned; local version: "
-                                            + finalEstimatedDCVersionCopy + " pruned as of " + crdt.getPruneClock());
-                                    status  = FetchStatus.VERSION_PRUNED;
-                                } else {
-                                    status = FetchStatus.OK;
-                                }
-
-                                if (logger.isLoggable(Level.INFO)) {
-                                    logger.info("END FetchObjectVersionRequest clock = " + crdt.getClock() + "/"
-                                            + request.getUid());
-                                }
-                                request.replyHandle.reply(new FetchObjectVersionReply(status, crdt, vvReply,
-                                        disasterSafeVVReply));
+        final Semaphore sem = new Semaphore(0);
+        for (int i = 0; i < request.getBatchSize(); i++) {
+            final int finalIdx = i;
+            dataServer.getCRDT(request.getUid(i), request.getVersion(), request.getClientId(),
+                    request.hasSubscription(), new FutureResultHandler<ManagedCRDT>() {
+                        @Override
+                        public void onResult(ManagedCRDT crdt) {
+                            try {
+                                adaptGetReplyToFetchReply(request, finalIdx, cltLastSeqNo, finalCmpClk,
+                                        finalEstimatedDCVersionCopy, reply, crdt);
+                            } finally {
+                                sem.release();
                             }
                         }
+                    });
+        }
+        sem.acquireUninterruptibly(request.getBatchSize());
 
+        // TODO: optimize reply!
+        conn.reply(reply);
+    }
+
+    private void adaptGetReplyToFetchReply(final BatchFetchObjectVersionRequest request, int idxInBatch,
+            final Timestamp cltLastSeqNo, final CMP_CLOCK versionToDcCmpClock,
+            final CausalityClock estimatedDCVersionClock, final BatchFetchObjectVersionReply reply, ManagedCRDT crdt) {
+        if (crdt == null) {
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info("BatchFetchObjectVersionRequest not found:" + request.getUid(idxInBatch));
+            }
+            reply.setReply(idxInBatch, BatchFetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null);
+        } else {
+            synchronized (crdt) {
+                crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionClock);
+                if (cltLastSeqNo != null)
+                    crdt.augmentWithScoutClockWithoutMappings(cltLastSeqNo);
+
+                // TODO: move it to data nodes
+                if (!request.isSendMoreRecentUpdates()) {
+                    CausalityClock restriction = (CausalityClock) request.getVersion().copy();
+                    if (cltLastSeqNo != null) {
+                        restriction.recordAllUntil(cltLastSeqNo);
                     }
-                });
+                    crdt.discardRecentUpdates(restriction);
+                }
+
+                final BatchFetchObjectVersionReply.FetchStatus status;
+                if (versionToDcCmpClock.is(CMP_CLOCK.CMP_ISDOMINATED, CMP_CLOCK.CMP_CONCURRENT)) {
+                    logger.warning("Requested version " + request.getVersion() + " of object "
+                            + request.getUid(idxInBatch) + " missing; local version: " + estimatedDCVersionClock
+                            + " pruned as of " + crdt.getPruneClock());
+                    status = FetchStatus.VERSION_MISSING;
+                } else if (crdt.getPruneClock().compareTo(request.getVersion())
+                        .is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_CONCURRENT)) {
+                    logger.warning("Requested version " + request.getVersion() + " of object "
+                            + request.getUid(idxInBatch) + " is pruned; local version: " + estimatedDCVersionClock
+                            + " pruned as of " + crdt.getPruneClock());
+                    status = FetchStatus.VERSION_PRUNED;
+                } else {
+                    status = FetchStatus.OK;
+                }
+
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("BatchFetchObjectVersionRequest clock = " + crdt.getClock() + "/"
+                            + request.getUid(idxInBatch));
+                }
+                reply.setReply(idxInBatch, status, crdt);
+            }
+        }
     }
 
     @Override

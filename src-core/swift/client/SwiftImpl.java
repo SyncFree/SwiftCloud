@@ -36,10 +36,8 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -74,11 +72,11 @@ import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.proto.BatchCommitUpdatesReply;
 import swift.proto.BatchCommitUpdatesRequest;
+import swift.proto.BatchFetchObjectVersionReply;
+import swift.proto.BatchFetchObjectVersionReply.FetchStatus;
+import swift.proto.BatchFetchObjectVersionRequest;
 import swift.proto.CommitUpdatesReply;
 import swift.proto.CommitUpdatesRequest;
-import swift.proto.FetchObjectVersionReply;
-import swift.proto.FetchObjectVersionReply.FetchStatus;
-import swift.proto.FetchObjectVersionRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
@@ -96,7 +94,6 @@ import swift.utils.SafeLog.ReportType;
 import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
-import sys.net.api.rpc.RpcHandle;
 import sys.scheduler.PeriodicTask;
 import sys.stats.DummyStats;
 import sys.stats.Stats;
@@ -571,47 +568,34 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     private void refreshCache() {
-        final CausalityClock version = getGlobalCommittedVersion(true);
-        version.merge(lastLocallyCommittedTxnClock);
-        // Record and drop scout's entry from the requested clock (efficiency?).
-        final Timestamp requestedScoutVersion = version.getLatest(scoutId);
-        version.drop(this.scoutId);
-
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info(getScoutId() + ": " + "Refreshing cache to version " + version);
-        }
+        final CausalityClock version;
+        final Timestamp requestedScoutVersion;
         synchronized (this) {
+            version = getGlobalCommittedVersion(true);
+            version.merge(lastLocallyCommittedTxnClock);
+            // Record and drop scout's entry from the requested clock
+            // (efficiency?).
+            requestedScoutVersion = version.getLatest(scoutId);
+            version.drop(this.scoutId);
             fetchVersionsInProgress.add(version);
             ongoingObjectFetchesStats.incCounter();
         }
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info(getScoutId() + ": " + "Refreshing cache to version " + version);
+        }
+
         try {
-            final HashMap<CRDTIdentifier, FetchObjectVersionRequest> idRequests = new HashMap<>();
-            final ConcurrentHashMap<CRDTIdentifier, FetchObjectVersionReply> idReplies = new ConcurrentHashMap<>();
-            final Semaphore repliesAvailable = new Semaphore(0);
             final Set<CRDTIdentifier> ids = objectsCache.getIds();
-            // TODO: USE BATCH REQUEST!
-            // Send requests and collect all replies.
-            for (final CRDTIdentifier id : ids) {
-                final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, disasterSafe, id,
-                        version, false, false, false);
-                idRequests.put(id, fetchRequest);
-                localEndpoint.send(serverEndpoint(), fetchRequest, new SwiftProtocolHandler() {
-                    @Override
-                    protected void onReceive(RpcHandle conn, FetchObjectVersionReply reply) {
-                        if (idReplies.put(fetchRequest.getUid(), reply) == null) {
-                            repliesAvailable.release();
-                            fetchRequest.recordMetadataSample(metadataStatsCollector);
-                            reply.recordMetadataSample(metadataStatsCollector);
-                        }
-                    }
-                }, 0);
+            // TODO: specify previously known version?
+            final BatchFetchObjectVersionRequest fetchRequest = new BatchFetchObjectVersionRequest(scoutId,
+                    disasterSafe, version, false, false, false, ids.toArray(new CRDTIdentifier[0]));
+
+            final BatchFetchObjectVersionReply fetchReply = localEndpoint.request(serverEndpoint(), fetchRequest);
+            if (fetchReply == null) {
+                logger.warning("Refreshing objects cached timed out");
             }
-            // Wait until all replies arrive.
-            try {
-                repliesAvailable.acquire(ids.size());
-            } catch (InterruptedException e) {
-                return;
-            }
+            fetchRequest.recordMetadataSample(metadataStatsCollector);
+            fetchReply.recordMetadataSample(metadataStatsCollector);
 
             synchronized (this) {
                 // Wait until no txn executes to avoid versioning problems.
@@ -623,12 +607,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     }
                 }
 
-                // Apply all and advance next snapshot clock.
-                for (final FetchObjectVersionRequest request : idRequests.values()) {
+                // Process all replies and advance next snapshot clock.
+                for (int i = 0; i < fetchRequest.getBatchSize(); i++) {
                     try {
                         // FIXME: <V extends CRDT<V>> should be really part of
                         // ID, because the code below is not type-safe.
-                        handleFetchObjectReply(null, request, idReplies.get(request.getUid()), CRDT.class, false,
+                        handleFetchObjectReply(null, fetchRequest, fetchReply, i, CRDT.class, false,
                                 requestedScoutVersion);
                     } catch (SwiftException x) {
                         logger.warning(getScoutId() + ": "
@@ -1111,17 +1095,17 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // Record and drop scout's entry from the requested clock (efficiency?).
         final Timestamp requestedScoutVersion = version.getLatest(scoutId);
         version.drop(this.scoutId);
-        final FetchObjectVersionRequest fetchRequest = new FetchObjectVersionRequest(scoutId, disasterSafe, id,
+        final BatchFetchObjectVersionRequest fetchRequest = new BatchFetchObjectVersionRequest(scoutId, disasterSafe,
                 version, sendMoreRecentUpdates, subscribeUpdates,
-                cacheUpdateProtocol == CacheUpdateProtocol.NO_CACHE_OR_UNCOORDINATED);
+                cacheUpdateProtocol == CacheUpdateProtocol.NO_CACHE_OR_UNCOORDINATED, id);
 
-        doFetchObjectVersionOrTimeout(txn, fetchRequest, classOfV, create, requestedScoutVersion);
+        doFetchObjectVersionOrTimeout(txn, id, fetchRequest, classOfV, create, requestedScoutVersion);
     }
 
     private <V extends CRDT<V>> void doFetchObjectVersionOrTimeout(final AbstractTxnHandle txn,
-            final FetchObjectVersionRequest fetchRequest, Class<V> classOfV, boolean create,
-            Timestamp requestedScoutVersion) throws NetworkException, NoSuchObjectException, WrongTypeException,
-            InterruptedException {
+            final CRDTIdentifier id, final BatchFetchObjectVersionRequest fetchRequest, Class<V> classOfV,
+            boolean create, Timestamp requestedScoutVersion) throws NetworkException, NoSuchObjectException,
+            WrongTypeException, InterruptedException {
 
         synchronized (this) {
             fetchVersionsInProgress.add(fetchRequest.getVersion());
@@ -1130,7 +1114,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
         try {
             final long firstRequestTimestamp = System.currentTimeMillis();
-            FetchObjectVersionReply reply;
+            BatchFetchObjectVersionReply reply;
             boolean firstTry = true;
             do {
                 if (!firstTry) {
@@ -1155,7 +1139,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 reply.recordMetadataSample(metadataStatsCollector);
 
                 firstTry = false;
-            } while (!handleFetchObjectReply(txn, fetchRequest, reply, classOfV, create, requestedScoutVersion));
+            } while (!handleFetchObjectReply(txn, fetchRequest, reply, 0, classOfV, create, requestedScoutVersion));
         } finally {
             synchronized (this) {
                 fetchVersionsInProgress.remove(fetchRequest.getVersion());
@@ -1168,8 +1152,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
      * @return when the request was successful
      */
     private <V extends CRDT<V>> boolean handleFetchObjectReply(final AbstractTxnHandle txn,
-            final FetchObjectVersionRequest request, final FetchObjectVersionReply fetchReply, Class<V> classOfV,
-            boolean create, Timestamp requestedScoutVersion) throws NoSuchObjectException, WrongTypeException {
+            final BatchFetchObjectVersionRequest request, final BatchFetchObjectVersionReply fetchReply,
+            int idxInBatch, Class<V> classOfV, boolean create, Timestamp requestedScoutVersion)
+            throws NoSuchObjectException, WrongTypeException {
         final ManagedCRDT<V> crdt;
 
         {
@@ -1190,15 +1175,15 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // }
         }
 
-        switch (fetchReply.getStatus()) {
+        switch (fetchReply.getStatus(idxInBatch)) {
         case OBJECT_NOT_FOUND:
             if (!create) {
-                throw new NoSuchObjectException("object " + request.getUid() + " not found");
+                throw new NoSuchObjectException("object " + request.getUid(idxInBatch) + " not found");
             }
             final V checkpoint;
             try {
                 final Constructor<V> constructor = classOfV.getConstructor(CRDTIdentifier.class);
-                checkpoint = constructor.newInstance(request.getUid());
+                checkpoint = constructor.newInstance(request.getUid(idxInBatch));
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
@@ -1212,13 +1197,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             if (requestedScoutVersion != null) {
                 clock.recordAllUntil(requestedScoutVersion);
             }
-            crdt = new ManagedCRDT<V>(request.getUid(), checkpoint, clock, false);
+            crdt = new ManagedCRDT<V>(request.getUid(idxInBatch), checkpoint, clock, false);
             break;
         case VERSION_MISSING:
         case VERSION_PRUNED:
         case OK:
             try {
-                crdt = (ManagedCRDT<V>) fetchReply.getCrdt();
+                crdt = (ManagedCRDT<V>) fetchReply.getCrdt(idxInBatch);
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
             }
@@ -1233,7 +1218,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             break;
         default:
-            throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus());
+            throw new IllegalStateException("Unexpected status code" + fetchReply.getStatus(idxInBatch));
         }
 
         synchronized (this) {
@@ -1243,9 +1228,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             ManagedCRDT<V> cacheCRDT;
             try {
                 if (txn != null) {
-                    cacheCRDT = (ManagedCRDT<V>) objectsCache.getAndTouch(request.getUid());
+                    cacheCRDT = (ManagedCRDT<V>) objectsCache.getAndTouch(request.getUid(idxInBatch));
                 } else {
-                    cacheCRDT = (ManagedCRDT<V>) objectsCache.getWithoutTouch(request.getUid());
+                    cacheCRDT = (ManagedCRDT<V>) objectsCache.getWithoutTouch(request.getUid(idxInBatch));
                 }
             } catch (Exception e) {
                 throw new WrongTypeException(e.getMessage());
@@ -1276,7 +1261,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // FIXME: check scout clock and trigger recovery?
 
             Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions.get(request
-                    .getUid());
+                    .getUid(idxInBatch));
 
             // if (request.getSubscriptionType() != SubscriptionType.NONE &&
             // sessionsSubs == null) {
@@ -1294,18 +1279,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             tryPruneObjects(cacheCRDT.getUID());
         }
 
-        if (fetchReply.getStatus() == FetchStatus.VERSION_PRUNED) {
-            logger.warning(getScoutId() + ": " + "requested object " + request.getUid() + " version "
+        if (fetchReply.getStatus(idxInBatch) == FetchStatus.VERSION_PRUNED) {
+            logger.warning(getScoutId() + ": " + "requested object " + request.getUid(idxInBatch) + " version "
                     + request.getVersion() + " pruned at the DC " + crdt.getPruneClock());
         }
 
-        if (fetchReply.getStatus() == FetchStatus.VERSION_MISSING) {
+        if (fetchReply.getStatus(idxInBatch) == FetchStatus.VERSION_MISSING) {
             // System.err.println( sys.Sys.Sys.mainClass + "&&&&&&&&&&" +
             // fetchReply.getEstimatedCommittedVersion() + "/" +
             // fetchReply.getVersion() + "/wanted:" + request.getVersion() +
             // "ownCLOCK:" + committedVersion );
 
-            logger.warning(getScoutId() + ": " + "requested object " + request.getUid() + " version "
+            logger.warning(getScoutId() + ": " + "requested object " + request.getUid(idxInBatch) + " version "
                     + request.getVersion() + " not (yet) replicated at the DC " + crdt.getClock());
             return false;
         }

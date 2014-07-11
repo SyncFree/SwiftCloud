@@ -39,15 +39,11 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
         Thread.dumpStack();
     }
 
-    protected void onReceive(RpcHandle conn, FetchObjectVersionRequest request) {
+    protected void onReceive(RpcHandle conn, BatchFetchObjectVersionRequest request) {
         Thread.dumpStack();
     }
 
-    protected void onReceive(RpcHandle conn, FetchObjectVersionReply reply) {
-        Thread.dumpStack();
-    }
-
-    protected void onReceive(RpcHandle conn, FetchObjectDeltaRequest request) {
+    protected void onReceive(RpcHandle conn, BatchFetchObjectVersionReply reply) {
         Thread.dumpStack();
     }
 

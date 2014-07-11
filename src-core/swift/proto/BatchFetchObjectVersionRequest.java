@@ -16,6 +16,10 @@
  *****************************************************************************/
 package swift.proto;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.VersionVectorWithExceptions;
 import swift.crdt.core.CRDTIdentifier;
@@ -28,55 +32,33 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
 /**
- * Client request to fetch a particular version of an object.
+ * Client request to fetch a version of an object or a number of objects
+ * (batch).
  * 
  * @author mzawirski
  */
-public class FetchObjectVersionRequest extends ClientRequest implements MetadataSamplable, KryoSerializable {
-    protected CRDTIdentifier uid;
-    // TODO: could be derived from client's session?
+public class BatchFetchObjectVersionRequest extends ClientRequest implements MetadataSamplable, KryoSerializable {
+    protected List<CRDTIdentifier> uids;
     protected CausalityClock version;
-    // FIXME: make these things optional? Used only by evaluation.
-    // protected CausalityClock clock;
-    // protected CausalityClock disasterDurableClock;
     protected boolean sendMoreRecentUpdates;
     protected boolean subscribe;
     protected boolean sendDCVector;
 
-    public transient RpcHandle replyHandle;
-
-    // public long timestamp = sys.Sys.Sys.timeMillis(); // FOR EVALUATION, TO
-    // BE REMOVED...
-
     /**
      * Fake constructor for Kryo serialization. Do NOT use.
      */
-    FetchObjectVersionRequest() {
+    BatchFetchObjectVersionRequest() {
     }
 
-    public FetchObjectVersionRequest(String clientId, boolean disasterSafe, CRDTIdentifier uid, CausalityClock version,
-            final boolean sendMoreRecentUpdates, boolean subscribe, boolean sendDCVersion) {
+    public BatchFetchObjectVersionRequest(String clientId, boolean disasterSafe, CausalityClock version,
+            final boolean sendMoreRecentUpdates, boolean subscribe, boolean sendDCVersion, CRDTIdentifier... uids) {
         super(clientId, disasterSafe);
-        this.uid = uid;
+        this.uids = Arrays.asList(uids);
         this.version = version;
         this.subscribe = subscribe;
         this.sendMoreRecentUpdates = sendMoreRecentUpdates;
         this.sendDCVector = sendDCVersion;
     }
-
-    // public FetchObjectVersionRequest(String clientId, CRDTIdentifier uid,
-    // CausalityClock version,
-    // final boolean strictUnprunedVersion, CausalityClock clock, CausalityClock
-    // disasterDurableClock,
-    // boolean subscribe) {
-    // super(clientId);
-    // this.uid = uid;
-    // this.clock = clock;
-    // this.version = version;
-    // this.subscribe = subscribe;
-    // this.strictUnprunedVersion = strictUnprunedVersion;
-    // this.disasterDurableClock = disasterDurableClock;
-    // }
 
     public boolean isSendDCVector() {
         return sendDCVector;
@@ -86,11 +68,22 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
         return subscribe;
     }
 
+    public int getBatchSize() {
+        return uids.size();
+    }
+
     /**
-     * @return id of the requested object
+     * @return id of the requested object number 0 <= idx < getBatchSize()
      */
-    public CRDTIdentifier getUid() {
-        return uid;
+    public CRDTIdentifier getUid(final int idx) {
+        return uids.get(idx);
+    }
+
+    /**
+     * @return ids of the requested objects
+     */
+    public List<CRDTIdentifier> getUids() {
+        return uids;
     }
 
     /**
@@ -113,29 +106,6 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
         ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
-    /**
-     * @return latest known clock in the store, i.e. valid snapshot point
-     *         candidate
-     */
-    public CausalityClock getClock() {
-        return null;
-        // return clock;
-    }
-
-    /**
-     * @return latest known clock in the store, i.e. valid snapshot point
-     *         candidate, durable in even in case of disaster affecting fragment
-     *         of the store
-     */
-    public CausalityClock getDistasterDurableClock() {
-        return null;
-        // return disasterDurableClock;
-    }
-
-    public void setHandle(RpcHandle replyHandle) {
-        this.replyHandle = replyHandle;
-    }
-
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
         if (!collector.isEnabled()) {
@@ -153,14 +123,17 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
         kryo.writeObject(buffer, version);
         final int globalMetadata = buffer.position();
 
-        collector.recordStats(this, totalSize, 0, 0, globalMetadata, 1, version.getSize(),
+        collector.recordStats(this, totalSize, 0, 0, globalMetadata, uids.size(), version.getSize(),
                 version.getExceptionsNumber());
     }
 
     @Override
     public void write(Kryo kryo, Output output) {
         baseWrite(kryo, output);
-        uid.write(kryo, output);
+        output.writeVarInt(uids.size(), true);
+        for (final CRDTIdentifier uid : uids) {
+            uid.write(kryo, output);
+        }
         ((VersionVectorWithExceptions) version).write(kryo, output);
         byte options = 0;
         if (sendMoreRecentUpdates) {
@@ -178,8 +151,13 @@ public class FetchObjectVersionRequest extends ClientRequest implements Metadata
     @Override
     public void read(Kryo kryo, Input input) {
         baseRead(kryo, input);
-        uid = new CRDTIdentifier();
-        uid.read(kryo, input);
+        final int batchSize = input.readVarInt(true);
+        uids = new ArrayList<CRDTIdentifier>(batchSize);
+        for (int i = 0; i < batchSize; i++) {
+            final CRDTIdentifier uid = new CRDTIdentifier();
+            uid.read(kryo, input);
+            uids.add(uid);
+        }
         version = new VersionVectorWithExceptions();
         ((VersionVectorWithExceptions) version).read(kryo, input);
         final byte options = input.readByte();
