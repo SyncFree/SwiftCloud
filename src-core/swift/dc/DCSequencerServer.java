@@ -228,7 +228,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 }
             }
         });
-        th.setPriority(th.getPriority() - 1);
+        th.setPriority(Math.max( th.getPriority() - 1, Thread.MIN_PRIORITY));
         th.start();
     }
 
@@ -389,7 +389,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 }
             }
         });
-        t.setPriority(Thread.currentThread().getPriority()-1);
+        t.setPriority(Math.max( t.getPriority() - 1, Thread.MIN_PRIORITY));
         t.start();
     }
 
