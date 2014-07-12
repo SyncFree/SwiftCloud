@@ -214,7 +214,7 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         }
         final int globalMetadata = buffer.position();
 
-        collector.recordStats(this, totalSize, versionSize, valueSize, globalMetadata, 1, maxVectorSize,
+        collector.recordStats(this, totalSize, versionSize, valueSize, globalMetadata, getBatchSize(), maxVectorSize,
                 maxExceptionsNum);
     }
 

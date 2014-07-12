@@ -580,12 +580,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             fetchVersionsInProgress.add(version);
             ongoingObjectFetchesStats.incCounter();
         }
-        if (logger.isLoggable(Level.INFO)) {
-            logger.info(getScoutId() + ": " + "Refreshing cache to version " + version);
-        }
 
         try {
             final Set<CRDTIdentifier> ids = objectsCache.getIds();
+            if (ids.isEmpty()) {
+                logger.info(getScoutId() + ": " + "Cache empty - periodic refresh not needed");
+                return;
+            }
+
+            if (logger.isLoggable(Level.INFO)) {
+                logger.info(getScoutId() + ": " + "Refreshing cache (" + ids.size() + " objects) to version " + version);
+            }
+
             // TODO: specify previously known version?
             final BatchFetchObjectVersionRequest fetchRequest = new BatchFetchObjectVersionRequest(scoutId,
                     disasterSafe, version, false, false, false, ids.toArray(new CRDTIdentifier[0]));
