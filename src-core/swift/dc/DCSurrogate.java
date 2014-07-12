@@ -125,6 +125,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
     ThreadPoolExecutor crdtExecutor;
     Executor generalExecutor = Executors.newCachedThreadPool();
+    private final int notificationPeriodMillis;
 
     DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
         this.siteId = siteId;
@@ -144,6 +145,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         suPubSub = new SurrogatePubSubService(generalExecutor, this);
         dataServer = new DCDataServer(this, props, suPubSub, port4Clients + 2);
+        
+        final String notificationPeriodString = props.getProperty(DCConstants.NOTIFICATION_PERIOD_PROPERTY);
+        if (notificationPeriodString != null) {
+            notificationPeriodMillis = Integer.valueOf(notificationPeriodString);
+        } else {
+            notificationPeriodMillis = DCConstants.DEFAULT_NOTIFICATION_PERIOD_MS;
+        }
 
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(512);
         crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, workQueue);
@@ -596,7 +604,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 lastSnapshotVector = ClockFactory.newClock();
             }
 
-            new PeriodicTask(0.0, DCConstants.NOTIFICATION_PERIOD * 0.001) {
+            new PeriodicTask(0.0, TimeUnit.MILLISECONDS.toSeconds(notificationPeriodMillis)) {
                 public void run() {
                     tryFireClientNotification();
                 }
@@ -646,7 +654,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         protected synchronized CausalityClock tryFireClientNotification() {
             long now = Sys.Sys.timeMillis();
-            if (now <= (lastNotification + DCConstants.NOTIFICATION_PERIOD)) {
+            if (now <= (lastNotification + notificationPeriodMillis)) {
                 return null;
             }
 

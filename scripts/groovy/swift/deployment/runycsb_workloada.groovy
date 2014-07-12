@@ -62,6 +62,7 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 DbSize = 1000 // 100000
 OpsNum = 1000000
 PruningIntervalMillis = 10000
+NotificationsPeriodMillis = 1000
 
 IncomingOpPerSecLimit = 10000000 // :-)
 IncomingOpPerSecPerClientLimit = IncomingOpPerSecLimit / Scouts.size()
@@ -88,7 +89,8 @@ INIT_OPTIONS = SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS
 INIT_YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + INIT_NO_REPORTS+ INIT_OPTIONS
 
 Version = getGitCommitId()
-println getBinding().getVariables()
+String config = getBinding().getVariables()
+println config
 
 dumpTo(AllMachines, "/tmp/nodes.txt")
 
@@ -114,7 +116,7 @@ Topology.datacenters.each { datacenter ->
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis, "1536m")
+    datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis, "1536m")
 }
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
@@ -124,7 +126,7 @@ println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
 def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, INITYCSBProps, Threads)
+SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, INITYCSBProps, 1)
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
@@ -139,10 +141,15 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 pnuke(AllMachines, "java", 60)
 
 def dstDir="results/ycsb/workloada/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version + "-" +
-        String.format("DC-%s-SU-%s-pruning-%d-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, Topology.totalScouts(), Threads, DbSize, OpsNum)
+        String.format("DC-%s-SU-%s-pruning-%d-notifications-%d-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, NotificationsPeriodMillis, Topology.totalScouts(), Threads, DbSize, OpsNum)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
+configFile = new File(dstDir, "config")
+configFile.createNewFile()
+configFile.withWriter { out ->
+    out.writeLine(config)
+}
 
 exec([
     "/bin/bash",

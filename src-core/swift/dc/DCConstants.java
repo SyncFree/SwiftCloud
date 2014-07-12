@@ -61,11 +61,13 @@ public class DCConstants {
 
     public static final int DEFAULT_TRXIDTIME = 5000;
 
-    public static final String PRUNING_INTERVAL_PROPERTY = "pruning_interval_property";
+    public static final String PRUNING_INTERVAL_PROPERTY = "swift.pruningIntervalMillis";
 
     public static final int DEFAULT_PRUNING_INTERVAL_MS = 3000;
 
     public static final boolean DEFAULT_DB_NULL = true;
 
-    public static final int NOTIFICATION_PERIOD = 1000;
+    public static final String NOTIFICATION_PERIOD_PROPERTY = "swift.notificationPeriodMillis";
+
+    public static final int DEFAULT_NOTIFICATION_PERIOD_MS = 1000;
 }

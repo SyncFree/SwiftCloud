@@ -100,6 +100,9 @@ public class DCServer {
 
         props.setProperty(DCConstants.PRUNING_INTERVAL_PROPERTY,
                 Args.valueOf(args, "-pruningMs", DCConstants.DEFAULT_PRUNING_INTERVAL_MS) + "");
+        
+        props.setProperty(DCConstants.NOTIFICATION_PERIOD_PROPERTY,
+                Args.valueOf(args, "-notificationsMs", DCConstants.DEFAULT_NOTIFICATION_PERIOD_MS) + "");
 
         String sequencerNode = Args.valueOf(args, "-sequencer", "localhost");
 //        int pubsubPort = Args.valueOf(args, "-portPubSub", DCConstants.PUBSUB_PORT);

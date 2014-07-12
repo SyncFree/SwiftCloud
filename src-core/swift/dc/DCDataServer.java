@@ -31,6 +31,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -106,6 +107,13 @@ final class DCDataServer {
         } else {
             pruningInterval = DCConstants.DEFAULT_PRUNING_INTERVAL_MS;
         }
+        final String notificationPeriodString = props.getProperty(DCConstants.NOTIFICATION_PERIOD_PROPERTY);
+        final int notificationPeriodMillis;
+        if (notificationPeriodString != null) {
+            notificationPeriodMillis = Integer.valueOf(notificationPeriodString);
+        } else {
+            notificationPeriodMillis = DCConstants.DEFAULT_NOTIFICATION_PERIOD_MS;
+        }
 
         initStore();
         initData(props);
@@ -117,7 +125,7 @@ final class DCDataServer {
 
         dsPubSub.subscribe(localSurrogateId, heartBeat, suPubSub);
 
-        new PeriodicTask(1.0, DCConstants.NOTIFICATION_PERIOD * 0.001) {
+        new PeriodicTask(1.0, TimeUnit.MILLISECONDS.toSeconds(notificationPeriodMillis)) {
             public void run() {
                 dsPubSub.publish(new UpdateNotification("ds", heartBeat));
             }
