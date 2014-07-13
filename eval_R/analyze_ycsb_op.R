@@ -17,7 +17,7 @@ preprocess_OP <- function (data){
 #file <- paste(path,"test_ycsb.csv",sep="/")
 
 
-toplevel_path <- "/home/zawir/workspace/swiftcloud/results/ycsb/workloada/remote-caching-session-locality/"
+toplevel_path <- "/home/zawir/workspace/swiftcloud/results/ycsb/workloada/test/"
 # "~/data_eval/50reads-50updates/"
 
 #file <- "~/data_eval/50reads-50updates/remote-caching/"
@@ -29,12 +29,13 @@ p <- list()
 d <- data.frame()
 dc <- 1
 su <- 1
-sc <- 4
-th <- 24
-pruning <- 10000
-records <- "1000"
+sc <- 1
+th <- 16
+pruning <- 30000
+notifications <- 1000
+records <- "100000"
 ops <- "1000000"
-j <- grep(paste("DC",dc,"SU",su,"pruning",pruning,"SC",sc,"TH",th,"records",records,"operations",ops,sep="-"),file_list)
+j <- grep(paste("DC",dc,"SU",su,"pruning",pruning,"notifications",notifications,"SC",sc,"TH",th,"records",records,"operations",ops,sep="-"),file_list)
 
 #Sort by number of threads
 for (file in file_list[j]){

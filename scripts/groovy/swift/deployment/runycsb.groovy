@@ -40,16 +40,18 @@ PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MA
 // Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
 // NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
 Oregon =  DC([
-    'ec2-54-191-58-163.us-west-2.compute.amazonaws.com'
+    'ec2-54-187-28-185.us-west-2.compute.amazonaws.com'
 ], [
-    'ec2-54-191-58-163.us-west-2.compute.amazonaws.com'
+    'ec2-54-187-28-185.us-west-2.compute.amazonaws.com'
 ]) //DC([OregonEC2[0]], [OregonEC2[0]])
 //ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
 ScoutsNV = SGroup([
-    'ec2-54-86-186-130.compute-1.amazonaws.com',
-    'ec2-54-86-2-205.compute-1.amazonaws.com',
-    'ec2-54-88-176-92.compute-1.amazonaws.com',
-    'ec2-54-88-172-201.compute-1.amazonaws.com'
+    'ec2-54-85-159-245.compute-1.amazonaws.com',
+    'ec2-54-88-127-169.compute-1.amazonaws.com',
+    'ec2-54-88-165-101.compute-1.amazonaws.com',
+    'ec2-54-88-96-69.compute-1.amazonaws.com',
+    'ec2-54-88-168-230.compute-1.amazonaws.com',
+    'ec2-54-88-191-179.compute-1.amazonaws.com',
 ], Oregon)
 //SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
 //ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
@@ -59,24 +61,24 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 
 // OPTIONS
-DbSize = 1000 // 100000
+DbSize = 100000
 OpsNum = 1000000
-PruningIntervalMillis = 10000
+PruningIntervalMillis = 30000
 NotificationsPeriodMillis = 1000
 
 IncomingOpPerSecLimit = 10000000 // :-)
-IncomingOpPerSecPerClientLimit = IncomingOpPerSecLimit / Scouts.size()
+IncomingOpPerSecPerClientLimit = (int) (IncomingOpPerSecLimit / Scouts.size())
 
-Duration = 480
+Duration = 360
 DurationShepardGrace = 6
 InterCmdDelay = 30
 
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
     'target':IncomingOpPerSecPerClientLimit,
     'readproportion':'0.5', 'updateproportion':'0.5','fieldlength':'1',
-    'localrequestdistribution':'zipfian',
-    'localrecordcount':'1000',
-    'localrequestproportion':'1',
+    'localrequestdistribution':'uniform',
+    'localrecordcount':'150',
+    'localrequestproportion':'0.8',
 ]
 REPORTS = ['swift.reports':'APP_OP,METADATA', 'swift.reportEveryOperation':'true']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
