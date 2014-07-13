@@ -21,6 +21,7 @@ public class ScrambledIntegerGeneratorDecorator extends IntegerGenerator {
         this.decoratedGenerator = decoratedGenerator;
         this.decoratedRange = decoratedRange;
         this.scramblingSeed = scramblingSeed;
+        nextInt();
     }
 
     @Override

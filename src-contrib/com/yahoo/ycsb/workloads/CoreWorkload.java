@@ -20,6 +20,7 @@ package com.yahoo.ycsb.workloads;
 import java.util.Properties;
 
 import com.yahoo.ycsb.*;
+import com.yahoo.ycsb.generator.CachedPoolIntegerGenerator;
 import com.yahoo.ycsb.generator.CombinerIntegerGeneratorDecorator;
 import com.yahoo.ycsb.generator.CounterGenerator;
 import com.yahoo.ycsb.generator.DiscreteGenerator;
@@ -29,7 +30,6 @@ import com.yahoo.ycsb.generator.ConstantIntegerGenerator;
 import com.yahoo.ycsb.generator.HotspotIntegerGenerator;
 import com.yahoo.ycsb.generator.HistogramGenerator;
 import com.yahoo.ycsb.generator.IntegerGenerator;
-import com.yahoo.ycsb.generator.ScrambledIntegerGeneratorDecorator;
 import com.yahoo.ycsb.generator.ScrambledZipfianGenerator;
 import com.yahoo.ycsb.generator.SkewedLatestGenerator;
 import com.yahoo.ycsb.generator.UniformIntegerGenerator;
@@ -59,9 +59,10 @@ import java.util.Vector;
  * <LI><b>scanproportion</b>: what proportion of operations should be scans (default: 0)
  * <LI><b>readmodifywriteproportion</b>: what proportion of operations should be read a record, modify it, write it back (default: 0)
  * <LI><b>requestdistribution</b>: what distribution should be used to select the records to operate on - uniform, zipfian, hotspot, or latest (default: uniform)
- * <LI><b>localrequestdistribution</b>: what local distribution should be used to select the records to operate on a local fraction of database - uniform or zipfian (default: uniform)
- * <LI><b>localrequestproportion</b>: what fraction of requests should be served by the local request distribution (default: 0)
- * <LI><b>localrecordcount</b>: keyspace size of local distribution (default: 100)
+ * <LI><b>localpoolfromglobaldistribution</b>: should local pool of objects be drawn from a global distribution (true) or uniformly from a keyspace (false). (defualt: true) 
+ * <LI><b>localrequestdistribution</b>: what distribution should be used to select the records to operate on a local pool of objects - cached, uniform or zipfian (default: cached)
+ * <LI><b>localrequestproportion</b>: what fraction of requests should be served by the local objects pool (default: 0)
+ * <LI><b>localrecordcount</b>: keyspace size of the local pool (default: 100)
  * <LI><b>maxscanlength</b>: for scans, what is the maximum number of records to scan (default: 1000)
  * <LI><b>scanlengthdistribution</b>: for scans, what distribution should be used to choose the number of records to scan, for each scan, between 1 and maxscanlength (default: uniform)
  * <LI><b>insertorder</b>: should records be inserted in order by key ("ordered"), or in hashed order ("hashed") (default: hashed)
@@ -214,6 +215,16 @@ public class CoreWorkload extends Workload
 	 * The default distribution of requests across the keyspace
 	 */
 	public static final String REQUEST_DISTRIBUTION_PROPERTY_DEFAULT="uniform";
+
+	/**
+     * The name of the property that define should local pool of objects be drawn from a global distribution (true) or uniformly from a keyspace (false).
+     */
+    public static final String LOCAL_POOL_FROM_GLOBAL_DISTRIBUTION_PROPERTY="localpoolfromglobaldistribution";
+    
+    /**
+     * The default for LOCAL_POOL_FROM_GLOBAL_DISTRIBUTION_PROPERTY.
+     */
+    public static final String LOCAL_POOL_FROM_GLOBAL_DISTRIBUTION_PROPERTY_DEFAULT="true";
 	
 	/**
      * The name of the property for the the session-local distribution of requests across the keyspace. Options are "zipfian" or "uniform".
@@ -226,22 +237,22 @@ public class CoreWorkload extends Workload
     public static final String LOCAL_REQUEST_DISTRIBUTION_PROPERTY_DEFAULT="uniform";
     
     /**
-     * The property that defines the fraction of requests served from the local distribution.
+     * The property that defines the fraction of requests served from the local pool of objects.
      */
     public static final String LOCAL_REQUEST_PROPORTION_PROPERTY="localrequestproportion";
     
     /**
-     * The default fraction of requests server by the session distribution
+     * The default fraction of requests served from the local pool of objects. 
      */
     public static final String LOCAL_REQUEST_PROPORTION_PROPERTY_DEFAULT="0";
     
     /**
-     * The property that defines the keyspace size of local distribution.
+     * The property that defines the keyspace size of the local pool of objects.
      */
     public static final String LOCAL_RECORD_COUNT_PROPERTY="localrecordcount";
     
     /**
-     * The default size of local distribution keyspace.
+     * The default size of local pool of objects.
      */
     public static final String LOCAL_RECORD_COUNT_DEFAULT="100";
 
@@ -301,7 +312,9 @@ public class CoreWorkload extends Workload
 
 	IntegerGenerator keychooser;
 	
-	IntegerGenerator localkeychooser;
+	IntegerGenerator localkeyindexchooser;
+
+	boolean localpoolfromglobalkeychooser;
 	
 	double localrequestproportion;
 	
@@ -363,6 +376,7 @@ public class CoreWorkload extends Workload
 		recordcount=Integer.parseInt(p.getProperty(Client.RECORD_COUNT_PROPERTY));
         expectedrecordcount = recordcount;
 		String requestdistrib=p.getProperty(REQUEST_DISTRIBUTION_PROPERTY,REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
+		localpoolfromglobalkeychooser=Boolean.parseBoolean(p.getProperty(LOCAL_POOL_FROM_GLOBAL_DISTRIBUTION_PROPERTY,LOCAL_POOL_FROM_GLOBAL_DISTRIBUTION_PROPERTY_DEFAULT));
 		String localrequestdistrib=p.getProperty(LOCAL_REQUEST_DISTRIBUTION_PROPERTY,LOCAL_REQUEST_DISTRIBUTION_PROPERTY_DEFAULT);
 		localrequestproportion=Double.parseDouble(p.getProperty(LOCAL_REQUEST_PROPORTION_PROPERTY,LOCAL_REQUEST_PROPORTION_PROPERTY_DEFAULT));
 		localrecordcount=Integer.parseInt(p.getProperty(LOCAL_RECORD_COUNT_PROPERTY,LOCAL_RECORD_COUNT_DEFAULT));
@@ -458,21 +472,11 @@ public class CoreWorkload extends Workload
 		
         if (localrequestdistrib.compareTo("uniform")==0)
         {
-            localkeychooser=new UniformIntegerGenerator(0,localrecordcount-1);
+            localkeyindexchooser=new UniformIntegerGenerator(0,localrecordcount-1);
         }
         else if (localrequestdistrib.compareTo("zipfian")==0)
         {
-            //it does this by generating a random "next key" in part by taking the modulus over the number of keys
-            //if the number of keys changes, this would shift the modulus, and we don't want that to change which keys are popular
-            //so we'll actually construct the scrambled zipfian generator with a keyspace that is larger than exists at the beginning
-            //of the test. that is, we'll predict the number of inserts, and tell the scrambled zipfian generator the number of existing keys
-            //plus the number of predicted keys as the total keyspace. then, if the generator picks a key that hasn't been inserted yet, will
-            //just ignore it and pick another key. this way, the size of the keyspace doesn't change from the perspective of the scrambled zipfian generator
-            
-            int opcount=Integer.parseInt(p.getProperty(Client.OPERATION_COUNT_PROPERTY));
-            int expectednewkeys=(int)(((double)opcount)*insertproportion*2.0*localrequestproportion); //2 is fudge factor
-            
-            localkeychooser=new ScrambledZipfianGenerator(localrecordcount+expectednewkeys);
+            localkeyindexchooser=new ZipfianGenerator(localrecordcount);
         }
         else 
 		{
@@ -526,9 +530,11 @@ public class CoreWorkload extends Workload
 	@Override
 	public Object initThread(Properties p, int mythreadid, int threadcount) throws WorkloadException {
 	    if (localrequestproportion > 0) {
-            return new CombinerIntegerGeneratorDecorator(keychooser, new ScrambledIntegerGeneratorDecorator(localkeychooser,
-                    expectedrecordcount, jvmUid + mythreadid), localrequestproportion);
-	    } else {
+            final CachedPoolIntegerGenerator localkeychooser = new CachedPoolIntegerGenerator(
+                    localpoolfromglobalkeychooser ? keychooser : new UniformIntegerGenerator(0, recordcount - 1),
+                    localrecordcount, localkeyindexchooser);
+            return new CombinerIntegerGeneratorDecorator(keychooser, localkeychooser, localrequestproportion);
+        } else {
 	        return null;
 	    }
     }

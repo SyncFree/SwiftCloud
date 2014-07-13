@@ -67,6 +67,7 @@ class SwiftYCSB extends SwiftBase {
         'scanproportion':'0',
         'insertproportion':'0',
         'requestdistribution':'zipfian',
+        'localpoolfromglobaldistribution':'true',
         'localrequestdistribution':'uniform',
         'localrequestproportion':'0',
         'localrecordcount':'100',

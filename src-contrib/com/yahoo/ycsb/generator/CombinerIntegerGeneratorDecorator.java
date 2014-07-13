@@ -18,6 +18,7 @@ public class CombinerIntegerGeneratorDecorator extends IntegerGenerator {
         this.primaryGenerator = primaryGenerator;
         this.secondaryGenerator = secondaryGenerator;
         this.secondaryProportion = secondaryProportion;
+        nextInt();
     }
 
     @Override
