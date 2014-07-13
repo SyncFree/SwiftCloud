@@ -573,6 +573,20 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     private void refreshCache() {
+
+        // This is a pre-processing step (hack) to workaround misperforming
+        // notifications.
+        final CausalityClock candidateVersion;
+        synchronized (this) {
+            candidateVersion = getGlobalCommittedVersion(true);
+            candidateVersion.merge(lastLocallyCommittedTxnClock);
+            candidateVersion.drop(this.scoutId);
+        }
+        if (candidateVersion.compareTo(getNextTransactionSnapshot(true)) == CMP_CLOCK.CMP_EQUALS) {
+            forceDCClockEstimatesUpdate();
+        }
+
+        // Compute the target version of the cache after refresh.
         final CausalityClock version;
         final Timestamp requestedScoutVersion;
         synchronized (this) {
