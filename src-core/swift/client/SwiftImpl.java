@@ -478,7 +478,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             };
         }
 
-        getDCClockEstimates();
+        CausalityClock nextSnapshotClock = forceDCClockEstimatesUpdate();
+        if (nextSnapshotClock != null) {
+            updateNextAvailableSnapshot(nextSnapshotClock);
+        } else {
+            logger.warning(getScoutId() + ": " + "Could not obtain the initial snapshot clock");
+        }
     }
 
     public void stop(boolean waitForCommit) {
@@ -636,19 +641,16 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
     }
 
-    private boolean getDCClockEstimates() {
+    private CausalityClock forceDCClockEstimatesUpdate() {
         LatestKnownClockRequest request = new LatestKnownClockRequest(scoutId, disasterSafe);
         LatestKnownClockReply reply = localEndpoint.request(serverEndpoint(), request);
 
         if (reply != null) {
             reply.recordMetadataSample(metadataStatsCollector);
             reply.getDistasterDurableClock().intersect(reply.getClock());
-            final CausalityClock snapshotClock = updateCommittedVersions(reply.getClock(),
-                    reply.getDistasterDurableClock(), false);
-            updateNextAvailableSnapshot(snapshotClock);
-            return true;
+            return updateCommittedVersions(reply.getClock(), reply.getDistasterDurableClock(), false);
         } else
-            return false;
+            return null;
     }
 
     public synchronized AbstractTxnHandle beginTxn(String sessionId, IsolationLevel isolationLevel,
@@ -662,8 +664,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         case SNAPSHOT_ISOLATION:
             final CausalityClock snapshotClock;
             if (cachePolicy == CachePolicy.MOST_RECENT || cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
-                if (!getDCClockEstimates() && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
+                final CausalityClock nextSnapshotClock = forceDCClockEstimatesUpdate();
+                if (nextSnapshotClock == null && cachePolicy == CachePolicy.STRICTLY_MOST_RECENT) {
                     throw new NetworkException("timed out to get transaction snapshot point");
+                }
+                if (nextSnapshotClock != null) {
+                    updateNextAvailableSnapshot(nextSnapshotClock);
                 }
             }
             // Invariant: for SI snapshotClock of a new transaction
@@ -1993,9 +1999,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 serverIndex = (serverIndex + 1) % serverEndpoints.length;
                 // TODO: replace with logging or stats?
                 System.out.println("SYS FAILOVER TO INITIATED: " + serverEndpoint());
-                getDCClockEstimates();
-                getDCClockEstimates();
-                getDCClockEstimates();
+                forceDCClockEstimatesUpdate();
+                forceDCClockEstimatesUpdate();
+                forceDCClockEstimatesUpdate();
                 System.out.println("SYS FAILOVER TO COMPLETED: " + serverEndpoint());
                 onFailOver();
             }
