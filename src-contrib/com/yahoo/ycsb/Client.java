@@ -740,7 +740,13 @@ public class Client
 				System.exit(0);
 			}
 
-			Thread t=new ClientThread(db,dotransactions,workload,threadid,threadcount,props,opcount/threadcount,targetperthreadperms);
+			Thread t;
+			if (dotransactions) {
+			    t=new ClientThread(db,dotransactions,workload,threadid,threadcount,props,opcount/threadcount,targetperthreadperms);
+			} else {
+			    // Hot fix: avoid a bug where insufficient #keys is created. 
+			    t=new ClientThread(db,dotransactions,workload,threadid,threadcount,props,(opcount/threadcount) + 1,targetperthreadperms);
+			}
 
 			threads.add(t);
 			//t.start();

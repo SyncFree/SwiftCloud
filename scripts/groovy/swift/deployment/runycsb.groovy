@@ -87,6 +87,7 @@ YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + REPORTS
 // Options for DB initialization
 INIT_NO_REPORTS = ['swift.reports':'']
 INIT_OPTIONS = SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS
+INIT_THREADS = 2
 
 INIT_YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + SwiftYCSB.WORKLOAD_A + WORKLOAD + INIT_NO_REPORTS+ INIT_OPTIONS
 
@@ -128,7 +129,7 @@ println "==== INITIALIZING DATABASE ===="
 def INIT_DB_DC = Topology.datacenters[0].surrogates[0]
 def INIT_DB_CLIENT = Topology.datacenters[0].sequencers[0]
 
-SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, INITYCSBProps, 1)
+SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, INITYCSBProps, INIT_THREADS)
 
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
