@@ -355,12 +355,12 @@ final class DCDataServer {
      * @return null if cannot fulfill request
      */
     void getCRDT(final CRDTIdentifier id, CausalityClock knownClk, CausalityClock clk, String clientId,
-            boolean isSubscribed, FutureResultHandler<ManagedCRDT> rh) {
+            boolean sendMoreRecentUpdates, boolean isSubscribed, FutureResultHandler<ManagedCRDT> rh) {
         Endpoint dst = DHT_Node.resolveKey(id.toString());
         if (dst == null) {
-            rh.onResult(localGetCRDTObject(id, knownClk, clk, clientId, isSubscribed));
+            rh.onResult(localGetCRDTObject(id, knownClk, clk, clientId, sendMoreRecentUpdates, isSubscribed));
         } else {
-            dhtRequest(dst, new DHTGetCRDT(id, knownClk, clk, clientId, isSubscribed), rh);
+            dhtRequest(dst, new DHTGetCRDT(id, knownClk, clk, clientId, sendMoreRecentUpdates, isSubscribed), rh);
         }
     }
 
@@ -374,12 +374,12 @@ final class DCDataServer {
      * @return null if cannot fulfill request
      */
     ManagedCRDT getCRDT(final CRDTIdentifier id, CausalityClock knownClk, CausalityClock clk, String clientId,
-            boolean isSubscribed) {
+            boolean sendMoreRecentUpdates, boolean isSubscribed) {
         Endpoint dst = DHT_Node.resolveKey(id.toString());
         if (dst == null) {
-            return localGetCRDTObject(id, knownClk, clk, clientId, isSubscribed);
+            return localGetCRDTObject(id, knownClk, clk, clientId, sendMoreRecentUpdates, isSubscribed);
         } else {
-            return dhtRequest(dst, new DHTGetCRDT(id, knownClk, clk, clientId, isSubscribed));
+            return dhtRequest(dst, new DHTGetCRDT(id, knownClk, clk, clientId, sendMoreRecentUpdates, isSubscribed));
         }
     }
 
@@ -504,7 +504,8 @@ final class DCDataServer {
         // else
         // dsPubSub.unsubscribe(req.getId(), remote);
 
-        return localGetCRDTObject(req.getId(), req.getKnownVersion(), req.getVersion(), req.getCltId(), false);
+        return localGetCRDTObject(req.getId(), req.getKnownVersion(), req.getVersion(), req.getCltId(),
+                req.sendMoreRecentUpdates(), false);
     }
 
     /**
@@ -519,7 +520,7 @@ final class DCDataServer {
      * @return null if cannot fulfill request
      */
     ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock knownVersion, CausalityClock version,
-            String clientId, boolean subscribeUpdates) {
+            String clientId, boolean sendMoreRecentUpdates, boolean subscribeUpdates) {
 
         if (subscribeUpdates)
             dsPubSub.subscribe(id, surrogate.suPubSub);
@@ -547,8 +548,9 @@ final class DCDataServer {
              * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
              * this.crdt = data.crdt.copy(); } else;
              */
-            
-            if (knownVersion != null && !data.crdt.mayContainUpdatesBetween(knownVersion, version)) {
+
+            if (!sendMoreRecentUpdates && knownVersion != null
+                    && !data.crdt.mayContainUpdatesBetween(knownVersion, version)) {
                 return null;
             }
 

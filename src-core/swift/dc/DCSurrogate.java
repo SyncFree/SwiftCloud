@@ -304,7 +304,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         for (int i = 0; i < request.getBatchSize(); i++) {
             final int finalIdx = i;
             dataServer.getCRDT(request.getUid(i), request.getKnownVersion(), request.getVersion(),
-                    request.getClientId(), request.hasSubscription(), new FutureResultHandler<ManagedCRDT>() {
+                    request.getClientId(), request.isSendMoreRecentUpdates(), request.hasSubscription(),
+                    new FutureResultHandler<ManagedCRDT>() {
                         @Override
                         public void onResult(ManagedCRDT crdt) {
                             try {

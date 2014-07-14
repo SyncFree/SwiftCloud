@@ -33,6 +33,7 @@ public class DHTGetCRDT implements RpcMessage {
     CRDTIdentifier id;
     CausalityClock version;
     boolean subscribeUpdates;
+    boolean sendMoreRecentUpdates;
     CausalityClock knownVersion;
 
     /**
@@ -41,12 +42,13 @@ public class DHTGetCRDT implements RpcMessage {
     DHTGetCRDT() {
     }
 
-    public DHTGetCRDT(CRDTIdentifier id, CausalityClock knownVersion, CausalityClock version, String clientId, boolean subscribeUpdates) {
+    public DHTGetCRDT(CRDTIdentifier id, CausalityClock knownVersion, CausalityClock version, String clientId, boolean sendMoreRecentUpdates, boolean subscribeUpdates) {
         super();
         this.id = id;
         this.knownVersion = knownVersion;
         this.version = version;
         this.clientId = clientId;
+        this.sendMoreRecentUpdates = sendMoreRecentUpdates;
         this.subscribeUpdates = subscribeUpdates;
     }
 
@@ -62,6 +64,10 @@ public class DHTGetCRDT implements RpcMessage {
         return version;
     }
 
+    public boolean sendMoreRecentUpdates() {
+        return sendMoreRecentUpdates;
+    }
+    
     public boolean subscribesUpdates() {
         return subscribeUpdates;
     }
