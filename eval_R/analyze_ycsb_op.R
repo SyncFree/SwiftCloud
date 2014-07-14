@@ -3,6 +3,15 @@ require("ggplot2");
 require("reshape2");
 require("gridExtra");
 
+
+preprocess_duration <- function (data, start_time, prune_start, duration){
+  #Throw away first 'prune_start' msec and take the next 'duration' msecs
+  data <- subset(data,data$V1 - start_time > prune_start)
+  data <- subset(data,data$V1 - start_time < duration)
+  return (data)
+}
+
+
 preprocess_OP <- function (data){
   #Data format is:
   #timestamp_ms,APP_OP,session_id,operation_name,duration_ms
@@ -13,8 +22,8 @@ preprocess_OP <- function (data){
 }
 
 
-#path <- "~/data_eval/50reads-50updates/Jun29-1404068293230-c09289b5-DC-1-SU-1-SC-8-TH-4-records-100000-operations-500000/ec2-54-72-34-188.eu-west-1.compute.amazonaws.com/";
-#file <- paste(path,"test_ycsb.csv",sep="/")
+path <- "~/data_eval/50reads-50updates/Jun29-1404068293230-c09289b5-DC-1-SU-1-SC-8-TH-4-records-100000-operations-500000/ec2-54-72-34-188.eu-west-1.compute.amazonaws.com/";
+file <- paste(path,"test_ycsb.csv",sep="/")
 
 
 toplevel_path <- "/home/zawir/workspace/swiftcloud/results/ycsb/workloada/test/"
@@ -53,8 +62,10 @@ summary(d)
 d <- subset(d,!is.na(d$duration))
 
 # Common tasks for YCSB and SwiftSocial experiments:
-# TODO: remove header and tail entries
 # TODO: aggregated throughput computation
+
+start_time <- min(d$timestamp)
+d <- preprocess_duration(d,start_time,1000,30000)
 
 summary(d)
 
@@ -73,6 +84,11 @@ cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) + ggti
 cdf.plot
 #Histogram
 #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
+
+#Throughput plot
+throughput.plot <- ggplot(d, aes(timestamp,..density..)) + geom_histogramn(binwidth=1000) 
+throughput.plot
+
 
 rm(d)  
 
