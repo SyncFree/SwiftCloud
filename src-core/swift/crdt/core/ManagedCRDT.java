@@ -569,8 +569,8 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
     public void read(Kryo kryo, Input in) {
         id = new CRDTIdentifier();
         id.read(kryo, in);
-        clock = kryo.readObject(in, VersionVectorWithExceptions.class);
-        pruneClock = kryo.readObject(in, VersionVectorWithExceptions.class);
+        clock = kryo.readObjectOrNull(in, VersionVectorWithExceptions.class);
+        pruneClock = kryo.readObjectOrNull(in, VersionVectorWithExceptions.class);
         registeredInStore = in.readBoolean();
         checkpoint = (V) kryo.readClassAndObject(in);
         strippedLog = kryo.readObjectOrNull(in, LinkedList.class);
@@ -582,10 +582,18 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
     @Override
     public void write(Kryo kryo, Output out) {
         id.write(kryo, out);
-        kryo.writeObject(out, clock);
-        kryo.writeObject(out, pruneClock);
+        kryo.writeObjectOrNull(out, clock, VersionVectorWithExceptions.class);
+        kryo.writeObjectOrNull(out, pruneClock, VersionVectorWithExceptions.class);
         out.writeBoolean(registeredInStore);
         kryo.writeClassAndObject(out, checkpoint);
         kryo.writeObjectOrNull(out, strippedLog.isEmpty() ? null : strippedLog, LinkedList.class);
+    }
+
+    /**
+     * INTERNAL hack for serialization optimization
+     */
+    public void forceSetClocks(CausalityClock pruneClock, CausalityClock clock) {
+        this.pruneClock = pruneClock;
+        this.clock = clock;
     }
 }

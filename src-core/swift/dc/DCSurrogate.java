@@ -145,7 +145,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         suPubSub = new SurrogatePubSubService(generalExecutor, this);
         dataServer = new DCDataServer(this, props, suPubSub, port4Clients + 2);
-        
+
         final String notificationPeriodString = props.getProperty(DCConstants.NOTIFICATION_PERIOD_PROPERTY);
         if (notificationPeriodString != null) {
             notificationPeriodMillis = Integer.valueOf(notificationPeriodString);
@@ -315,7 +315,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         }
         sem.acquireUninterruptibly(request.getBatchSize());
 
-        // TODO: optimize reply!
+        if (request.getBatchSize() > 1 && !request.isSendMoreRecentUpdates()) {
+            final CausalityClock commonPruneClock = request.getVersion().clone();
+            final CausalityClock commonClock = commonPruneClock.clone();
+            commonClock.recordAllUntil(cltLastSeqNo);
+            reply.compressAllOKReplies(commonPruneClock, commonClock);
+        }
         conn.reply(reply);
     }
 

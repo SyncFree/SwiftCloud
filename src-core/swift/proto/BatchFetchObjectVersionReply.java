@@ -16,6 +16,8 @@
  *****************************************************************************/
 package swift.proto;
 
+import java.util.List;
+
 import swift.clocks.CausalityClock;
 import swift.clocks.VersionVectorWithExceptions;
 import swift.crdt.core.CRDT;
@@ -60,6 +62,7 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
     protected ManagedCRDT[] crdts;
     protected CausalityClock estimatedLatestKnownClock;
     protected CausalityClock estimatedDisasterDurableLatestKnownClock;
+    private transient int compressionReferenceIdx = -1;
 
     // public Map<String, Object> staleReadsInfo;
 
@@ -144,6 +147,22 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
             ((SwiftProtocolHandler) handler).onReceive(conn, this);
     }
 
+    public void compressAllOKReplies(CausalityClock commonPruneClock, CausalityClock commonClock) {
+        // clear all but first pair of clocks - that one will act as a
+        // reference clock for all objects in the batch.
+        boolean firstOkFound = false;
+        for (int i = 0; i < getBatchSize(); i++) {
+            if (statuses[i] == FetchStatus.OK) {
+                if (firstOkFound) {
+                    crdts[i].forceSetClocks(null, null);
+                } else {
+                    firstOkFound = true;
+                    crdts[i].forceSetClocks(commonPruneClock, commonClock);
+                }
+            }
+        }
+    }
+
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
         if (!collector.isEnabled()) {
@@ -205,11 +224,16 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         if (estimatedLatestKnownClock != null) {
             kryo.writeObject(buffer, estimatedLatestKnownClock);
         }
-        for (ManagedCRDT crdt : crdts) {
-            if (crdt != null) {
-                kryo.writeObject(buffer, crdt.getClock());
-                kryo.writeObject(buffer, crdt.getPruneClock());
-                kryo.writeObject(buffer, crdt.getUpdatesTimestampMappingsSince(crdt.getPruneClock()));
+        for (int i = 0; i < getBatchSize(); i++) {
+            if (crdts[i] != null) {
+                if (statuses[i] != FetchStatus.OK || compressionReferenceIdx < 0 || compressionReferenceIdx == i) {
+                    kryo.writeObject(buffer, crdts[i].getClock());
+                    kryo.writeObject(buffer, crdts[i].getPruneClock());
+                }
+                final List log = crdts[i].getUpdatesTimestampMappingsSince(crdts[i].getPruneClock());
+                if (!log.isEmpty()) {
+                    kryo.writeObject(buffer, log);
+                }
             }
         }
         final int globalMetadata = buffer.position();
@@ -235,12 +259,25 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         final int batchSize = input.readVarInt(true);
         statuses = new FetchStatus[batchSize];
         crdts = new ManagedCRDT[batchSize];
+        compressionReferenceIdx = -1;
         for (int i = 0; i < batchSize; i++) {
             final int ordinal = input.readVarInt(true);
             // If ordinal is out range, then ArrayIndexOutOfBoundException
             // fires.
             statuses[i] = FetchStatus.values()[ordinal];
             crdts[i] = (ManagedCRDT) kryo.readClassAndObject(input);
+            // Condition used by compressAllOKReplies():
+            if (statuses[i] == FetchStatus.OK) {
+                if (compressionReferenceIdx >= 0) {
+                    // If clocks are compressed => decompress.
+                    if (crdts[i].getClock() == null) {
+                        crdts[i].forceSetClocks(crdts[compressionReferenceIdx].getPruneClock().clone(),
+                                crdts[compressionReferenceIdx].getClock().clone());
+                    }
+                } else {
+                    compressionReferenceIdx = i;
+                }
+            }
         }
         estimatedLatestKnownClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
         estimatedDisasterDurableLatestKnownClock = kryo.readObjectOrNull(input, VersionVectorWithExceptions.class);
