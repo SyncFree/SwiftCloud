@@ -4,17 +4,14 @@ import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandler;
 import sys.pubsub.PubSub.Notifyable;
-import sys.pubsub.PubSub.Subscriber;
+import sys.pubsub.impl.AbstractSubscriber;
 
-abstract public class RemoteSubscriber<T> implements Subscriber<T> {
+public class RemoteSubscriber<T> extends AbstractSubscriber<T> {
 
-    final String id;
     final RpcEndpoint endpoint;
-
     protected volatile Endpoint remote;
-
     public RemoteSubscriber(String id, RpcEndpoint endpoint, Endpoint remote) {
-        this.id = id;
+        super(id);
         this.remote = remote;
         this.endpoint = endpoint;
     }
@@ -37,18 +34,4 @@ abstract public class RemoteSubscriber<T> implements Subscriber<T> {
     public Endpoint remoteEndpoint() {
         return remote;
     }
-
-    public int hashCode() {
-        return id.hashCode();
-    }
-
-    public boolean equals(Object other) {
-        return other instanceof RemoteSubscriber && id.equals(((RemoteSubscriber<?>) other).id);
-    }
-
-    @Override
-    public String id() {
-        return id;
-    }
-
 }

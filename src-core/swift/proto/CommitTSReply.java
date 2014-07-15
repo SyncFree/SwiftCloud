@@ -75,5 +75,6 @@ public class CommitTSReply implements RpcMessage {
 
     @Override
     public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(this);
     }
 }

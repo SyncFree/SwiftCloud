@@ -17,7 +17,6 @@
 package sys.net.impl.rpc;
 
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
-import static sys.stats.RpcStats.RpcStats;
 
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
@@ -84,7 +83,6 @@ final public class RpcPacket extends AbstractRpcPacket {
 
     private RpcHandle send(Endpoint dst, RpcMessage msg, RpcHandler replyHandler, int timeout, boolean streamingReplies) {
         RpcPacket pkt = new RpcPacket(fac, dst, msg, this, replyHandler, timeout, streamingReplies);
-        pkt.timestamp = System.currentTimeMillis();
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
             if (pkt.sendRpcPacket(null, this) == true) {
@@ -106,7 +104,6 @@ final public class RpcPacket extends AbstractRpcPacket {
     @Override
     public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
         RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout, false);
-        pkt.timestamp = this.timestamp;
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
             if (pkt.sendRpcPacket(conn, this) == true) {
@@ -144,7 +141,7 @@ final public class RpcPacket extends AbstractRpcPacket {
     private boolean sendRpcPacket(TransportConnection conn, AbstractRpcPacket handle) {
         try {
             if (conn != null && conn.send(this) || fac.conMgr.send(remote(), this)) {
-                RpcStats.logSentRpcPacket(this, remote());
+                // RpcStats.logSentRpcPacket(this, remote());
                 payload = null;
                 return true;
             } else {

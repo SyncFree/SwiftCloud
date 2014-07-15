@@ -23,11 +23,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Executor;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -42,8 +41,6 @@ import swift.clocks.CausalityClock;
 import swift.clocks.CausalityClock.CMP_CLOCK;
 import swift.clocks.ClockFactory;
 import swift.clocks.Timestamp;
-import swift.crdt.AbstractLWWRegisterCRDT;
-import swift.crdt.LWWStringMapRegisterUpdate;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
@@ -68,9 +65,7 @@ import swift.proto.PingRequest;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.BatchUpdatesNotification;
-import swift.pubsub.RemoteSwiftSubscriber;
 import swift.pubsub.SurrogatePubSubService;
-import swift.pubsub.SwiftNotification;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
 import swift.utils.FutureResultHandler;
@@ -81,6 +76,9 @@ import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.pubsub.PubSubNotification;
+import sys.pubsub.RemoteSubscriber;
+import sys.pubsub.impl.AbstractSubscriber;
 import sys.scheduler.PeriodicTask;
 //import swift.client.proto.FastRecentUpdatesReply;
 //import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
@@ -110,21 +108,22 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     CausalityClock estimatedDCStableVersion; // estimate of current DC state
 
     AtomicReference<CausalityClock> estimatedDCVersionShadow; // read only
-                                                              // estimate of
-                                                              // current DC
-                                                              // state
-    AtomicReference<CausalityClock> estimatedDCStableVersionShadow; // read only
-                                                                    // estimate
-                                                                    // of
-                                                                    // current
-                                                                    // DC
+    // estimate of
+    // current DC
+    // state
+    AtomicReference<CausalityClock> estimatedDCStableVersionShadow; // read
+                                                                    // only
+    // estimate
+    // of
+    // current
+    // DC
     // state
 
-    public SurrogatePubSubService suPubSub;
+    final public SurrogatePubSubService suPubSub;
     public int pubsubPort;
 
-    ThreadPoolExecutor crdtExecutor;
-    Executor generalExecutor = Executors.newCachedThreadPool();
+    final ThreadPoolExecutor crdtExecutor;
+    final ThreadPoolExecutor generalExecutor;
     private final int notificationPeriodMillis;
 
     DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
@@ -143,6 +142,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         srvEndpoint4Clients.getFactory().setExecutor(Executors.newCachedThreadPool());
         srvEndpoint4Sequencer.getFactory().setExecutor(Executors.newFixedThreadPool(2));
 
+        ArrayBlockingQueue<Runnable> crdtWorkQueue = new ArrayBlockingQueue<Runnable>(512);
+        crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, crdtWorkQueue);
+        crdtExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+
+        ArrayBlockingQueue<Runnable> generalWorkQueue = new ArrayBlockingQueue<Runnable>(512);
+        generalExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, generalWorkQueue);
+        generalExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+
         suPubSub = new SurrogatePubSubService(generalExecutor, this);
         dataServer = new DCDataServer(this, props, suPubSub, port4Clients + 2);
 
@@ -152,10 +159,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         } else {
             notificationPeriodMillis = DCConstants.DEFAULT_NOTIFICATION_PERIOD_MS;
         }
-
-        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<Runnable>(512);
-        crdtExecutor = new ThreadPoolExecutor(4, 8, 3, TimeUnit.SECONDS, workQueue);
-        crdtExecutor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
 
         initData(props);
 
@@ -387,10 +390,16 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (cltTs != null && cltTs.getCounter() >= request.getCltTimestamp().getCounter())
             conn.reply(new CommitUpdatesReply(getEstimatedDCVersionCopy()));
         else
-            conn.reply(prepareAndDoCommit(session, request));
+            prepareAndDoCommit(session, request, new FutureResultHandler<CommitUpdatesReply>() {
+                @Override
+                public void onResult(CommitUpdatesReply result) {
+                    conn.reply(result);
+                }
+            });
     }
 
-    private CommitUpdatesReply prepareAndDoCommit(final ClientSession session, final CommitUpdatesRequest req) {
+    private void prepareAndDoCommit(final ClientSession session, final CommitUpdatesRequest req,
+            final FutureResultHandler<CommitUpdatesReply> resHandler) {
         final List<CRDTObjectUpdatesGroup<?>> ops = req.getObjectUpdateGroups();
         final CausalityClock dependenciesClock = ops.size() > 0 ? req.getDependencyClock() : ClockFactory.newClock();
 
@@ -402,11 +411,11 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         // req.setDisasterSafe(); // FOR SOSP EVALUATION...
 
-        return doOneCommit(session, req, dependenciesClock);
+        doOneCommit(session, req, dependenciesClock, resHandler);
     }
 
-    private CommitUpdatesReply doOneCommit(final ClientSession session, final CommitUpdatesRequest req,
-            final CausalityClock snapshotClock) {
+    private void doOneCommit(final ClientSession session, final CommitUpdatesRequest req,
+            final CausalityClock snapshotClock, final FutureResultHandler<CommitUpdatesReply> resHandler) {
         // 0) updates.addSystemTimestamp(timestampService.allocateTimestamp())
         // 1) let int clientTxs =
         // clientTxClockService.getAndLockNumberOfCommitedTxs(clientId)
@@ -472,48 +481,47 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         // TODO: handle failure
         session.setLastSeqNo(cltTs);
-        CommitTSReply reply;
-        do {
-            reply = cltEndpoint4Sequencer.request(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs,
-                    estimatedDCVersionCopy, txnOK.get(), ops, req.disasterSafe(), session.clientId));
+        srvEndpoint4Sequencer.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs,
+                estimatedDCVersionCopy, txnOK.get(), ops, req.disasterSafe(), session.clientId),
+                new SwiftProtocolHandler() {
+                    public void onReceive(CommitTSReply reply) {
+                        if (logger.isLoggable(Level.INFO)) {
+                            logger.info("Commit: received CommitTSRequest:old vrs:" + estimatedDCVersionCopy
+                                    + "; new vrs=" + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
+                        }
+                        estimatedDCVersionCopy.record(txTs);
+                        updateEstimatedDCVersion(reply.getCurrVersion());
+                        dataServer.dbServer.writeSysData("SYS_TABLE", "CURRENT_CLK", getEstimatedDCVersionCopy());
 
-            if (reply == null)
-                logger.severe(String.format("------------>REPLY FROM SEQUENCER NULL for: %s, who:%s\n", txTs,
-                        session.clientId));
+                        updateEstimatedDCStableVersion(reply.getStableVersion());
+                        dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", getEstimatedDCStableVersionCopy());
 
-        } while (reply == null);
+                        if (txnOK.get() && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
+                            if (logger.isLoggable(Level.INFO)) {
+                                logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
+                            }
+                            resHandler.onResult(new CommitUpdatesReply(txTs));
+                            // return new CommitUpdatesReply(txTs);
+                        } else
+                            resHandler.onResult(new CommitUpdatesReply());
+                    }
+                }, 0);
 
-        if (reply != null) {
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("Commit: received CommitTSRequest:old vrs:" + estimatedDCVersionCopy + "; new vrs="
-                        + reply.getCurrVersion() + ";ts = " + txTs + ";cltts = " + cltTs);
-            }
-            estimatedDCVersionCopy.record(txTs);
-            updateEstimatedDCVersion(reply.getCurrVersion());
-            dataServer.dbServer.writeSysData("SYS_TABLE", "CURRENT_CLK", getEstimatedDCVersionCopy());
-
-            updateEstimatedDCStableVersion(reply.getStableVersion());
-            dataServer.dbServer.writeSysData("SYS_TABLE", "STABLE_CLK", getEstimatedDCStableVersionCopy());
-
-            if (txnOK.get() && reply.getStatus() == CommitTSReply.CommitTSStatus.OK) {
-                if (logger.isLoggable(Level.INFO)) {
-                    logger.info("Commit: for publish DC version: SENDING ; on tx:" + txTs);
-                }
-                // Set<CRDTIdentifier> uids = new HashSet<CRDTIdentifier>();
-                // for (CRDTObjectUpdatesGroup<?> i : ops)
-                // uids.add(i.getTargetUID());
-                //
-                // suPubSub.publish(new SnapshotNotification(req.getClientId(),
-                // uids, txTs, reply.getCurrVersion()));
-
-                return new CommitUpdatesReply(txTs);
-            }
-        }
-        return new CommitUpdatesReply();
+        // if (reply == null)
+        // logger.severe(String.format("------------>REPLY FROM SEQUENCER NULL for: %s, who:%s\n",
+        // txTs,
+        // session.clientId));
+        //
+        // } while (reply == null);
+        //
+        // if (reply != null) {
+        //
+        // }
+        // return new CommitUpdatesReply();
     }
 
     @Override
-    public void onReceive(RpcHandle conn, BatchCommitUpdatesRequest request) {
+    public void onReceive(final RpcHandle conn, final BatchCommitUpdatesRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("BatchCommitUpdatesRequest client = " + request.getClientId() + ":batch size="
                     + request.getCommitRequests().size());
@@ -522,8 +530,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("BatchCommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
-        List<Timestamp> tsLst = new LinkedList<Timestamp>();
-        LinkedList<CommitUpdatesReply> reply = new LinkedList<CommitUpdatesReply>();
+        final List<Timestamp> tsLst = new LinkedList<Timestamp>();
+        final LinkedList<CommitUpdatesReply> reply = new LinkedList<CommitUpdatesReply>();
         for (CommitUpdatesRequest r : request.getCommitRequests()) {
             if (session.getLastSeqNo() != null
                     && session.getLastSeqNo().getCounter() >= r.getCltTimestamp().getCounter()) {
@@ -535,32 +543,37 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             } else {
                 // Respect internal dependencies in the batch.
                 r.addTimestampsToDeps(tsLst);
-                CommitUpdatesReply repOne = prepareAndDoCommit(session, r);
+                prepareAndDoCommit(session, r, new FutureResultHandler<CommitUpdatesReply>() {
 
-                if (repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
-                    List<Timestamp> tsLstOne = repOne.getCommitTimestamps();
-                    if (tsLstOne != null)
-                        tsLst.addAll(tsLstOne);
-                }
-                reply.addLast(repOne);
+                    @Override
+                    public void onResult(CommitUpdatesReply repOne) {
+                        if (repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
+                            List<Timestamp> tsLstOne = repOne.getCommitTimestamps();
+                            if (tsLstOne != null)
+                                tsLst.addAll(tsLstOne);
+                        }
+                        reply.addLast(repOne);
+                        if (reply.size() == request.getCommitRequests().size())
+                            conn.reply(new BatchCommitUpdatesReply(reply));
+                    }
+                });
             }
         }
-        conn.reply(new BatchCommitUpdatesReply(reply));
     }
 
     @Override
-    public void onReceive(RpcHandle conn, final SeqCommitUpdatesRequest request) {
+    public void onReceive(final RpcHandle conn, final SeqCommitUpdatesRequest request) {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("SeqCommitUpdatesRequest timestamp = " + request.getTimestamp() + ";clt="
                     + request.getCltTimestamp());
         }
-        generalExecutor.execute(new Runnable() {
-            public void run() {
-                // FIXME: disasterSafe=false should not be passed here.
-                ClientSession session = getSession(request.getCltTimestamp().getIdentifier(), false);
-                List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
-                CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
-                doOneCommit(session, request, snapshotClock);
+        ClientSession session = getSession(request.getCltTimestamp().getIdentifier(), false);
+        List<CRDTObjectUpdatesGroup<?>> ops = request.getObjectUpdateGroups();
+        CausalityClock snapshotClock = ops.size() > 0 ? ops.get(0).getDependency() : ClockFactory.newClock();
+        doOneCommit(session, request, snapshotClock, new FutureResultHandler<CommitUpdatesReply>() {
+            @Override
+            public void onResult(CommitUpdatesReply result) {
+                conn.reply(result);
             }
         });
     }
@@ -590,7 +603,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         conn.reply(reply);
     }
 
-    public class ClientSession extends RemoteSwiftSubscriber implements SwiftSubscriber {
+    public class ClientSession extends AbstractSubscriber<CRDTIdentifier> implements SwiftSubscriber {
 
         final String clientId;
         boolean disasterSafe;
@@ -598,8 +611,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         private CausalityClock clientFakeVectorKnowledge;
         private CausalityClock lastSnapshotVector;
 
+        private RemoteSubscriber<CRDTIdentifier> remoteClient;
+
         ClientSession(String clientId, boolean disasterSafe) {
-            super(clientId, suPubSub.endpoint());
+            super(clientId);
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
             if (FAKE_PRACTI_DEPOT_VECTORS) {
@@ -609,19 +624,19 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 lastSnapshotVector = ClockFactory.newClock();
             }
 
-            new PeriodicTask(0.0, TimeUnit.MILLISECONDS.toSeconds(notificationPeriodMillis)) {
+            new PeriodicTask(0.5, notificationPeriodMillis * 0.001) {
                 public void run() {
                     tryFireClientNotification();
                 }
             };
         }
 
-        public synchronized CausalityClock getMinVV() {
+        public CausalityClock getMinVV() {
             return suPubSub.minDcVersion();
         }
 
         public ClientSession setClientEndpoint(Endpoint remote) {
-            super.setRemote(remote);
+            remoteClient = new RemoteSubscriber<CRDTIdentifier>(clientId, suPubSub.endpoint(), remote);
             return this;
         }
 
@@ -647,7 +662,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         synchronized public void onNotification(final UpdateNotification update) {
 
-            if (update.srcId.equals(clientId)) {
+            List<CRDTObjectUpdatesGroup<?>> updates = update.info.getUpdates();
+            if (updates.isEmpty() || clientId.equals(updates.get(0).getClientTimestamp().getIdentifier())) {
                 // Ignore
                 return;
             }
@@ -694,15 +710,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 }
             }
 
-            // Update client in any case.
-            // if (objectsUpdates.isEmpty()) {
-            // return null;
-            // }
             // TODO: for clients that cannot receive periodical updates (e.g.
             // mobile in background mode), one could require a transaction to
             // declare his read set and force refresh the cache before the
             // transaction if necessary.
 
+            BatchUpdatesNotification batch;
             if (FAKE_PRACTI_DEPOT_VECTORS) {
                 final CausalityClock fakeVector = ClockFactory.newClock();
                 // We compare against the stale vector matchin snapshot, but
@@ -716,22 +729,26 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     }
                 }
                 clientFakeVectorKnowledge.merge(fakeVector);
-                generalExecutor.execute(new Runnable() {
-                    public void run() {
-                        onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
-                                objectsUpdates, fakeVector)));
-                    }
-                });
+                batch = new BatchUpdatesNotification(snapshot, disasterSafe, objectsUpdates, fakeVector);
             } else {
-                generalExecutor.execute(new Runnable() {
-                    public void run() {
-                        onNotification(new SwiftNotification(new BatchUpdatesNotification(snapshot, disasterSafe,
-                                objectsUpdates)));
-                    }
-                });
+                batch = new BatchUpdatesNotification(snapshot, disasterSafe, objectsUpdates);
             }
+
+            if (remoteClient != null)
+                remoteClient.onNotification(batch.clone(remoteClient.nextSeqN()));
+
             lastNotification = now;
             return snapshot;
+        }
+
+        @Override
+        public void onNotification(BatchUpdatesNotification evt) {
+            Thread.dumpStack();
+        }
+
+        @Override
+        public void onNotification(PubSubNotification<CRDTIdentifier> evt) {
+            Thread.dumpStack();
         }
     }
 
@@ -757,9 +774,11 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         return session;
     }
 
-    private Map<String, ClientSession> sessions = new HashMap<String, ClientSession>();
-    private static LWWStringMapRegisterUpdate FAKE_INIT_UPDATE = new LWWStringMapRegisterUpdate(1,
-            AbstractLWWRegisterCRDT.INIT_TIMESTAMP, new HashMap<String, String>());
+    private ConcurrentHashMap<String, ClientSession> sessions = new ConcurrentHashMap<String, ClientSession>();
+
+    // private static LWWStringMapRegisterUpdate FAKE_INIT_UPDATE = new
+    // LWWStringMapRegisterUpdate(1,
+    // AbstractLWWRegisterCRDT.INIT_TIMESTAMP, new HashMap<String, String>());
 
     // Map<String, Object> evaluateStaleReads(FetchObjectVersionRequest request,
     // CausalityClock estimatedDCVersionCopy,

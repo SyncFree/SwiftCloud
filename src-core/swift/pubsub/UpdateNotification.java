@@ -2,50 +2,35 @@ package swift.pubsub;
 
 import java.util.Set;
 
+import swift.clocks.CausalityClock;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
 import swift.proto.MetadataSamplable;
 import swift.proto.MetadataStatsCollector;
 import swift.proto.ObjectUpdatesInfo;
-import sys.pubsub.PubSub;
-import sys.pubsub.PubSub.Notifyable;
+import swift.proto.SwiftProtocolHandler;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
 import sys.pubsub.PubSub.Subscriber;
+import sys.pubsub.PubSubNotification;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
 
-public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataSamplable {
+public class UpdateNotification extends PubSubNotification<CRDTIdentifier> implements MetadataSamplable {
 
     // TODO: lots of redundant things on the wire?
-    public String srcId;
     public ObjectUpdatesInfo info;
+    public CausalityClock dcVersion;
 
     UpdateNotification() {
     }
 
-    public UpdateNotification(String srcId, ObjectUpdatesInfo info) {
+    public UpdateNotification(Object srcId, ObjectUpdatesInfo info, CausalityClock dcVersion) {
+        super(srcId);
         this.info = info;
-        this.srcId = srcId;
-    }
-
-    public UpdateNotification(String srcId, CRDTIdentifier uid) {
-        this.srcId = srcId;
-        this.info = new ObjectUpdatesInfo(uid);
-    }
-
-    @Override
-    public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
-        for (Subscriber<CRDTIdentifier> i : pubsub.subscribers(info.getId(), true))
-            try {
-                ((SwiftSubscriber) i).onNotification(this);
-            } finally {
-            }
-    }
-
-    @Override
-    public Object src() {
-        return srcId;
+        this.dcVersion = dcVersion;
     }
 
     @Override
@@ -56,6 +41,20 @@ public class UpdateNotification implements Notifyable<CRDTIdentifier>, MetadataS
     @Override
     public Set<CRDTIdentifier> keys() {
         return null;
+    }
+
+    public CausalityClock dcVersion() {
+        return dcVersion;
+    }
+
+    @Override
+    public void notifyTo(Subscriber<CRDTIdentifier> subscriber) {
+        ((SwiftSubscriber) subscriber).onNotification(this);
+    }
+
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(this);
     }
 
     @Override

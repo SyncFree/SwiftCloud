@@ -2,17 +2,20 @@ package swift.pubsub;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import swift.proto.SwiftProtocolHandler;
+import swift.crdt.core.CRDTIdentifier;
+import sys.pubsub.PubSub;
+import sys.pubsub.PubSubNotification;
 import sys.utils.FifoQueue;
 
 public class FifoQueues {
 
-    public FifoQueue<SwiftNotification> queueFor(String id, final SwiftProtocolHandler handler) {
-        FifoQueue<SwiftNotification> res = fifoQueues.get(id), nq;
+    public FifoQueue<PubSubNotification<CRDTIdentifier>> queueFor(Object id,
+            final PubSub.Subscriber<CRDTIdentifier> subscriber) {
+        FifoQueue<PubSubNotification<CRDTIdentifier>> res = fifoQueues.get(id), nq;
         if (res == null) {
-            res = fifoQueues.putIfAbsent(id, nq = new FifoQueue<SwiftNotification>() {
-                public void process(SwiftNotification event) {
-                    event.deliverTo(null, handler);
+            res = fifoQueues.putIfAbsent(id, nq = new FifoQueue<PubSubNotification<CRDTIdentifier>>() {
+                public void process(PubSubNotification<CRDTIdentifier> event) {
+                    event.notifyTo(subscriber);
                 }
             });
             if (res == null)
@@ -21,5 +24,5 @@ public class FifoQueues {
         return res;
     }
 
-    final ConcurrentHashMap<String, FifoQueue<SwiftNotification>> fifoQueues = new ConcurrentHashMap<String, FifoQueue<SwiftNotification>>();
+    final ConcurrentHashMap<Object, FifoQueue<PubSubNotification<CRDTIdentifier>>> fifoQueues = new ConcurrentHashMap<Object, FifoQueue<PubSubNotification<CRDTIdentifier>>>();
 }

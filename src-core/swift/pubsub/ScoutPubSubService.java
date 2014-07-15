@@ -19,6 +19,7 @@ import swift.proto.UnsubscribeUpdatesRequest;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.pubsub.PubSubNotification;
 import sys.pubsub.impl.AbstractPubSub;
 import sys.scheduler.Task;
 import sys.utils.FifoQueue;
@@ -32,9 +33,9 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
     final Map<CRDTIdentifier, Object> unsubscriptions = new ConcurrentHashMap<CRDTIdentifier, Object>();
 
     final Task updater;
-    final FifoQueue<SwiftNotification> fifoQueue;
-    private MetadataStatsCollector statsCollector;
     private boolean disasterSafeSession;
+    private MetadataStatsCollector statsCollector;
+    final FifoQueue<PubSubNotification<CRDTIdentifier>> fifoQueue;
 
     public ScoutPubSubService(final String clientId, boolean disasterSafeSession, final Endpoint surrogate,
             final MetadataStatsCollector statsCollector) {
@@ -44,16 +45,16 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
         this.statsCollector = statsCollector;
 
         // process incoming events observing source fifo order...
-        this.fifoQueue = new FifoQueue<SwiftNotification>() {
-            public void process(SwiftNotification event) {
-                event.payload().notifyTo(ScoutPubSubService.this);
+        this.fifoQueue = new FifoQueue<PubSubNotification<CRDTIdentifier>>() {
+            public void process(PubSubNotification<CRDTIdentifier> event) {
+                event.notifyTo(ScoutPubSubService.this);
             }
         };
 
         this.suPubSub = Networking.resolve(surrogate.getHost(), surrogate.getPort() + 1);
         this.endpoint = Networking.rpcConnect().toService(0, new SwiftProtocolHandler() {
             @Override
-            public void onReceive(RpcHandle conn, SwiftNotification evt) {
+            public void onReceive(BatchUpdatesNotification evt) {
                 fifoQueue.offer(evt.seqN(), evt);
             }
         });
@@ -98,17 +99,17 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
     }
 
     @Override
-    public void onNotification(Notifyable<CRDTIdentifier> event) {
+    public void onNotification(BatchUpdatesNotification evt) {
         Thread.dumpStack();
     }
 
     @Override
-    public void onNotification(SwiftNotification event) {
+    public void onNotification(PubSubNotification<CRDTIdentifier> evt) {
         Thread.dumpStack();
     }
 
     @Override
-    public void onNotification(UpdateNotification event) {
+    public void onNotification(UpdateNotification evt) {
         Thread.dumpStack();
     }
 }

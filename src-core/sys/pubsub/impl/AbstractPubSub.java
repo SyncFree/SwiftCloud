@@ -16,8 +16,10 @@
  *****************************************************************************/
 package sys.pubsub.impl;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,21 +27,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import sys.pubsub.PubSub;
 import sys.pubsub.PubSub.Notifyable;
 import sys.pubsub.PubSub.Publisher;
-import sys.pubsub.PubSub.Subscriber;
+import sys.utils.ConcurrentHashSet;
+import sys.utils.Threading;
 
-public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Publisher<T, Notifyable<T>> {
+public abstract class AbstractPubSub<T> extends AbstractSubscriber<T> implements PubSub<T>,
+        Publisher<T, Notifyable<T>>, Runnable {
 
-    protected final String id;
     protected final Map<T, Set<Subscriber<T>>> subscribers;
 
+    protected final LinkedList<Notification<T>> notificationQueue = new LinkedList<Notification<T>>();
+
     protected AbstractPubSub(String id) {
-        this.id = id;
-        this.subscribers = new ConcurrentHashMap<T, Set<Subscriber<T>>>(); // TODO
-                                                                           // remove
-                                                                           // redundant
-                                                                           // synchronized
-                                                                           // bits
-                                                                           // below...
+        super(id);
+        this.subscribers = new ConcurrentHashMap<T, Set<Subscriber<T>>>();
+        Threading.newThread(true, this).start();
     }
 
     @Override
@@ -48,32 +49,49 @@ public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Pub
     }
 
     @Override
-    public void publish(Notifyable<T> info) {
-        info.notifyTo(this);
+    synchronized public void publish(Notifyable<T> info) {
+        Collection<Subscriber<T>> set = info.key() == null ? subscribers(info.keys()) : subscribers(info.key(), false);
+        if (set.size() > 0)
+            synchronized (notificationQueue) {
+                for (Subscriber<T> i : set) {
+                    notificationQueue.addLast(new Notification<>(info.clone(i.nextSeqN()), i));
+                }
+                Threading.notifyAllOn(notificationQueue);
+            }
+    }
+
+    public void run() {
+        for (;;) {
+            Notification<T> head;
+            synchronized (notificationQueue) {
+                while (notificationQueue.isEmpty()) {
+                    Threading.waitOn(notificationQueue);
+                }
+                head = notificationQueue.removeFirst();
+            }
+            head.e.notifyTo(head.s);
+        }
     }
 
     @Override
-    public void onNotification(Notifyable<T> info) {
-        Thread.dumpStack();
+    public boolean subscribe(T key, Subscriber<T> subscriber) {
+        Set<Subscriber<T>> set = subscribers.get(key), nset;
+        if (set == null) {
+            set = subscribers.put(key, nset = new ConcurrentHashSet<Subscriber<T>>());
+            if (set == null)
+                set = nset;
+        }
+        return set.add(subscriber);
     }
 
     @Override
-    synchronized public boolean subscribe(T key, Subscriber<T> subscriber) {
-        Set<Subscriber<T>> res = subscribers.get(key);
-        if (res == null)
-            subscribers.put(key, res = new HashSet<Subscriber<T>>());
-
-        return res.add(subscriber);
+    public boolean unsubscribe(T key, Subscriber<T> subscriber) {
+        Set<Subscriber<T>> set = subscribers.get(key);
+        return set != null && set.remove(subscriber) && set.isEmpty();
     }
 
     @Override
-    synchronized public boolean unsubscribe(T key, Subscriber<T> subscriber) {
-        Set<Subscriber<T>> ss = subscribers.get(key);
-        return ss != null && ss.remove(subscriber) && ss.isEmpty();
-    }
-
-    @Override
-    synchronized public boolean subscribe(Set<T> keys, Subscriber<T> Subscriber) {
+    public boolean subscribe(Set<T> keys, Subscriber<T> Subscriber) {
         boolean changed = false;
         for (T i : keys)
             changed |= subscribe(i, Subscriber);
@@ -82,7 +100,7 @@ public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Pub
     }
 
     @Override
-    synchronized public boolean unsubscribe(Set<T> keys, Subscriber<T> subscriber) {
+    public boolean unsubscribe(Set<T> keys, Subscriber<T> subscriber) {
         boolean changed = false;
         for (T i : keys)
             changed |= unsubscribe(i, subscriber);
@@ -90,14 +108,14 @@ public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Pub
     }
 
     @Override
-    public synchronized Set<Subscriber<T>> subscribers(T key, boolean clone) {
-        Set<Subscriber<T>> res = subscribers.get(key);
-        res = res != null ? res : Collections.unmodifiableSet(Collections.<Subscriber<T>> emptySet());
-        return clone ? new HashSet<Subscriber<T>>(res) : res;
+    public Set<Subscriber<T>> subscribers(T key, boolean clone) {
+        Set<Subscriber<T>> set = subscribers.get(key);
+        set = set != null ? set : Collections.<Subscriber<T>> emptySet();
+        return Collections.unmodifiableSet(clone ? new HashSet<Subscriber<T>>(set) : set);
     }
 
     @Override
-    public synchronized Set<Subscriber<T>> subscribers(Set<T> keys) {
+    public Set<Subscriber<T>> subscribers(Set<T> keys) {
         Set<Subscriber<T>> res = new HashSet<Subscriber<T>>();
         for (T i : keys)
             res.addAll(subscribers(i, false));
@@ -106,12 +124,21 @@ public abstract class AbstractPubSub<T> implements PubSub<T>, Subscriber<T>, Pub
 
     @Override
     public boolean isSubscribed(T key, Subscriber<T> handler) {
-        return subscribers(key, true).contains(handler);
+        return subscribers(key, false).contains(handler);
     }
 
     @Override
-    synchronized public boolean isSubscribed(T key) {
+    public boolean isSubscribed(T key) {
         return subscribers.containsKey(key);
     }
 
+    static class Notification<T> {
+        final Notifyable<T> e;
+        final Subscriber<T> s;
+
+        Notification(Notifyable<T> e, Subscriber<T> s) {
+            this.e = e;
+            this.s = s;
+        }
+    }
 }

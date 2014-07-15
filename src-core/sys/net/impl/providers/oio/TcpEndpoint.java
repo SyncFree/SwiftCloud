@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.ExecutorService;
@@ -142,13 +143,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 }
             } catch (RuntimeException x) {
             } catch (IOException x) {
-                // x.printStackTrace();
+                x.printStackTrace();
                 Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
                 cause = x;
                 handler.onFailure(this);
             } catch (Throwable t) {
-                Log.severe(t.getMessage());
                 t.printStackTrace();
+                Log.severe(t.getMessage());
                 cause = t;
             }
             isBroken = true;
@@ -156,19 +157,25 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             Log.fine("Closed connection to: " + remote);
         }
 
-        synchronized public boolean send(final Message msg) {
+        public boolean send(final Message msg) {
             try {
-                int msgSize = outBuf.writeClassAndObject(msg, channel);
+                int msgSize = outBuf().writeClassAndObject(msg, channel);
                 Sys.uploadedBytes.getAndAdd(msgSize);
                 outgoingBytesCounter.getAndAdd(msgSize);
                 msg.setSize(msgSize);
                 return true;
+
+            } catch (ClosedChannelException x) {
+                cause = x;
+                isBroken = true;
+                IO.close(socket);
+                handler.onFailure(this);
             } catch (Throwable t) {
+                t.printStackTrace();
                 if (Log.isLoggable(Level.INFO))
                     t.printStackTrace();
 
                 Log.warning("Exception in connection to: " + remote + " " + t.getMessage());
-
                 cause = t;
                 isBroken = true;
                 IO.close(socket);
@@ -233,6 +240,17 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 Threading.sleep(50);
             }
         }
+    }
+
+    private static final ThreadLocal<KryoOutputBuffer> outBuf = new ThreadLocal<KryoOutputBuffer>() {
+        @Override
+        protected KryoOutputBuffer initialValue() {
+            return new KryoOutputBuffer();
+        }
+    };
+
+    public static KryoOutputBuffer outBuf() {
+        return outBuf.get();
     }
 }
 
@@ -346,6 +364,8 @@ final class KryoOutputBuffer {
         buffer.putInt(0, length - 4);
         buffer.limit(length);
 
-        return ch.write(buffer);
+        synchronized (ch) {
+            return ch.write(buffer);
+        }
     }
 }

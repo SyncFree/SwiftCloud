@@ -71,14 +71,8 @@ public class GenerateDCTimestampReply implements RpcMessage {
     }
 
     @Override
-    public void deliverTo(RpcHandle conn, RpcHandler handler) { // If used as a
-                                                                // reply to
-                                                                // request()
-                                                                // call, no
-                                                                // extra
-                                                                // processing
-                                                                // required.
-        // ((GenerateDCTimestampReplyHandler) handler).onReceive(conn, this);
+    public void deliverTo(RpcHandle conn, RpcHandler handler) {
+        // ((SwiftProtocolHandler) handler).onReceive(this);
     }
 
     public GenerateStatus getStatus() {

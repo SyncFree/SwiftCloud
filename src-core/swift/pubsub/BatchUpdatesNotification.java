@@ -12,8 +12,11 @@ import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTUpdate;
 import swift.proto.MetadataSamplable;
 import swift.proto.MetadataStatsCollector;
-import sys.pubsub.PubSub;
-import sys.pubsub.PubSub.Notifyable;
+import swift.proto.SwiftProtocolHandler;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
+import sys.pubsub.PubSub.Subscriber;
+import sys.pubsub.PubSubNotification;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Output;
@@ -24,7 +27,8 @@ import com.esotericsoftware.kryo.io.Output;
  * 
  * @author mzawirski,smd
  */
-public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, MetadataSamplable {
+public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier> implements MetadataSamplable {
+
     protected CausalityClock newVersion;
     private boolean newVersionDisasterSafe;
     protected Map<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates;
@@ -48,10 +52,10 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
         this(newVersion, disasterSafe, objectsUpdates, null);
     }
 
-    @Override
-    public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
-        ((SwiftSubscriber) pubsub).onNotification(this);
-    }
+    // @Override
+    // public void notifyTo(PubSub<CRDTIdentifier> pubsub) {
+    // ((SwiftSubscriber) pubsub).onNotification(this);
+    // }
 
     /**
      * @return new consistent version that these packet updates client's cache
@@ -175,5 +179,15 @@ public class BatchUpdatesNotification implements Notifyable<CRDTIdentifier>, Met
     public String toString() {
         return "BatchUpdatesNotification [newVersion=" + newVersion + ", newVersionDisasterSafe="
                 + newVersionDisasterSafe + ", objectsUpdates=" + objectsUpdates + "]";
+    }
+
+    @Override
+    public void notifyTo(Subscriber<CRDTIdentifier> subscriber) {
+        ((SwiftSubscriber) subscriber).onNotification(this);
+    }
+
+    @Override
+    public void deliverTo(RpcHandle handle, RpcHandler handler) {
+        ((SwiftProtocolHandler) handler).onReceive(this);
     }
 }

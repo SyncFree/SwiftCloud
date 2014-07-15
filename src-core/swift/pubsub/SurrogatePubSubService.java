@@ -19,9 +19,10 @@ import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
+import sys.pubsub.PubSubNotification;
 import sys.pubsub.impl.AbstractPubSub;
 
-public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
+public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> implements SwiftSubscriber {
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     final Executor executor;
@@ -31,7 +32,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
 
     final FifoQueues fifoQueues = new FifoQueues();
     final CausalityClock minDcVersion = ClockFactory.newClock();
-    final Map<String, CausalityClock> versions = new ConcurrentHashMap<String, CausalityClock>();
+    final Map<Object, CausalityClock> versions = new ConcurrentHashMap<Object, CausalityClock>();
 
     public SurrogatePubSubService(Executor executor, final DCSurrogate surrogate) {
         super(surrogate.getId());
@@ -41,16 +42,12 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
         this.handler = new SwiftProtocolHandler() {
 
             @Override
-            public void onReceive(RpcHandle conn, SwiftNotification evt) {
+            public void onReceive(UpdateNotification evt) {
                 if (logger.isLoggable(Level.INFO)) {
                     logger.info("SwiftNotification payload = " + evt.payload());
                 }
-                fifoQueues.queueFor(evt.src(), new SwiftProtocolHandler() {
-                    public void onReceive(RpcHandle nil, SwiftNotification evt2) {
-                        updateDcVersions(evt2.src, evt2.dcVersion);
-                        evt2.payload().notifyTo(SurrogatePubSubService.this);
-                    }
-                }).offer(evt.seqN(), evt);
+
+                fifoQueues.queueFor(evt.src(), SurrogatePubSubService.this).offer(evt.seqN(), evt);
             }
 
             @Override
@@ -84,7 +81,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
         return minDcVersion.clone();
     }
 
-    synchronized public void updateDcVersions(String srcId, CausalityClock estimate) {
+    synchronized public void updateDcVersions(Object srcId, CausalityClock estimate) {
         if (!srcId.equals(surrogate.getId()))
             versions.put(srcId, estimate);
 
@@ -93,5 +90,20 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> {
             tmp.intersect(cc);
 
         minDcVersion.merge(tmp);
+    }
+
+    synchronized public void onNotification(UpdateNotification update) {
+        this.updateDcVersions(update.src(), update.dcVersion());
+        super.publish(update);
+    }
+
+    @Override
+    public void onNotification(BatchUpdatesNotification evt) {
+        Thread.dumpStack();
+    }
+
+    @Override
+    public void onNotification(PubSubNotification<CRDTIdentifier> evt) {
+        Thread.dumpStack();
     }
 }

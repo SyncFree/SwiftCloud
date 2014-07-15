@@ -61,10 +61,13 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
     }
 
     @Override
-    synchronized public RpcEndpoint toService(final int service, final RpcHandler handler) {
-        RpcPacket res = handlers.get((long) service);
-        if (res == null)
-            res = new RpcPacket(this, service, handler);
+    public RpcEndpoint toService(final int service, final RpcHandler handler) {
+        RpcPacket res = handlers.get((long) service), nres;
+        if (res == null) {
+            res = handlers.putIfAbsent((long) service, nres = new RpcPacket(this, service, handler));
+            if (res == null)
+                res = nres;
+        }
         return res;
     }
 
@@ -131,7 +134,6 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
             pkt.fac = this;
             pkt.conn = conn;
             pkt.remote = conn.remoteEndpoint();
-            handler.timestamp = Sys.timeMillis();
             handler.deliver(pkt);
         } else {
             Log.warning(sys.Sys.Sys.mainClass + " - No handler for: " + pkt.payload.getClass() + " " + pkt.handlerId);

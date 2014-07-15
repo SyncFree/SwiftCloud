@@ -18,10 +18,12 @@ package swift.proto;
 
 import java.util.logging.Logger;
 
-import swift.pubsub.SwiftNotification;
+import swift.pubsub.BatchUpdatesNotification;
+import swift.pubsub.UpdateNotification;
 import sys.net.api.rpc.AbstractRpcHandler;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcMessage;
+import sys.pubsub.PubSubNotification;
 
 /**
  * 
@@ -59,7 +61,7 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
         Thread.dumpStack();
     }
 
-    protected void onReceive(RpcHandle conn, CommitTSReply reply) {
+    protected void onReceive(CommitTSReply reply) {
         Thread.dumpStack();
     }
 
@@ -83,7 +85,7 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
         Thread.dumpStack();
     }
 
-    protected void onReceive(RpcHandle conn, GenerateDCTimestampReply reply) {
+    protected void onReceive(GenerateDCTimestampReply reply) {
         Thread.dumpStack();
     }
 
@@ -120,12 +122,21 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
         Thread.dumpStack();
     }
 
+    // For PubSub --------------------------------------
     public void onReceive(RpcHandle conn, PubSubHandshake request) {
         Thread.dumpStack();
     }
 
-    public void onReceive(RpcHandle handle, SwiftNotification notification) {
+    public void onReceive(UpdateNotification evt) {
         Thread.dumpStack();
+    }
+
+    public void onReceive(BatchUpdatesNotification evt) {
+        Thread.dumpStack();
+    }
+
+    public void onReceive(PubSubNotification<?> evt) {
+        // TODO Auto-generated method stub
     }
 
     @Override
@@ -136,6 +147,8 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
 
     @Override
     public void onReceive(RpcHandle handle, RpcMessage m) {
+        Thread.dumpStack();
         logger.warning("unhandled RPC message " + m);
     }
+
 }

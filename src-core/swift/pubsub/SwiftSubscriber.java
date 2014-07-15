@@ -2,12 +2,12 @@ package swift.pubsub;
 
 import swift.crdt.core.CRDTIdentifier;
 import sys.pubsub.PubSub.Subscriber;
+import sys.pubsub.PubSubNotification;
 
 public interface SwiftSubscriber extends Subscriber<CRDTIdentifier> {
+    void onNotification(UpdateNotification evt);
 
-    public void onNotification(SwiftNotification event);
+    void onNotification(BatchUpdatesNotification evt);
 
-    public void onNotification(UpdateNotification update);
-
-    public void onNotification(BatchUpdatesNotification snapshot);
+    void onNotification(PubSubNotification<CRDTIdentifier> evt);
 }

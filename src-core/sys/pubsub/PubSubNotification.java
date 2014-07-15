@@ -1,58 +1,47 @@
 package sys.pubsub;
 
-import java.util.Set;
-
+import swift.proto.SwiftProtocolHandler;
 import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
+import sys.net.impl.KryoLib;
 import sys.pubsub.PubSub.Notifyable;
 
-public class PubSubNotification<T> implements RpcMessage, Notifyable<T> {
+abstract public class PubSubNotification<T> implements RpcMessage, Notifyable<T> {
 
-    Notifyable<T> payload;
+    protected long seqN;
+    protected Object src;
 
     protected PubSubNotification() {
     }
 
-    public PubSubNotification(Notifyable<T> payload) {
-        this.payload = payload;
+    protected PubSubNotification(Object src) {
+        this.src = src;
+        this.seqN = -1L;
     }
 
     @Override
     public void deliverTo(RpcHandle handle, RpcHandler handler) {
-        Thread.dumpStack();
+        ((SwiftProtocolHandler) handler).onReceive(this);
     }
 
     public Notifyable<T> payload() {
-        return payload;
-    }
-
-    public String toString() {
-        return "" + payload;
+        return this;
     }
 
     @Override
     public Object src() {
-        return payload.src();
+        return src;
     }
 
     @Override
-    public T key() {
-        return payload.key();
+    public long seqN() {
+        return seqN;
     }
 
-    @Override
-    public Set<T> keys() {
-        return payload.keys();
+    public Notifyable<T> clone(long newSeqN) {
+        PubSubNotification<T> res = KryoLib.copyShallow(this);
+        res.seqN = newSeqN;
+        return res;
     }
-
-    @Override
-    public void notifyTo(PubSub<T> pubsub) {
-        Thread.dumpStack();
-    }
-
-    // @Override
-    // public Timestamp timestamp() {
-    // return payload.timestamp();
-    // }
 }

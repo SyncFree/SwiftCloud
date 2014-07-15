@@ -22,18 +22,24 @@ public interface PubSub<T> {
 
     interface Notifyable<T> {
 
+        long seqN();
+
         Object src();
 
         T key();
 
         Set<T> keys();
 
-        void notifyTo(PubSub<T> pubsub);
+        Notifyable<T> clone(long seqN);
+
+        void notifyTo(Subscriber<T> subscriber);
     }
 
     interface Subscriber<T> {
 
         String id();
+
+        long nextSeqN();
 
         void onNotification(final Notifyable<T> info);
     }
@@ -41,6 +47,7 @@ public interface PubSub<T> {
     interface Publisher<T, P extends Notifyable<T>> {
 
         void publish(P info);
+
     }
 
     String id();
@@ -60,4 +67,5 @@ public interface PubSub<T> {
     boolean isSubscribed(T key);
 
     boolean isSubscribed(T key, Subscriber<T> handler);
+
 }

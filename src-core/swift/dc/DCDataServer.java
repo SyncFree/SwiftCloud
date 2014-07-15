@@ -94,7 +94,7 @@ final class DCDataServer {
 
     CRDTIdentifier heartBeat = new CRDTIdentifier("heart", "beat");
 
-    DCDataServer(DCSurrogate surrogate, Properties props, SurrogatePubSubService suPubSub, int dhtPort) {
+    DCDataServer(final DCSurrogate surrogate, Properties props, SurrogatePubSubService suPubSub, int dhtPort) {
         sys.dht.DHT_Node.DHT_PORT = dhtPort;
         this.surrogate = surrogate;
         this.localSurrogateId = surrogate.getId();
@@ -123,11 +123,12 @@ final class DCDataServer {
             logger.info("Data server ready...");
         }
 
-        dsPubSub.subscribe(localSurrogateId, heartBeat, suPubSub);
+        dsPubSub.subscribe(heartBeat, suPubSub);
 
         new PeriodicTask(1.0, TimeUnit.MILLISECONDS.toSeconds(notificationPeriodMillis)) {
             public void run() {
-                dsPubSub.publish(new UpdateNotification("ds", heartBeat));
+                dsPubSub.publish(new UpdateNotification("ds", new ObjectUpdatesInfo(heartBeat), surrogate
+                        .getEstimatedDCVersionCopy()));
             }
         };
     }
@@ -488,7 +489,7 @@ final class DCDataServer {
 
             ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, data.pruneClock.clone(), grp);
 
-            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), info));
+            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), info, surrogate.getEstimatedDCVersionCopy()));
 
             return new ExecCRDTResult(true, id, info);
         } finally {
@@ -518,7 +519,8 @@ final class DCDataServer {
     ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
 
         if (subscribeUpdates)
-            dsPubSub.subscribe(localSurrogateId, id, suPubSub);
+            dsPubSub.subscribe(id, surrogate.suPubSub);
+
         // else
         // dsPubSub.unsubscribe(localSurrogateId, id, suPubSub);
         lock(id);
