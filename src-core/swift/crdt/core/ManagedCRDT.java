@@ -515,7 +515,8 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
      * @return a deep copy of the object for replication purposes, with
      *         restricted versioning
      */
-    public ManagedCRDT<V> copyWithRestrictedVersioning(final CausalityClock versioningLowerBound) {
+    public ManagedCRDT<V> copyWithRestrictedVersioning(final CausalityClock versioningLowerBound,
+            final Timestamp clientTimestamp) {
         final ManagedCRDT<V> result = new ManagedCRDT<V>();
         result.id = id;
         result.clock = clock.clone();
@@ -523,6 +524,10 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
         final CausalityClock targetPruningPoint = versioningLowerBound.clone();
         targetPruningPoint.intersect(result.clock);
         targetPruningPoint.merge(pruneClock);
+        final CausalityClock pruneClientClock = ClockFactory.newClock();
+        if (clientTimestamp != null) {
+            pruneClientClock.recordAllUntil(clientTimestamp);
+        }
         result.pruneClock = pruneClock.clone();
         result.registeredInStore = registeredInStore;
         result.checkpoint = checkpoint.copy();
@@ -535,6 +540,10 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
                         result.pruneClock.recordAllUntil(ts);
                     }
                 }
+            } else if (updates.anyTimestampIncluded(pruneClientClock)) {
+                updates.applyTo(result.checkpoint);
+                // timestamps of updates referenced by client timestamps only
+                // are not included in the pruneClock.
             } else {
                 result.strippedLog.add(updates.strippedWithCopiedTimestampMappings());
             }

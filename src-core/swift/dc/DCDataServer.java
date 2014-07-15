@@ -546,7 +546,11 @@ final class DCDataServer {
             // Bandwidth optimization: prune as much as possible before sending.
             // FIXME: this leaves out records covered by client clock (not in
             // "version")
-            final ManagedCRDT crdt = data.crdt.copyWithRestrictedVersioning(version);
+            Timestamp ts = null;
+            synchronized (cltClock) {
+                ts = cltClock.getLatest(clientId);
+            }
+            final ManagedCRDT crdt = data.crdt.copyWithRestrictedVersioning(version, ts);
             // FIXME: when failing over between DCs, notifications for the
             // same update may reach the client with two different DC
             // timestamps.
@@ -554,10 +558,6 @@ final class DCDataServer {
             // DC, need to filter out duplicates when necessary, which
             // happens only by side-effect of an implementation as of
             // 497a60a.
-            Timestamp ts = null;
-            synchronized (cltClock) {
-                ts = cltClock.getLatest(clientId);
-            }
             if (ts != null)
                 crdt.augmentWithScoutClockWithoutMappings(ts);
 

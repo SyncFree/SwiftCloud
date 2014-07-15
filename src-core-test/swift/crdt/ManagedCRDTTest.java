@@ -200,6 +200,7 @@ public class ManagedCRDTTest {
         assertEquals(CMP_CLOCK.CMP_DOMINATES, a.getClock().compareTo(deps));
     }
 
+    // FIXME: fix pruning tests!
     @Test
     public void testPruneEmpty() {
         a.prune(a.getClock().clone(), true);
@@ -310,7 +311,7 @@ public class ManagedCRDTTest {
 
         a.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
         b.execute(groupY2, CRDTOperationDependencyPolicy.CHECK);
-        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock());
+        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock(), null);
         a.merge(b);
 
         assertEquals(2, a.getInternalLog().size());
@@ -335,7 +336,7 @@ public class ManagedCRDTTest {
         a.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
         a.execute(groupY2, CRDTOperationDependencyPolicy.CHECK);
         b.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
-        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock());
+        ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock(), null);
         a.merge(b);
 
         assertEquals(2, a.getInternalLog().size());
@@ -356,7 +357,7 @@ public class ManagedCRDTTest {
                 ClockFactory.newClock(), 1);
 
         a.execute(groupX1, CRDTOperationDependencyPolicy.CHECK);
-        final ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock());
+        final ManagedCRDT<AddWinsSetCRDT<Integer>> aCopy = a.copyWithRestrictedVersioning(a.getPruneClock(), null);
         a.merge(aCopy);
         a.merge(aCopy);
 
@@ -532,7 +533,7 @@ public class ManagedCRDTTest {
         a.execute(createUpdatesGroup("Z", ClockFactory.newClock(), 3), CRDTOperationDependencyPolicy.CHECK);
         final CausalityClock origClock = a.getClock().clone();
 
-        final ManagedCRDT<AddWinsSetCRDT<Integer>> copy = a.copyWithRestrictedVersioning(noVersioningClock);
+        final ManagedCRDT<AddWinsSetCRDT<Integer>> copy = a.copyWithRestrictedVersioning(noVersioningClock, null);
 
         // Assert no side-effect on the original;
         assertEquals(CMP_CLOCK.CMP_EQUALS, origClock.compareTo(a.getClock()));
