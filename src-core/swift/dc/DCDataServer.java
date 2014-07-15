@@ -544,6 +544,8 @@ final class DCDataServer {
              */
 
             // Bandwidth optimization: prune as much as possible before sending.
+            // FIXME: this leaves out records covered by client clock (not in
+            // "version")
             final ManagedCRDT crdt = data.crdt.copyWithRestrictedVersioning(version);
             // FIXME: when failing over between DCs, notifications for the
             // same update may reach the client with two different DC
