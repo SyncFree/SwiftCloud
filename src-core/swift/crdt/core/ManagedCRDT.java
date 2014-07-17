@@ -605,4 +605,16 @@ public class ManagedCRDT<V extends CRDT<V>> implements KryoSerializable {
         this.pruneClock = pruneClock;
         this.clock = clock;
     }
+
+    public boolean mayContainUpdatesBetween(CausalityClock knownVersion, CausalityClock requestedVersion) {
+        if (pruneClock.compareTo(knownVersion).is(CMP_CLOCK.CMP_DOMINATES, CMP_CLOCK.CMP_CONCURRENT)) {
+            return true;
+        }
+        for (final CRDTObjectUpdatesGroup<V> updates : strippedLog) {
+            if (!updates.anyTimestampIncluded(knownVersion) && updates.anyTimestampIncluded(requestedVersion)) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

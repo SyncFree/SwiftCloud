@@ -354,13 +354,13 @@ final class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    void getCRDT(final CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed,
-            FutureResultHandler<ManagedCRDT> rh) {
+    void getCRDT(final CRDTIdentifier id, CausalityClock knownClk, CausalityClock clk, String clientId,
+            boolean isSubscribed, FutureResultHandler<ManagedCRDT> rh) {
         Endpoint dst = DHT_Node.resolveKey(id.toString());
         if (dst == null) {
-            rh.onResult(localGetCRDTObject(id, clk, clientId, isSubscribed));
+            rh.onResult(localGetCRDTObject(id, knownClk, clk, clientId, isSubscribed));
         } else {
-            dhtRequest(dst, new DHTGetCRDT(id, clk, clientId, isSubscribed), rh);
+            dhtRequest(dst, new DHTGetCRDT(id, knownClk, clk, clientId, isSubscribed), rh);
         }
     }
 
@@ -373,12 +373,13 @@ final class DCDataServer {
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    ManagedCRDT getCRDT(final CRDTIdentifier id, CausalityClock clk, String clientId, boolean isSubscribed) {
+    ManagedCRDT getCRDT(final CRDTIdentifier id, CausalityClock knownClk, CausalityClock clk, String clientId,
+            boolean isSubscribed) {
         Endpoint dst = DHT_Node.resolveKey(id.toString());
         if (dst == null) {
-            return localGetCRDTObject(id, clk, clientId, isSubscribed);
+            return localGetCRDTObject(id, knownClk, clk, clientId, isSubscribed);
         } else {
-            return dhtRequest(dst, new DHTGetCRDT(id, clk, clientId, isSubscribed));
+            return dhtRequest(dst, new DHTGetCRDT(id, knownClk, clk, clientId, isSubscribed));
         }
     }
 
@@ -503,7 +504,7 @@ final class DCDataServer {
         // else
         // dsPubSub.unsubscribe(req.getId(), remote);
 
-        return localGetCRDTObject(req.getId(), req.getVersion(), req.getCltId(), false);
+        return localGetCRDTObject(req.getId(), req.getKnownVersion(), req.getVersion(), req.getCltId(), false);
     }
 
     /**
@@ -511,11 +512,14 @@ final class DCDataServer {
      * 
      * If clock equals to null, just return full CRDT
      * 
+     * @param version
+     * 
      * @param subscribe
      *            Subscription type
      * @return null if cannot fulfill request
      */
-    ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
+    ManagedCRDT localGetCRDTObject(CRDTIdentifier id, CausalityClock knownVersion, CausalityClock version,
+            String clientId, boolean subscribeUpdates) {
 
         if (subscribeUpdates)
             dsPubSub.subscribe(id, surrogate.suPubSub);
@@ -543,6 +547,10 @@ final class DCDataServer {
              * CMP_CLOCK.CMP_DOMINATES) this.crdt = data.prunedCrdt.copy(); else
              * this.crdt = data.crdt.copy(); } else;
              */
+            
+            if (knownVersion != null && !data.crdt.mayContainUpdatesBetween(knownVersion, version)) {
+                return null;
+            }
 
             // Bandwidth optimization: prune as much as possible before sending.
             // FIXME: this leaves out records covered by client clock (not in

@@ -39,7 +39,8 @@ import com.esotericsoftware.kryo.io.Output;
  */
 public class BatchFetchObjectVersionRequest extends ClientRequest implements MetadataSamplable, KryoSerializable {
     protected List<CRDTIdentifier> uids;
-    protected CausalityClock version;
+    protected CausalityClock knownVersion;
+    protected CausalityClock requestedVersion;
     protected boolean sendMoreRecentUpdates;
     protected boolean subscribe;
     protected boolean sendDCVector;
@@ -50,11 +51,13 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
     BatchFetchObjectVersionRequest() {
     }
 
-    public BatchFetchObjectVersionRequest(String clientId, boolean disasterSafe, CausalityClock version,
-            final boolean sendMoreRecentUpdates, boolean subscribe, boolean sendDCVersion, CRDTIdentifier... uids) {
+    public BatchFetchObjectVersionRequest(String clientId, boolean disasterSafe, CausalityClock clientKnownVersion,
+            CausalityClock version, final boolean sendMoreRecentUpdates, boolean subscribe, boolean sendDCVersion,
+            CRDTIdentifier... uids) {
         super(clientId, disasterSafe);
         this.uids = Arrays.asList(uids);
-        this.version = version;
+        this.knownVersion = clientKnownVersion;
+        this.requestedVersion = version;
         this.subscribe = subscribe;
         this.sendMoreRecentUpdates = sendMoreRecentUpdates;
         this.sendDCVector = sendDCVersion;
@@ -86,11 +89,15 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
         return uids;
     }
 
+    public CausalityClock getKnownVersion() {
+        return knownVersion;
+    }
+
     /**
      * @return minimum version requested
      */
     public CausalityClock getVersion() {
-        return version;
+        return requestedVersion;
     }
 
     /**
@@ -120,11 +127,11 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
-        kryo.writeObject(buffer, version);
+        kryo.writeObject(buffer, requestedVersion);
         final int globalMetadata = buffer.position();
 
-        collector.recordStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), version.getSize(),
-                version.getExceptionsNumber());
+        collector.recordStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), requestedVersion.getSize(),
+                requestedVersion.getExceptionsNumber());
     }
 
     @Override
@@ -134,7 +141,11 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
         for (final CRDTIdentifier uid : uids) {
             uid.write(kryo, output);
         }
-        ((VersionVectorWithExceptions) version).write(kryo, output);
+        output.writeBoolean(knownVersion != null);
+        if (knownVersion != null) {
+            ((VersionVectorWithExceptions) knownVersion).write(kryo, output);
+        }
+        ((VersionVectorWithExceptions) requestedVersion).write(kryo, output);
         byte options = 0;
         if (sendMoreRecentUpdates) {
             options |= 1;
@@ -158,8 +169,12 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
             uid.read(kryo, input);
             uids.add(uid);
         }
-        version = new VersionVectorWithExceptions();
-        ((VersionVectorWithExceptions) version).read(kryo, input);
+        if (input.readBoolean()) {
+            knownVersion = new VersionVectorWithExceptions();
+            ((VersionVectorWithExceptions) knownVersion).read(kryo, input);
+        }
+        requestedVersion = new VersionVectorWithExceptions();
+        ((VersionVectorWithExceptions) requestedVersion).read(kryo, input);
         final byte options = input.readByte();
         sendMoreRecentUpdates = (options & 1) != 0;
         subscribe = (options & (1 << 1)) != 0;

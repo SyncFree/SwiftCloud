@@ -33,6 +33,7 @@ public class DHTGetCRDT implements RpcMessage {
     CRDTIdentifier id;
     CausalityClock version;
     boolean subscribeUpdates;
+    CausalityClock knownVersion;
 
     /**
      * Needed for Kryo serialization
@@ -40,9 +41,10 @@ public class DHTGetCRDT implements RpcMessage {
     DHTGetCRDT() {
     }
 
-    public DHTGetCRDT(CRDTIdentifier id, CausalityClock version, String clientId, boolean subscribeUpdates) {
+    public DHTGetCRDT(CRDTIdentifier id, CausalityClock knownVersion, CausalityClock version, String clientId, boolean subscribeUpdates) {
         super();
         this.id = id;
+        this.knownVersion = knownVersion;
         this.version = version;
         this.clientId = clientId;
         this.subscribeUpdates = subscribeUpdates;
@@ -50,6 +52,10 @@ public class DHTGetCRDT implements RpcMessage {
 
     public CRDTIdentifier getId() {
         return id;
+    }
+
+    public CausalityClock getKnownVersion() {
+        return knownVersion;
     }
 
     public CausalityClock getVersion() {

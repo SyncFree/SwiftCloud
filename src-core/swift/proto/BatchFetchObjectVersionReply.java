@@ -55,7 +55,11 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         /**
          * The requested version of an object was pruned from the store.
          */
-        VERSION_PRUNED
+        VERSION_PRUNED,
+        /**
+         * 
+         */
+        UP_TO_DATE
     }
 
     protected FetchStatus[] statuses;

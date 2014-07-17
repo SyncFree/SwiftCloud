@@ -303,8 +303,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         final Semaphore sem = new Semaphore(0);
         for (int i = 0; i < request.getBatchSize(); i++) {
             final int finalIdx = i;
-            dataServer.getCRDT(request.getUid(i), request.getVersion(), request.getClientId(),
-                    request.hasSubscription(), new FutureResultHandler<ManagedCRDT>() {
+            dataServer.getCRDT(request.getUid(i), request.getKnownVersion(), request.getVersion(),
+                    request.getClientId(), request.hasSubscription(), new FutureResultHandler<ManagedCRDT>() {
                         @Override
                         public void onResult(ManagedCRDT crdt) {
                             try {
@@ -331,10 +331,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             final Timestamp cltLastSeqNo, final CMP_CLOCK versionToDcCmpClock,
             final CausalityClock estimatedDCVersionClock, final BatchFetchObjectVersionReply reply, ManagedCRDT crdt) {
         if (crdt == null) {
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info("BatchFetchObjectVersionRequest not found:" + request.getUid(idxInBatch));
+            if (request.getKnownVersion() == null) {
+                if (logger.isLoggable(Level.INFO)) {
+                    logger.info("BatchFetchObjectVersionRequest not found:" + request.getUid(idxInBatch));
+                }
+                reply.setReply(idxInBatch, BatchFetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null);
+            } else {
+                reply.setReply(idxInBatch, FetchStatus.UP_TO_DATE, null);
             }
-            reply.setReply(idxInBatch, BatchFetchObjectVersionReply.FetchStatus.OBJECT_NOT_FOUND, null);
         } else {
             synchronized (crdt) {
                 crdt.augmentWithDCClockWithoutMappings(estimatedDCVersionClock);
