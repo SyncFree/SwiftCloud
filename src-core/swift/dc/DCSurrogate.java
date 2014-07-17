@@ -764,10 +764,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     public ClientSession getSession(String clientId, boolean disasterSafe) {
-        ClientSession session = sessions.get(clientId);
+        ClientSession session = sessions.get(clientId), nsession;
         if (session == null) {
-            session = sessions.putIfAbsent(clientId, new ClientSession(clientId, disasterSafe));
-            session.initNotifications();
+            session = sessions.putIfAbsent(clientId, nsession = new ClientSession(clientId, disasterSafe));
+            if (session == null) {
+                session = nsession;
+                session.initNotifications();
+            }
             if (ReportType.IDEMPOTENCE_GUARD_SIZE.isEnabled()) {
                 SafeLog.report(ReportType.IDEMPOTENCE_GUARD_SIZE, sessions.size());
             }
