@@ -69,8 +69,6 @@ import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
 import swift.utils.FutureResultHandler;
-import swift.utils.SafeLog;
-import swift.utils.SafeLog.ReportType;
 import sys.Sys;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
@@ -757,19 +755,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     public ClientSession getSession(String clientId, boolean disasterSafe) {
-        ClientSession session;
-        int newSize = -1;
-        // TODO: this synchronization could be replaced with an optimistic
-        // multiton pattern + ConcurrentHashMap.putIfAbsent
-        synchronized (this) {
-            session = sessions.get(clientId);
-            if (session == null) {
-                sessions.put(clientId, session = new ClientSession(clientId, disasterSafe));
-                newSize = sessions.size();
-            }
-        }
-        if (ReportType.IDEMPOTENCE_GUARD_SIZE.isEnabled() && newSize != -1) {
-            SafeLog.report(ReportType.IDEMPOTENCE_GUARD_SIZE, newSize);
+
+        ClientSession session = sessions.get(clientId), nsession;
+        if (session == null) {
+            session = sessions.put(clientId, nsession = new ClientSession(clientId, disasterSafe));
+            if (session == null)
+                session = nsession;
         }
         return session;
     }
