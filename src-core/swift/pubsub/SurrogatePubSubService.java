@@ -11,7 +11,6 @@ import java.util.logging.Logger;
 import swift.clocks.CausalityClock;
 import swift.clocks.ClockFactory;
 import swift.crdt.core.CRDTIdentifier;
-import swift.dc.DCConstants;
 import swift.dc.DCSurrogate;
 import swift.proto.PubSubHandshake;
 import swift.proto.SwiftProtocolHandler;
@@ -82,8 +81,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> imple
     }
 
     synchronized public void updateDcVersions(Object srcId, CausalityClock estimate) {
-        if (!srcId.equals(surrogate.getId()))
-            versions.put(srcId, estimate);
+        versions.put(srcId, estimate);
 
         CausalityClock tmp = surrogate.getEstimatedDCVersionCopy();
         for (CausalityClock cc : versions.values())

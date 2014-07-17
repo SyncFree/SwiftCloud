@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -125,10 +124,10 @@ final class DCDataServer {
 
         dsPubSub.subscribe(heartBeat, suPubSub);
 
-        new PeriodicTask(1.0, TimeUnit.MILLISECONDS.toSeconds(notificationPeriodMillis)) {
+        new PeriodicTask(1.0, notificationPeriodMillis * 0.001) {
             public void run() {
-                dsPubSub.publish(new UpdateNotification("ds", new ObjectUpdatesInfo(heartBeat), surrogate
-                        .getEstimatedDCVersionCopy()));
+                dsPubSub.publish(new UpdateNotification(surrogate.surrogateId, new ObjectUpdatesInfo(heartBeat),
+                        surrogate.getEstimatedDCVersionCopy()));
             }
         };
     }
@@ -489,7 +488,7 @@ final class DCDataServer {
 
             ObjectUpdatesInfo info = new ObjectUpdatesInfo(id, data.pruneClock.clone(), grp);
 
-            dsPubSub.publish(new UpdateNotification(cltTs.getIdentifier(), info, surrogate.getEstimatedDCVersionCopy()));
+            dsPubSub.publish(new UpdateNotification(surrogate.surrogateId, info, surrogate.getEstimatedDCVersionCopy()));
 
             return new ExecCRDTResult(true, id, info);
         } finally {

@@ -69,7 +69,11 @@ public abstract class AbstractPubSub<T> extends AbstractSubscriber<T> implements
                 }
                 head = notificationQueue.removeFirst();
             }
-            head.e.notifyTo(head.s);
+            try {
+                head.e.notifyTo(head.s);
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
         }
     }
 
