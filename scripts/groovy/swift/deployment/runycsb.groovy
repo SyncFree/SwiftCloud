@@ -40,18 +40,14 @@ PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MA
 // Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
 // NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
 Oregon =  DC([
-    'ec2-54-187-28-185.us-west-2.compute.amazonaws.com'
+    'ec2-54-187-160-245.us-west-2.compute.amazonaws.com'
 ], [
-    'ec2-54-187-28-185.us-west-2.compute.amazonaws.com'
+    'ec2-54-187-160-245.us-west-2.compute.amazonaws.com'
 ]) //DC([OregonEC2[0]], [OregonEC2[0]])
 //ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
 ScoutsNV = SGroup([
-    'ec2-54-85-159-245.compute-1.amazonaws.com',
-    'ec2-54-88-127-169.compute-1.amazonaws.com',
-    'ec2-54-88-165-101.compute-1.amazonaws.com',
-    'ec2-54-88-96-69.compute-1.amazonaws.com',
-    'ec2-54-88-168-230.compute-1.amazonaws.com',
-    'ec2-54-88-191-179.compute-1.amazonaws.com',
+    'ec2-54-210-30-38.compute-1.amazonaws.com',
+    'ec2-54-86-101-104.compute-1.amazonaws.com'
 ], Oregon)
 //SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
 //ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
