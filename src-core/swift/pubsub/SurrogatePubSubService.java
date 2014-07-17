@@ -33,6 +33,8 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> imple
     final CausalityClock minDcVersion = ClockFactory.newClock();
     final Map<Object, CausalityClock> versions = new ConcurrentHashMap<Object, CausalityClock>();
 
+    volatile boolean dirtyMinDC = true;
+
     public SurrogatePubSubService(Executor executor, final DCSurrogate surrogate) {
         super(surrogate.getId());
 
@@ -77,17 +79,20 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> imple
     }
 
     public synchronized CausalityClock minDcVersion() {
+        if (dirtyMinDC) {
+            CausalityClock tmp = surrogate.getEstimatedDCVersionCopy();
+            for (CausalityClock cc : versions.values())
+                tmp.intersect(cc);
+
+            minDcVersion.merge(tmp);
+            dirtyMinDC = false;
+        }
         return minDcVersion.clone();
     }
 
     synchronized public void updateDcVersions(Object srcId, CausalityClock estimate) {
         versions.put(srcId, estimate);
-
-        CausalityClock tmp = surrogate.getEstimatedDCVersionCopy();
-        for (CausalityClock cc : versions.values())
-            tmp.intersect(cc);
-
-        minDcVersion.merge(tmp);
+        dirtyMinDC = true;
     }
 
     synchronized public void onNotification(UpdateNotification update) {
