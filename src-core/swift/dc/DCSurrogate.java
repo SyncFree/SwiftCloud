@@ -69,6 +69,8 @@ import swift.pubsub.SurrogatePubSubService;
 import swift.pubsub.SwiftSubscriber;
 import swift.pubsub.UpdateNotification;
 import swift.utils.FutureResultHandler;
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
 import sys.Sys;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
@@ -610,6 +612,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         private CausalityClock lastSnapshotVector;
 
         private RemoteSubscriber<CRDTIdentifier> remoteClient;
+        private PeriodicTask notificationsTask;
 
         ClientSession(String clientId, boolean disasterSafe) {
             super(clientId);
@@ -621,8 +624,14 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (OPTIMIZED_VECTORS_IN_BATCH) {
                 lastSnapshotVector = ClockFactory.newClock();
             }
+        }
 
-            new PeriodicTask(0.5, notificationPeriodMillis * 0.001) {
+        // idempotent
+        public synchronized void initNotifications() {
+            if (notificationsTask != null) {
+                return;
+            }
+            notificationsTask = new PeriodicTask(0.5, notificationPeriodMillis * 0.001) {
                 public void run() {
                     tryFireClientNotification();
                 }
@@ -755,12 +764,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     }
 
     public ClientSession getSession(String clientId, boolean disasterSafe) {
-
-        ClientSession session = sessions.get(clientId), nsession;
+        ClientSession session = sessions.get(clientId);
         if (session == null) {
-            session = sessions.put(clientId, nsession = new ClientSession(clientId, disasterSafe));
-            if (session == null)
-                session = nsession;
+            session = sessions.putIfAbsent(clientId, new ClientSession(clientId, disasterSafe));
+            session.initNotifications();
+            if (ReportType.IDEMPOTENCE_GUARD_SIZE.isEnabled()) {
+                SafeLog.report(ReportType.IDEMPOTENCE_GUARD_SIZE, sessions.size());
+            }
         }
         return session;
     }
