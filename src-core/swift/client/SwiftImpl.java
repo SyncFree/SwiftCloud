@@ -1184,10 +1184,12 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     throw new NetworkException("Deadline exceeded to get appropriate answer from the store;"
                             + "note it may be caused by prior errors");
                 }
-                reply = localEndpoint.request(serverEndpoint(), fetchRequest);
-                if (reply == null) {
+                final RpcHandle rpcReply = localEndpoint.send(serverEndpoint(), fetchRequest, RpcHandler.NONE,
+                        (int) requestDeadline);
+                if (rpcReply.failed() || rpcReply.getReply() == null) {
                     throw new NetworkException("Fetching object version exceeded the deadline");
                 }
+                reply = (BatchFetchObjectVersionReply) rpcReply.getReply().getPayload();
                 if (stopFlag) {
                     throw new InterruptedException("Fetching object version was interrupted by scout shutdown.");
                 }
