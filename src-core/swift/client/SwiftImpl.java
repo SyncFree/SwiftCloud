@@ -94,6 +94,8 @@ import swift.utils.SafeLog.ReportType;
 import swift.utils.TransactionsLog;
 import sys.net.api.Endpoint;
 import sys.net.api.rpc.RpcEndpoint;
+import sys.net.api.rpc.RpcHandle;
+import sys.net.api.rpc.RpcHandler;
 import sys.scheduler.PeriodicTask;
 import sys.stats.DummyStats;
 import sys.stats.Stats;
@@ -311,6 +313,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     SortedSet<CRDTIdentifier> notified = new TreeSet<CRDTIdentifier>();
     private final CacheUpdateProtocol cacheUpdateProtocol;
+    private boolean cacheRefreshReady;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
             final SwiftOptions options, String sessionId) {
@@ -600,34 +603,40 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             ongoingObjectFetchesStats.incCounter();
         }
 
-        try {
-            final Set<CRDTIdentifier> ids = objectsCache.getIds();
-            if (ids.isEmpty()) {
-                logger.info(getScoutId() + ": " + "Cache empty - periodic refresh not needed");
-                return;
-            }
+        final Set<CRDTIdentifier> ids = objectsCache.getIds();
+        if (ids.isEmpty()) {
+            logger.info(getScoutId() + ": " + "Cache empty - periodic refresh not needed");
+            return;
+        }
 
-            if (logger.isLoggable(Level.INFO)) {
-                logger.info(getScoutId() + ": " + "Refreshing cache (" + ids.size() + " objects) to version " + version);
-            }
+        if (logger.isLoggable(Level.INFO)) {
+            logger.info(getScoutId() + ": " + "Refreshing cache (" + ids.size() + " objects) to version " + version);
+        }
 
-            // TODO: specify previously known version?
-            final BatchFetchObjectVersionRequest fetchRequest = new BatchFetchObjectVersionRequest(scoutId,
-                    disasterSafe, version, false, false, false, ids.toArray(new CRDTIdentifier[0]));
+        // TODO: specify previously known version?
+        final BatchFetchObjectVersionRequest fetchRequest = new BatchFetchObjectVersionRequest(scoutId, disasterSafe,
+                version, false, false, false, ids.toArray(new CRDTIdentifier[0]));
 
-            final BatchFetchObjectVersionReply fetchReply = localEndpoint.request(serverEndpoint(), fetchRequest);
-            if (fetchReply == null) {
-                logger.warning("Refreshing objects cached timed out");
-            }
-            fetchRequest.recordMetadataSample(metadataStatsCollector);
-            fetchReply.recordMetadataSample(metadataStatsCollector);
+        // final BatchFetchObjectVersionReply fetchReply =
+        // localEndpoint.request(serverEndpoint(), fetchRequest);
+        RpcHandle reply = localEndpoint.send(serverEndpoint(), fetchRequest, RpcHandler.NONE, deadlineMillis);
+        if (reply.failed() || reply.getReply() == null) {
+            logger.warning(getScoutId() + ": " + "Refreshing cached objects timed out");
+            return;
+        }
+        final BatchFetchObjectVersionReply fetchReply = (BatchFetchObjectVersionReply) reply.getReply().getPayload();
+        fetchRequest.recordMetadataSample(metadataStatsCollector);
+        fetchReply.recordMetadataSample(metadataStatsCollector);
 
-            synchronized (this) {
+        synchronized (this) {
+            try {
                 // Wait until no txn executes to avoid versioning problems.
+                cacheRefreshReady = true;
                 while (!pendingTxns.isEmpty()) {
                     try {
                         this.wait();
                     } catch (InterruptedException e) {
+                        logger.warning(getScoutId() + ": " + "periodic refresh instance interrupted" + e);
                         return;
                     }
                 }
@@ -646,11 +655,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     }
                 }
                 updateNextAvailableSnapshot(version);
-            }
-        } finally {
-            synchronized (this) {
+            } catch (Exception x) {
+                logger.warning(getScoutId() + ": " + "exception during cache refreshing: " + x);
+            } finally {
                 fetchVersionsInProgress.remove(version);
                 ongoingObjectFetchesStats.decCounter();
+                cacheRefreshReady = false;
+                this.notifyAll();
             }
         }
     }
@@ -673,6 +684,15 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             throw new IllegalStateException("Only one transaction can be executing at the time");
         }
         assertRunning();
+        // Wait if there is a pending cache refresh ready.
+        while (cacheRefreshReady) {
+            try {
+                this.wait();
+            } catch (InterruptedException e) {
+                logger.warning(getScoutId() + ": " + "Waiting for cache refresh interrupted" + e);
+                // TODO: handle deadlock
+            }
+        }
 
         switch (isolationLevel) {
         case SNAPSHOT_ISOLATION:
@@ -1676,8 +1696,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 logger.info(getScoutId() + ": " + "read-only transaction " + txn.getTimestampMapping()
                         + " will not commit globally");
             }
-            // Notify periodic refresh thread.
-            this.notifyAll();
         }
         removePendingTxn(txn);
     }
@@ -1893,6 +1911,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     private synchronized void removePendingTxn(final AbstractTxnHandle txn) {
         pendingTxns.remove(txn);
+        // Notify periodic refresh thread.
+        this.notifyAll();
     }
 
     private synchronized void assertPendingTransaction(final AbstractTxnHandle expectedTxn) {
