@@ -313,6 +313,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     SortedSet<CRDTIdentifier> notified = new TreeSet<CRDTIdentifier>();
     private final CacheUpdateProtocol cacheUpdateProtocol;
+    private PeriodicTask cacheUpdateTask;
+    private PeriodicTask stalenessCalibrationTask;
     private boolean cacheRefreshReady;
 
     SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
@@ -465,7 +467,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         // new FailOverWatchDog().start();
 
         if (ReportType.STALENESS_CALIB.isEnabled()) {
-            new PeriodicTask(10, 10) {
+            stalenessCalibrationTask = new PeriodicTask(10, 10) {
                 public void run() {
                     clockSkewEstimate();
                 }
@@ -473,7 +475,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         if (cacheUpdateProtocol == CacheUpdateProtocol.CAUSAL_PERIODIC_REFRESH) {
-            new PeriodicTask(cacheRefreshPeriodSec, cacheRefreshPeriodSec) {
+            cacheUpdateTask = new PeriodicTask(cacheRefreshPeriodSec, cacheRefreshPeriodSec) {
                 @Override
                 public void run() {
                     refreshCache();
@@ -511,6 +513,16 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             stopFlag = true;
             stopGracefully = waitForCommit;
+
+            if (cacheUpdateTask != null) {
+                cacheUpdateTask.cancel();
+                cacheUpdateTask = null;
+            }
+            if (stalenessCalibrationTask != null) {
+                stalenessCalibrationTask.cancel();
+                stalenessCalibrationTask = null;
+            }
+
             this.notifyAll();
         }
         try {
