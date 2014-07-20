@@ -604,27 +604,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
 
         dbServer.writeSysData("SYS_TABLE", "CLK", currentState);
 
-        if (request.disasterSafe()) {
-            stableExecutor.execute(new Runnable() {
-                public void run() {
-                    long t0 = System.currentTimeMillis();
-                    synchronized (unstableTS) {
-                        unstableTS.add(request.getTimestamp());
-                        while (unstableTS.contains(request.getTimestamp())) {
-                            Threading.waitOn(unstableTS, 10);
-                        }
-                    }
-                    long t = System.currentTimeMillis();
-                    // System.out.printf("€€€€€€ %s TOOK %s ms to become stable...\n",
-                    // request.getTimestamp(), t - t0);
-                    conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
-                    cleanPendingTSReq();
-                }
-            });
-        } else {
-            conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
-            cleanPendingTSReq();
-        }
+        conn.reply(new CommitTSReply(CommitTSReply.CommitTSStatus.OK, clk, stableClk));
+        cleanPendingTSReq();
     }
 
     @Override
