@@ -42,6 +42,18 @@ public class RandomByteIterator extends ByteIterator {
     } catch (ArrayIndexOutOfBoundsException e) { /* ignore it */ }
   }
 
+  private void fillDateImpl(byte[] buffer, int base) {
+      long t = System.currentTimeMillis();
+      try {
+        buffer[base+0] = (byte)(t & 0x7F);
+        buffer[base+1] = (byte)((t >> 7) & 0x7F);
+        buffer[base+2] = (byte)((t >> 14) & 0x7F);
+        buffer[base+3] = (byte)((t >> 21) & 0x7F);
+        buffer[base+4] = (byte)((t >> 28) & 0x7F);
+        buffer[base+5] = (byte)((t >> 35) & 0x7F);
+      } catch (ArrayIndexOutOfBoundsException e) { /* ignore it */ }
+    }
+
   private void fillBytes() {
     if(bufOff ==  buf.length) {
       fillBytesImpl(buf, 0);
@@ -49,12 +61,21 @@ public class RandomByteIterator extends ByteIterator {
       off += buf.length;
     }
   }
+  
+  private void fillDate() {
+      if(bufOff ==  buf.length) {
+        fillDateImpl(buf, 0);
+        bufOff = 0;
+        off += buf.length;
+      }
+    }
+    
 
   public RandomByteIterator(long len) {
-    this.len = len;
+    this.len = len >= 4 ? len : 4;
     this.buf = new byte[6];
     this.bufOff = buf.length;
-    fillBytes();
+    fillDate();
     this.off = 0;
   }
 

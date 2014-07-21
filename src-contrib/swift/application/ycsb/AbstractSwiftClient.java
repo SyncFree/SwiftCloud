@@ -1,6 +1,8 @@
 package swift.application.ycsb;
 
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -133,6 +135,15 @@ public abstract class AbstractSwiftClient extends DB {
             if (reportEveryOperation) {
                 final long durationMs = System.currentTimeMillis() - startTimestamp;
                 SafeLog.report(ReportType.APP_OP, sessionId, "read", durationMs);
+                String prefixS = table + ":" + key + ":" ;
+                for( Entry<String,ByteIterator> entry : result.entrySet()) {
+                    ByteIterator it = entry.getValue();
+                    long time = (long)it.nextByte();
+                    time = time + ((long)it.nextByte()) << 7;
+                    time = time + ((long)it.nextByte()) << 14;
+                    time = time + ((long)it.nextByte()) << 21;
+                    SafeLog.report(ReportType.STALENESS_YCSB_READ, sessionId, prefixS + entry.getKey(), time, startTimestamp);
+                }
             }
         }
     }
@@ -148,6 +159,15 @@ public abstract class AbstractSwiftClient extends DB {
         long startTimestamp = 0;
         if (reportEveryOperation) {
             startTimestamp = System.currentTimeMillis();
+            String prefixS = table + ":" + key + ":" ;
+            for( Entry<String,ByteIterator> entry : values.entrySet()) {
+                ByteIterator it = entry.getValue();
+                long time = (long)it.nextByte();
+                time = time + ((long)it.nextByte()) << 7;
+                time = time + ((long)it.nextByte()) << 14;
+                time = time + ((long)it.nextByte()) << 21;
+                SafeLog.report(ReportType.STALENESS_YCSB_WRITE, sessionId, prefixS + entry.getKey(), time);
+            }
         }
         TxnHandle txn = null;
         try {
@@ -173,6 +193,15 @@ public abstract class AbstractSwiftClient extends DB {
         long startTimestamp = 0;
         if (reportEveryOperation) {
             startTimestamp = System.currentTimeMillis();
+            String prefixS = table + ":" + key + ":" ;
+            for( Entry<String,ByteIterator> entry : values.entrySet()) {
+                ByteIterator it = entry.getValue();
+                long time = (long)it.nextByte();
+                time = time + ((long)it.nextByte()) << 7;
+                time = time + ((long)it.nextByte()) << 14;
+                time = time + ((long)it.nextByte()) << 21;
+                SafeLog.report(ReportType.STALENESS_YCSB_WRITE, sessionId, prefixS + entry.getKey(), time);
+            }
         }
         TxnHandle txn = null;
         try {

@@ -22,6 +22,10 @@ public class SafeLog {
 
         STALENESS_CALIB(5, "rtt_ms,skew_ms,scoutid,client_host,server_host"),
 
+        STALENESS_YCSB_READ(4, "sessionID,object,time,time"),
+
+        STALENESS_YCSB_WRITE(3, "sessionID,object,time"),
+
         METADATA(9, "timestamp_ms,session_id,message_name," + "total_message_size,version_or_update_size,value_size,"
                 + "explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num"),
                 
