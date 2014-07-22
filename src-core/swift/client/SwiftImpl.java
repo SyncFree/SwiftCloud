@@ -378,10 +378,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
                 // FIXME: handle cache expansion concurrent to the notification.
                 // Use epoch numbers?
-                objectsCache.augmentAllWithDCCausalClockWithoutMappings(batch.getNewVersion());
                 final CausalityClock nextSnapshot = updateCommittedVersions(batch.isNewVersionDisasterSafe() ? null
                         : batch.getNewVersion(), batch.isNewVersionDisasterSafe() ? batch.getNewVersion() : null, false);
                 if (cacheUpdateProtocol == CacheUpdateProtocol.CAUSAL_NOTIFICATIONS_STREAM) {
+                    objectsCache.augmentAllWithDCCausalClockWithoutMappings(batch.getNewVersion());
                     updateNextAvailableSnapshot(nextSnapshot);
                 }
 
