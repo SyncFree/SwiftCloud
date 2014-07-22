@@ -124,7 +124,16 @@ final public class Threading {
         try {
             return q.take();
         } catch (InterruptedException e) {
+            e.printStackTrace();
             return takeFrom(q);
+        }
+    }
+
+    public static <T> void putInto(SynchronousQueue<T> q, T val) {
+        try {
+            q.put(val);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 
