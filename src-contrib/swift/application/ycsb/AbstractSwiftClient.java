@@ -125,17 +125,17 @@ public abstract class AbstractSwiftClient extends DB {
             int res = readImpl(txn, table, key, fields, result);
             if (res == 0) {
                 txnCommit(txn);
+                if (reportEveryOperation) {
+                    final long durationMs = System.currentTimeMillis() - startTimestamp;
+                    SafeLog.report(ReportType.APP_OP, sessionId, "read", durationMs);
+                    reportStalenessOnRead(table, key, result, startTimestamp);
+                }
             }
             return res;
         } catch (SwiftException x) {
             return handleException(x);
         } finally {
-            tryTerminateTxn(txn);
-            if (reportEveryOperation) {
-                final long durationMs = System.currentTimeMillis() - startTimestamp;
-                SafeLog.report(ReportType.APP_OP, sessionId, "read", durationMs);
-                reportStalenessOnRead(table, key, result, startTimestamp);
-            }
+            cleanUpTxn(txn);
         }
     }
 
@@ -158,16 +158,16 @@ public abstract class AbstractSwiftClient extends DB {
             int res = updateImpl(txn, table, key, values);
             if (res == 0) {
                 txnCommit(txn);
+                if (reportEveryOperation) {
+                    final long durationMs = System.currentTimeMillis() - startTimestamp;
+                    SafeLog.report(ReportType.APP_OP, sessionId, "update", durationMs);
+                }
             }
             return res;
         } catch (SwiftException x) {
             return handleException(x);
         } finally {
-            tryTerminateTxn(txn);
-            if (reportEveryOperation) {
-                final long durationMs = System.currentTimeMillis() - startTimestamp;
-                SafeLog.report(ReportType.APP_OP, sessionId, "update", durationMs);
-            }
+            cleanUpTxn(txn);
         }
     }
 
@@ -185,16 +185,16 @@ public abstract class AbstractSwiftClient extends DB {
             int res = insertImpl(txn, table, key, values);
             if (res == 0) {
                 txnCommit(txn);
+                if (reportEveryOperation) {
+                    final long durationMs = System.currentTimeMillis() - startTimestamp;
+                    SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
+                }
             }
             return res;
         } catch (SwiftException x) {
             return handleException(x);
         } finally {
-            tryTerminateTxn(txn);
-            if (reportEveryOperation) {
-                final long durationMs = System.currentTimeMillis() - startTimestamp;
-                SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
-            }
+            cleanUpTxn(txn);
         }
     }
 
@@ -213,7 +213,7 @@ public abstract class AbstractSwiftClient extends DB {
     protected abstract int insertImpl(TxnHandle txn, String table, String key, HashMap<String, ByteIterator> values)
             throws WrongTypeException, NoSuchObjectException, VersionNotFoundException, NetworkException;
 
-    private void tryTerminateTxn(TxnHandle txn) {
+    private void cleanUpTxn(TxnHandle txn) {
         if (txn != null && !txn.getStatus().isTerminated()) {
             txn.rollback();
         }
