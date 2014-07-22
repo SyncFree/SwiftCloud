@@ -322,9 +322,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (request.getBatchSize() > 1 && !request.isSendMoreRecentUpdates()) {
             final CausalityClock commonPruneClock = request.getVersion().clone();
             final CausalityClock commonClock = commonPruneClock.clone();
-            commonClock.recordAllUntil(cltLastSeqNo);
+            if (cltLastSeqNo != null) {
+                commonClock.recordAllUntil(cltLastSeqNo);
+            }
             reply.compressAllOKReplies(commonPruneClock, commonClock);
         }
+
         conn.reply(reply);
     }
 
