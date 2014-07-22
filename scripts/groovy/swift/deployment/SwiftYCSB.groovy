@@ -67,9 +67,16 @@ class SwiftYCSB extends SwiftBase {
         'scanproportion':'0',
         'insertproportion':'0',
         'requestdistribution':'zipfian',
-        'localpoolfromglobaldistribution':'true',
-        'localrequestdistribution':'uniform',
-        'localrequestproportion':'0',
-        'localrecordcount':'100',
+    ]
+
+    static final WORKLOAD_B = ['recordcount':'1000',
+        'operationcount':'1000',
+        'workload':'com.yahoo.ycsb.workloads.CoreWorkload',
+        'readallfields':'true',
+        'readproportion':'0.95',
+        'updateproportion':'0.05',
+        'scanproportion':'0',
+        'insertproportion':'0',
+        'requestdistribution':'zipfian',
     ]
 }
