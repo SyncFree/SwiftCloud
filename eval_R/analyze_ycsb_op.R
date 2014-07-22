@@ -81,10 +81,10 @@ for(th in threads) {
   #scatter.plot <- ggplot(d, aes(timestamp,duration)) + geom_point(aes(color=operation))
   #ggsave(scatter.plot, file=paste(toplevel_path, "timeline-TH",th,format_ext,collapse=""), scale=1)
   
-  #CDF Plot
-  #cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) + ggtitle (paste("TH",th))
-  #cdf.plot
-  #ggsave(cdf.plot, file=paste(toplevel_path, "cdf-TH",th,format_ext,collapse=""), scale=1)
+  # CDF Plot
+  cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) + ggtitle (paste("TH",th))
+  cdf.plot
+  ggsave(cdf.plot, file=paste(toplevel_path, "cdf-TH",th,format_ext,collapse=""), scale=1)
   
   #Histogram
   #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
@@ -93,6 +93,7 @@ for(th in threads) {
   #Careful: It seems that the first and last bin only cover 5000 ms
   throughput.plot <- ggplot(d, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
   throughput.plot
+  ggsave(throughput.plot, file=paste(toplevel_path, "throughput-TH",th,format_ext,collapse=""), scale=1)
   
   
   steps <- c(seq(min(d$timestamp),max(d$timestamp),by=1000), max(d$timestamp)) 
