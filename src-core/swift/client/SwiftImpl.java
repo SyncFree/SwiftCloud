@@ -32,6 +32,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -482,7 +483,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         if (cacheUpdateProtocol == CacheUpdateProtocol.CAUSAL_PERIODIC_REFRESH) {
-            cacheUpdateTask = new PeriodicTask(cacheRefreshPeriodSec, cacheRefreshPeriodSec) {
+            // Vary initOffset across servers to avoid coordination-induced DoS.
+            final double initOffset = new Random().nextDouble() * cacheRefreshPeriodSec;
+            cacheUpdateTask = new PeriodicTask(initOffset, cacheRefreshPeriodSec) {
                 @Override
                 public void run() {
                     refreshCache();
