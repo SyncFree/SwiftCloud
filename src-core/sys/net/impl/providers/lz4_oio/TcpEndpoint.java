@@ -153,7 +153,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                     msg.deliverTo(this, TcpEndpoint.this.handler);
                 }
             } catch (Throwable t) {
-                if (Log.isLoggable(Level.INFO))
+                if (Log.isLoggable(Level.SEVERE))
                     t.printStackTrace();
                 Log.log(Level.FINEST, "Exception in connection to: " + remote, t);
                 cause = t;

@@ -32,6 +32,7 @@ import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
+import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
@@ -141,15 +142,17 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                     }
                     msg.deliverTo(this, TcpEndpoint.this.handler);
                 }
-            } catch (RuntimeException x) {
             } catch (IOException x) {
                 x.printStackTrace();
                 Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
                 cause = x;
                 handler.onFailure(this);
+            } catch (NetworkingException x) {
+                Log.fine("Network exception in connection to: " + remote + "/" + x.getMessage());
+                cause = x;
             } catch (Throwable t) {
                 t.printStackTrace();
-                Log.severe(t.getMessage());
+                Log.severe("Exception in connection to: " + remote + "/" + t);
                 cause = t;
             }
             isBroken = true;
@@ -304,7 +307,7 @@ final class KryoInputBuffer {
             in.setPosition(0);
             return (T) KryoLib.kryo().readClassAndObject(in);
         } else
-            throw new RuntimeException("Channel closed...");
+            throw new NetworkingException("Channel closed...");
     }
 
     private void ensureCapacity(int required) {
