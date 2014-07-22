@@ -812,31 +812,20 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
 
         // Find and clean new stable local txns logs that we won't need anymore.
+        final CausalityClock pruningPoint = getNextReadLowerBound();
         int stableTxnsToDiscard = 0;
         int evaluatedTxns = 0;
         for (final AbstractTxnHandle txn : globallyCommittedUnstableTxns) {
             final TimestampMapping txnMapping = txn.getTimestampMapping();
             if (txnMapping.hasSystemTimestamp()) {
                 // FIXME: keep txn longer, until it is stable in all DCs
-                boolean notNeeded = txnMapping.allSystemTimestampsIncluded(committedDisasterDurableVersion);
-                for (final CausalityClock fetchedVersion : fetchVersionsInProgress) {
-                    if (!txnMapping.allSystemTimestampsIncluded(fetchedVersion)) {
-                        notNeeded = false;
-                        break;
-                    }
-                }
-                for (final AbstractTxnHandle pendingTxn : pendingTxns) {
-                    if (!txnMapping.allSystemTimestampsIncluded(pendingTxn.getUpdatesDependencyClock())) {
-                        notNeeded = false;
-                        break;
-                    }
-                }
-                if (notNeeded) {
+                if (txnMapping.allSystemTimestampsIncluded(pruningPoint)) {
                     stableTxnsToDiscard = evaluatedTxns + 1;
                 } else {
                     break;
                 }
             } else {
+                // Possible only with concurrentOpenTransactions = true:
                 // The txn has unknown system timestamp, so we need to rely on
                 // subsequent transactions to determine if it can be removed.
             }
