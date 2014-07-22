@@ -141,7 +141,7 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/ycsb/workloada/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version + "-" +
+def dstDir="results/ycsb/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version + "-" +
         String.format("DC-%s-SU-%s-pruning-%d-notifications-%d-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, NotificationsPeriodMillis, Topology.totalScouts(), Threads, DbSize, OpsNum)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
