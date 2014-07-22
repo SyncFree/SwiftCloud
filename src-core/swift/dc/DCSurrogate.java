@@ -19,6 +19,7 @@ package swift.dc;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -538,12 +539,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("BatchCommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
-        final List<Timestamp> tsLst = new LinkedList<Timestamp>();
-        final LinkedList<CommitUpdatesReply> reply = new LinkedList<CommitUpdatesReply>();
+        final List<Timestamp> tsLst = Collections.synchronizedList(new LinkedList<Timestamp>());
+        final List<CommitUpdatesReply> reply = Collections.synchronizedList(new LinkedList<CommitUpdatesReply>());
         for (CommitUpdatesRequest r : request.getCommitRequests()) {
             if (session.getLastSeqNo() != null
                     && session.getLastSeqNo().getCounter() >= r.getCltTimestamp().getCounter()) {
-                reply.addLast(new CommitUpdatesReply(getEstimatedDCVersionCopy()));
+                reply.add(new CommitUpdatesReply(getEstimatedDCVersionCopy()));
                 // FIXME: unless the timestamp is stable andpruned, we need to
                 // send a precise mapping to the client!
                 // Also, non-stable clock should appear in internal dependencies
@@ -560,7 +561,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                             if (tsLstOne != null)
                                 tsLst.addAll(tsLstOne);
                         }
-                        reply.addLast(repOne);
+                        reply.add(repOne);
                         if (reply.size() == request.getCommitRequests().size())
                             conn.reply(new BatchCommitUpdatesReply(reply));
                     }
