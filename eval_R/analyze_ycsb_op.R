@@ -63,8 +63,8 @@ for(th in threads) {
   # TODO: aggregated throughput computation
   
   start_time <- min(d$timestamp)
-  prune_start <- 10000
-  duration_run <- 30000
+  prune_start <- 150000
+  duration_run <- 150000
   d <- subset(d,d$timestamp - start_time > prune_start)
   d <- subset(d,d$timestamp - start_time - prune_start < duration_run)
   
