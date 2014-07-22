@@ -1297,6 +1297,14 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 if (crdt != null) {
                     objectsCache.add(crdt, txn == null ? -1L : txn.serial);
                     cacheCRDT = crdt;
+                    // Apply any local updates that may not be present in
+                    // received version.
+                    for (final AbstractTxnHandle localTxn : globallyCommittedUnstableTxns) {
+                        applyLocalObjectUpdates(cacheCRDT, localTxn);
+                    }
+                    for (final AbstractTxnHandle localTxn : locallyCommittedTxnsOrderedQueue) {
+                        applyLocalObjectUpdates(cacheCRDT, localTxn);
+                    }
                 } else {
                     // possible in the case of UP_TO_DATE reply only:
                     // object evicted from the cache during fetch request
@@ -1320,14 +1328,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     // case: UP_TO_DATE
                     cacheCRDT.augmentWithDCClockWithoutMappings(request.getVersion());
                 }
-            }
-            // Apply any local updates that may not be present in received
-            // version.
-            for (final AbstractTxnHandle localTxn : globallyCommittedUnstableTxns) {
-                applyLocalObjectUpdates(cacheCRDT, localTxn);
-            }
-            for (final AbstractTxnHandle localTxn : locallyCommittedTxnsOrderedQueue) {
-                applyLocalObjectUpdates(cacheCRDT, localTxn);
             }
             // FIXME: check scout clock and trigger recovery?
 
