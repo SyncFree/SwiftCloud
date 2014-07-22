@@ -19,7 +19,6 @@ package swift.dc;
 import static sys.net.api.Networking.Networking;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -539,8 +538,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         if (logger.isLoggable(Level.INFO)) {
             logger.info("BatchCommitUpdatesRequest ... lastSeqNo=" + session.getLastSeqNo());
         }
-        final List<Timestamp> tsLst = Collections.synchronizedList(new LinkedList<Timestamp>());
-        final List<CommitUpdatesReply> reply = Collections.synchronizedList(new LinkedList<CommitUpdatesReply>());
+
+        final List<Timestamp> tsLst = new LinkedList<Timestamp>();
+        final List<CommitUpdatesReply> reply = new LinkedList<CommitUpdatesReply>();
+
         for (CommitUpdatesRequest r : request.getCommitRequests()) {
             if (session.getLastSeqNo() != null
                     && session.getLastSeqNo().getCounter() >= r.getCltTimestamp().getCounter()) {
@@ -552,8 +553,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             } else {
                 // Respect internal dependencies in the batch.
                 r.addTimestampsToDeps(tsLst);
+                final Semaphore sem = new Semaphore(0);
                 prepareAndDoCommit(session, r, new FutureResultHandler<CommitUpdatesReply>() {
-
                     @Override
                     public void onResult(CommitUpdatesReply repOne) {
                         if (repOne.getStatus() == CommitStatus.COMMITTED_WITH_KNOWN_TIMESTAMPS) {
@@ -562,12 +563,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                                 tsLst.addAll(tsLstOne);
                         }
                         reply.add(repOne);
-                        if (reply.size() == request.getCommitRequests().size())
-                            conn.reply(new BatchCommitUpdatesReply(reply));
+                        sem.release();
                     }
                 });
+                sem.acquireUninterruptibly();
             }
         }
+        conn.reply(new BatchCommitUpdatesReply(reply));
     }
 
     @Override
