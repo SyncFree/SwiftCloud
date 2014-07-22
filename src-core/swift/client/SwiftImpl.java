@@ -474,6 +474,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             };
         }
 
+        CausalityClock nextSnapshotClock = forceDCClockEstimatesUpdate();
+        if (nextSnapshotClock != null) {
+            updateNextAvailableSnapshot(nextSnapshotClock);
+        } else {
+            logger.warning(getScoutId() + ": " + "Could not obtain the initial snapshot clock");
+        }
+
         if (cacheUpdateProtocol == CacheUpdateProtocol.CAUSAL_PERIODIC_REFRESH) {
             cacheUpdateTask = new PeriodicTask(cacheRefreshPeriodSec, cacheRefreshPeriodSec) {
                 @Override
@@ -481,13 +488,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     refreshCache();
                 }
             };
-        }
-
-        CausalityClock nextSnapshotClock = forceDCClockEstimatesUpdate();
-        if (nextSnapshotClock != null) {
-            updateNextAvailableSnapshot(nextSnapshotClock);
-        } else {
-            logger.warning(getScoutId() + ": " + "Could not obtain the initial snapshot clock");
         }
     }
 
