@@ -37,6 +37,8 @@ PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MA
 
 // TOPOLOGY
 
+Topology.clear()
+
 // Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
 // NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
 Oregon =  DC([
@@ -78,7 +80,7 @@ WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationc
     'localrecordcount':'150',
     'localrequestproportion':'0.8',
 ]
-REPORTS = ['swift.reports':'APP_OP,METADATA', 'swift.reportEveryOperation':'true']
+REPORTS = ['swift.reports':'APP_OP,METADATA,STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB', 'swift.reportEveryOperation':'true']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + REPORTS + OPTIONS + ['maxexecutiontime' : Duration]
 
@@ -141,22 +143,39 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/ycsb/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version + "-" +
-        String.format("DC-%s-SU-%s-pruning-%d-notifications-%d-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, NotificationsPeriodMillis, Topology.totalScouts(), Threads, DbSize, OpsNum)
+def dstDir="results/ycsb/" + new Date().format('MMMdd-') + System.currentTimeMillis() + "-" + Version + "-" + "test"
+// add suffixes on demand, based on per-experiment variable
+//        + String.format("DC-%s-SU-%s-pruning-%d-notifications-%d-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, NotificationsPeriodMillis, Topology.totalScouts(), Threads, DbSize, OpsNum)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
+Topology.datacenters.each { dc ->
+    pslurp( dc.surrogates, "sur-stderr.txt", dstDir, "sur-stderr.log", 30)
+    pslurp( dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 30)
+    pslurp( dc.sequencers, "seq-stderr.txt", dstDir, "seq-stderr.log", 30)
+    pslurp( dc.sequencers, "seq-stdout.txt", dstDir, "seq-stdout.log", 30)
+}
 configFile = new File(dstDir, "config")
 configFile.createNewFile()
 configFile.withWriter { out ->
     out.writeLine(config)
 }
 
-exec([
+def stats = exec([
     "/bin/bash",
     "-c",
     "wc " + dstDir + "/*/*"
+])
+
+exec([
+	"tar",
+	"-czf",
+	dstDir+".tar.gz",
+	dstDir
 ]).waitFor()
+
+stats.waitFor()
+
 
 System.exit(0)
 

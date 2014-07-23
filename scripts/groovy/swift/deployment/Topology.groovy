@@ -11,6 +11,11 @@ class Topology {
         return "" + ('XYZABCDEFGHIJKLMNOPQRSTUVWxyzabcdefghijklmnopqrstuvw').charAt(index);
     }
 
+    static void clear() {
+        datacenters.clear()
+        scoutGroups.clear()
+    }
+
     def static Datacenter DC(List sequencers, List surrogates) {
         return new Datacenter( sequencers, surrogates)
     }
