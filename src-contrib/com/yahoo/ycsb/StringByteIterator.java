@@ -77,14 +77,14 @@ public class StringByteIterator extends ByteIterator {
 	}
 
 	@Override
-	public byte nextByte() {
+	protected byte nextByte0() {
 		byte ret = (byte)str.charAt(off);
 		off++;
 		return ret;
 	}
 
 	@Override
-	public long bytesLeft() {
+	protected long bytesLeft0() {
 		return str.length() - off;
 	}
 

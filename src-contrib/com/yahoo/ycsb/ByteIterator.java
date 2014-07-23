@@ -44,6 +44,10 @@ import java.util.ArrayList;
  */
 public abstract class ByteIterator implements Iterator<Byte> {
 
+    transient byte []b = new byte[6];
+    transient short read = 0;   // number of bytes in b
+    transient short consumed  = 0;   // number of bytes consumed from b
+    
 	@Override
 	public abstract boolean hasNext();
 
@@ -53,7 +57,32 @@ public abstract class ByteIterator implements Iterator<Byte> {
 		//return nextByte();
 	}
 
-	public abstract byte nextByte();
+	public final long getTimestamp() {
+	    while( read < 6 && bytesLeft0() > 0) {
+	        b[read++] = nextByte0();
+	    }
+	    if( read < 6)
+	        return -1;
+	    long t = (b[5] - ' ');
+	    t = (t << 5) + (b[4] - ' ');;
+        t = (t << 5) + (b[3] - ' ');;
+        t = (t << 5) + (b[2] - ' ');;
+        t = (t << 5) + (b[1] - ' ');;
+        t = (t << 5) + (b[0] - ' ');;
+        return t;
+	}
+	
+    protected abstract byte nextByte0();
+
+	public final byte nextByte() {
+	    if( consumed >= 6)
+	        return nextByte0();
+	    if( consumed < read)
+	        return b[consumed++];
+	    b[read++] = nextByte0();
+	    return b[consumed++];
+	}
+	
         /** @return byte offset immediately after the last valid byte */
 	public int nextBuf(byte[] buf, int buf_off) {
 		int sz = buf_off;
@@ -64,7 +93,11 @@ public abstract class ByteIterator implements Iterator<Byte> {
 		return sz;
 	}
 
-	public abstract long bytesLeft();
+	protected abstract long bytesLeft0();
+	
+    public final long bytesLeft() {
+        return bytesLeft0() + read - consumed;
+    }
 	
 	@Override
 	public void remove() {

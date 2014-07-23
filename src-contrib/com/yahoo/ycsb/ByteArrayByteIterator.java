@@ -38,14 +38,14 @@ public class ByteArrayByteIterator extends ByteIterator {
 	}
 
 	@Override
-	public byte nextByte() {
+	protected byte nextByte0() {
 		byte ret = str[off];
 		off++;
 		return ret;
 	}
 
 	@Override
-	public long bytesLeft() {
+	protected long bytesLeft0() {
 		return len - off;
 	}
 

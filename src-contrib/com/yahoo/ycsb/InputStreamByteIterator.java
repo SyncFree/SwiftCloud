@@ -35,7 +35,7 @@ public class InputStreamByteIterator extends ByteIterator {
 	}
 
 	@Override
-	public byte nextByte() {
+	protected byte nextByte0() {
 		int ret;
 		try {
 			ret = ins.read();
@@ -48,7 +48,7 @@ public class InputStreamByteIterator extends ByteIterator {
 	}
 
 	@Override
-	public long bytesLeft() {
+	protected long bytesLeft0() {
 		return len - off;
 	}
 

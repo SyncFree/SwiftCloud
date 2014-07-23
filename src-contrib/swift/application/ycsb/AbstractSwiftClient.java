@@ -251,11 +251,8 @@ public abstract class AbstractSwiftClient extends DB {
         String prefixS = table + ":" + key + ":";
         for (Entry<String, ByteIterator> entry : result.entrySet()) {
             ByteIterator it = entry.getValue();
-            long time = (long) it.nextByte();
-            time = time + ((long) it.nextByte()) << 7;
-            time = time + ((long) it.nextByte()) << 14;
-            time = time + ((long) it.nextByte()) << 21;
-            SafeLog.report(ReportType.STALENESS_YCSB_READ, sessionId, prefixS + entry.getKey(), time, readTimestamp);
+            SafeLog.report(ReportType.STALENESS_YCSB_READ, sessionId, prefixS + entry.getKey(), it.getTimestamp(),
+                    readTimestamp);
         }
     }
 
@@ -266,11 +263,7 @@ public abstract class AbstractSwiftClient extends DB {
         String prefixS = table + ":" + key + ":";
         for (Entry<String, ByteIterator> entry : values.entrySet()) {
             ByteIterator it = entry.getValue();
-            long time = (long) it.nextByte();
-            time = time + ((long) it.nextByte()) << 7;
-            time = time + ((long) it.nextByte()) << 14;
-            time = time + ((long) it.nextByte()) << 21;
-            SafeLog.report(ReportType.STALENESS_YCSB_WRITE, sessionId, prefixS + entry.getKey(), time);
+            SafeLog.report(ReportType.STALENESS_YCSB_WRITE, sessionId, prefixS + entry.getKey(), it.getTimestamp());
         }
     }
 }
