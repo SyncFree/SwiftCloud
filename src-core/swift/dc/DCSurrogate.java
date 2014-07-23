@@ -551,8 +551,9 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 // Also, non-stable clock should appear in internal dependencies
                 // in the batch.
             } else {
-                // Respect internal dependencies in the batch.
-                r.addTimestampsToDeps(tsLst);
+                // FIXME: is it required to respect internal dependencies in the
+                // batch? Order in the local DC is respected already.
+                // r.addTimestampsToDeps(tsLst);
                 final Semaphore sem = new Semaphore(0);
                 prepareAndDoCommit(session, r, new FutureResultHandler<CommitUpdatesReply>() {
                     @Override
