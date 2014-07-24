@@ -119,17 +119,26 @@ public abstract class AbstractSwiftClient extends DB {
         if (reportEveryOperation) {
             startTimestamp = System.currentTimeMillis();
         }
+        final int returnCode = readTxn(table, key, fields, result);
+        if (reportEveryOperation) {
+            if (returnCode == 0) {
+                final long durationMs = System.currentTimeMillis() - startTimestamp;
+                SafeLog.report(ReportType.APP_OP, sessionId, "read", durationMs);
+                reportStalenessOnRead(table, key, result, startTimestamp);
+            } else {
+                SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, "read", errorCause(returnCode));
+            }
+        }
+        return returnCode;
+    }
+
+    protected int readTxn(String table, String key, Set<String> fields, HashMap<String, ByteIterator> result) {
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, true);
             int res = readImpl(txn, table, key, fields, result);
             if (res == 0) {
                 txnCommit(txn);
-                if (reportEveryOperation) {
-                    final long durationMs = System.currentTimeMillis() - startTimestamp;
-                    SafeLog.report(ReportType.APP_OP, sessionId, "read", durationMs);
-                    reportStalenessOnRead(table, key, result, startTimestamp);
-                }
             }
             return res;
         } catch (SwiftException x) {
@@ -152,16 +161,25 @@ public abstract class AbstractSwiftClient extends DB {
             startTimestamp = System.currentTimeMillis();
             reportStalenessOnWrite(table, key, values);
         }
+        final int returnCode = updateTxn(table, key, values);
+        if (reportEveryOperation) {
+            if (returnCode == 0) {
+                final long durationMs = System.currentTimeMillis() - startTimestamp;
+                SafeLog.report(ReportType.APP_OP, sessionId, "update", durationMs);
+            } else {
+                SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, "update", errorCause(returnCode));
+            }
+        }
+        return returnCode;
+    }
+
+    private int updateTxn(String table, String key, HashMap<String, ByteIterator> values) {
         TxnHandle txn = null;
         try {
             txn = session.beginTxn(isolationLevel, cachePolicy, false);
             int res = updateImpl(txn, table, key, values);
             if (res == 0) {
                 txnCommit(txn);
-                if (reportEveryOperation) {
-                    final long durationMs = System.currentTimeMillis() - startTimestamp;
-                    SafeLog.report(ReportType.APP_OP, sessionId, "update", durationMs);
-                }
             }
             return res;
         } catch (SwiftException x) {
@@ -178,6 +196,19 @@ public abstract class AbstractSwiftClient extends DB {
             startTimestamp = System.currentTimeMillis();
             reportStalenessOnWrite(table, key, values);
         }
+        final int returnCode = insertTxn(table, key, values);
+        if (reportEveryOperation) {
+            if (returnCode == 0) {
+                final long durationMs = System.currentTimeMillis() - startTimestamp;
+                SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
+            } else {
+                SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, "insert", errorCause(returnCode));
+            }
+        }
+        return returnCode;
+    }
+
+    private int insertTxn(String table, String key, HashMap<String, ByteIterator> values) {
         TxnHandle txn = null;
         try {
             // WISHME: blind updates would help here
@@ -185,10 +216,6 @@ public abstract class AbstractSwiftClient extends DB {
             int res = insertImpl(txn, table, key, values);
             if (res == 0) {
                 txnCommit(txn);
-                if (reportEveryOperation) {
-                    final long durationMs = System.currentTimeMillis() - startTimestamp;
-                    SafeLog.report(ReportType.APP_OP, sessionId, "insert", durationMs);
-                }
             }
             return res;
         } catch (SwiftException x) {
@@ -264,6 +291,23 @@ public abstract class AbstractSwiftClient extends DB {
         for (Entry<String, ByteIterator> entry : values.entrySet()) {
             ByteIterator it = entry.getValue();
             SafeLog.report(ReportType.STALENESS_YCSB_WRITE, sessionId, prefixS + entry.getKey(), it.getTimestamp());
+        }
+    }
+
+    private String errorCause(int errorCode) {
+        switch (errorCode) {
+        case ERROR_NETWORK:
+            return "network_failure";
+        case ERROR_NOT_FOUND:
+            return "object_not_found";
+        case ERROR_PRUNING_RACE:
+            return "version_pruned";
+        case ERROR_UNSUPPORTED:
+            return "unsupported_operation";
+        case ERROR_WRONG_TYPE:
+            return "wrong_object_type";
+        default:
+            return "unknown";
         }
     }
 }
