@@ -99,6 +99,9 @@ public class CommitUpdatesReply implements RpcMessage {
      *         the transaction; otherwise null
      */
     public List<Timestamp> getCommitTimestamps() {
+        if (commitTimestamps == null) {
+            return null;
+        }
         return Collections.unmodifiableList(commitTimestamps);
     }
 
