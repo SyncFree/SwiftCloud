@@ -135,13 +135,13 @@ for (mode in modes) {
       through <- hist(d$timestamp, breaks=steps)
       summary(through$counts)
       newd <- data.frame(mode=mode,cap=cap,TH=th,mean=mean(through$counts),min=min(through$counts),median=median(through$counts),max=max(through$counts))
-      rbind(throughput.stats,newd)
+      throughput.stats <- rbind(throughput.stats,newd)
       rm(d)
       rmdir(tmp_subdir)
     }
   }
 }
 
-throughput.stats
+write.table(throughput.stats, paste(toplevel_path, "throughput.csv", sep="/"), sep=",", row.names=FALSE)
 
 rmdir(tmp_dir)
