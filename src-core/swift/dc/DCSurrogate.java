@@ -510,8 +510,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                             }
                             resHandler.onResult(new CommitUpdatesReply(txTs));
                             // return new CommitUpdatesReply(txTs);
-                        } else
+                        } else {
+                            // FIXME: CommitTSStatus.FAILED if not well
+                            // documented. How comes it can fail?
+                            logger.warning("Commit: failed for request " + req);
                             resHandler.onResult(new CommitUpdatesReply());
+                        }
                     }
                 }, 0);
 
