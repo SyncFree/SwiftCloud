@@ -16,21 +16,15 @@ preprocess_OP <- function (data){
 }
 
 rmdir <- function(dir) {
-  system(paste("rm -Rf", dir), wait=TRUE)
-  # Avoid strange FS-level races
-  Sys.sleep(1)
+  unlink(dir, recursive=TRUE)
 }
 
 mkdir <- function(dir) {
-  system(paste("mkdir -p", dir), wait=TRUE)
-  # Avoid strange FS-level races
-  Sys.sleep(1)
+  dir.create(dir, recursive=TRUE)
 }
 
 untargz <- function(archive,output_dir) {
-  system(paste("cd", output_dir, "&&", "tar -zxf", archive), wait=TRUE)
-  # Avoid strange FS-level races
-  Sys.sleep(1)
+  untar(archive, exdir=output_dir, compressed="gzip")
 }
 
 
