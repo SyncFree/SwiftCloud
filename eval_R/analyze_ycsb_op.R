@@ -1,3 +1,5 @@
+
+
 #Import and install required packages
 require("ggplot2");
 require("reshape2");
@@ -14,16 +16,20 @@ preprocess_OP <- function (data){
 }
 
 rmdir <- function(dir) {
-  system(paste("rm -Rf", dir))
+  system(paste("rm -Rf", dir), wait=TRUE)
+  # Avoid strange FS-level races
+  Sys.sleep(1)
 }
 
 mkdir <- function(dir) {
-  system(paste("mkdir -p", dir))
+  system(paste("mkdir -p", dir), wait=TRUE)
+  # Avoid strange FS-level races
+  Sys.sleep(1)
 }
 
 untargz <- function(archive,output_dir) {
   system(paste("cd", output_dir, "&&", "tar -zxf", archive), wait=TRUE)
-  # avoid weird strange FS-level races
+  # Avoid strange FS-level races
   Sys.sleep(1)
 }
 
@@ -38,16 +44,21 @@ tmp_dir <- paste(toplevel_path, "tmp", sep="/")
 tar_list <- list.files(toplevel_path, pattern="*.tar.gz",recursive=TRUE)
 tar_list <- (paste(toplevel_path,tar_list,sep="/"))
 
+rmdir(tmp_dir)
+mkdir(tmp_dir)
+
 # The following variables and for loops are ad-hoc per experiment family
 # TODO: extract functions to process logs and produce aggregated information, graphs etc.
 modes <- c("no-caching", "notifications", "refresh-frequent", "refresh-infrequent")
 caps <- c(6000,8000,10000)
 threads <- c(4,12,20,28,36,44,52,60)
 throughput.stats <- data.frame(mode=character(),cap=integer(),TH=integer(),mean=double(),median=double(),min=double(),max=double())
+
 for (mode in modes) {
   for (cap in caps) {
     for(th in threads) {
-      pattern <- paste(paste(mode,"cap",cap,"TH",th,sep="-"),".tar.gz", sep="")
+      base_pattern <- paste(mode,"cap",cap,"TH",th,sep="-")
+      pattern <- paste(base_pattern,".tar.gz", sep="")
       t <- grep(pattern, tar_list)
       if (length(t) <= 0) {
         warning(paste("could not find archive matching pattern:", pattern))
@@ -62,12 +73,13 @@ for (mode in modes) {
       }
       tar <- tar_list[t]
       print(paste("Processing archive", tar))
-      rmdir(tmp_dir)
-      mkdir(tmp_dir)
-      untargz(tar, tmp_dir)
+      tmp_subdir <- paste(tmp_dir, base_pattern, sep="/")
+      rmdir(tmp_subdir)
+      mkdir(tmp_subdir)
+      untargz(tar, tmp_subdir)
       
-      file_list <- list.files(tmp_dir, pattern="*scout-stdout.log",recursive=TRUE)
-      file_list <- (paste(tmp_dir,file_list,sep="/"))
+      file_list <- list.files(tmp_subdir, pattern="*scout-stdout.log",recursive=TRUE)
+      file_list <- (paste(tmp_subdir,file_list,sep="/"))
     
       d <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),duration=numeric())
       
@@ -131,9 +143,11 @@ for (mode in modes) {
       newd <- data.frame(mode=mode,cap=cap,TH=th,mean=mean(through$counts),min=min(through$counts),median=median(through$counts),max=max(through$counts))
       rbind(throughput.stats,newd)
       rm(d)
-      rmdir(tmp_dir)
+      rmdir(tmp_subdir)
     }
   }
 }
 
 throughput.stats
+
+rmdir(tmp_dir)
