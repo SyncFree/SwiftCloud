@@ -80,7 +80,7 @@ WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationc
     'localrecordcount':'150',
     'localrequestproportion':'0.8',
 ]
-REPORTS = ['swift.reports':'APP_OP,METADATA,STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB', 'swift.reportEveryOperation':'true']
+REPORTS = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA,STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB', 'swift.reportEveryOperation':'true']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + REPORTS + OPTIONS + ['maxexecutiontime' : Duration]
 
