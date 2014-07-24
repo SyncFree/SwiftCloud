@@ -5,13 +5,18 @@ require("ggplot2");
 require("reshape2");
 require("gridExtra");
 
-preprocess_OP <- function (data){
+select_OP <- function (data){
   #Data format is:
   #timestamp_ms,APP_OP,session_id,operation_name,duration_ms
   
   #Filter for batch updates
   data <- subset(data,data$V2=="APP_OP")
-  data <- subset(data,data$V4=="read" | data$V4=="update")
+  # data <- subset(data,data$V4=="read" | data$V4=="update")
+  return (data)
+}
+
+select_OP_FAILURE <- function (data) {
+  data <- subset(data,data$V2=="APP_OP_FAILURE")
   return (data)
 }
 
@@ -43,10 +48,11 @@ mkdir(tmp_dir)
 
 # The following variables and for loops are ad-hoc per experiment family
 # TODO: extract functions to process logs and produce aggregated information, graphs etc.
-modes <- c("no-caching", "notifications", "refresh-frequent", "refresh-infrequent")
+modes <- c("no-caching") #, "notifications", "refresh-frequent", "refresh-infrequent")
 caps <- c(6000,8000,10000)
 threads <- c(4,12,20,28,36,44,52,60)
 throughput.stats <- data.frame(mode=character(),cap=integer(),TH=integer(),mean=double(),median=double(),min=double(),max=double())
+errors.stats <- data.frame(mode=character(),cap=integer(),TH=integer(),occurences=integer())
 
 for (mode in modes) {
   for (cap in caps) {
@@ -76,12 +82,18 @@ for (mode in modes) {
       file_list <- (paste(tmp_subdir,file_list,sep="/"))
     
       d <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),duration=numeric())
+      derr <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),cause=character())
       
       #Sort by number of threads
       for (file in file_list){
         temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
-        temp_dataset <- preprocess_OP(temp_dataset);
-        d <- rbind(d, temp_dataset)
+        op_dataset <- select_OP(temp_dataset);
+        d <- rbind(d, op_dataset)
+        rm(op_dataset)
+
+        err_dataset <- select_OP_FAILURE(temp_dataset);
+        derr <-rbind(derr, err_dataset)
+        rm(err_dataset)
         rm(temp_dataset)
       }
       print(paste("Loaded", length(file_list), "files"))
@@ -136,12 +148,17 @@ for (mode in modes) {
       summary(through$counts)
       newd <- data.frame(mode=mode,cap=cap,TH=th,mean=mean(through$counts),min=min(through$counts),median=median(through$counts),max=max(through$counts))
       throughput.stats <- rbind(throughput.stats,newd)
+
+      errors.stats <- rbind(errors.stats,data.frame(mode=mode,cap=cap,TH=th,length(derr)))
+      
       rm(d)
+      rm(derr)
       rmdir(tmp_subdir)
     }
   }
 }
 
 write.table(throughput.stats, paste(toplevel_path, "throughput.csv", sep="/"), sep=",", row.names=FALSE)
+write.table(errors.stats, paste(toplevel_path, "errors.csv", sep="/"), sep=",", row.names=FALSE)
 
 rmdir(tmp_dir)
