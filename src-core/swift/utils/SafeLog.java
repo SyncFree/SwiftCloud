@@ -31,6 +31,8 @@ public class SafeLog {
 
         APP_OP(3, "session_id,operation_name,duration_ms"),
 
+        APP_OP_FAILURE(3, "session_id,operation_name,cause"),
+
         IDEMPOTENCE_GUARD_SIZE(1, "entries");
 
         private final int fieldsNumber;
