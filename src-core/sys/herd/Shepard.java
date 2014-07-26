@@ -64,7 +64,7 @@ public class Shepard extends ShepardProtoHandler {
             public void onReceive(GrazingGranted permission) {
                 System.err.println("Got from shepard; when:" + permission.when() + "/ duration:"
                         + permission.duration());
-                Threading.sleep(permission.when() + new java.util.Random().nextInt(5000));
+                Threading.sleep(permission.when() + new java.util.Random().nextInt(10000));
                 barrier.release();
                 new Task(permission.duration()) {
                     public void run() {

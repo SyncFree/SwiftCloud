@@ -68,7 +68,7 @@ IncomingOpPerSecLimit = 10000000 // :-)
 IncomingOpPerSecPerClientLimit = (int) (IncomingOpPerSecLimit / Scouts.size())
 
 Duration = 360
-DurationShepardGrace = 6
+DurationShepardGrace = 12
 InterCmdDelay = 30
 
 WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
