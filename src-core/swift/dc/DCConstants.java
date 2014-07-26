@@ -59,7 +59,7 @@ public class DCConstants {
 
     public static final String PRUNE_POLICY = "prune";
 
-    public static final int DEFAULT_TRXIDTIME = 5000;
+    public static final int DEFAULT_TRXIDTIME = 600000;
 
     public static final String PRUNING_INTERVAL_PROPERTY = "swift.pruningIntervalMillis";
 
