@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -126,10 +127,18 @@ final public class DCSurrogate extends SwiftProtocolHandler {
     final ThreadPoolExecutor generalExecutor;
     private final int notificationPeriodMillis;
 
+    final ThreadLocal<Random> timeSmootherRandom;
+
     DCSurrogate(String siteId, int port4Clients, int port4Sequencers, Endpoint sequencerEndpoint, Properties props) {
         this.siteId = siteId;
         this.surrogateId = "s" + System.nanoTime();
         this.pubsubPort = port4Clients + 1;
+        this.timeSmootherRandom = new ThreadLocal<Random>() {
+            @Override
+            protected Random initialValue() {
+                return new Random();
+            }
+        };
 
         this.sequencerServerEndpoint = sequencerEndpoint;
         this.cltEndpoint4Sequencer = Networking.rpcConnect().toDefaultService();
@@ -647,7 +656,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (notificationsTask != null) {
                 return;
             }
-            notificationsTask = new PeriodicTask(0.5, notificationPeriodMillis * 0.001) {
+            notificationsTask = new PeriodicTask(timeSmootherRandom.get().nextDouble() * notificationPeriodMillis,
+                    notificationPeriodMillis * 0.001) {
                 public void run() {
                     tryFireClientNotification();
                 }
