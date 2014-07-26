@@ -42,8 +42,7 @@ select_METADATA <- function (data) {
 }
 
 process_experiment_run_dir <- function(dir, run_id, output_prefix) {
-  file_list <- list.files(dir, pattern="*scout-stdout.log",recursive=TRUE)
-  file_list <- (file.path(dir,file_list))
+  file_list <- list.files(dir, pattern="*scout-stdout.log",recursive=TRUE,full.names=TRUE)
   
   if (length(file_list) == 0) {
     warning(paste("No logs found in", dir))
