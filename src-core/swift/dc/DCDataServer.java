@@ -444,7 +444,7 @@ final class DCDataServer {
                 // sure after the switch to op-based.
                 data = localPutCRDT(crdt);
             }
-            data.pruneIfPossible(pruningInterval);
+            data.pruneIfPossible(pruningInterval + surrogate.timeSmootherRandom.get().nextInt(pruningInterval));
 
             // crdt.augumentWithScoutClock(new Timestamp(clientId, clientTxs))
             // //
