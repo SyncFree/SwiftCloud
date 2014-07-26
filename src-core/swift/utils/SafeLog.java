@@ -26,7 +26,7 @@ public class SafeLog {
 
         STALENESS_YCSB_WRITE(3, "sessionID,object,write_timestamp"),
 
-        METADATA(9, "timestamp_ms,session_id,message_name," + "total_message_size,version_or_update_size,value_size,"
+        METADATA(9, "session_id,message_name," + "total_message_size,version_or_update_size,value_size,"
                 + "explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num"),
 
         APP_OP(3, "session_id,operation_name,duration_ms"),
