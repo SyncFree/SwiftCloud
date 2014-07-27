@@ -95,6 +95,18 @@ class Topology {
             }
         }
 
+		void deployIntegratedSurrogatesExtraArgs(String shepard, String extraArgs, String surHeap = "512m") {
+            def siteId = dcKey( Topology.datacenters.indexOf(this));
+
+            def otherSequencers = sequencers() - this.sequencers
+			def seqArgs = "-integrated -sequencers "
+        	otherSequencers.each { seqArgs += it + " "}
+        
+            surrogates.each { host ->
+                def otherSurrogates = surrogates - host
+                rshC(host, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, seqArgs + extraArgs ), "sur-stderr.txt", "sur-stdout.txt" ))
+            }
+        }
         void deploySurrogates(String shepard, String surHeap = "512m") {
             deploySurrogatesExtraArgs( shepard, "", surHeap)
         }
