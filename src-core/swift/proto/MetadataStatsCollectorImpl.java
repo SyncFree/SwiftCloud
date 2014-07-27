@@ -5,8 +5,8 @@ import swift.utils.SafeLog.ReportType;
 import sys.net.impl.KryoLib;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 import com.esotericsoftware.kryo.io.Output;
-import com.esotericsoftware.kryo.io.UnsafeMemoryOutput;
 
 /**
  * A collector of metadata statistics.
@@ -15,9 +15,9 @@ import com.esotericsoftware.kryo.io.UnsafeMemoryOutput;
  */
 public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     private String scoutId;
-    private ThreadLocal<UnsafeMemoryOutput> freshKryoBuffer = new ThreadLocal<UnsafeMemoryOutput>() {
-        protected UnsafeMemoryOutput initialValue() {
-            return new UnsafeMemoryOutput(1 << 20);
+    private ThreadLocal<ByteBufferOutput> freshKryoBuffer = new ThreadLocal<ByteBufferOutput>() {
+        protected ByteBufferOutput initialValue() {
+            return new ByteBufferOutput(1 << 20);
         }
     };
 
