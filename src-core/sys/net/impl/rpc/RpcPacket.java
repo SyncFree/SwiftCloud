@@ -31,7 +31,10 @@ import sys.net.api.rpc.RpcHandle;
 import sys.net.api.rpc.RpcHandler;
 import sys.net.api.rpc.RpcMessage;
 
-final public class RpcPacket extends AbstractRpcPacket {
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.KryoCopyable;
+
+final public class RpcPacket extends AbstractRpcPacket implements KryoCopyable<RpcPacket> {
 
     private static Logger Log = Logger.getLogger(RpcPacket.class.getName());
 
@@ -89,6 +92,7 @@ final public class RpcPacket extends AbstractRpcPacket {
                 try {
                     pkt.reply = pkt.queue.poll(timeout, TimeUnit.MILLISECONDS);
                 } catch (Exception x) {
+                    x.printStackTrace();
                 }
                 if (pkt.reply != null)
                     pkt.reply.payload.deliverTo(pkt.reply, pkt.handler);
@@ -103,6 +107,9 @@ final public class RpcPacket extends AbstractRpcPacket {
 
     @Override
     public RpcHandle reply(RpcMessage msg, RpcHandler replyHandler, int timeout) {
+        if (this.replyHandlerId == 0L)
+            return null;
+
         RpcPacket pkt = new RpcPacket(fac, remote(), msg, this, replyHandler, timeout, false);
         if (timeout != 0) {
             pkt.queue = new SynchronousQueue<AbstractRpcPacket>();
@@ -128,13 +135,16 @@ final public class RpcPacket extends AbstractRpcPacket {
             try {
                 queue.put(pkt);
             } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         else {
             if (this.handler != null)
                 pkt.payload.deliverTo(pkt, this.handler);
-            else
+            else {
                 Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null", pkt
                         .getPayload().getClass(), pkt.remote()));
+                Thread.dumpStack();
+            }
         }
     }
 
@@ -145,6 +155,7 @@ final public class RpcPacket extends AbstractRpcPacket {
                 payload = null;
                 return true;
             } else {
+                failed = true;
                 if (handler != null)
                     handler.onFailure(this);
                 else if (handle.handler != null)
@@ -188,5 +199,16 @@ final public class RpcPacket extends AbstractRpcPacket {
     @Override
     public RpcFactory getFactory() {
         return fac;
+    }
+
+    @Override
+    public RpcPacket copy(Kryo k) {
+        RpcPacket res = new RpcPacket();
+
+        res.handlerId = this.handlerId;
+        res.replyHandlerId = this.replyHandlerId;
+        res.payload = this.payload;
+
+        return res;
     }
 }
