@@ -217,7 +217,10 @@ class ClientThread extends Thread
 		   //and the sleep() doesn't make sense for granularities < 1 ms anyway
 		   if ( (_target>0) && (_target<=1.0) ) 
 		   {
-		      sleep(Utils.random().nextInt((int)(1.0/_target)));
+		      // sleep(Utils.random().nextInt((int)(1.0/_target)));
+		   }
+		   if (_dotransactions) {
+		       sleep(Utils.random().nextInt(10000));
 		   }
 		}
 		catch (InterruptedException e)
