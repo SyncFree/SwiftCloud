@@ -20,6 +20,8 @@ import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_DOMINATES;
 import static swift.clocks.CausalityClock.CMP_CLOCK.CMP_EQUALS;
 import static swift.dc.DCConstants.DATABASE_CLASS;
 import static sys.net.api.Networking.Networking;
+import static sys.net.api.Networking.TransportProvider.DEFAULT;
+import static sys.net.api.Networking.TransportProvider.INPROC;
 
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -57,6 +59,7 @@ import swift.proto.SeqCommitUpdatesReply;
 import swift.proto.SeqCommitUpdatesRequest;
 import swift.proto.SwiftProtocolHandler;
 import sys.net.api.Endpoint;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.utils.Args;
@@ -74,7 +77,9 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     DCSequencerServer thisServer = this;
 
     RpcEndpoint srvEndpoint;
-    RpcEndpoint cltEndpoint;
+
+    RpcEndpoint srvEndpoint4Surrogates;
+    RpcEndpoint cltEndpoint4Surrogates;
 
     IncrementalTimestampGenerator clockGen;
     CausalityClock receivedMessages;
@@ -219,8 +224,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                     if (req != null) {
                         SeqCommitUpdatesRequest req1 = req;
                         if (serversEP.size() > 0) {
-                            Endpoint surrogate = serversEP.get(Math.abs(req1.hashCode()) % servers.size());
-                            cltEndpoint.send(surrogate, req1);
+                            Endpoint surrogate = serversEP.get(Math.abs(req1.hashCode()) % serversEP.size());
+                            cltEndpoint4Surrogates.send(surrogate, req1);
                             req.lastSent = System.currentTimeMillis();
                         }
                     } else
@@ -228,7 +233,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 }
             }
         });
-        th.setPriority(Math.max( th.getPriority() - 1, Thread.MIN_PRIORITY));
+        th.setPriority(Math.max(th.getPriority() - 1, Thread.MIN_PRIORITY));
         th.start();
     }
 
@@ -269,12 +274,19 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         for (String s : servers)
             serversEP.add(Networking.resolve(s, DCConstants.SURROGATE_PORT_FOR_SEQUENCERS));
 
+        if (serversEP.isEmpty())
+            serversEP.add(Networking.resolve("localhost", DCConstants.SURROGATE_PORT_FOR_SEQUENCERS));
+
         this.sequencersEP = new ArrayList<Endpoint>();
         for (String s : sequencers)
             sequencersEP.add(Networking.resolve(s, DCConstants.SEQUENCER_PORT));
 
-        this.cltEndpoint = Networking.rpcConnect().toDefaultService();
         this.srvEndpoint = Networking.rpcBind(port).toDefaultService().setHandler(this);
+
+        TransportProvider provider = Args.contains("-integrated") ? INPROC : DEFAULT;
+
+        this.cltEndpoint4Surrogates = Networking.rpcConnect(provider).toDefaultService();
+        this.srvEndpoint4Surrogates = Networking.rpcBind(port, provider).toDefaultService().setHandler(this);
 
         if (sequencerShadow != null)
             sequencerShadowEP = Networking.resolve(sequencerShadow, DCConstants.SEQUENCER_PORT);
@@ -389,7 +401,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                 }
             }
         });
-        t.setPriority(Math.max( t.getPriority() - 1, Thread.MIN_PRIORITY));
+        t.setPriority(Math.max(t.getPriority() - 1, Thread.MIN_PRIORITY));
         t.start();
     }
 
@@ -594,7 +606,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
                     request.getCltTimestamp(), request.getPrvCltTimestamp(), request.getObjectUpdateGroups(), clk,
                     nuClk);
 
-            cltEndpoint.send(sequencerShadowEP, msg);
+            srvEndpoint.send(sequencerShadowEP, msg);
         }
 
         addToOps(new CommitRecord(nuClk, request.getObjectUpdateGroups(), request.getTimestamp(),
@@ -645,7 +657,7 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         conn.reply(new SeqCommitUpdatesReply(siteId, currentClockCopy(), stableClockCopy(), receivedMessagesCopy()));
 
         if (!isBackup && sequencerShadowEP != null) {
-            cltEndpoint.send(sequencerShadowEP, request);
+            srvEndpoint.send(sequencerShadowEP, request);
         }
 
         addPending(request);
@@ -660,6 +672,8 @@ public class DCSequencerServer extends SwiftProtocolHandler {
     }
 
     public static void main(String[] args) {
+        Args.use(args);
+
         final String dbSuffix = "_seq";
 
         final Properties props = new Properties();
@@ -686,36 +700,22 @@ public class DCSequencerServer extends SwiftProtocolHandler {
             props.setProperty(DCConstants.PRUNE_POLICY, "false");
         }
 
-        List<String> sequencers = new ArrayList<String>();
-        List<String> servers = new ArrayList<String>();
-        int port = DCConstants.SEQUENCER_PORT;
-        boolean isBackup = false;
-        String sequencerShadow = null;
-        String siteId = "X";
         for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("-name")) {
-                siteId = args[++i];
-            } else if (args[i].equals("-servers")) {
-                for (; i + 1 < args.length; i++) {
-                    if (args[i + 1].startsWith("-"))
-                        break;
-                    servers.add(args[i + 1]);
-                }
-            } else if (args[i].equals("-sequencers")) {
-                for (; i + 1 < args.length; i++) {
-                    if (args[i + 1].startsWith("-"))
-                        break;
-                    sequencers.add(args[i + 1]);
-                }
-            } else if (args[i].equals("-port")) {
-                port = Integer.parseInt(args[++i]);
-            } else if (args[i].equals("-backup")) {
-                isBackup = true;
-            } else if (args[i].equals("-sequencerShadow")) {
-                sequencerShadow = args[++i];
-            } else if (args[i].startsWith("-prop:")) {
+            if (args[i].startsWith("-prop:")) {
                 props.setProperty(args[i].substring(6), args[++i]);
             }
+        }
+
+        String siteId = Args.valueOf("-name", "X");
+        boolean isBackup = Args.valueOf("-backup", false);
+        String sequencerShadow = Args.valueOf("-sequencerShadow", null);
+
+        int port = Args.valueOf("-port", DCConstants.SEQUENCER_PORT);
+
+        List<String> sequencers = Args.subList("-sequencers");
+        List<String> servers = Args.subList("-servers");
+        if (Args.contains("-integrated") && servers.isEmpty()) {
+            servers = Args.subList("-surrogates");
         }
 
         new DCSequencerServer(siteId, port, servers, sequencers, sequencerShadow, isBackup, props).start();
