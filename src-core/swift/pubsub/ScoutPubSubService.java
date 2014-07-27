@@ -59,6 +59,7 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
             }
         });
 
+        // FIXME: make sure this is reliable!
         this.endpoint.send(suPubSub, new PubSubHandshake(clientId, disasterSafeSession));
 
         updater = new Task(5) {
