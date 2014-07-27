@@ -10,7 +10,6 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 
 import swift.crdt.core.CRDTIdentifier;
-import swift.dc.DCConstants;
 import swift.proto.MetadataStatsCollector;
 import swift.proto.PubSubHandshake;
 import swift.proto.SwiftProtocolHandler;

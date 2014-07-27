@@ -30,6 +30,7 @@ import sys.Sys;
 import sys.herd.Herd;
 import sys.net.api.Endpoint;
 import sys.utils.Args;
+import sys.utils.Threading;
 
 /**
  * Single server replying to client request. This class is used only to allow
@@ -59,17 +60,19 @@ public class DCServer {
 
         server = new DCSurrogate(siteId, port4Clients, port4Sequencers, sequencer, props);
     }
-    
-    
+
     /*
      * For starting two DCs in the same machine use the following parameters:
-     * DC1: -sequencer localhost -portSequencer 29996 -portSurrogate 29997 -portSurrogateForSequencers 29995 -name S1
-     * DC2: -sequencer localhost -portSequencer 39996 -portSurrogate 39997 -portSurrogateForSequencers 39995 -name S2
-     * Sequencers:
-     * SEQ 1: -servers localhost:29995 -name S1 -port 29996 -sequencers localhost:39996
-     * SEQ 2: -servers localhost:39995 -name S1 -port 39996 -sequencers localhost:29996
+     * DC1: -sequencer localhost -portSequencer 29996 -portSurrogate 29997
+     * -portSurrogateForSequencers 29995 -name S1 DC2: -sequencer localhost
+     * -portSequencer 39996 -portSurrogate 39997 -portSurrogateForSequencers
+     * 39995 -name S2 Sequencers: SEQ 1: -servers localhost:29995 -name S1 -port
+     * 29996 -sequencers localhost:39996 SEQ 2: -servers localhost:39995 -name
+     * S1 -port 39996 -sequencers localhost:29996
      */
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
+
+        Args.use(args);
 
         final Properties props = new Properties();
         props.putAll(System.getProperties());
@@ -100,17 +103,18 @@ public class DCServer {
 
         props.setProperty(DCConstants.PRUNING_INTERVAL_PROPERTY,
                 Args.valueOf(args, "-pruningMs", DCConstants.DEFAULT_PRUNING_INTERVAL_MS) + "");
-        
+
         props.setProperty(DCConstants.NOTIFICATION_PERIOD_PROPERTY,
                 Args.valueOf(args, "-notificationsMs", DCConstants.DEFAULT_NOTIFICATION_PERIOD_MS) + "");
 
         String sequencerNode = Args.valueOf(args, "-sequencer", "localhost");
-//        int pubsubPort = Args.valueOf(args, "-portPubSub", DCConstants.PUBSUB_PORT);
+        // int pubsubPort = Args.valueOf(args, "-portPubSub",
+        // DCConstants.PUBSUB_PORT);
         int portSequencer = Args.valueOf(args, "-portSequencer", SEQUENCER_PORT);
         int portSurrogate = Args.valueOf(args, "-portSurrogate", SURROGATE_PORT);
         sys.dht.DHT_Node.DHT_PORT = portSurrogate + 2;
         int port4Sequencers = Args.valueOf(args, "-portSurrogateForSequencers", SURROGATE_PORT_FOR_SEQUENCERS);
-        String siteId = Args.valueOf(args, "-name", "X0");
+        final String siteId = Args.valueOf(args, "-name", "X0");
 
         for (int i = 0; i < args.length; i++) {
             if (args[i].startsWith("-prop:")) {
@@ -125,6 +129,15 @@ public class DCServer {
 
         String shepard = Args.valueOf(args, "-shepard", sequencerNode);
         Herd.setDefaultShepard(shepard);
+
+        if (Args.contains("-integrated"))
+            Threading.newThread(true, new Runnable() {
+                public void run() {
+                    DCSequencerServer.main(args);
+                }
+            }).start();
+
+        Threading.sleep(3000);
 
         new DCServer(sequencerNode, props).startSurrogServer(siteId, portSurrogate, port4Sequencers, portSequencer);
     }
