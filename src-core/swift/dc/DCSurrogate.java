@@ -656,8 +656,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             if (notificationsTask != null) {
                 return;
             }
-            notificationsTask = new PeriodicTask(timeSmootherRandom.get().nextDouble() * notificationPeriodMillis,
-                    notificationPeriodMillis * 0.001) {
+            notificationsTask = new PeriodicTask(timeSmootherRandom.get().nextDouble() * notificationPeriodMillis
+                    * 0.001, notificationPeriodMillis * 0.001) {
                 public void run() {
                     tryFireClientNotification();
                 }
