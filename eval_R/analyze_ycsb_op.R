@@ -10,6 +10,16 @@ if (length(commandArgs(TRUE)) > 0) {
   stop("syntax: analyze_run.R <directory or tar.gz archive with log files for a run>")
 }
 
+format_ext <- ".png"
+
+adjust_timestamps <- function (data){
+  #Data format is:
+  #timestamp_ms,...
+  start_timestamp = min(data$V1)
+  data <- transform(data, V1=(data$V1 - start_timestamp))
+  return (data)
+}
+
 select_OP <- function (data){
   #Data format is:
   #timestamp_ms,APP_OP,session_id,operation_name,duration_ms
@@ -50,72 +60,66 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   
   dir.create(dirname(output_prefix), recursive=TRUE,showWarnings=FALSE)
   
-  d <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),duration=numeric())
-  derr <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),cause=character())
-  dmetadata <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),message=character(),totalMessageSize=numeric(),
-                          versionOrUpdateSize=numeric(),valueSize=numeric(),explicitGlobalMetadata=numeric(),batchSize=numeric(),
-                          maxVVSize=numeric(),maxVVExceptionsNum=numeric())                          
-  
-  #Sort by number of threads
   for (file in file_list){
     temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
-    op_dataset <- select_OP(temp_dataset);
-    d <- rbind(d, op_dataset)
-    rm(op_dataset)
-    
-    err_dataset <- select_OP_FAILURE(temp_dataset);
-    derr <-rbind(derr, err_dataset)
-    rm(err_dataset)
-    
-    metadata_dataset <- select_METADATA(temp_dataset);
-    dmetadata <-rbind(dmetadata, metadata_dataset)
-    rm(metadata_dataset)
-    
+    d <- rbind(d, temp_dataset)
     rm(temp_dataset)
   }
   print(paste("Loaded", length(file_list), "files"))
-  
-  #helper <- d
   #summary(d)
-  
   #Filter out the rows where duration couldn't be parsed due to 
   #d <- subset(d,!is.na(d$duration))
+  d <- adjust_timestamps(d)
+  # That should include at least one pruning point (60s)
+  prune_start <- 150000
+  duration_run <- 100000
+  # V1 = timestamp
+  dfiltered <- subset(d,d$V1 > prune_start & d$V1 - prune_start < duration_run)
   
+  # can it be done in a more compact way?
+  dop <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),duration=numeric())
+  derr <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),cause=character())
+  dmetadata <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),message=character(),totalMessageSize=numeric(),
+                          versionOrUpdateSize=numeric(),valueSize=numeric(),explicitGlobalMetadata=numeric(),batchSize=numeric(),
+                          maxVVSize=numeric(),maxVVExceptionsNum=numeric())
+  dop_filtered <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),duration=numeric())
+  derr_filtered <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),operation=character(),cause=character())
+  dmetadata_filtered <- data.frame(timestamp=numeric(),type=character(),sessionId=character(),message=character(),totalMessageSize=numeric(),
+                          versionOrUpdateSize=numeric(),valueSize=numeric(),explicitGlobalMetadata=numeric(),batchSize=numeric(),
+                          maxVVSize=numeric(),maxVVExceptionsNum=numeric())
+  dop <- select_OP(d)
+  derr <- select_OP_FAILURE(d)
+  dmetadata <- select_METADATA(d)
+  dop_filtered <- select_OP(dfiltered)
+  derr_filtered <- select_OP_FAILURE(dfiltered)
+  dmetadata_filtered <- select_METADATA(dfiltered)
   #Set names for columns
-  names(d) <- c("timestamp","type","sessionId","operation","duration")
+  names(dop) <- c("timestamp","type","sessionId","operation","duration")
+  names(dop_filtered) <- names(dop)
   names(derr) <- c("timestamp","type","sessionId","operation","cause")
+  names(derr_filtered) <- names(derr)
   names(dmetadata) <- c("timestamp","type","sessionId","message","totalMessageSize",
                    "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSize",
                    "maxVVSize","maxVVExceptionsNum")
-  
-  # Common tasks for YCSB and SwiftSocial experiments:
-  # TODO: aggregated throughput computation
-  
-  start_time <- min(d$timestamp)
-  prune_start <- 150000
-  # That should include at least one pruning point (60s)
-  duration_run <- 100000
-  d <- subset(d,d$timestamp - start_time > prune_start)
-  d <- subset(d,d$timestamp - start_time - prune_start < duration_run)
+  names(dmetadata_filtered) <- names(dmetadata)
+  rm(d)
+  rm(dfiltered)
 
-  dmetadata <- subset(dmetadata,dmetadata$timestamp - start_time > prune_start)
-  dmetadata <- subset(dmetadata,dmetadata$timestamp - start_time - prune_start < duration_run)
-  
-  #summary(d)
-  
   # PLOTS
-  format_ext <- ".png"
-  
   #!Making scatter plots takes quite long for our data with > 1.000.000 entries!
-  #Scatterplot for distribution over time
-  
-  # sampled_subset <- df[sample(nrow(df),n),]
-  scatter.plot <- ggplot(d, aes(timestamp,duration)) + geom_point(aes(color=operation))
+  #Scatterplot for distribution over time  
+  scatter.plot <- ggplot(dop, aes(timestamp,duration)) + geom_point(aes(color=operation))
   ggsave(scatter.plot, file=paste(output_prefix, "-operation_latencies",format_ext,collapse="", sep=""), scale=1)
+
+  # Throughput over time plot
+  # Careful: It seems that the first and last bin only cover 5000 ms
+  throughput.plot <- ggplot(dop, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
+  #throughput.plot
+  ggsave(throughput.plot, file=paste(output_prefix, "-throughput",format_ext,collapse="", sep=""), scale=1)
   
-  # Operation duration CDF Plot
-  cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
-  cdf.plot
+  # Operation duration CDF plot for the filtered period
+  cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
+  # cdf.plot
   ggsave(cdf.plot, file=paste(output_prefix, "-cdf",format_ext,collapse="", sep=""), scale=1)
   
   # TODO: record CDF information in a CSV file
@@ -123,24 +127,17 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   #Histogram
   #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
   
-  # Throughput over time plot
-  # Careful: It seems that the first and last bin only cover 5000 ms
-  throughput.plot <- ggplot(d, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
-  throughput.plot
-  ggsave(throughput.plot, file=paste(output_prefix, "-throughput",format_ext,collapse="", sep=""), scale=1)
-  
-  # Message occurences historgram
+  # Message occurences over time plot(s)
   for (m in unique(dmetadata$message)) {
     metadata.plot <- ggplot(subset(dmetadata, dmetadata$message==m), aes(x=timestamp)) + geom_histogram(binwidth=1000) 
-    metadata.plot
-    ggsave(metadata.plot, file=paste(output_prefix, "-message-occurence", m,format_ext,collapse="", sep=""), scale=1)
+    # metadata.plot
+    ggsave(metadata.plot, file=paste(output_prefix, "-message-occurence-", m,format_ext,collapse="", sep=""), scale=1)
   }
   
-  
-  # Throughput descriptive statistics
+  # Throughput descriptive statistics over filtered data
   throughput.stats <- data.frame(run_id=character(),mean=double(),median=double(),min=double(),max=double())
-  steps <- c(seq(min(d$timestamp),max(d$timestamp),by=1000), max(d$timestamp)) 
-  through <- hist(d$timestamp, breaks=steps)
+  steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp)) 
+  through <- hist(dop_filtered$timestamp, breaks=steps)
   summary(through$counts)
   newd <- data.frame(run_id=run_id,mean=mean(through$counts),min=min(through$counts),median=median(through$counts),max=max(through$counts))
   throughput.stats <- rbind(throughput.stats,newd)
@@ -148,14 +145,14 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   
   # Errors descriptive statistics
   errors.stats <- data.frame(run_id=character(),cause=character(),occurences=integer())  
-  # TODO: do it in R-idiomatic wa y
+  # TODO: do it in R-idiomatic way
   for (c in unique(derr$cause)) {
     o <- nrow(subset(derr, derr$cause==c))
     errors.stats <- rbind(errors.stats, data.frame(run_id=run_id, cause=c, occurences=o))
   }
   write.table(errors.stats, paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
 
-  rm(d)
+  rm(dop)
   rm(derr)
   rm(dmetadata)
 }
