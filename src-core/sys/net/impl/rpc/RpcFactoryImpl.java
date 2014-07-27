@@ -19,11 +19,8 @@ package sys.net.impl.rpc;
 import static sys.Sys.Sys;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRIES;
 import static sys.net.impl.NetworkingConstants.RPC_CONNECTION_RETRY_DELAY;
-import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_PERIOD;
-import static sys.net.impl.NetworkingConstants.RPC_GC_STALE_HANDLERS_TIMEOUT;
 import static sys.net.impl.NetworkingConstants.RPC_MAX_SERVICE_ID;
 
-import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -154,18 +151,21 @@ final public class RpcFactoryImpl implements RpcFactory, MessageHandler {
 
     void initStaleHandlersGC_Task() {
 
-        new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
-            public void run() {
-                double now = Sys.timeMillis();
-                for (Iterator<RpcPacket> it = handlers.values().iterator(); it.hasNext();) {
-                    RpcPacket p = it.next();
-                    if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) > RPC_GC_STALE_HANDLERS_TIMEOUT) {
-                        it.remove();
-                    }
-                }
-                Log.finest("initStaleHandlersGC_Task(): DeferredReplies Handlers: " + handlers.size());
-            }
-        };
+        // new PeriodicTask(0.0, RPC_GC_STALE_HANDLERS_PERIOD) {
+        // public void run() {
+        // double now = Sys.timeMillis();
+        // for (Iterator<RpcPacket> it = handlers.values().iterator();
+        // it.hasNext();) {
+        // RpcPacket p = it.next();
+        // if (p.handlerId > RPC_MAX_SERVICE_ID && (now - p.timestamp) >
+        // RPC_GC_STALE_HANDLERS_TIMEOUT) {
+        // it.remove();
+        // }
+        // }
+        // Log.finest("initStaleHandlersGC_Task(): DeferredReplies Handlers: " +
+        // handlers.size());
+        // }
+        // };
     }
 }
 

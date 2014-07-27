@@ -144,5 +144,9 @@ public abstract class AbstractPubSub<T> extends AbstractSubscriber<T> implements
             this.e = e;
             this.s = s;
         }
+
+        public String toString() {
+            return s.getClass() + "/" + e.getClass();
+        }
     }
 }

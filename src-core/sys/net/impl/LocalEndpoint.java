@@ -67,9 +67,8 @@ public class LocalEndpoint extends AbstractEndpoint {
 
     private AbstractLocalEndpoint getProvider(TransportProvider providerType, int port) throws IOException {
         switch (providerType) {
-        // case NETTY_IO_WS:
-        // return new sys.net.impl.providers.netty.ws.WebSocketEndpoint(this,
-        // port);
+        case INPROC:
+            return new sys.net.impl.providers.inproc.InProcEndpoint(this, port);
         case NETTY_IO_TCP:
             return new sys.net.impl.providers.netty.TcpEndpoint(this, port);
         case OIO_TCP:
