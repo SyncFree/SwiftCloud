@@ -168,10 +168,9 @@ if (file.info(path)$isdir) {
   process_experiment_run_dir(dir=path, run_id=basename(path), output_prefix=output_prefix)
 } else {
   # presume it is a tar.gz archive
-  tmp_dir <- file.path(dirname(path), "tmp")
-  unlink(tmp_dir, recursive=TRUE)
-  untar(path, exdir=tmp_dir, compressed="gzip")
   run_id <- sub(".tar.gz", "", basename(path))
+  tmp_dir <- tempfile(pattern=run_id)
+  untar(path, exdir=tmp_dir, compressed="gzip")
   output_prefix <- file.path(dirname(path), "processed", run_id)
   process_experiment_run_dir(dir=tmp_dir, run_id=run_id, output_prefix=output_prefix)
   unlink(tmp_dir, recursive=TRUE)
