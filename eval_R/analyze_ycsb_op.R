@@ -110,8 +110,8 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   #Scatterplot for distribution over time
   
   # sampled_subset <- df[sample(nrow(df),n),]
-  #scatter.plot <- ggplot(d, aes(timestamp,duration)) + geom_point(aes(color=operation))
-  #ggsave(scatter.plot, file=paste(toplevel_path, "timeline-TH",th,format_ext,collapse=""), scale=1)
+  scatter.plot <- ggplot(d, aes(timestamp,duration)) + geom_point(aes(color=operation))
+  ggsave(scatter.plot, file=paste(output_prefix, "-operation_latencies",format_ext,collapse="", sep=""), scale=1)
   
   # Operation duration CDF Plot
   cdf.plot <- ggplot(d, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
@@ -129,11 +129,11 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   throughput.plot
   ggsave(throughput.plot, file=paste(output_prefix, "-throughput",format_ext,collapse="", sep=""), scale=1)
   
-  # Metadata historgram
+  # Message occurences historgram
   for (m in unique(dmetadata$message)) {
     metadata.plot <- ggplot(subset(dmetadata, dmetadata$message==m), aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     metadata.plot
-    ggsave(metadata.plot, file=paste(output_prefix, "-metadata-", m,format_ext,collapse="", sep=""), scale=1)
+    ggsave(metadata.plot, file=paste(output_prefix, "-message-occurence", m,format_ext,collapse="", sep=""), scale=1)
   }
   
   
