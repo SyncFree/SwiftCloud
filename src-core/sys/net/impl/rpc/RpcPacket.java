@@ -124,12 +124,15 @@ final public class RpcPacket extends AbstractRpcPacket {
     }
 
     final void deliver(AbstractRpcPacket pkt) {
-        if (queue != null)
+        if (queue != null) {
             try {
-                queue.put(pkt);
+                reply = pkt;
+                if (!queue.offer(pkt, timeout, TimeUnit.MILLISECONDS)) {
+                    pkt.payload.deliverTo(pkt, this.handler);
+                }
             } catch (InterruptedException e) {
             }
-        else {
+        } else {
             if (this.handler != null)
                 pkt.payload.deliverTo(pkt, this.handler);
             else
