@@ -42,6 +42,9 @@ PlanetLab = [
     'planetlab2.xeno.cl.cam.ac.uk',
     'planetlab-3.imperial.ac.uk',
     'planetlab-4.imperial.ac.uk',
+    'planet3.cs.ucsb.edu',
+    'planet4.cs.ucsb.edu',
+    
     'planetlab3.xeno.cl.cam.ac.uk',
 ]
 
@@ -50,9 +53,11 @@ Threads = Integer.valueOf(args[0])
 
 DC_1 = DC([PlanetLab[0]], [PlanetLab[0]])
 DC_2 = DC([PlanetLab[2]], [PlanetLab[2]])
+DC_3 = DC([PlanetLab[4]], [PlanetLab[4]])
 
 Scouts1 = SGroup( PlanetLab[1..1], DC_1 )
 Scouts2 = SGroup( PlanetLab[3..3], DC_2 )
+Scouts2 = SGroup( PlanetLab[5..5], DC_3 )
 
 
 Scouts = ( Topology.scouts() ).unique()
