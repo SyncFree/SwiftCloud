@@ -13,6 +13,7 @@ import swift.clocks.ClockFactory;
 import swift.crdt.core.CRDTIdentifier;
 import swift.dc.DCSurrogate;
 import swift.proto.PubSubHandshake;
+import swift.proto.PubSubHandshakeReply;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;
@@ -59,6 +60,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> imple
                 logger.info("##### PubSubHandshake client = " + request.getClientId() + " @ " + conn.remoteEndpoint());
                 surrogate.getSession(request.getClientId(), request.isDisasterSafeSession()).setClientEndpoint(
                         conn.remoteEndpoint());
+                conn.reply(new PubSubHandshakeReply(minDcVersion()));
             }
 
             @Override
