@@ -43,7 +43,7 @@ public class RpcClient {
 
         int index = g_counter.incrementAndGet();
 
-        RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.DEFAULT).toDefaultService();
+        RpcEndpoint endpoint = Networking.rpcConnect(TransportProvider.INPROC).toDefaultService();
 
         final Endpoint server = Networking.resolve(serverAddr, RpcServer.PORT);
 
