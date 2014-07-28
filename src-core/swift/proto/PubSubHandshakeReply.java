@@ -31,13 +31,13 @@ public class PubSubHandshakeReply implements RpcMessage {
     /**
      * For Kryo, do NOT use.
      */
-    PubSubHandshakeReply() {
+    public PubSubHandshakeReply() {
     }
 
-    CausalityClock clock;
+    // CausalityClock clock;
 
     public PubSubHandshakeReply(CausalityClock clock) {
-        this.clock = clock;
+        // this.clock = clock;
     }
 
     @Override

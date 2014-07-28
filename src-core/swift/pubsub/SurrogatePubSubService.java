@@ -60,7 +60,7 @@ public class SurrogatePubSubService extends AbstractPubSub<CRDTIdentifier> imple
                 logger.info("##### PubSubHandshake client = " + request.getClientId() + " @ " + conn.remoteEndpoint());
                 surrogate.getSession(request.getClientId(), request.isDisasterSafeSession()).setClientEndpoint(
                         conn.remoteEndpoint());
-                conn.reply(new PubSubHandshakeReply(minDcVersion()));
+                conn.reply(new PubSubHandshakeReply()); // minDcVersion()));
             }
 
             @Override
