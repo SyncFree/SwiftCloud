@@ -636,7 +636,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         private CausalityClock clientFakeVectorKnowledge;
         private CausalityClock lastSnapshotVector;
 
-        private RemoteSubscriber<CRDTIdentifier> remoteClient;
+        private volatile RemoteSubscriber<CRDTIdentifier> remoteClient;
         private PeriodicTask notificationsTask;
 
         ClientSession(String clientId, boolean disasterSafe) {
