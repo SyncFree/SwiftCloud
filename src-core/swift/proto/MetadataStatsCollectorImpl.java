@@ -14,10 +14,12 @@ import com.esotericsoftware.kryo.io.Output;
  * @author mzawirski
  */
 public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
+    public final static int EXPECTED_BUFFER_SIZE = 2 << 15;
+    public static final int MAX_BUFFER_SIZE = 2 << 23;
     private String scoutId;
-    private ThreadLocal<ByteBufferOutput> freshKryoBuffer = new ThreadLocal<ByteBufferOutput>() {
-        protected ByteBufferOutput initialValue() {
-            return new ByteBufferOutput(1 << 20);
+    private ThreadLocal<Output> freshKryoBuffer = new ThreadLocal<Output>() {
+        protected Output initialValue() {
+            return new ByteBufferOutput(EXPECTED_BUFFER_SIZE, MAX_BUFFER_SIZE);
         }
     };
 
@@ -39,7 +41,14 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     @Override
     public Output getFreshKryoBuffer() {
         Output buffer = freshKryoBuffer.get();
-        buffer.clear();
+        if (buffer.position() < EXPECTED_BUFFER_SIZE) {
+            // Reuse an existing buffer.
+            buffer.clear();
+        } else {
+            // Lower memory footprint by creating a fresh buffer.
+            freshKryoBuffer.remove();
+            buffer = freshKryoBuffer.get();
+        }
         return buffer;
     }
 
