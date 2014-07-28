@@ -1098,7 +1098,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
             // No appropriate version found in the object from the cache.
             throw new VersionNotFoundException("Object " + id + " not available in the cache in appropriate version: "
-                    + x.getMessage() + "; object state: " + crdt);
+                    + x.getMessage()); // + "; object state: " + crdt);
         }
 
         if (updatesListener != null) {
