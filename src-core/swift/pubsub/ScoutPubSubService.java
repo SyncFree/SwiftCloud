@@ -8,10 +8,12 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 import swift.crdt.core.CRDTIdentifier;
 import swift.proto.MetadataStatsCollector;
 import swift.proto.PubSubHandshake;
+import swift.proto.PubSubHandshakeReply;
 import swift.proto.SwiftProtocolHandler;
 import swift.proto.UnsubscribeUpdatesReply;
 import swift.proto.UnsubscribeUpdatesRequest;
@@ -58,8 +60,15 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
             }
         });
 
-        // FIXME: make sure this is reliable!
-        this.endpoint.send(suPubSub, new PubSubHandshake(clientId, disasterSafeSession));
+        final AtomicReference<PubSubHandshakeReply> ref = new AtomicReference<PubSubHandshakeReply>(null);
+        do {
+            this.endpoint.send(suPubSub, new PubSubHandshake(clientId, disasterSafeSession),
+                    new SwiftProtocolHandler() {
+                        public void onReceive(RpcHandle conn, PubSubHandshakeReply reply) {
+                            ref.set(reply);
+                        }
+                    }, 100);
+        } while (ref.get() == null);
 
         updater = new Task(5) {
             public void run() {

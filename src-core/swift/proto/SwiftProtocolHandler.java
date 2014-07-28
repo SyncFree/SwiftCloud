@@ -127,6 +127,11 @@ public class SwiftProtocolHandler extends AbstractRpcHandler {
         Thread.dumpStack();
     }
 
+    // For PubSub --------------------------------------
+    public void onReceive(RpcHandle conn, PubSubHandshakeReply reply) {
+        Thread.dumpStack();
+    }
+
     public void onReceive(UpdateNotification evt) {
         Thread.dumpStack();
     }
