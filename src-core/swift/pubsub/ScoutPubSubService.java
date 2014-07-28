@@ -64,9 +64,11 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
         final AtomicReference<PubSubHandshakeReply> ref = new AtomicReference<PubSubHandshakeReply>(null);
         do {
             final PubSubHandshake handshakeReq = new PubSubHandshake(clientId, disasterSafeSession);
+            handshakeReq.recordMetadataSample(statsCollector);
             this.endpoint.send(suPubSub, handshakeReq, new SwiftProtocolHandler() {
                 public void onReceive(RpcHandle conn, PubSubHandshakeReply reply) {
                     ref.set(reply);
+                    reply.recordMetadataSample(statsCollector);
                 }
             }, HANDSHAKE_REPLY_DEADLINE_MS);
         } while (ref.get() == null);
