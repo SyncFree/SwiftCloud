@@ -73,6 +73,8 @@ import swift.proto.DHTGetCRDT;
 import swift.proto.DHTGetCRDTReply;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
+import swift.proto.PubSubHandshake;
+import swift.proto.PubSubHandshakeReply;
 import swift.proto.UnsubscribeUpdatesRequest;
 import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.UpdateNotification;
@@ -190,5 +192,7 @@ public class KryoCRDTUtils {
         registerable.register(AddWinsMessageSetCRDT.class, classId++);
         registerable.register(AddWinsMessageSetUpdate.class, classId++);
 
+        registerable.register(PubSubHandshake.class, classId++);
+        registerable.register(PubSubHandshakeReply.class, classId++);
     }
 }
