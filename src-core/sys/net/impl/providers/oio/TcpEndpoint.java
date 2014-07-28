@@ -32,6 +32,7 @@ import java.util.logging.Logger;
 
 import sys.net.api.Endpoint;
 import sys.net.api.Message;
+import sys.net.api.NetworkingException;
 import sys.net.api.TransportConnection;
 import sys.net.impl.AbstractEndpoint;
 import sys.net.impl.AbstractLocalEndpoint;
@@ -81,7 +82,7 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
             return new FailedTransportConnection(localEndpoint, remote, null);
         } catch (Throwable t) {
             Threading.sleep(1000);
-            t.printStackTrace();
+            // t.printStackTrace();
             Log.log(Level.WARNING, "Cannot connect to: <" + remote + "> :" + t.getMessage());
             return new FailedTransportConnection(localEndpoint, remote, t);
         }
@@ -96,7 +97,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 new IncomingConnection(cs);
             }
         } catch (Exception x) {
-            x.printStackTrace();
             Log.log(Level.SEVERE, "Unexpected error in incoming endpoint: " + localEndpoint, x);
         } finally {
             IO.close(ssc);
@@ -152,9 +152,12 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
                 cause = x;
                 handler.onFailure(this);
+            } catch (NetworkingException x) {
+                Log.fine("Network exception in connection to: " + remote + "/" + x.getMessage());
+                cause = x;
             } catch (Throwable t) {
                 t.printStackTrace();
-                Log.severe(t.getMessage());
+                Log.severe("Exception in connection to: " + remote + "/" + t);
                 cause = t;
             }
             isBroken = true;
@@ -169,8 +172,8 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 outgoingBytesCounter.getAndAdd(msgSize);
                 msg.setSize(msgSize);
                 return true;
+
             } catch (ClosedChannelException x) {
-                // x.printStackTrace();
                 cause = x;
                 isBroken = true;
                 IO.close(socket);
@@ -236,7 +239,6 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                 handler.onConnect(this);
                 workers.execute(this);
             } catch (IOException x) {
-                x.printStackTrace();
                 cause = x;
                 isBroken = true;
                 IO.close(socket);
@@ -310,7 +312,7 @@ final class KryoInputBuffer {
             in.setPosition(0);
             return (T) KryoLib.kryo().readClassAndObject(in);
         } else
-            throw new RuntimeException("Channel closed...");
+            throw new NetworkingException("Channel closed...");
     }
 
     private void ensureCapacity(int required) {
