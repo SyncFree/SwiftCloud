@@ -140,9 +140,13 @@ final public class TcpEndpoint extends AbstractLocalEndpoint implements Runnable
                         incomingBytesCounter.addAndGet(msgSize);
                         msg.setSize(msgSize);
                     }
-                    msg.deliverTo(this, TcpEndpoint.this.handler);
+                    try {
+                        msg.deliverTo(this, TcpEndpoint.this.handler);
+                    } catch (Exception x) {
+                        x.printStackTrace();
+                        Log.severe("Exception: " + x.getMessage());
+                    }
                 }
-            } catch (RuntimeException x) {
             } catch (IOException x) {
                 x.printStackTrace();
                 Log.warning("Exception in connection to: " + remote + "/" + x.getMessage());
