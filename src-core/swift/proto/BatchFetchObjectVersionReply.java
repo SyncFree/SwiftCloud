@@ -177,7 +177,9 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
 
         kryo.writeObject(buffer, this);
         final int totalSize = buffer.position();
-        buffer.clear();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
 
         int maxExceptionsNum = 0;
         int maxVectorSize = 0;
