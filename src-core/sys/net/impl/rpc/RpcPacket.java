@@ -131,19 +131,19 @@ final public class RpcPacket extends AbstractRpcPacket implements KryoCopyable<R
     }
 
     final void deliver(AbstractRpcPacket pkt) {
-        if (queue != null)
+        if (queue != null) {
             try {
-                queue.put(pkt);
+                if (!queue.offer(pkt, timeout, TimeUnit.MILLISECONDS))
+                    pkt.payload.deliverTo(pkt, this.handler);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-        else {
+        } else {
             if (this.handler != null)
                 pkt.payload.deliverTo(pkt, this.handler);
             else {
                 Log.warning(String.format("Cannot handle RpcPacket: %s from %s, reason handler is null", pkt
                         .getPayload().getClass(), pkt.remote()));
-                Thread.dumpStack();
             }
         }
     }
