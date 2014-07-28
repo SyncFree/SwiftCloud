@@ -11,7 +11,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import swift.crdt.core.CRDTIdentifier;
-import swift.dc.DCConstants;
 import swift.proto.MetadataStatsCollector;
 import swift.proto.PubSubHandshake;
 import swift.proto.PubSubHandshakeReply;
@@ -27,6 +26,7 @@ import sys.scheduler.Task;
 import sys.utils.FifoQueue;
 
 abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> implements SwiftSubscriber {
+    public static final int HANDSHAKE_REPLY_DEADLINE_MS = 10000;
     private final static Object dummyVal = new Object();
 
     final Endpoint suPubSub;
@@ -63,12 +63,12 @@ abstract public class ScoutPubSubService extends AbstractPubSub<CRDTIdentifier> 
 
         final AtomicReference<PubSubHandshakeReply> ref = new AtomicReference<PubSubHandshakeReply>(null);
         do {
-            this.endpoint.send(suPubSub, new PubSubHandshake(clientId, disasterSafeSession),
-                    new SwiftProtocolHandler() {
-                        public void onReceive(RpcHandle conn, PubSubHandshakeReply reply) {
-                            ref.set(reply);
-                        }
-                    }, 100);
+            final PubSubHandshake handshakeReq = new PubSubHandshake(clientId, disasterSafeSession);
+            this.endpoint.send(suPubSub, handshakeReq, new SwiftProtocolHandler() {
+                public void onReceive(RpcHandle conn, PubSubHandshakeReply reply) {
+                    ref.set(reply);
+                }
+            }, HANDSHAKE_REPLY_DEADLINE_MS);
         } while (ref.get() == null);
 
         updater = new Task(5) {
