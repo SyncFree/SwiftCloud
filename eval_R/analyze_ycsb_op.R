@@ -60,6 +60,7 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   
   dir.create(dirname(output_prefix), recursive=TRUE,showWarnings=FALSE)
   
+  d <- data.frame()
   for (file in file_list){
     temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
     d <- rbind(d, temp_dataset)
