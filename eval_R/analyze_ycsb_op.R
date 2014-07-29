@@ -27,12 +27,14 @@ select_OP <- function (data){
   #Filter for batch updates
   data <- subset(data,data$V2=="APP_OP")
   # since d contains variety of different entries, this casting is needed
-  data$V5 <- as.numeric(data$V5)
+  data <- transform(data, V5 = as.numeric(V5))
   # data <- subset(data,data$V4=="read" | data$V4=="update")
   return (data)
 }
 
 select_OP_FAILURE <- function (data) {
+  #Data format is:
+  #timestamp_ms,APP_OP,session_id,operation_name,error_cause
   data <- subset(data,data$V2=="APP_OP_FAILURE")
   return (data)
 }
@@ -41,13 +43,9 @@ select_METADATA <- function (data) {
   data <- subset(data,data$V2=="METADATA")
   #report type METADATA formatted as timestamp_ms,METADATA,session_id,message_name,total_message_size,version_or_update_size,value_size,
   #                                  explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num
-  data$V5 <- as.numeric(data$V5)
-  data$V6 <- as.numeric(data$V6)
-  data$V7 <- as.numeric(data$V7)
-  data$V8 <- as.numeric(data$V8)
-  data$V9 <- as.numeric(data$V9)
-  data$V10 <- as.numeric(data$V10)
-  data$V11 <- as.numeric(data$V11)
+  data <- transform(data, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
+                          V8=as.numeric(V8), V9=as.numeric(V9), V10=as.numeric(V10),
+                          V11=as.numeric(V11))
   return (data)
 }
 
@@ -110,7 +108,7 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   #!Making scatter plots takes quite long for our data with > 1.000.000 entries!
   #Scatterplot for distribution over time  
   scatter.plot <- ggplot(dop, aes(timestamp,duration)) + geom_point(aes(color=operation))
-  ggsave(scatter.plot, file=paste(output_prefix, "-operation_latencies",format_ext,collapse="", sep=""), scale=1)
+  ggsave(scatter.plot, file=paste(output_prefix, "-response_time",format_ext,collapse="", sep=""), scale=1)
 
   # Throughput over time plot
   # Careful: It seems that the first and last bin only cover 5000 ms
@@ -132,17 +130,29 @@ process_experiment_run_dir <- function(dir, run_id, output_prefix) {
   for (m in unique(dmetadata$message)) {
     metadata.plot <- ggplot(subset(dmetadata, dmetadata$message==m), aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     # metadata.plot
-    ggsave(metadata.plot, file=paste(output_prefix, "-message-occurence-", m,format_ext,collapse="", sep=""), scale=1)
+    ggsave(metadata.plot, file=paste(output_prefix, "-message_occurence-", m,format_ext,collapse="", sep=""), scale=1)
   }
   
-  # Throughput descriptive statistics over filtered data
-  throughput.stats <- data.frame(run_id=character(),mean=double(),median=double(),min=double(),max=double())
-  steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp)) 
+  # Throughput / response time descriptive statistics over filtered data
+  operations <- data.frame(run_id=character(),throughput_mean=double(),throughput_median=double(),
+                           throughput_quant25=double(),throughput_quant75=double(),
+                           response_time_mean=double(),response_time_median=double(),
+                           response_time_quant25=double(),response_time_quant75=double())
+         
+  steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
   through <- hist(dop_filtered$timestamp, breaks=steps)
   summary(through$counts)
-  newd <- data.frame(run_id=run_id,mean=mean(through$counts),min=min(through$counts),median=median(through$counts),max=max(through$counts))
-  throughput.stats <- rbind(throughput.stats,newd)
-  write.table(throughput.stats, paste(output_prefix, "throughput.csv", sep="-"), sep=",", row.names=FALSE)
+  summary(dop_filtered$duration)
+  # TODO: record all quantiles in a table
+  operations <- rbind(operations, data.frame(run_id=run_id,throughput_mean=mean(through$counts),
+                      throughput_median=median(through$counts), throughput_quant25=quantile(through$counts, probs=c(0.25)),
+                      throughput_quant75=quantile(through$counts, probs=c(0.75)),
+                      response_time_mean=mean(dop_filtered$duration),response_time_median=median(dop_filtered$duration),
+                      response_time_quantt25=quantile(dop_filtered$duration, probs=c(0.25)),
+                      response_time_quant75=quantile(dop_filtered$duration, probs=c(0.75))))
+  write.table(operations, paste(output_prefix, "operations_stats.csv", sep="-"), sep=",", row.names=FALSE)
+
+  # TODO: metadata descriptive stats
   
   # Errors descriptive statistics
   errors.stats <- data.frame(run_id=character(),cause=character(),occurences=integer())  
