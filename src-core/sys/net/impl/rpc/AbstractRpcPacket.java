@@ -44,7 +44,7 @@ abstract class AbstractRpcPacket extends AbstractMessage implements Message, Rpc
 
     transient RpcHandler handler;
     transient RpcFactoryImpl fac;
-    transient AbstractRpcPacket reply;
+    volatile transient AbstractRpcPacket reply;
 
     transient Endpoint remote;
     transient TransportConnection conn;
