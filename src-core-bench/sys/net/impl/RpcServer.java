@@ -29,7 +29,7 @@ public class RpcServer extends Handler {
     RpcEndpoint endpoint;
 
     RpcServer() {
-        endpoint = Networking.rpcBind(PORT, TransportProvider.DEFAULT).toService(0, this);
+        endpoint = Networking.rpcBind(PORT, TransportProvider.INPROC).toService(0, this);
 
         System.out.println("Server ready...");
     }

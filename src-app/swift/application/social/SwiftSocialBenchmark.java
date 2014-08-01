@@ -172,8 +172,9 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         SwiftSocialBenchmark instance = new SwiftSocialBenchmark();
         if (args.length == 0) {
 
-            DCSequencerServer.main(new String[] { "-name", "X" });
-            DCServer.main(new String[] { "-servers", "localhost" });
+            // DCSequencerServer.main(new String[] { "-name", "X", "-integrated"
+            // });
+            DCServer.main(new String[] { "-servers", "localhost", "-integrated" });
 
             args = new String[] { "-servers", "localhost", "-threads", "2", "-props", "swiftsocial-test.props" };
             SafeLog.configure(EnumSet.of(ReportType.APP_OP));

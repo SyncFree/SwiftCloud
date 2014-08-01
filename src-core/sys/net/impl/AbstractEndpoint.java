@@ -104,6 +104,11 @@ abstract public class AbstractEndpoint implements Endpoint {
         dst.sockAddress = src.sockAddress;
     }
 
+    protected void setSocketAddress(InetSocketAddress addr) {
+        this.sockAddress = addr;
+        this.locator = encodeLocator(sockAddress);
+    }
+
     protected void setSocketAddress(int port) {
         try {
             this.sockAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostAddress(), port);

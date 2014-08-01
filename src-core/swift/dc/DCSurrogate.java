@@ -17,6 +17,8 @@
 package swift.dc;
 
 import static sys.net.api.Networking.Networking;
+import static sys.net.api.Networking.TransportProvider.DEFAULT;
+import static sys.net.api.Networking.TransportProvider.INPROC;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -75,16 +77,14 @@ import swift.utils.SafeLog.ReportType;
 import sys.Sys;
 import sys.dht.DHT_Node;
 import sys.net.api.Endpoint;
+import sys.net.api.Networking.TransportProvider;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.net.api.rpc.RpcHandle;
 import sys.pubsub.PubSubNotification;
 import sys.pubsub.RemoteSubscriber;
 import sys.pubsub.impl.AbstractSubscriber;
 import sys.scheduler.PeriodicTask;
-//import swift.client.proto.FastRecentUpdatesReply;
-//import swift.client.proto.FastRecentUpdatesReply.ObjectSubscriptionInfo;
-//import swift.client.proto.FastRecentUpdatesReply.SubscriptionStatus;
-//import swift.client.proto.FastRecentUpdatesRequest;
+import sys.utils.Args;
 
 /**
  * Class to handle the requests from clients.
@@ -141,9 +141,11 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         };
 
         this.sequencerServerEndpoint = sequencerEndpoint;
-        this.cltEndpoint4Sequencer = Networking.rpcConnect().toDefaultService();
         this.srvEndpoint4Clients = Networking.rpcBind(port4Clients).toDefaultService();
-        this.srvEndpoint4Sequencer = Networking.rpcBind(port4Sequencers).toDefaultService();
+
+        TransportProvider provider = Args.contains("-integrated") ? INPROC : DEFAULT;
+        this.cltEndpoint4Sequencer = Networking.rpcConnect(provider).toDefaultService();
+        this.srvEndpoint4Sequencer = Networking.rpcBind(port4Sequencers, provider).toDefaultService();
 
         srvEndpoint4Clients.setHandler(this);
         srvEndpoint4Sequencer.setHandler(this);
@@ -498,7 +500,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
         // TODO: handle failure
         session.setLastSeqNo(cltTs);
-        srvEndpoint4Sequencer.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs,
+        cltEndpoint4Sequencer.send(sequencerServerEndpoint, new CommitTSRequest(txTs, cltTs, prvCltTs,
                 estimatedDCVersionCopy, txnOK.get(), ops, req.disasterSafe(), session.clientId),
                 new SwiftProtocolHandler() {
                     public void onReceive(CommitTSReply reply) {
@@ -660,6 +662,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     * 0.001, notificationPeriodMillis * 0.001) {
                 public void run() {
                     tryFireClientNotification();
+                    if (remoteClient != null && remoteClient.isOffline())
+                        super.cancel();
                 }
             };
         }
