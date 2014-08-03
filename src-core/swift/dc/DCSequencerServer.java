@@ -286,7 +286,11 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         TransportProvider provider = Args.contains("-integrated") ? INPROC : DEFAULT;
 
         this.cltEndpoint4Surrogates = Networking.rpcConnect(provider).toDefaultService();
-        this.srvEndpoint4Surrogates = Networking.rpcBind(port, provider).toDefaultService().setHandler(this);
+
+        if (Args.contains("-integrated"))
+            this.srvEndpoint4Surrogates = Networking.rpcBind(port, provider).toDefaultService().setHandler(this);
+        else
+            this.srvEndpoint4Surrogates = srvEndpoint;
 
         if (sequencerShadow != null)
             sequencerShadowEP = Networking.resolve(sequencerShadow, DCConstants.SEQUENCER_PORT);

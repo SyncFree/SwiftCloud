@@ -39,20 +39,30 @@ PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MA
 
 Topology.clear()
 
-// Europe = DC([EuropeEC2[0]], [EuropeEC2[0]])
-// NVirginia= DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
-Oregon =  DC([
-    'ec2-54-187-160-245.us-west-2.compute.amazonaws.com'
-], [
-    'ec2-54-187-160-245.us-west-2.compute.amazonaws.com'
-]) //DC([OregonEC2[0]], [OregonEC2[0]])
-//ScoutsEU = SGroup( EuropeEC2[1..Math.min(PerDCClientNodesLimit, EuropeEC2.size() - 1)], Europe )
-ScoutsNV = SGroup([
-    'ec2-54-210-30-38.compute-1.amazonaws.com',
-    'ec2-54-86-101-104.compute-1.amazonaws.com'
-], Oregon)
-//SGroup( NVirginiaEC2[1..Math.min(PerDCClientNodesLimit, NVirginiaEC2.size() - 1)], NVirginia)
-//ScoutsOR = SGroup( OregonEC2[1..Math.min(PerDCClientNodesLimit, OregonEC2.size() - 1)],  Oregon )
+PlanetLab = [
+    'planetlab1.xeno.cl.cam.ac.uk',
+    'planetlab2.xeno.cl.cam.ac.uk',
+    'planetlab-3.imperial.ac.uk',
+    'planetlab-4.imperial.ac.uk',
+    'planet3.cs.ucsb.edu',
+    'planet4.cs.ucsb.edu',
+    
+    'planetlab3.xeno.cl.cam.ac.uk',
+]
+
+
+Threads = Integer.valueOf(args[0])
+
+DC_1 = DC([PlanetLab[0]], [PlanetLab[0]])
+DC_2 = DC([PlanetLab[2]], [PlanetLab[2]])
+DC_3 = DC([PlanetLab[4]], [PlanetLab[4]])
+
+Scouts1 = SGroup( PlanetLab[1..1], DC_1 )
+Scouts2 = SGroup( PlanetLab[3..3], DC_2 )
+Scouts3 = SGroup( PlanetLab[5..5], DC_3 )
+
+
+
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()

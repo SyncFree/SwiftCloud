@@ -57,7 +57,7 @@ DC_3 = DC([PlanetLab[4]], [PlanetLab[4]])
 
 Scouts1 = SGroup( PlanetLab[1..1], DC_1 )
 Scouts2 = SGroup( PlanetLab[3..3], DC_2 )
-Scouts2 = SGroup( PlanetLab[5..5], DC_3 )
+Scouts3 = SGroup( PlanetLab[5..5], DC_3 )
 
 
 Scouts = ( Topology.scouts() ).unique()
