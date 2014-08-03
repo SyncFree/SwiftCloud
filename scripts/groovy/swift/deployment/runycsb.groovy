@@ -12,8 +12,9 @@ def __ = onControlC({
     System.exit(0);
 })
 
-// NODES
+INTEGRATED_SEQUENCER = false
 
+// NODES
 EuropeEC2 = [
     // first node is a DC
 ]
@@ -111,15 +112,21 @@ deployTo(AllMachines, SwiftYCSB.genPropsFile(INIT_YCSB_PROPS).absolutePath, INIT
 
 def shep = SwiftBase.runShepard( ShepardAddr, Duration + DurationShepardGrace, "Released" )
 
-println "==== LAUNCHING SEQUENCERS"
-Topology.datacenters.each { datacenter ->
-    datacenter.deploySequencers(ShepardAddr, "1024m" )
+if (!INTEGRATED_DC) {
+    println "==== LAUNCHING SEQUENCERS"
+    Topology.datacenters.each { datacenter ->
+        datacenter.deploySequencers(ShepardAddr, "1024m" )
+    }
 }
 
 Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
-    datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis, "2048m")
+    if (INTEGRATED_DC) {
+        datacenter.deployIntegratedSurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis, "2048m")
+    } else {
+        datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis, "2048m")
+    }
 }
 
 println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
@@ -152,8 +159,10 @@ pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
 Topology.datacenters.each { dc ->
     pslurp( dc.surrogates, "sur-stderr.txt", dstDir, "sur-stderr.log", 30)
     pslurp( dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 30)
-    pslurp( dc.sequencers, "seq-stderr.txt", dstDir, "seq-stderr.log", 30)
-    pslurp( dc.sequencers, "seq-stdout.txt", dstDir, "seq-stdout.log", 30)
+    if (!INTEGRATED_DC) {
+        pslurp( dc.sequencers, "seq-stderr.txt", dstDir, "seq-stderr.log", 30)
+        pslurp( dc.sequencers, "seq-stdout.txt", dstDir, "seq-stdout.log", 30)
+    }
 }
 configFile = new File(dstDir, "config")
 configFile.createNewFile()
@@ -168,10 +177,10 @@ def stats = exec([
 ])
 
 exec([
-	"tar",
-	"-czf",
-	dstDir+".tar.gz",
-	dstDir
+    "tar",
+    "-czf",
+    dstDir+".tar.gz",
+    dstDir
 ]).waitFor()
 
 stats.waitFor()
