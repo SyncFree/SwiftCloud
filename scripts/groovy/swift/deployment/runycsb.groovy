@@ -72,7 +72,7 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 // OPTIONS
 DbSize = 100000
 OpsNum = 1000000
-PruningIntervalMillis = 30000
+PruningIntervalMillis = 60000
 NotificationsPeriodMillis = 1000
 
 IncomingOpPerSecLimit = 10000000 // :-)
