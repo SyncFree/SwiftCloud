@@ -12,7 +12,7 @@ def __ = onControlC({
     System.exit(0);
 })
 
-INTEGRATED_SEQUENCER = false
+INTEGRATED_DC = true
 
 // NODES
 EuropeEC2 = [
