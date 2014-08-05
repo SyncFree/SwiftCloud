@@ -235,6 +235,8 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
                 if (statuses[i] != FetchStatus.OK || compressionReferenceIdx < 0 || compressionReferenceIdx == i) {
                     kryo.writeObject(buffer, crdts[i].getClock());
                     kryo.writeObject(buffer, crdts[i].getPruneClock());
+                    maxVectorSize = Math.max(crdts[i].getClock().getSize(), maxVectorSize);
+                    maxVectorSize = Math.max(crdts[i].getPruneClock().getSize(), maxVectorSize);
                 }
                 final List log = crdts[i].getUpdatesTimestampMappingsSince(crdts[i].getPruneClock());
                 if (!log.isEmpty()) {
