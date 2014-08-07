@@ -85,6 +85,8 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   dmetadata_filtered <- select_METADATA(dfiltered)
   rm(d)
   rm(dfiltered)
+  
+  # TODO: add DB SIZE / IDEMPOTENCE GUARD info
 
   # "SPECTROGRAM" MODE OUPUT
   if (spectrogram) {
@@ -129,6 +131,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     # common output format for descriptive statistics
     quantile_steps <- seq(from=0.0, to=1.0, by=0.001)
     stats <- c("mean", rep("permille", length(quantile_steps)))
+    # TODO STDDEV, VARIATION?
     stats_params <- c(0, quantile_steps) 
   
     # Throughput / response time descriptive statistics over filtered data

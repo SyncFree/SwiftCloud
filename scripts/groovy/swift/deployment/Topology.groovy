@@ -78,7 +78,7 @@ class Topology {
             def siteId = dcKey( Topology.datacenters.indexOf(this));
 
             sequencers.each { host ->
-                rshC(host, swift_app_cmd( "-Xms"+seqHeap, sequencerCmd(siteId, shepard, surrogates, otherSequencers, extraArgs), "seq-stderr.txt", "seq-stdout.txt" ))
+                rshC(host, swift_app_cmd_nostdout( "-Xms"+seqHeap, sequencerCmd(siteId, shepard, surrogates, otherSequencers, extraArgs), "seq-stderr.txt", "seq-stdout.txt" ))
             }
         }
 
@@ -91,7 +91,7 @@ class Topology {
 
             surrogates.each { host ->
                 def otherSurrogates = surrogates - host
-                rshC(host, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, extraArgs ), "sur-stderr.txt", "sur-stdout.txt" ))
+                rshC(host, swift_app_cmd_nostdout( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, extraArgs ), "sur-stderr.txt", "sur-stdout.txt" ))
             }
         }
 
@@ -104,7 +104,7 @@ class Topology {
         
             surrogates.each { host ->
                 def otherSurrogates = surrogates - host
-                rshC(host, swift_app_cmd( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, seqArgs + extraArgs ), "sur-stderr.txt", "sur-stdout.txt" ))
+                rshC(host, swift_app_cmd_nostdout( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, seqArgs + extraArgs ), "sur-stderr.txt", "sur-stdout.txt" ))
             }
         }
         void deploySurrogates(String shepard, String surHeap = "512m") {

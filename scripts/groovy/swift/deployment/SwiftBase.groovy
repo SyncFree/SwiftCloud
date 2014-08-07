@@ -120,4 +120,13 @@ class SwiftBase {
         pw.close()
         return f
     }
+
+    static String genDCServerPropArgs(Map props) {
+        def result = ""
+        props.each { k, v ->
+            result += " -prop:" + k + " " + v
+        }
+        result += " "
+        return result
+    }
 }

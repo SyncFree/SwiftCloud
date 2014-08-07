@@ -16,15 +16,39 @@ INTEGRATED_DC = true
 
 // NODES
 EuropeEC2 = [
-    // first node is a DC
+    // first node is a DC, followed by 2 x 7 scouts
+    'ec2-54-77-125-192.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-225.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-238.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-187.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-95.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-155.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-161.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-119-11.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-218.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-244.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-222.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-216.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-143.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-233.eu-west-1.compute.amazonaws.com',
+    'ec2-54-77-125-240.eu-west-1.compute.amazonaws.com'
 ]
 
 NVirginiaEC2 = [
-    // first node is a DC
+    // DC only
+    'ec2-54-210-105-159.compute-1.amazonaws.com'
 ]
 
 OregonEC2 = [
-    // first node is a DC
+    // first node is a DC, followed by 7 scouts
+    'ec2-54-191-105-195.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-109-163.us-west-2.compute.amazonaws.com',
+    'ec2-54-186-195-216.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-105-131.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-147-50.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-106-160.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-104-55.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-103-74.us-west-2.compute.amazonaws.com'
 ]
 
 
@@ -38,31 +62,25 @@ PerDCClientNodesLimit = args.length >= 2 ? Integer.valueOf(args[1]) : Integer.MA
 
 // TOPOLOGY
 
+// planetlab test (unlikely reproducible performance and issues)
+//DC_1 = DC([PlanetLab[0]], [PlanetLab[0]])
+//DC_2 = DC([PlanetLab[2]], [PlanetLab[2]])
+//DC_3 = DC([PlanetLab[4]], [PlanetLab[4]])
+
+//Scouts1 = SGroup( PlanetLab[1..1], DC_1 )
+//Scouts2 = SGroup( PlanetLab[3..3], DC_2 )
+//Scouts3 = SGroup( PlanetLab[5..5], DC_3 )
+
 Topology.clear()
-
-PlanetLab = [
-    'planetlab1.xeno.cl.cam.ac.uk',
-    'planetlab2.xeno.cl.cam.ac.uk',
-    'planetlab-3.imperial.ac.uk',
-    'planetlab-4.imperial.ac.uk',
-    'planet3.cs.ucsb.edu',
-    'planet4.cs.ucsb.edu',
-    
-    'planetlab3.xeno.cl.cam.ac.uk',
-]
-
-
 Threads = Integer.valueOf(args[0])
 
-DC_1 = DC([PlanetLab[0]], [PlanetLab[0]])
-DC_2 = DC([PlanetLab[2]], [PlanetLab[2]])
-DC_3 = DC([PlanetLab[4]], [PlanetLab[4]])
+DC_EU = DC([EuropeEC2[0]], [EuropeEC2[0]])
+DC_NV = DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
+DC_OR = DC([OregonEC2[0]], [OregonEC2[0]])
 
-Scouts1 = SGroup( PlanetLab[1..1], DC_1 )
-Scouts2 = SGroup( PlanetLab[3..3], DC_2 )
-Scouts3 = SGroup( PlanetLab[5..5], DC_3 )
-
-
+ScoutsToNV = SGroup(EuropeEC2[1..7], DC_NV)
+ScoutsToOR = SGroup(EuropeEC2[8..14], DC_OR)
+ScoutsToEU = SGroup(OregonEC2[1..7], DC_EU)
 
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
@@ -75,14 +93,14 @@ OpsNum = 1000000
 PruningIntervalMillis = 60000
 NotificationsPeriodMillis = 1000
 
-IncomingOpPerSecLimit = 10000000 // :-)
+IncomingOpPerSecLimit = 12000 // 1000000  // :-)
 IncomingOpPerSecPerClientLimit = (int) (IncomingOpPerSecLimit / Scouts.size())
 
-Duration = 360
+Duration = 520
 DurationShepardGrace = 12
 InterCmdDelay = 30
 
-WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
+WORKLOAD = SwiftYCSB.WORKLOAD_B + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
     'target':IncomingOpPerSecPerClientLimit,
     'requestdistribution':'zipfian',
 
@@ -91,7 +109,10 @@ WORKLOAD = SwiftYCSB.WORKLOAD_A + ['recordcount': DbSize.toString(), 'operationc
     'localrecordcount':'150',
     'localrequestproportion':'0.8',
 ]
-REPORTS = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA,STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB', 'swift.reportEveryOperation':'true']
+// STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB
+REPORTS = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA', 'swift.reportEveryOperation':'true']
+
+DC_PROPS = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE']
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + REPORTS + OPTIONS + ['maxexecutiontime' : Duration]
 
@@ -133,9 +154,9 @@ Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
     if (INTEGRATED_DC) {
-        datacenter.deployIntegratedSurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis, "2048m")
+        datacenter.deployIntegratedSurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis + SwiftBase.genDCServerPropArgs(DC_PROPS), "2048m")
     } else {
-        datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis, "2048m")
+        datacenter.deploySurrogatesExtraArgs(ShepardAddr, "-pruningMs " + PruningIntervalMillis + " -notificationsMs " + NotificationsPeriodMillis + SwiftBase.genDCServerPropArgs(DC_PROPS), "2048m")
     }
 }
 
@@ -194,6 +215,12 @@ exec([
 ]).waitFor()
 
 stats.waitFor()
+
+exec([
+    "rm",
+    "-Rf",
+    dstDir
+]).waitFor()
 
 
 System.exit(0)
