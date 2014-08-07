@@ -45,6 +45,7 @@ import swift.crdt.core.CRDTObjectUpdatesGroup;
 import swift.crdt.core.CRDTOperationDependencyPolicy;
 import swift.crdt.core.ManagedCRDT;
 import swift.dc.db.DCNodeDatabase;
+import swift.dc.db.StatsNodeDatabaseWrapper;
 import swift.proto.DHTExecCRDT;
 import swift.proto.DHTExecCRDTReply;
 import swift.proto.DHTGetCRDT;
@@ -261,7 +262,9 @@ final class DCDataServer {
      *********************************************************************************************/
     void initDB(Properties props) {
         try {
-            dbServer = (DCNodeDatabase) Class.forName(props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            final DCNodeDatabase realDbServer = (DCNodeDatabase) Class.forName(
+                    props.getProperty(DCConstants.DATABASE_CLASS)).newInstance();
+            dbServer = new StatsNodeDatabaseWrapper(realDbServer, surrogate.siteId);
         } catch (Exception e) {
             throw new RuntimeException("Cannot start underlying database", e);
         }

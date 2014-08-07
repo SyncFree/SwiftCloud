@@ -47,7 +47,7 @@ public class LatestKnownClockRequest extends ClientRequest implements MetadataSa
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         final Kryo kryo = collector.getFreshKryo();
@@ -55,6 +55,6 @@ public class LatestKnownClockRequest extends ClientRequest implements MetadataSa
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0, 0, 1, 0, 0);
+        collector.recordMessageStats(this, buffer.position(), 0, 0, 0, 1, 0, 0);
     }
 }

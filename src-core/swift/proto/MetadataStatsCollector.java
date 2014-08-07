@@ -5,7 +5,7 @@ import com.esotericsoftware.kryo.io.Output;
 
 public interface MetadataStatsCollector {
 
-    public abstract boolean isEnabled();
+    public abstract boolean isMessageReportEnabled();
 
     /**
      * @return a thread-local cleared kryo buffer that can be used to compute
@@ -38,7 +38,11 @@ public interface MetadataStatsCollector {
      * @param maxExceptionsNum
      *            maximum number of exceptions in a vector in the message
      */
-    public abstract void recordStats(Object message, int totalSize, int objectOrUpdateSize,
+    public abstract void recordMessageStats(Object message, int totalSize, int objectOrUpdateSize,
             int objectOrUpdateValueSize, int explicitlyComputedGlobalMetadataSize, int batchSize, int maxVectorSize,
             int maxExceptionsNum);
+
+    boolean isDatabaseTableReportEnabled();
+
+    void recordDatabaseTableStats(String tableName, int size);
 }

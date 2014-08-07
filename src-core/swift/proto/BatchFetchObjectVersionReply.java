@@ -169,7 +169,7 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
@@ -246,7 +246,7 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         }
         final int globalMetadata = buffer.position();
 
-        collector.recordStats(this, totalSize, versionSize, valueSize, globalMetadata, getBatchSize(), maxVectorSize,
+        collector.recordMessageStats(this, totalSize, versionSize, valueSize, globalMetadata, getBatchSize(), maxVectorSize,
                 maxExceptionsNum);
     }
 

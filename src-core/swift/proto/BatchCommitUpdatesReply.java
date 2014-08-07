@@ -67,7 +67,7 @@ public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
@@ -92,7 +92,7 @@ public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, totalSize, 0, 0, globalMetadata, getReplies().size(), maxVectorSize,
+        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getReplies().size(), maxVectorSize,
                 maxExceptionsNum);
     }
 }

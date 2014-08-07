@@ -26,6 +26,7 @@ import static sys.net.api.Networking.Networking;
 import java.util.List;
 import java.util.Properties;
 
+import swift.utils.SafeLog;
 import sys.Sys;
 import sys.herd.Herd;
 import sys.net.api.Endpoint;
@@ -136,6 +137,8 @@ public class DCServer {
                     DCSequencerServer.main(args);
                 }
             }).start();
+
+        SafeLog.configure(props);
 
         Threading.sleep(3000);
 

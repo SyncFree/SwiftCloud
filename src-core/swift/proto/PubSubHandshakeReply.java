@@ -50,14 +50,14 @@ public class PubSubHandshakeReply implements RpcMessage, MetadataSamplable {
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
         Output buffer = collector.getFreshKryoBuffer();
         kryo.writeObject(buffer, this);
         final int size = buffer.position();
-        collector.recordStats(this, size, 0, 0, 0, 0, 0, 0);
+        collector.recordMessageStats(this, size, 0, 0, 0, 0, 0, 0);
         // clock != null ? clock.getSize() : 0,
         // clock != null ? clock.getExceptionsNumber() : 0);
     }

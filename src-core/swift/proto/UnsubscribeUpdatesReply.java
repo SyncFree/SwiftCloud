@@ -45,7 +45,7 @@ public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         final Kryo kryo = collector.getFreshKryo();
@@ -53,6 +53,6 @@ public class UnsubscribeUpdatesReply implements RpcMessage, MetadataSamplable {
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, buffer.position(), 0, 0, 0, 1, 0, 0);
+        collector.recordMessageStats(this, buffer.position(), 0, 0, 0, 1, 0, 0);
     }
 }

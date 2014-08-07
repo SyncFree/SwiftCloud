@@ -16,31 +16,40 @@ import java.util.logging.Logger;
 public class SafeLog {
     // TODO: alternatively, just inline these things as methods for type safety
     public static enum ReportType {
-        STALENESS_READ(3, "scoutid,object,#msgs"),
+        STALENESS_READ("scoutid", "object", "#msgs"),
 
-        STALENESS_WRITE(2, "scoutid,object"),
+        STALENESS_WRITE("scoutid", "object"),
 
-        STALENESS_CALIB(5, "rtt_ms,skew_ms,scoutid,client_host,server_host"),
+        STALENESS_CALIB("rtt_ms", "skew_ms", "scoutid", "client_host", "server_host"),
 
-        STALENESS_YCSB_READ(4, "sessionID,object,write_timestamp,read_timestamp"),
+        STALENESS_YCSB_READ("sessionID", "object", "write_timestamp", "read_timestamp"),
 
-        STALENESS_YCSB_WRITE(3, "sessionID,object,write_timestamp"),
+        STALENESS_YCSB_WRITE("sessionID", "object", "write_timestamp"),
 
-        METADATA(9, "session_id,message_name," + "total_message_size,version_or_update_size,value_size,"
-                + "explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num"),
+        METADATA("session_id", "message_name", "total_message_size", "version_or_update_size", "value_size",
+                "explicitly_computed_global_metadata", "batch_size", "max_vv_size", "max_vv_exceptions_num"),
 
-        APP_OP(3, "session_id,operation_name,duration_ms"),
+        APP_OP("session_id", "operation_name", "duration_ms"),
 
-        APP_OP_FAILURE(3, "session_id,operation_name,cause"),
+        APP_OP_FAILURE("session_id", "operation_name", "cause"),
 
-        IDEMPOTENCE_GUARD_SIZE(1, "entries");
+        IDEMPOTENCE_GUARD_SIZE("node_id", "entries"),
+
+        DATABASE_TABLE_SIZE("node_id", "table_name", "size_bytes");
 
         private final int fieldsNumber;
         private final String semantics;
 
-        private ReportType(int fieldsNumber, String semantics) {
-            this.fieldsNumber = fieldsNumber;
-            this.semantics = semantics;
+        private ReportType(String... fieldsSemantics) {
+            this.fieldsNumber = fieldsSemantics.length;
+            final StringBuilder semanticsBuilder = new StringBuilder();
+            for (final String field : fieldsSemantics) {
+                if (semanticsBuilder.length() > 0) {
+                    semanticsBuilder.append(',');
+                }
+                semanticsBuilder.append(field);
+            }
+            this.semantics = semanticsBuilder.toString();
         }
 
         public int getFieldsNumber() {

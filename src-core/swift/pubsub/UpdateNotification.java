@@ -59,7 +59,7 @@ public class UpdateNotification extends PubSubNotification<CRDTIdentifier> imple
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
@@ -113,7 +113,7 @@ public class UpdateNotification extends PubSubNotification<CRDTIdentifier> imple
         final int valuesSize = buffer.position();
         // FIXME
         int globalMetadata = 0;
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
                 maxExceptionsNum);
     }
 

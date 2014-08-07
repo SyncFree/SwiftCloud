@@ -802,7 +802,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 session.initNotifications();
             }
             if (ReportType.IDEMPOTENCE_GUARD_SIZE.isEnabled()) {
-                SafeLog.report(ReportType.IDEMPOTENCE_GUARD_SIZE, sessions.size());
+                SafeLog.report(ReportType.IDEMPOTENCE_GUARD_SIZE, siteId, sessions.size());
             }
         }
         return session;

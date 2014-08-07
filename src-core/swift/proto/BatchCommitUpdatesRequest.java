@@ -74,7 +74,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
@@ -142,7 +142,7 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
                 maxExceptionsNum);
     }
 

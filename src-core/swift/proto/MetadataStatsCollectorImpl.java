@@ -16,7 +16,7 @@ import com.esotericsoftware.kryo.io.Output;
 public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     public final static int EXPECTED_BUFFER_SIZE = 2 << 15;
     public static final int MAX_BUFFER_SIZE = 2 << 23;
-    private String scoutId;
+    private String nodeId;
     private ThreadLocal<Output> freshKryoBuffer = new ThreadLocal<Output>() {
         protected Output initialValue() {
             return new ByteBufferOutput(EXPECTED_BUFFER_SIZE, MAX_BUFFER_SIZE);
@@ -25,16 +25,13 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
 
     /**
      * Creates a collector.
-     * 
-     * @param enabled
-     *            true if the collection is active
      */
-    public MetadataStatsCollectorImpl(final String scoutId) {
-        this.scoutId = scoutId;
+    public MetadataStatsCollectorImpl(final String nodeId) {
+        this.nodeId = nodeId;
     }
 
     @Override
-    public boolean isEnabled() {
+    public boolean isMessageReportEnabled() {
         return ReportType.METADATA.isEnabled();
     }
 
@@ -60,14 +57,26 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
     }
 
     @Override
-    public void recordStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize,
+    public void recordMessageStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize,
             int explicitlyComputedGlobalMetadataSize, int batchSize, int maxVectorSize, int maxExceptionsNum) {
         // TODO: we should intercept totalSize at the serialization time rather
         // than forcing re-serialization for measurements purposes
-        if (isEnabled()) {
-            SafeLog.report(ReportType.METADATA, scoutId, message.getClass().getSimpleName(), totalSize,
+        if (isMessageReportEnabled()) {
+            SafeLog.report(ReportType.METADATA, nodeId, message.getClass().getSimpleName(), totalSize,
                     objectOrUpdateSize, objectOrUpdateValueSize, explicitlyComputedGlobalMetadataSize, batchSize,
                     maxVectorSize, maxExceptionsNum);
+        }
+    }
+
+    @Override
+    public boolean isDatabaseTableReportEnabled() {
+        return ReportType.DATABASE_TABLE_SIZE.isEnabled();
+    }
+
+    @Override
+    public void recordDatabaseTableStats(String tableName, int size) {
+        if (isDatabaseTableReportEnabled()) {
+            SafeLog.report(ReportType.DATABASE_TABLE_SIZE, nodeId, tableName, size);
         }
     }
 }

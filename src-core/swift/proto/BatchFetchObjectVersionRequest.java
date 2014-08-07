@@ -115,7 +115,7 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
@@ -130,7 +130,7 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
         kryo.writeObject(buffer, requestedVersion);
         final int globalMetadata = buffer.position();
 
-        collector.recordStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), requestedVersion.getSize(),
+        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), requestedVersion.getSize(),
                 requestedVersion.getExceptionsNumber());
     }
 

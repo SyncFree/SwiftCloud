@@ -99,7 +99,7 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
         Kryo kryo = collector.getFreshKryo();
@@ -171,7 +171,7 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
 
         final int vectorSize = newVersion.getSize();
         final int maxExceptionsNum = newVersion.getExceptionsNumber();
-        collector.recordStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, vectorSize,
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, vectorSize,
                 maxExceptionsNum);
     }
 

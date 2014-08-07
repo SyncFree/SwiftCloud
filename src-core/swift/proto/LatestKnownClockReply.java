@@ -69,7 +69,7 @@ public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
-        if (!collector.isEnabled()) {
+        if (!collector.isMessageReportEnabled()) {
             return;
         }
 
@@ -99,6 +99,6 @@ public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordStats(this, totalSize, 0, 0, globalMetadata, 1, maxVectorSize, maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, 1, maxVectorSize, maxExceptionsNum);
     }
 }
