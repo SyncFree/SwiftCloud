@@ -79,7 +79,6 @@ Threads = 40
             //Scouts3 = SGroup( PlanetLab[5..5], DC_3 )
 
             Topology.clear()
-            Threads = Integer.valueOf(args[0])
 
             DC_EU = DC([EuropeEC2[0]], [EuropeEC2[0]])
             DC_NV = DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
