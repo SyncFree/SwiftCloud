@@ -131,6 +131,8 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
+        int numberOfTxns = 0;
+        int numberOfGroups = 0;
         int numberOfOps = 0;
         for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
             kryo.writeObject(buffer, entry.getKey());
@@ -146,8 +148,10 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
+            numberOfTxns++;
             kryo.writeObject(buffer, entry.getKey());
             for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
+                numberOfGroups++;
                 if (group.hasCreationState()) {
                     final Object value = group.getCreationState().getValue();
                     if (value != null) {
@@ -157,13 +161,13 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
                     }
                 }
                 for (final CRDTUpdate<?> op : group.getOperations()) {
+                    numberOfOps++;
                     final Object value = op.getValueWithoutMetadata();
                     if (value != null) {
                         kryo.writeObject(buffer, value);
                     } else {
                         kryo.writeObject(buffer, false);
                     }
-                    numberOfOps++;
                 }
             }
         }
@@ -171,8 +175,8 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
 
         final int vectorSize = newVersion.getSize();
         final int maxExceptionsNum = newVersion.getExceptionsNumber();
-        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, vectorSize,
-                maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps,
+                numberOfGroups, numberOfTxns, vectorSize, maxExceptionsNum);
     }
 
     @Override

@@ -39,8 +39,8 @@ public interface MetadataStatsCollector {
      *            maximum number of exceptions in a vector in the message
      */
     public abstract void recordMessageStats(Object message, int totalSize, int objectOrUpdateSize,
-            int objectOrUpdateValueSize, int explicitlyComputedGlobalMetadataSize, int batchSize, int maxVectorSize,
-            int maxExceptionsNum);
+            int objectOrUpdateValueSize, int explicitlyComputedGlobalMetadataSize, int batchSizeFinestGrained,
+            int batchSizeFinerGrained, int batchSizeCoarseGrained, int maxVectorSize, int maxExceptionsNum);
 
     boolean isDatabaseTableReportEnabled();
 

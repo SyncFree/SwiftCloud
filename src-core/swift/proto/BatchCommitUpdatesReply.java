@@ -92,7 +92,7 @@ public class BatchCommitUpdatesReply implements RpcMessage, MetadataSamplable {
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getReplies().size(), maxVectorSize,
-                maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getReplies().size(), getReplies().size(),
+                getReplies().size(), maxVectorSize, maxExceptionsNum);
     }
 }

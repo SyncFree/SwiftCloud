@@ -130,8 +130,8 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
         kryo.writeObject(buffer, requestedVersion);
         final int globalMetadata = buffer.position();
 
-        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), requestedVersion.getSize(),
-                requestedVersion.getExceptionsNumber());
+        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), getBatchSize(),
+                getBatchSize(), requestedVersion.getSize(), requestedVersion.getExceptionsNumber());
     }
 
     @Override

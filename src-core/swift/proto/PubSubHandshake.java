@@ -53,6 +53,6 @@ public class PubSubHandshake extends ClientRequest implements MetadataSamplable 
         Output buffer = collector.getFreshKryoBuffer();
         kryo.writeObject(buffer, this);
         final int size = buffer.position();
-        collector.recordMessageStats(this, size, 0, 0, 0, 0, 0, 0);
+        collector.recordMessageStats(this, size, 0, 0, 0, 1, 1, 1, 0, 0);
     }
 }

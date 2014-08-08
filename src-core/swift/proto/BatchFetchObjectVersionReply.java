@@ -230,7 +230,12 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         if (estimatedLatestKnownClock != null) {
             kryo.writeObject(buffer, estimatedLatestKnownClock);
         }
+        int actualBatchSize = 0;
         for (int i = 0; i < getBatchSize(); i++) {
+            if (statuses[i] != FetchStatus.UP_TO_DATE) {
+                actualBatchSize++;
+                kryo.writeObject(buffer, statuses[i]);
+            }
             if (crdts[i] != null) {
                 if (statuses[i] != FetchStatus.OK || compressionReferenceIdx < 0 || compressionReferenceIdx == i) {
                     kryo.writeObject(buffer, crdts[i].getClock());
@@ -246,8 +251,8 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         }
         final int globalMetadata = buffer.position();
 
-        collector.recordMessageStats(this, totalSize, versionSize, valueSize, globalMetadata, getBatchSize(), maxVectorSize,
-                maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, versionSize, valueSize, globalMetadata, getBatchSize(),
+                actualBatchSize, actualBatchSize, maxVectorSize, maxExceptionsNum);
     }
 
     @Override

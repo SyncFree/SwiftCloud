@@ -102,6 +102,8 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
 
         int maxExceptionsNum = 0;
         int maxVectorSize = 0;
+        int numberOfTxns = 0;
+        int numberOfGroups = 0;
         int numberOfOps = 0;
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
@@ -121,7 +123,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         for (final CommitUpdatesRequest req : commitRequests) {
+            numberOfTxns++;
             for (final CRDTObjectUpdatesGroup<?> group : req.getObjectUpdateGroups()) {
+                numberOfGroups++;
                 if (group.hasCreationState()) {
                     final Object value = group.getCreationState().getValue();
                     if (value != null) {
@@ -132,18 +136,18 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
                 }
                 kryo.writeObject(buffer, group.getTargetUID());
                 for (final CRDTUpdate<?> op : group.getOperations()) {
+                    numberOfOps++;
                     if (op.getValueWithoutMetadata() != null) {
                         kryo.writeObject(buffer, op.getValueWithoutMetadata());
                     } else {
                         kryo.writeObject(buffer, false);
                     }
-                    numberOfOps++;
                 }
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps, maxVectorSize,
-                maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps,
+                numberOfGroups, numberOfTxns, maxVectorSize, maxExceptionsNum);
     }
 
     @Override
