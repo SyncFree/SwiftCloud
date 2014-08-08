@@ -16,39 +16,36 @@ INTEGRATED_DC = true
 
 // NODES
 EuropeEC2 = [
-    // first node is a DC, followed by 2 x 7 scouts
-    'ec2-54-77-125-192.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-225.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-238.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-187.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-95.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-155.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-161.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-119-11.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-218.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-244.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-222.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-216.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-143.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-233.eu-west-1.compute.amazonaws.com',
-    'ec2-54-77-125-240.eu-west-1.compute.amazonaws.com'
+    // DC only
+    'ec2-54-77-125-192.eu-west-1.compute.amazonaws.com'
 ]
 
 NVirginiaEC2 = [
-    // DC only
-    'ec2-54-210-105-159.compute-1.amazonaws.com'
+    // first node is a DC, followed by two groups of 6 and 7 scouts
+    'ec2-107-23-8-93.compute-1.amazonaws.com',
+    'ec2-54-210-180-207.compute-1.amazonaws.com',
+    'ec2-54-236-226-56.compute-1.amazonaws.com',
+    'ec2-107-23-8-117.compute-1.amazonaws.com',
+    'ec2-54-210-232-97.compute-1.amazonaws.com',
+    'ec2-54-88-244-46.compute-1.amazonaws.com',
+    'ec2-54-88-82-117.compute-1.amazonaws.com',
+    'ec2-107-23-7-145.compute-1.amazonaws.com',
+    'ec2-107-23-7-176.compute-1.amazonaws.com',
+    'ec2-54-84-228-145.compute-1.amazonaws.com',
+    'ec2-107-23-8-116.compute-1.amazonaws.com',
+    'ec2-107-23-8-110.compute-1.amazonaws.com',
+    'ec2-54-210-95-27.compute-1.amazonaws.com'
 ]
 
 OregonEC2 = [
     // first node is a DC, followed by 7 scouts
-    'ec2-54-191-105-195.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-109-163.us-west-2.compute.amazonaws.com',
-    'ec2-54-186-195-216.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-105-131.us-west-2.compute.amazonaws.com',
-    'ec2-54-187-147-50.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-106-160.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-104-55.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-103-74.us-west-2.compute.amazonaws.com'
+    'ec2-54-201-30-239.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-249-227.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-227-7.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-161-173.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-94-27.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-61-206.us-west-2.compute.amazonaws.com',
+    'ec2-54-201-18-167.us-west-2.compute.amazonaws.com'
 ]
 
 
@@ -78,9 +75,9 @@ DC_EU = DC([EuropeEC2[0]], [EuropeEC2[0]])
 DC_NV = DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
 DC_OR = DC([OregonEC2[0]], [OregonEC2[0]])
 
-ScoutsToNV = SGroup(EuropeEC2[1..7], DC_NV)
-ScoutsToOR = SGroup(EuropeEC2[8..14], DC_OR)
-ScoutsToEU = SGroup(OregonEC2[1..7], DC_EU)
+ScoutsToEU = SGroup(NVirginiaEC2[1..6], DC_EU)
+ScoutsToNV = SGroup(OregonEC2[1..7], DC_NV)
+ScoutsToOR = SGroup(NVirginiaEC2[7..13], DC_OR)
 
 Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];

@@ -71,7 +71,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   #d <- subset(d,!is.na(d$duration))
   d <- adjust_timestamps(d)
   # That should include at least one pruning point (60s)
-  prune_start <- 150000
+  prune_start <- 350000
   duration_run <- 100000
   # V1 = timestamp
   dfiltered <- subset(d,d$V1 > prune_start & d$V1 - prune_start < duration_run)
