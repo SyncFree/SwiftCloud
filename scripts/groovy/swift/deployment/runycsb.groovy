@@ -95,7 +95,7 @@ NotificationsPeriodMillis = 1000
 IncomingOpPerSecLimit = 12000 // 1000000  // :-)
 IncomingOpPerSecPerClientLimit = (int) (IncomingOpPerSecLimit / Scouts.size())
 
-Duration = 520
+Duration = 600
 DurationShepardGrace = 12
 InterCmdDelay = 30
 
