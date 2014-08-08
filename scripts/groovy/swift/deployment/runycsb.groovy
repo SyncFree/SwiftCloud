@@ -22,6 +22,7 @@ EuropeEC2 = [
 
 NVirginiaEC2 = [
     // first node is a DC, followed by two groups of 6 and 7 scouts
+    'ec2-54-210-105-159.compute-1.amazonaws.com',
     'ec2-107-23-8-93.compute-1.amazonaws.com',
     'ec2-54-210-180-207.compute-1.amazonaws.com',
     'ec2-54-236-226-56.compute-1.amazonaws.com',
