@@ -39,6 +39,7 @@ NVirginiaEC2 = [
 
 OregonEC2 = [
     // first node is a DC, followed by 7 scouts
+    'ec2-54-191-105-195.us-west-2.compute.amazonaws.com',
     'ec2-54-201-30-239.us-west-2.compute.amazonaws.com',
     'ec2-54-191-249-227.us-west-2.compute.amazonaws.com',
     'ec2-54-200-227-7.us-west-2.compute.amazonaws.com',
