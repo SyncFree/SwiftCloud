@@ -147,9 +147,9 @@ if (!INTEGRATED_DC) {
     Topology.datacenters.each { datacenter ->
         datacenter.deploySequencers(ShepardAddr, "1024m" )
     }
+    Sleep(10)
 }
 
-Sleep(10)
 println "==== LAUNCHING SURROGATES"
 Topology.datacenters.each { datacenter ->
     if (INTEGRATED_DC) {
