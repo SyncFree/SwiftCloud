@@ -5,14 +5,6 @@ require("gridExtra");
 
 format_ext <- ".png"
 
-adjust_timestamps <- function (data){
-  #Data format is:
-  #timestamp_ms,...
-  start_timestamp = min(data$V1)
-  data <- transform(data, V1=(data$V1 - start_timestamp))
-  return (data)
-}
-
 select_OP <- function (data){
   #Data format is:
   #timestamp_ms,APP_OP,session_id,operation_name,duration_ms
@@ -40,36 +32,54 @@ select_METADATA <- function (data) {
   #                                  explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num
   data <- transform(data, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
                           V8=as.numeric(V8), V9=as.numeric(V9),
-                          V10=as.numeric(V10), V11=as.numeric(V11))
+                          V10=as.numeric(V10), V11=as.numeric(V11), V12=as.numeric(V12), V13=as.numeric(V13))
   data$V9 <- sapply(data$V9, function(x) { return (max(x, 1)) })
   names(data) <- c("timestamp","type","sessionId","message","totalMessageSize",
-                   "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSize",
-                   "maxVVSize","maxVVExceptionsNum")
-  data$normalizedTotalMessageSize <- data$totalMessageSize / data$batchSize
-  data$normalizedExplicitGlobalMetadata <- data$explicitGlobalMetadata / data$batchSize
+                   "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSizeFinestGrained",
+                   "batchSizeFinerGrained", "batchSizeCoarseGrained", "maxVVSize","maxVVExceptionsNum")
+  data$normalizedTotalMessageSizeByBatchSizeFinestGrained <- data$totalMessageSize / data$batchSizeFinestGrained
+  data$normalizedTotalMessageSizeByBatchSizeFinerGrained <- data$totalMessageSize / data$batchSizeFinerGrained
+  data$normalizedTotalMessageSizeByBatchSizeCoarseGrained <- data$totalMessageSize / data$batchSizeCoarseGrained
+  data$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained <- data$explicitGlobalMetadata / data$batchSizeFinestGrained
+  data$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained <- data$explicitGlobalMetadata / data$batchSizeFinerGrained
+  data$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained <- data$explicitGlobalMetadata / data$batchSizeCoarseGrained
+  return (data)
+}
+
+select_DATABASE_TABLE_SIZE <- function (data) {
+  data <- subset(data,data$V2=="DATABASE_TABLE_SIZE")
+  data <- transform(data, V5=as.numeric(V5))
+  names(data) <- c("timestamp","type","nodeId","tableName","tableSize")
+  return (data)
+}
+
+select_IDEMPOTENCE_GUARD_SIZE <- function (data) {
+  data <- subset(data,data$V2=="IDEMPOTENCE_GUARD_SIZE")
+  data <- transform(data, V4=as.numeric(V4))
+  names(data) <- c("timestamp","type","nodeId","idempotenceGuardSize")
   return (data)
 }
 
 process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summarized=TRUE) {
+  # Scout logs
   file_list <- list.files(dir, pattern="*scout-stdout.log",recursive=TRUE,full.names=TRUE)
   
   if (length(file_list) == 0) {
-    warning(paste("No logs found in", dir))
+    warning(paste("No scout logs found in", dir))
   }
-  
-  dir.create(dirname(output_prefix), recursive=TRUE,showWarnings=FALSE)
-  
+
   d <- data.frame()
   for (file in file_list){
     temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
     d <- rbind(d, temp_dataset)
     rm(temp_dataset)
   }
-  print(paste("Loaded", length(file_list), "files"))
+  print(paste("Loaded", length(file_list), "scout log files"))
   #summary(d)
-  #Filter out the rows where duration couldn't be parsed due to 
-  #d <- subset(d,!is.na(d$duration))
-  d <- adjust_timestamps(d)
+  #Data format is:
+  #timestamp_ms,...
+  min_exp_timestamp = min(d$V1)
+  d <- transform(d, V1=(d$V1 - min_exp_timestamp))
   # That should include at least one pruning point (60s)
   prune_start <- 350000
   duration_run <- 100000
@@ -86,11 +96,36 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   rm(d)
   rm(dfiltered)
   
-  # TODO: add DB SIZE / IDEMPOTENCE GUARD info
+  # DC logs
+  dc_file_list <- list.files(dir, pattern="*sur-stdout.log",recursive=TRUE,full.names=TRUE)
+  
+  if (length(dc_file_list) == 0) {
+    warning(paste("No DC logs found in", dir))
+  }
+  
+  ddc <- data.frame()
+  for (file in dc_file_list){
+    temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
+    ddc <- rbind(ddc, temp_dataset)
+    rm(temp_dataset)
+  }
+  print(paste("Loaded", length(dc_file_list), "DC log files"))
+  ddc <- transform(ddc, V1=(ddc$V1 - min_exp_timestamp))
+  ddc_filtered <- subset(ddc,ddc$V1 > prune_start & ddc$V1 - prune_start < duration_run)
+  
+  # TODO: extrapolate IDEMPOTENCE_GUARD_SIZE entries beyond initialization phase
+  
+  dtablesize <- select_DATABASE_TABLE_SIZE(ddc)
+  dguardsize <- select_IDEMPOTENCE_GUARD_SIZE(ddc)
+  dtablesize_filtered <- select_DATABASE_TABLE_SIZE(ddc_filtered)
+  dguardsize_filtered <- select_IDEMPOTENCE_GUARD_SIZE(ddc_filtered)
 
+  # Create destination directory
+  dir.create(dirname(output_prefix), recursive=TRUE, showWarnings=FALSE)
+  
   # "SPECTROGRAM" MODE OUPUT
   if (spectrogram) {
-    #Scatterplot for distribution over time  
+    # Response time scatterplot over time  
     scatter.plot <- ggplot(dop, aes(timestamp,duration)) + geom_point(aes(color=operation))
     ggsave(scatter.plot, file=paste(output_prefix, "-response_time",format_ext,collapse="", sep=""), scale=1)
   
@@ -111,8 +146,34 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     metadata_size.plot <- ggplot(dmetadata, aes(timestamp,explicitGlobalMetadata)) + geom_point(aes(color=message))
     ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta",format_ext,collapse="", sep=""), scale=1)
   
-    metadata_norm_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadata)) + geom_point(aes(color=message))
-    ggsave(metadata_norm_size.plot, file=paste(output_prefix, "-msg_meta_norm",format_ext,collapse="", sep=""), scale=1)
+    metadata_norm1_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_norm1",format_ext,collapse="", sep=""), scale=1)
+
+    metadata_norm2_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_norm2",format_ext,collapse="", sep=""), scale=1)
+    
+    metadata_norm3_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_norm3",format_ext,collapse="", sep=""), scale=1)
+    
+    # Storage metadata/db size, plots over time
+    db_table_size.plot <- ggplot()
+    guard_size.plot <- ggplot()
+    for (eachDc in unique(dtablesize$nodeId)) {
+      dctablesize <- subset(dtablesize, dtablesize$nodeId == eachDc)
+      dctablesize$dcTable <- paste("DC", dctablesize$nodeId, ", table", dctablesize$tableName)
+      for (tab in unique(dctablesize$tableName)) {
+        tabdctablesize <- subset(dctablesize, dctablesize$tableName == tab)
+        db_table_size.plot <- db_table_size.plot + geom_line(data=tabdctablesize, mapping=aes(timestamp,tableSize, color=dcTable))
+      }
+    }
+
+    for (eachDc in unique(dguardsize$nodeId)) {
+      dcguardsize <- subset(dguardsize, dguardsize$nodeId == eachDc)
+      guard_size.plot <- guard_size.plot + geom_line(data=dcguardsize, mapping=aes(timestamp,idempotenceGuardSize,color=nodeId))
+    }
+
+    ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",format_ext,collapse="", sep=""), scale=1)
+    ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",format_ext,collapse="", sep=""), scale=1)
   }
 
   # "SUMMARIZED" MODE OUTPUT
@@ -130,33 +191,42 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     
     # common output format for descriptive statistics
     quantile_steps <- seq(from=0.0, to=1.0, by=0.001)
-    stats <- c("mean", rep("permille", length(quantile_steps)))
-    # TODO STDDEV, VARIATION?
-    stats_params <- c(0, quantile_steps) 
+    stats <- c("mean", "stddev", rep("permille", length(quantile_steps)))
+    stats_params <- c(0, 0, quantile_steps)
+    compute_stats <- function(vec) {
+      return (c(mean(vec), sd(vec), quantile(vec, probs=quantile_steps)))
+    }
   
     # Throughput / response time descriptive statistics over filtered data
     time_steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
     through <- hist(dop_filtered$timestamp, breaks=time_steps)
     # summary(through$counts)
     # summary(dop_filtered$duration)
+
+    # TODO: add colors by session
     operations_stats <- data.frame(stat=stats, stat_param=stats_params,
-                             throughput=c(mean(through$counts), quantile(through$counts, probs=quantile_steps)),
-                             response_time=c(mean(dop_filtered$duration), quantile(dop_filtered$duration, probs=quantile_steps)))
+                             throughput=compute_stats(through$counts),
+                             response_time=compute_stats(dop_filtered$duration))
     write.table(operations_stats, paste(output_prefix, "ops.csv", sep="-"), sep=",", row.names=FALSE)
-  
+    
     # Metadata size descriptive statistics
-    message_size_stats <- data.frame(stat=stats, stat_params=stats_params)
     metadata_size_stats <- data.frame(stat=stats, stat_params=stats_params)
     for (m in unique(dmetadata_filtered$message)) {
       m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
-      message_size_stats[[m]] <- c(mean(m_filtered$totalMessageSize), quantile(m_filtered$totalMessageSize, probs=quantile_steps))
-      message_size_stats[[paste(m,"normalized",sep="-")]] <- c(mean(m_filtered$normalizedTotalMessageSize),
-                                                              quantile(m_filtered$normalizedTotalMessageSize, probs=quantile_steps))
-      metadata_size_stats[[m]] <- c(mean(m_filtered$explicitGlobalMetadata), quantile(m_filtered$explicitGlobalMetadata, probs=quantile_steps))
-      metadata_size_stats[[paste(m, "normalized",sep="-")]] <- c(mean(m_filtered$normalizedExplicitGlobalMetadata),
-                                                                 quantile(m_filtered$normalizedExplicitGlobalMetadata, probs=quantile_steps))
+      metadata_size_stats[[paste(m, "msg", sep="-")]] <- compute_stats(m_filtered$totalMessageSize)
+      metadata_size_stats[[paste(m,"msg", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinestGrained)
+      metadata_size_stats[[paste(m,"msg", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinerGrained)
+      metadata_size_stats[[paste(m,"msg", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeCoarseGrained)
+      metadata_size_stats[[paste(m, "meta", sep="-")]] <- compute_stats(m_filtered$explicitGlobalMetadata)
+      metadata_size_stats[[paste(m, "meta", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)
+      metadata_size_stats[[paste(m, "meta", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)
+      metadata_size_stats[[paste(m, "meta", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)
     }
-    write.table(message_size_stats, paste(output_prefix, "msg_size.csv", sep="-"), sep=",", row.names=FALSE)
+    for (eachTable in unique(dtablesize_filtered$tableName)) {
+      tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
+      metadata_size_stats[[paste(eachTable, "table", sep="-")]] <- compute_stats(tablestats$tableSize)
+    }
+    metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize$idempotenceGuardSize)
     write.table(metadata_size_stats, paste(output_prefix, "meta_size.csv", sep="-"), sep=",", row.names=FALSE)
   
     # Errors descriptive statistics
@@ -177,7 +247,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   rm(dmetadata_filtered)
 }
 
-process_experiment_run <- function(path, spectrogram, summarized) {
+process_experiment_run <- function(path, spectrogram=TRUE, summarized=TRUE) {
   if (file.info(path)$isdir) {
     prefix <- sub(paste(.Platform$file.sep, "$", sep=""),  "", path)
     output_prefix <- file.path(dirname(prefix), "processed", basename(prefix))

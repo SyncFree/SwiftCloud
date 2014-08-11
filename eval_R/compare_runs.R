@@ -191,7 +191,7 @@ var_clock_size_in_fetch_plot <- function(dir, var_name, var_label, output_dir = 
       means <- subset(mode_stats, mode_stats$stat == "mean")
       means <- means[order(means$var), ]
       p <- p + geom_path(data=means,
-                         mapping=aes(y=BatchFetchObjectVersionReply, x=var, colour=mode))
+                         mapping=aes(y=BatchFetchObjectVersionReply.meta, x=var, colour=mode))
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-BatchFetchObjectVersionReply_clock", format_ext, sep="")), scale=1)
@@ -211,7 +211,7 @@ var_clock_size_in_commit_plot <- function(dir, var_name, var_label, output_dir =
       means <- subset(mode_stats, mode_stats$stat == "mean")
       means <- means[order(means$var), ]
       p <- p + geom_path(data=means,
-                         mapping=aes(y=BatchCommitUpdatesRequest.normalized, x=var, colour=mode))
+                         mapping=aes(y=BatchCommitUpdatesRequest.meta.norm1, x=var, colour=mode))
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-BatchCommitUpdatesRequest_clock_per_txn", format_ext, sep="")), scale=1)
