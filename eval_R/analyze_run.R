@@ -14,6 +14,7 @@ select_OP <- function (data){
   
   #Filter for batch updates
   data <- subset(data,data$V2=="APP_OP")
+  data <- data[, c("V1", "V2", "V3", "V4", "V5")]
   # since d contains variety of different entries, this casting is needed
   data <- transform(data, V5 = as.numeric(V5))
   # data <- subset(data,data$V4=="read" | data$V4=="update")
@@ -25,6 +26,7 @@ select_OP_FAILURE <- function (data) {
   #Data format is:
   #timestamp_ms,APP_OP,session_id,operation_name,error_cause
   data <- subset(data,data$V2=="APP_OP_FAILURE")
+  data <- data[, c("V1", "V2", "V3", "V4", "V5")]
   names(data) <- c("timestamp","type","sessionId","operation","cause")
   return (data)
 }
@@ -33,6 +35,7 @@ select_METADATA <- function (data) {
   data <- subset(data,data$V2=="METADATA")
   #report type METADATA formatted as timestamp_ms,METADATA,session_id,message_name,total_message_size,version_or_update_size,value_size,
   #                                  explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num
+  data <- data[, c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13")]
   data <- transform(data, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
                           V8=as.numeric(V8), V9=as.numeric(V9),
                           V10=as.numeric(V10), V11=as.numeric(V11), V12=as.numeric(V12), V13=as.numeric(V13))
@@ -51,6 +54,7 @@ select_METADATA <- function (data) {
 
 select_DATABASE_TABLE_SIZE <- function (data) {
   data <- subset(data,data$V2=="DATABASE_TABLE_SIZE")
+  data <- data[, c("V1", "V2", "V3", "V4", "V5")]
   data <- transform(data, V5=as.numeric(V5))
   names(data) <- c("timestamp","type","nodeId","tableName","tableSize")
   return (data)
@@ -142,6 +146,11 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     # Response time scatterplot over time  
     scatter.plot <- ggplot(dop, aes(timestamp,duration)) + geom_point(aes(color=operation))
     ggsave(scatter.plot, file=paste(output_prefix, "-response_time",FORMAT_EXT,collapse="", sep=""), scale=1)
+    
+    # Throughput over time plot
+    throughput.plot <- ggplot(dop, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
+    #throughput.plot
+    ggsave(throughput.plot, file=paste(output_prefix, "-throughput_full",FORMAT_EXT,collapse="", sep=""), scale=1)
   
     #Histogram
     #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
@@ -194,7 +203,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   if (summarized) {
     # Throughput over time plot
     # Careful: It seems that the first and last bin only cover 5000 ms
-    throughput.plot <- ggplot(dop, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
+    throughput.plot <- ggplot(dop_filtered, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
     
