@@ -3,7 +3,10 @@ require("ggplot2");
 require("reshape2");
 require("gridExtra");
 
-format_ext <- ".png"
+# That should include at least one pruning point (60s)
+PRUNE_START_MS <- 350000
+DURATION_RUN_MS <- 100000
+FORMAT_EXT <- ".png"
 
 select_OP <- function (data){
   #Data format is:
@@ -53,11 +56,29 @@ select_DATABASE_TABLE_SIZE <- function (data) {
   return (data)
 }
 
-select_IDEMPOTENCE_GUARD_SIZE <- function (data) {
+select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (data) {
+  max_timestamp <- max(data$V1)
   data <- subset(data,data$V2=="IDEMPOTENCE_GUARD_SIZE")
   data <- transform(data, V4=as.numeric(V4))
+  data <- data[, c("V1", "V2", "V3", "V4")]
   names(data) <- c("timestamp","type","nodeId","idempotenceGuardSize")
+  for (dc in unique(data$nodeId)) {
+    dc_last_guard <- tail(subset(data, data$nodeId == dc), 1)
+    MIN_SAMPLING_PERIOD <- 1000
+    if (dc_last_guard$timestamp + MIN_SAMPLING_PERIOD < max_timestamp) {
+      missing_timestamps <- seq(dc_last_guard$timestamp + MIN_SAMPLING_PERIOD, max_timestamp, by=MIN_SAMPLING_PERIOD)
+      replicated_entries <- data.frame(timestamp=missing_timestamps,
+                                       type=as.character(rep("IDEMPOTENCE_GUARD_SIZE", length(missing_timestamps))),
+                                       nodeId=as.character(rep(dc, length(missing_timestamps))),
+                                       idempotenceGuardSize=rep(dc_last_guard$idempotenceGuardSize, length(missing_timestamps)))
+      data <- rbind(data, replicated_entries)
+    }
+  }
   return (data)
+}
+
+select_duration <- function(data, prune_start, duration) {
+  return (subset(data, data$timestamp > prune_start & data$timestamp - prune_start < duration))
 }
 
 process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summarized=TRUE) {
@@ -76,25 +97,21 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   }
   print(paste("Loaded", length(file_list), "scout log files"))
   #summary(d)
+
   #Data format is:
   #timestamp_ms,...
+  # compute relative timestamps
   min_exp_timestamp = min(d$V1)
   d <- transform(d, V1=(d$V1 - min_exp_timestamp))
-  # That should include at least one pruning point (60s)
-  prune_start <- 350000
-  duration_run <- 100000
-  # V1 = timestamp
-  dfiltered <- subset(d,d$V1 > prune_start & d$V1 - prune_start < duration_run)
-  
+
   # can it be done in a more compact way?
   dop <- select_OP(d)
   derr <- select_OP_FAILURE(d)
   dmetadata <- select_METADATA(d)
-  dop_filtered <- select_OP(dfiltered)
-  derr_filtered <- select_OP_FAILURE(dfiltered)
-  dmetadata_filtered <- select_METADATA(dfiltered)
+  dop_filtered <- select_duration(dop, PRUNE_START_MS, DURATION_RUN_MS)
+  derr_filtered <- select_duration(derr, PRUNE_START_MS, DURATION_RUN_MS)
+  dmetadata_filtered <- select_duration(dmetadata, PRUNE_START_MS, DURATION_RUN_MS)
   rm(d)
-  rm(dfiltered)
   
   # DC logs
   dc_file_list <- list.files(dir, pattern="*sur-stdout.log",recursive=TRUE,full.names=TRUE)
@@ -111,14 +128,11 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   }
   print(paste("Loaded", length(dc_file_list), "DC log files"))
   ddc <- transform(ddc, V1=(ddc$V1 - min_exp_timestamp))
-  ddc_filtered <- subset(ddc,ddc$V1 > prune_start & ddc$V1 - prune_start < duration_run)
-  
-  # TODO: extrapolate IDEMPOTENCE_GUARD_SIZE entries beyond initialization phase
   
   dtablesize <- select_DATABASE_TABLE_SIZE(ddc)
-  dguardsize <- select_IDEMPOTENCE_GUARD_SIZE(ddc)
-  dtablesize_filtered <- select_DATABASE_TABLE_SIZE(ddc_filtered)
-  dguardsize_filtered <- select_IDEMPOTENCE_GUARD_SIZE(ddc_filtered)
+  dguardsize <- select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE(ddc)
+  dtablesize_filtered <- select_duration(dtablesize, PRUNE_START_MS, DURATION_RUN_MS)
+  dguardsize_filtered <- select_duration(dguardsize, PRUNE_START_MS, DURATION_RUN_MS)
 
   # Create destination directory
   dir.create(dirname(output_prefix), recursive=TRUE, showWarnings=FALSE)
@@ -127,7 +141,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   if (spectrogram) {
     # Response time scatterplot over time  
     scatter.plot <- ggplot(dop, aes(timestamp,duration)) + geom_point(aes(color=operation))
-    ggsave(scatter.plot, file=paste(output_prefix, "-response_time",format_ext,collapse="", sep=""), scale=1)
+    ggsave(scatter.plot, file=paste(output_prefix, "-response_time",FORMAT_EXT,collapse="", sep=""), scale=1)
   
     #Histogram
     #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
@@ -137,23 +151,23 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       m_metadata <- subset(dmetadata, dmetadata$message==m) 
       msg.plot <- ggplot(m_metadata, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
       # msg.plot
-      ggsave(msg.plot, file=paste(output_prefix, "-msg_occur-", m, format_ext,collapse="", sep=""), scale=1)
+      ggsave(msg.plot, file=paste(output_prefix, "-msg_occur-", m, FORMAT_EXT,collapse="", sep=""), scale=1)
     }
     # Message size and metadata size over time scatter plots
     msg_size.plot <- ggplot(dmetadata, aes(timestamp,totalMessageSize)) + geom_point(aes(color=message))
-    ggsave(msg_size.plot, file=paste(output_prefix, "-msg_size",format_ext,collapse="", sep=""), scale=1)
+    ggsave(msg_size.plot, file=paste(output_prefix, "-msg_size",FORMAT_EXT,collapse="", sep=""), scale=1)
   
     metadata_size.plot <- ggplot(dmetadata, aes(timestamp,explicitGlobalMetadata)) + geom_point(aes(color=message))
-    ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta",format_ext,collapse="", sep=""), scale=1)
+    ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta",FORMAT_EXT,collapse="", sep=""), scale=1)
   
     metadata_norm1_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
-    ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_norm1",format_ext,collapse="", sep=""), scale=1)
+    ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_norm1",FORMAT_EXT,collapse="", sep=""), scale=1)
 
     metadata_norm2_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
-    ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_norm2",format_ext,collapse="", sep=""), scale=1)
+    ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_norm2",FORMAT_EXT,collapse="", sep=""), scale=1)
     
     metadata_norm3_size.plot <- ggplot(dmetadata, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
-    ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_norm3",format_ext,collapse="", sep=""), scale=1)
+    ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
     
     # Storage metadata/db size, plots over time
     db_table_size.plot <- ggplot()
@@ -172,8 +186,8 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       guard_size.plot <- guard_size.plot + geom_line(data=dcguardsize, mapping=aes(timestamp,idempotenceGuardSize,color=nodeId))
     }
 
-    ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",format_ext,collapse="", sep=""), scale=1)
-    ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",format_ext,collapse="", sep=""), scale=1)
+    ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",FORMAT_EXT,collapse="", sep=""), scale=1)
+    ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",FORMAT_EXT,collapse="", sep=""), scale=1)
   }
 
   # "SUMMARIZED" MODE OUTPUT
@@ -182,12 +196,12 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     # Careful: It seems that the first and last bin only cover 5000 ms
     throughput.plot <- ggplot(dop, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     #throughput.plot
-    ggsave(throughput.plot, file=paste(output_prefix, "-throughput",format_ext,collapse="", sep=""), scale=1)
+    ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
     
     # Operation duration CDF plot for the filtered period
     cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
     # cdf.plot
-    ggsave(cdf.plot, file=paste(output_prefix, "-cdf",format_ext,collapse="", sep=""), scale=1)
+    ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
     
     # common output format for descriptive statistics
     quantile_steps <- seq(from=0.0, to=1.0, by=0.001)
