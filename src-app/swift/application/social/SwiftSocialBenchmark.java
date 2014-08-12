@@ -119,7 +119,6 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         SafeLog.printlnComment(String.format("\tnumberOfVirtualSites=%s", numberOfVirtualSites));
         SafeLog.printlnComment(String.format("\tSurrogate=%s", server));
         SafeLog.printlnComment(String.format("\tShepard=%s", shepard));
-        SafeLog.printHeader();
 
         if (!shepard.isEmpty())
             Shepard.sheepJoinHerd(shepard);

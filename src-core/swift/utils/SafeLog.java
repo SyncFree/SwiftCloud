@@ -88,8 +88,10 @@ public class SafeLog {
     }
 
     public synchronized static void configure(EnumSet<ReportType> reports) {
+        printlnComment("The log includes the following reports:");
         for (final ReportType report : reports) {
             enabledReportsEnumSet.add(report);
+            report.printHeader();
             logger.info("Configured report " + report);
         }
         Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -98,13 +100,6 @@ public class SafeLog {
                 SafeLog.close();
             }
         });
-    }
-
-    public static void printHeader() {
-        printlnComment("The log includes the following reports:");
-        for (final ReportType type : enabledReportsEnumSet) {
-            type.printHeader();
-        }
     }
 
     public synchronized static void report(ReportType type, Object... args) {
