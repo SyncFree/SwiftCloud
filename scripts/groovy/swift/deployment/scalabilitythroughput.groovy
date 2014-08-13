@@ -17,49 +17,56 @@ INTEGRATED_DC = true
 // NODES
 EuropeEC2 = [
     // DC only
-    'ec2-54-77-27-144.eu-west-1.compute.amazonaws.com'
+    'ec2-54-77-125-192.eu-west-1.compute.amazonaws.com'
 ]
 
 NVirginiaEC2 = [
     // first node is a DC, followed by two groups of 6 and 7 scouts
-    'ec2-54-84-2-53.compute-1.amazonaws.com',
-    'ec2-107-21-43-14.compute-1.amazonaws.com',
-    'ec2-54-210-226-172.compute-1.amazonaws.com',
-    'ec2-54-236-125-2.compute-1.amazonaws.com',
-    'ec2-54-210-193-43.compute-1.amazonaws.com',
-    'ec2-54-85-65-42.compute-1.amazonaws.com',
-    'ec2-54-210-198-54.compute-1.amazonaws.com',
-    'ec2-54-210-182-215.compute-1.amazonaws.com',
-    'ec2-54-210-231-128.compute-1.amazonaws.com',
-    'ec2-54-210-189-154.compute-1.amazonaws.com',
-    'ec2-54-210-217-225.compute-1.amazonaws.com',
-    'ec2-54-210-228-25.compute-1.amazonaws.com',
-    'ec2-54-210-219-244.compute-1.amazonaws.com',
-    'ec2-54-210-232-153.compute-1.amazonaws.com'
+    'ec2-54-210-105-159.compute-1.amazonaws.com',
+    'ec2-107-23-8-93.compute-1.amazonaws.com',
+    'ec2-54-210-180-207.compute-1.amazonaws.com',
+    'ec2-54-236-226-56.compute-1.amazonaws.com',
+    'ec2-107-23-8-117.compute-1.amazonaws.com',
+    'ec2-54-210-232-97.compute-1.amazonaws.com',
+    'ec2-54-88-244-46.compute-1.amazonaws.com',
+    'ec2-54-88-82-117.compute-1.amazonaws.com',
+    'ec2-107-23-7-145.compute-1.amazonaws.com',
+    'ec2-107-23-7-176.compute-1.amazonaws.com',
+    'ec2-54-84-228-145.compute-1.amazonaws.com',
+    'ec2-107-23-8-116.compute-1.amazonaws.com',
+    'ec2-107-23-8-110.compute-1.amazonaws.com',
+    'ec2-54-210-95-27.compute-1.amazonaws.com'
 ]
 
 OregonEC2 = [
     // first node is a DC, followed by 7 scouts
-    'ec2-54-187-120-174.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-227-255.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-178-85.us-west-2.compute.amazonaws.com',
-    'ec2-54-201-2-36.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-110-137.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-147-32.us-west-2.compute.amazonaws.com',
-    'ec2-54-191-124-107.us-west-2.compute.amazonaws.com',
-    'ec2-54-200-148-186.us-west-2.compute.amazonaws.com'
+    'ec2-54-191-105-195.us-west-2.compute.amazonaws.com',
+    'ec2-54-201-30-239.us-west-2.compute.amazonaws.com',
+    'ec2-54-191-249-227.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-227-7.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-161-173.us-west-2.compute.amazonaws.com',
+    'ec2-54-200-94-27.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-61-206.us-west-2.compute.amazonaws.com',
+    'ec2-54-201-18-167.us-west-2.compute.amazonaws.com'
 ]
 
 
+
+// TODO: avoid copy-pasting and redundancy with runycsb.groovy
+
+Proportion = "0.8"
+Threads = 40
+
 if (args.length != 3) {
-    System.err.println "usage: scalabilityclientsworkloadb.groovy <workload> <mode> <clients_number> "
+    System.err.println "usage: scalabilitythroughput.groovy <workload> <mode> <opslimit> "
     System.exit(1)
 }
 WorkloadName = args[0]
 ModeName = args[1]
-Clients = Integer.parseInt(args[2])
-
+IncomingOpPerSecLimit  = Integer.parseInt(args[2])
 WORKLOADS= [
+    'workloada-uniform' : SwiftYCSB.WORKLOAD_A + ['requestdistribution': 'uniform'],
+    'workloada' : SwiftYCSB.WORKLOAD_A,
     'workloadb-uniform' : SwiftYCSB.WORKLOAD_B + ['requestdistribution': 'uniform'],
     'workloadb' : SwiftYCSB.WORKLOAD_B,
 ]
@@ -69,15 +76,21 @@ MODES = [
     'refresh-infrequent': (SwiftBase.CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
     'notifications-frequent': SwiftBase.CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
     'no-caching' : SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS,
-    //            'notifications-infrequent': SwiftBase.CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
+    'notifications-infrequent': SwiftBase.CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
 ]
 Mode = MODES[ModeName]
 
-Proportion = "0.8"
-IncomingOpPerSecLimit = 4000
 
-// TODO: avoid copy-pasting and redundancy with runycsb.groovy
 // TOPOLOGY
+
+// planetlab test (unlikely reproducible performance and issues)
+//DC_1 = DC([PlanetLab[0]], [PlanetLab[0]])
+//DC_2 = DC([PlanetLab[2]], [PlanetLab[2]])
+//DC_3 = DC([PlanetLab[4]], [PlanetLab[4]])
+
+//Scouts1 = SGroup( PlanetLab[1..1], DC_1 )
+//Scouts2 = SGroup( PlanetLab[3..3], DC_2 )
+//Scouts3 = SGroup( PlanetLab[5..5], DC_3 )
 
 Topology.clear()
 
@@ -93,6 +106,7 @@ Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
+
 // OPTIONS
 DbSize = 100000
 OpsNum = 1000000
@@ -100,7 +114,6 @@ PruningIntervalMillis = 60000
 NotificationsPeriodMillis = Mode.containsKey('swift.notificationPeriodMillis') ? Mode['swift.notificationPeriodMillis'] : '1000'
 
 IncomingOpPerSecPerClientLimit = (int) (IncomingOpPerSecLimit / Scouts.size())
-int Threads = Clients / Scouts.size()
 
 Duration = 600
 DurationShepardGrace = 12
@@ -122,7 +135,7 @@ YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + REPORTS + Mode + ['maxexecutio
 // Options for DB initialization
 INIT_NO_REPORTS = ['swift.reports':'']
 INIT_OPTIONS = SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS
-INIT_THREADS = 1
+INIT_THREADS = 4
 
 INIT_YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + ['target':'10000000'] + INIT_NO_REPORTS+ INIT_OPTIONS
 
@@ -185,14 +198,14 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/ycsb/multi-DC/scalabilityclients/" +
-String.format("%s-mode-%s-clients-%d", WorkloadName, ModeName, Clients)
+def dstDir="results/ycsb/multi-DC/scalabilitythroughput/" +
+        String.format("%s-mode-%s-opslimit-%d", WorkloadName, ModeName, IncomingOpPerSecLimit)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
 Topology.datacenters.each { dc ->
     pslurp( dc.surrogates, "sur-stderr.txt", dstDir, "sur-stderr.log", 30)
-    pslurp( dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 30)
+    pslurp( dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 300)
     if (!INTEGRATED_DC) {
         pslurp( dc.sequencers, "seq-stderr.txt", dstDir, "seq-stderr.log", 30)
         pslurp( dc.sequencers, "seq-stdout.txt", dstDir, "seq-stdout.log", 30)
