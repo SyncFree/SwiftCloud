@@ -8,6 +8,83 @@ PRUNE_START_MS <- 350000
 DURATION_RUN_MS <- 100000
 FORMAT_EXT <- ".png"
 
+select_OP <- function (data){
+  #Data format is:
+  #timestamp_ms,APP_OP,session_id,operation_name,duration_ms
+  
+  #Filter for batch updates
+  data <- subset(data,data$V2=="APP_OP")
+  data <- data[, c("V1", "V2", "V3", "V4", "V5")]
+  # since d contains variety of different entries, this casting is needed
+  data <- transform(data, V5 = as.numeric(V5))
+  # data <- subset(data,data$V4=="read" | data$V4=="update")
+  names(data) <- c("timestamp","type","sessionId","operation","duration")
+  return (data)
+}
+
+select_OP_FAILURE <- function (data) {
+  #Data format is:
+  #timestamp_ms,APP_OP,session_id,operation_name,error_cause
+  data <- subset(data,data$V2=="APP_OP_FAILURE")
+  data <- data[, c("V1", "V2", "V3", "V4", "V5")]
+  names(data) <- c("timestamp","type","sessionId","operation","cause")
+  return (data)
+}
+
+select_METADATA <- function (data) {
+  data <- subset(data,data$V2=="METADATA")
+  #report type METADATA formatted as timestamp_ms,METADATA,session_id,message_name,total_message_size,version_or_update_size,value_size,
+  #                                  explicitly_computed_global_metadata,batch_size,max_vv_size,max_vv_exceptions_num
+  data <- data[, c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13")]
+  data <- transform(data, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
+                          V8=as.numeric(V8), V9=as.numeric(V9),
+                          V10=as.numeric(V10), V11=as.numeric(V11), V12=as.numeric(V12), V13=as.numeric(V13))
+  data$V9 <- sapply(data$V9, function(x) { return (max(x, 1)) })
+  names(data) <- c("timestamp","type","sessionId","message","totalMessageSize",
+                   "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSizeFinestGrained",
+                   "batchSizeFinerGrained", "batchSizeCoarseGrained", "maxVVSize","maxVVExceptionsNum")
+  data$normalizedTotalMessageSizeByBatchSizeFinestGrained <- data$totalMessageSize / data$batchSizeFinestGrained
+  data$normalizedTotalMessageSizeByBatchSizeFinerGrained <- data$totalMessageSize / data$batchSizeFinerGrained
+  data$normalizedTotalMessageSizeByBatchSizeCoarseGrained <- data$totalMessageSize / data$batchSizeCoarseGrained
+  data$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained <- data$explicitGlobalMetadata / data$batchSizeFinestGrained
+  data$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained <- data$explicitGlobalMetadata / data$batchSizeFinerGrained
+  data$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained <- data$explicitGlobalMetadata / data$batchSizeCoarseGrained
+  return (data)
+}
+
+select_DATABASE_TABLE_SIZE <- function (data) {
+  data <- subset(data,data$V2=="DATABASE_TABLE_SIZE")
+  data <- data[, c("V1", "V2", "V3", "V4", "V5")]
+  data <- transform(data, V5=as.numeric(V5))
+  names(data) <- c("timestamp","type","nodeId","tableName","tableSize")
+  return (data)
+}
+
+select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (data) {
+  max_timestamp <- max(data$V1)
+  data <- subset(data,data$V2=="IDEMPOTENCE_GUARD_SIZE")
+  data <- transform(data, V4=as.numeric(V4))
+  data <- data[, c("V1", "V2", "V3", "V4")]
+  names(data) <- c("timestamp","type","nodeId","idempotenceGuardSize")
+  for (dc in unique(data$nodeId)) {
+    dc_last_guard <- tail(subset(data, data$nodeId == dc), 1)
+    MIN_SAMPLING_PERIOD <- 1000
+    if (dc_last_guard$timestamp + MIN_SAMPLING_PERIOD < max_timestamp) {
+      missing_timestamps <- seq(dc_last_guard$timestamp + MIN_SAMPLING_PERIOD, max_timestamp, by=MIN_SAMPLING_PERIOD)
+      replicated_entries <- data.frame(timestamp=missing_timestamps,
+                                       type=as.character(rep("IDEMPOTENCE_GUARD_SIZE", length(missing_timestamps))),
+                                       nodeId=as.character(rep(dc, length(missing_timestamps))),
+                                       idempotenceGuardSize=rep(dc_last_guard$idempotenceGuardSize, length(missing_timestamps)))
+      data <- rbind(data, replicated_entries)
+    }
+  }
+  return (data)
+}
+
+select_duration <- function(data, prune_start, duration) {
+  return (subset(data, data$timestamp > prune_start & data$timestamp - prune_start < duration))
+}
+
 process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summarized=TRUE) {
   # Scout logs
   file_list <- list.files(dir, pattern="*scout-stdout.log",recursive=TRUE,full.names=TRUE)
@@ -16,52 +93,29 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     warning(paste("No scout logs found in", dir))
   }
 
-  clientdata <- data.frame()
+  d <- data.frame()
   for (file in file_list){
     temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
-    clientdata <- rbind(clientdata, temp_dataset)
+    d <- rbind(d, temp_dataset)
     rm(temp_dataset)
   }
   print(paste("Loaded", length(file_list), "scout log files"))
-  #summary(data)
+  #summary(d)
 
   #Data format is:
   #timestamp_ms,...
   # compute relative timestamps
-  min_exp_timestamp = min(clientdata$V1)
-  clientdata <- transform(clientdata, V1=(clientdata$V1 - min_exp_timestamp))
+  min_exp_timestamp = min(d$V1)
+  d <- transform(d, V1=(d$V1 - min_exp_timestamp))
 
-  dop <- subset(clientdata,clientdata$V2=="APP_OP")
-  dop <- dop[, c("V1", "V2", "V3", "V4", "V5")]
-  # since d contains variety of different entries, this casting is needed
-  dop <- transform(dop, V5 = as.numeric(V5))
-  names(dop) <- c("timestamp","type","sessionId","operation","duration")
-
-  derr <- subset(clientdata,clientdata$V2=="APP_OP_FAILURE")
-  derr <- derr[, c("V1", "V2", "V3", "V4", "V5")]
-  names(derr) <- c("timestamp","type","sessionId","operation","cause")
-  
-  
-  dmetadata <- subset(clientdata,clientdata$V2=="METADATA")
-  dmetadata <- dmetadata[, c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13")]
-  dmetadata <- transform(dmetadata, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
-                    V8=as.numeric(V8), V9=as.numeric(V9),
-                    V10=as.numeric(V10), V11=as.numeric(V11), V12=as.numeric(V12), V13=as.numeric(V13))
-  dmetadata$V9 <- sapply(dmetadata$V9, function(x) { return (max(x, 1)) })
-  names(dmetadata) <- c("timestamp","type","sessionId","message","totalMessageSize",
-                   "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSizeFinestGrained",
-                   "batchSizeFinerGrained", "batchSizeCoarseGrained", "maxVVSize","maxVVExceptionsNum")
-  dmetadata$normalizedTotalMessageSizeByBatchSizeFinestGrained <- dmetadata$totalMessageSize / dmetadata$batchSizeFinestGrained
-  dmetadata$normalizedTotalMessageSizeByBatchSizeFinerGrained <- dmetadata$totalMessageSize / dmetadata$batchSizeFinerGrained
-  dmetadata$normalizedTotalMessageSizeByBatchSizeCoarseGrained <- dmetadata$totalMessageSize / dmetadata$batchSizeCoarseGrained
-  dmetadata$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained <- dmetadata$explicitGlobalMetadata / dmetadata$batchSizeFinestGrained
-  dmetadata$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained <- dmetadata$explicitGlobalMetadata / dmetadata$batchSizeFinerGrained
-  dmetadata$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained <- dmetadata$explicitGlobalMetadata / dmetadata$batchSizeCoarseGrained
-
-  dop_filtered <- subset(dop, dop$timestamp > PRUNE_START_MS & dop$timestamp - PRUNE_START_MS < DURATION_RUN_MS)
-  # derr_filtered <- 
-  dmetadata_filtered <- subset(dmetadata, dmetadata$timestamp > PRUNE_START_MS & dmetadata$timestamp - PRUNE_START_MS < DURATION_RUN_MS)
-  rm(clientdata)
+  # can it be done in a more compact way?
+  dop <- select_OP(d)
+  derr <- select_OP_FAILURE(d)
+  dmetadata <- select_METADATA(d)
+  dop_filtered <- select_duration(dop, PRUNE_START_MS, DURATION_RUN_MS)
+  derr_filtered <- select_duration(derr, PRUNE_START_MS, DURATION_RUN_MS)
+  dmetadata_filtered <- select_duration(dmetadata, PRUNE_START_MS, DURATION_RUN_MS)
+  rm(d)
   
   # DC logs
   dc_file_list <- list.files(dir, pattern="*sur-stdout.log",recursive=TRUE,full.names=TRUE)
@@ -70,44 +124,19 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     warning(paste("No DC logs found in", dir))
   }
   
-  dcdata <- data.frame()
+  ddc <- data.frame()
   for (file in dc_file_list){
     temp_dataset <- read.table(file,comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE);
-    dcdata <- rbind(dcdata, temp_dataset)
+    ddc <- rbind(ddc, temp_dataset)
     rm(temp_dataset)
   }
   print(paste("Loaded", length(dc_file_list), "DC log files"))
-  dcdata <- transform(dcdata, V1=(dcdata$V1 - min_exp_timestamp))
+  ddc <- transform(ddc, V1=(ddc$V1 - min_exp_timestamp))
   
-  dtablesize <- subset(dcdata,dcdata$V2=="DATABASE_TABLE_SIZE")
-  dtablesize <- dtablesize[, c("V1", "V2", "V3", "V4", "V5")]
-  dtablesize <- transform(dtablesize, V5=as.numeric(V5))
-  names(dtablesize) <- c("timestamp","type","nodeId","tableName","tableSize")
-  # remove dummy table from the output
-  dtablesize <- subset(dtablesize, dtablesize$tableName != "e")
-  
-  max_timestamp <- max(dcdata$V1)
-  dguardsize <- subset(dcdata,dcdata$V2=="IDEMPOTENCE_GUARD_SIZE")
-  dguardsize <- transform(dguardsize, V4=as.numeric(V4))
-  dguardsize <- dguardsize[, c("V1", "V2", "V3", "V4")]
-  names(dguardsize) <- c("timestamp","type","nodeId","idempotenceGuardSize")
-  for (dc in unique(dguardsize$nodeId)) {
-    dc_last_guard <- tail(subset(dguardsize, dguardsize$nodeId == dc), 1)
-    MIN_SAMPLING_PERIOD <- 1000
-    if (dc_last_guard$timestamp + MIN_SAMPLING_PERIOD < max_timestamp) {
-      missing_timestamps <- seq(dc_last_guard$timestamp + MIN_SAMPLING_PERIOD, max_timestamp, by=MIN_SAMPLING_PERIOD)
-      missing_entries <- data.frame(timestamp=missing_timestamps,
-                                       type=as.character(rep("IDEMPOTENCE_GUARD_SIZE", length(missing_timestamps))),
-                                       nodeId=as.character(rep(dc, length(missing_timestamps))),
-                                       idempotenceGuardSize=rep(dc_last_guard$idempotenceGuardSize, length(missing_timestamps)))
-      dguardsize <- rbind(dguardsize, missing_entries)
-    }
-  }
-
-  dtablesize_filtered <- subset(dtablesize, dtablesize$timestamp > PRUNE_START_MS & dtablesize$timestamp - PRUNE_START_MS < DURATION_RUN_MS)
-  dguardsize_filtered <- subset(dguardsize, dguardsize$timestamp > PRUNE_START_MS & dguardsize$timestamp - PRUNE_START_MS < DURATION_RUN_MS)
-  
-  rm(dcdata)
+  dtablesize <- select_DATABASE_TABLE_SIZE(ddc)
+  dguardsize <- select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE(ddc)
+  dtablesize_filtered <- select_duration(dtablesize, PRUNE_START_MS, DURATION_RUN_MS)
+  dguardsize_filtered <- select_duration(dguardsize, PRUNE_START_MS, DURATION_RUN_MS)
 
   # Create destination directory
   dir.create(dirname(output_prefix), recursive=TRUE, showWarnings=FALSE)
@@ -151,6 +180,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     
     # Storage metadata/db size, plots over time
     db_table_size.plot <- ggplot()
+    guard_size.plot <- ggplot()
     for (eachDc in unique(dtablesize$nodeId)) {
       dctablesize <- subset(dtablesize, dtablesize$nodeId == eachDc)
       dctablesize$dcTable <- paste("DC", dctablesize$nodeId, ", table", dctablesize$tableName)
@@ -160,7 +190,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       }
     }
 
-    guard_size.plot <- ggplot()
     for (eachDc in unique(dguardsize$nodeId)) {
       dcguardsize <- subset(dguardsize, dguardsize$nodeId == eachDc)
       guard_size.plot <- guard_size.plot + geom_line(data=dcguardsize, mapping=aes(timestamp,idempotenceGuardSize,color=nodeId))
@@ -169,10 +198,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",FORMAT_EXT,collapse="", sep=""), scale=1)
     ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",FORMAT_EXT,collapse="", sep=""), scale=1)
   }
-  rm(dop)
-  rm(dmetadata)
-  gc()
-  
+
   # "SUMMARIZED" MODE OUTPUT
   if (summarized) {
     # Throughput over time plot
@@ -180,12 +206,12 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     throughput.plot <- ggplot(dop_filtered, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
-
+    
     # Operation duration CDF plot for the filtered period
     cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
     # cdf.plot
     ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
-
+    
     # common output format for descriptive statistics
     quantile_steps <- seq(from=0.0, to=1.0, by=0.001)
     stats <- c("mean", "stddev", rep("permille", length(quantile_steps)))
@@ -193,11 +219,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     compute_stats <- function(vec) {
       return (c(mean(vec), sd(vec), quantile(vec, probs=quantile_steps)))
     }
-    # A more efficient in place version.
-    compute_stats_dmetadata_filtered <- function(col) {
-      return (c(mean(dmetadata_filtered[[col]]), sd(dmetadata_filtered[[col]]), quantile(dmetadata_filtered[[col]], probs=quantile_steps)))
-    }
-
+  
     # Throughput / response time descriptive statistics over filtered data
     time_steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
     through <- hist(dop_filtered$timestamp, breaks=time_steps)
@@ -214,14 +236,14 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     metadata_size_stats <- data.frame(stat=stats, stat_params=stats_params)
     for (m in unique(dmetadata_filtered$message)) {
       m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
-      metadata_size_stats[[paste(m, "msg", sep="-")]] <- compute_stats_dmetadata_filtered("totalMessageSize")
-      metadata_size_stats[[paste(m,"msg", "norm1",sep="-")]] <- compute_stats_dmetadata_filtered("normalizedTotalMessageSizeByBatchSizeFinestGrained")
-      metadata_size_stats[[paste(m,"msg", "norm2",sep="-")]] <- compute_stats_dmetadata_filtered("normalizedTotalMessageSizeByBatchSizeFinerGrained")
-      metadata_size_stats[[paste(m,"msg", "norm3",sep="-")]] <- compute_stats_dmetadata_filtered("normalizedTotalMessageSizeByBatchSizeCoarseGrained")
-      metadata_size_stats[[paste(m, "meta", sep="-")]] <- compute_stats_dmetadata_filtered("explicitGlobalMetadata")
-      metadata_size_stats[[paste(m, "meta", "norm1",sep="-")]] <- compute_stats_dmetadata_filtered("normalizedExplicitGlobalMetadataByBatchSizeFinestGrained")
-      metadata_size_stats[[paste(m, "meta", "norm2",sep="-")]] <- compute_stats_dmetadata_filtered("normalizedExplicitGlobalMetadataByBatchSizeFinerGrained")
-      metadata_size_stats[[paste(m, "meta", "norm3",sep="-")]] <- compute_stats_dmetadata_filtered("normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained")
+      metadata_size_stats[[paste(m, "msg", sep="-")]] <- compute_stats(m_filtered$totalMessageSize)
+      metadata_size_stats[[paste(m,"msg", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinestGrained)
+      metadata_size_stats[[paste(m,"msg", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinerGrained)
+      metadata_size_stats[[paste(m,"msg", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeCoarseGrained)
+      metadata_size_stats[[paste(m, "meta", sep="-")]] <- compute_stats(m_filtered$explicitGlobalMetadata)
+      metadata_size_stats[[paste(m, "meta", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)
+      metadata_size_stats[[paste(m, "meta", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)
+      metadata_size_stats[[paste(m, "meta", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)
     }
     for (eachTable in unique(dtablesize_filtered$tableName)) {
       tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
@@ -240,9 +262,11 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     write.table(errors.stats, paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
   }
 
+  rm(dop)
   rm(derr)
+  rm(dmetadata)
   rm(dop_filtered)
-  # rm(derr_filtered)
+  rm(derr_filtered)
   rm(dmetadata_filtered)
 }
 
