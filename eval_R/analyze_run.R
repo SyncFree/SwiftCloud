@@ -26,11 +26,12 @@ load_log_files <- function(files, selector, selector_name, filtered = FALSE, sub
     rm(file_data)
     gc()
   }
-  raw_desc <- ""
-  if (!filtered) {
-    raw_desc <- "raw"
+  if (filtered) {
+    type_desc <- "filtered"
+  } else { 
+    type_desc <- "raw"
   }
-  print(paste("Loaded", nrow(result), raw_desc, selector_name, "entries from", length(file_list), "log files"))
+  print(paste("Loaded", nrow(result), type_desc, selector_name, "entries from", length(files), "log files"))
   return (result)
 }
 
