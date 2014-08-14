@@ -41,27 +41,27 @@ select_min_timestamp <- function (log) {
 
 select_OP <- function (log) {
   result <- subset(log,log$V2=="APP_OP")
-  result <- result[, c("V1", "V2", "V3", "V4", "V5")]
+  result <- result[, c("V1", "V3", "V4", "V5")]
   result <- transform(result, V5 = as.numeric(V5))
-  names(result) <- c("timestamp","type","sessionId","operation","duration")
+  names(result) <- c("timestamp","sessionId","operation","duration")
   return (result)
 }
 
 select_OP_FAILURE <- function (log) {
   result <- subset(log,log$V2=="APP_OP_FAILURE")
-  result <- result[, c("V1", "V2", "V3", "V4", "V5")]
-  names(result) <- c("timestamp","type","sessionId","operation","cause")
+  result <- result[, c("V1", "V3", "V4", "V5")]
+  names(result) <- c("timestamp","sessionId","operation","cause")
   return (result)
 }
 
 select_METADATA <- function (log) {
   result <- subset(log,log$V2=="METADATA")
-  result <- result[, c("V1", "V2", "V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13")]
+  result <- result[, c("V1","V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13")]
   result <- transform(result, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
                           V8=as.numeric(V8), V9=as.numeric(V9),
                           V10=as.numeric(V10), V11=as.numeric(V11), V12=as.numeric(V12), V13=as.numeric(V13))
   result$V9 <- sapply(result$V9, function(x) { return (max(x, 1)) })
-  names(result) <- c("timestamp","type","sessionId","message","totalMessageSize",
+  names(result) <- c("timestamp","sessionId","message","totalMessageSize",
                    "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSizeFinestGrained",
                    "batchSizeFinerGrained", "batchSizeCoarseGrained", "maxVVSize","maxVVExceptionsNum")
   result$normalizedTotalMessageSizeByBatchSizeFinestGrained <- result$totalMessageSize / result$batchSizeFinestGrained
@@ -75,9 +75,9 @@ select_METADATA <- function (log) {
 
 select_DATABASE_TABLE_SIZE <- function (log) {
   result <- subset(log,log$V2=="DATABASE_TABLE_SIZE")
-  result <- result[, c("V1", "V2", "V3", "V4", "V5")]
+  result <- result[, c("V1", "V3", "V4", "V5")]
   result <- transform(result, V5=as.numeric(V5))
-  names(result) <- c("timestamp","type","nodeId","tableName","tableSize")
+  names(result) <- c("timestamp","nodeId","tableName","tableSize")
   return (result)
 }
 
@@ -85,15 +85,14 @@ select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (log) {
   max_timestamp <- max(log$V1)
   result <- subset(log,log$V2=="IDEMPOTENCE_GUARD_SIZE")
   result <- transform(result, V4=as.numeric(V4))
-  result <- result[, c("V1", "V2", "V3", "V4")]
-  names(result) <- c("timestamp","type","nodeId","idempotenceGuardSize")
+  result <- result[, c("V1", "V3", "V4")]
+  names(result) <- c("timestamp","nodeId","idempotenceGuardSize")
   for (dc in unique(result$nodeId)) {
     dc_last_guard <- tail(subset(result, result$nodeId == dc), 1)
     MIN_SAMPLING_PERIOD <- 1000
     if (dc_last_guard$timestamp + MIN_SAMPLING_PERIOD < max_timestamp) {
       missing_timestamps <- seq(dc_last_guard$timestamp + MIN_SAMPLING_PERIOD, max_timestamp, by=MIN_SAMPLING_PERIOD)
       extrapolated_entries <- data.frame(timestamp=missing_timestamps,
-                                       type=as.character(rep("IDEMPOTENCE_GUARD_SIZE", length(missing_timestamps))),
                                        nodeId=as.character(rep(dc, length(missing_timestamps))),
                                        idempotenceGuardSize=rep(dc_last_guard$idempotenceGuardSize, length(missing_timestamps)))
       result <- rbind(result, extrapolated_entries)
@@ -138,11 +137,13 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     throughput.plot <- ggplot(dop_filtered, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
-    
+    rm(throughput.plot)
+
     # Operation duration CDF plot for the filtered period
     cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
     # cdf.plot
     ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(cdf.plot)
     
     # Throughput / response time descriptive statistics over filtered data
     time_steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
@@ -155,6 +156,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
                                    throughput=compute_stats(through$counts),
                                    response_time=compute_stats(dop_filtered$duration))
     write.table(operations_stats, paste(output_prefix, "ops.csv", sep="-"), sep=",", row.names=FALSE)
+    rm(through)
     rm(dop_filtered)
 
 
@@ -205,11 +207,13 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     # Response time scatterplot over time  
     scatter.plot <- ggplot(dop_raw, aes(timestamp,duration)) + geom_point(aes(color=operation))
     ggsave(scatter.plot, file=paste(output_prefix, "-response_time",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(scatter.plot)
     
     # Throughput over time plot
     throughput.plot <- ggplot(dop_raw, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput_full",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(throughput.plot)
 
     #Histogram
     #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
@@ -223,22 +227,28 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       msg.plot <- ggplot(m_metadata, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
       # msg.plot
       ggsave(msg.plot, file=paste(output_prefix, "-msg_occur-", m, FORMAT_EXT,collapse="", sep=""), scale=1)
+      rm(msg.plot)
     }
     # Message size and metadata size over time scatter plots
     msg_size.plot <- ggplot(dmetadata_raw, aes(timestamp,totalMessageSize)) + geom_point(aes(color=message))
     ggsave(msg_size.plot, file=paste(output_prefix, "-msg_size",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(msg_size.plot)
 
     metadata_size.plot <- ggplot(dmetadata_raw, aes(timestamp,explicitGlobalMetadata)) + geom_point(aes(color=message))
     ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_size.plot)
 
     metadata_norm1_size.plot <- ggplot(dmetadata_raw, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_norm1",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_norm1_size.plot)
 
     metadata_norm2_size.plot <- ggplot(dmetadata_raw, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_norm2",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_norm2_size.plot)
 
     metadata_norm3_size.plot <- ggplot(dmetadata_raw, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_norm3_size.plot)
     
     rm(dmetadata_raw)
 
@@ -255,6 +265,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       }
     }
     ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(db_table_size.plot)
     rm(dtablesize_raw)
 
     
@@ -266,6 +277,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
 
     ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(guard_size.plot)
     rm(dguardsize_raw)
   }
 }
