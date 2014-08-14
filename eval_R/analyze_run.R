@@ -7,6 +7,7 @@ require("gridExtra");
 PRUNE_START_MS <- 350000
 DURATION_RUN_MS <- 100000
 FORMAT_EXT <- ".png"
+SCATTER_PLOTS_MAX_SAMPLES <- 20000
 
 load_log_files <- function(files, selector, selector_name, filtered = FALSE, substract_timestamp = 0) {
   result <- data.frame()
@@ -99,6 +100,13 @@ select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (log) {
     }
   }
   return (result)
+}
+
+sample_entries <- function(entries) {
+  if (nrow(entries) > SCATTER_PLOTS_MAX_SAMPLES) {
+    return (entries[sample(nrow(entries), SCATTER_PLOTS_MAX_SAMPLES), ])
+  }
+  return (entries)
 }
 
 process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summarized=TRUE) {
@@ -205,7 +213,8 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     dop_raw <- load_log_files(client_file_list, select_OP, "OP", FALSE, min_timestamp)
 
     # Response time scatterplot over time  
-    scatter.plot <- ggplot(dop_raw, aes(timestamp,duration)) + geom_point(aes(color=operation))
+    dop_raw_sampled <- sample_entries(dop_raw)
+    scatter.plot <- ggplot(dop_raw_sampled, aes(timestamp,duration)) + geom_point(aes(color=operation))
     ggsave(scatter.plot, file=paste(output_prefix, "-response_time",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(scatter.plot)
     
@@ -218,6 +227,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     #Histogram
     #p <- qplot(duration, data = d,binwidth=5,color=operation,geom="freqpoly") + facet_wrap( ~ sessionId)
     rm(dop_raw)
+    rm(dop_raw_sampled)
 
     
     dmetadata_raw <- load_log_files(client_file_list, select_METADATA, "METADATA", FALSE, min_timestamp)
@@ -229,28 +239,30 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       ggsave(msg.plot, file=paste(output_prefix, "-msg_occur-", m, FORMAT_EXT,collapse="", sep=""), scale=1)
       rm(msg.plot)
     }
+    dmetadata_raw_sampled <- sample_entries(dmetadata_raw)
     # Message size and metadata size over time scatter plots
-    msg_size.plot <- ggplot(dmetadata_raw, aes(timestamp,totalMessageSize)) + geom_point(aes(color=message))
+    msg_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp,totalMessageSize)) + geom_point(aes(color=message))
     ggsave(msg_size.plot, file=paste(output_prefix, "-msg_size",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(msg_size.plot)
 
-    metadata_size.plot <- ggplot(dmetadata_raw, aes(timestamp,explicitGlobalMetadata)) + geom_point(aes(color=message))
+    metadata_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp,explicitGlobalMetadata)) + geom_point(aes(color=message))
     ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_size.plot)
 
-    metadata_norm1_size.plot <- ggplot(dmetadata_raw, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
+    metadata_norm1_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_norm1",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm1_size.plot)
 
-    metadata_norm2_size.plot <- ggplot(dmetadata_raw, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
+    metadata_norm2_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_norm2",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm2_size.plot)
 
-    metadata_norm3_size.plot <- ggplot(dmetadata_raw, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
+    metadata_norm3_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm3_size.plot)
     
     rm(dmetadata_raw)
+    rm(dmetadata_raw_sampled)
 
 
     dtablesize_raw <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", FALSE, min_timestamp)
