@@ -43,8 +43,8 @@ select_min_timestamp <- function (log) {
 select_OP <- function (log) {
   result <- subset(log,log$V2=="APP_OP")
   result <- result[, c("V1", "V3", "V4", "V5")]
-  result <- transform(result, V5 = as.numeric(V5))
   names(result) <- c("timestamp","sessionId","operation","duration")
+  result <- transform(result, sessionId=as.factor(sessionId), operation=as.factor(operation), duration = as.numeric(duration))
   return (result)
 }
 
@@ -52,19 +52,36 @@ select_OP_FAILURE <- function (log) {
   result <- subset(log,log$V2=="APP_OP_FAILURE")
   result <- result[, c("V1", "V3", "V4", "V5")]
   names(result) <- c("timestamp","sessionId","operation","cause")
+  result <- transform(result, sessionId=as.factor(sessionId), operation=as.factor(operation), cause = as.factor(cause))
   return (result)
 }
 
 select_METADATA <- function (log) {
   result <- subset(log,log$V2=="METADATA")
-  result <- result[, c("V1","V3", "V4", "V5", "V6", "V7", "V8", "V9", "V10", "V11", "V12", "V13")]
-  result <- transform(result, V5=as.numeric(V5), V6=as.numeric(V6), V7=as.numeric(V7),
-                          V8=as.numeric(V8), V9=as.numeric(V9),
-                          V10=as.numeric(V10), V11=as.numeric(V11), V12=as.numeric(V12), V13=as.numeric(V13))
-  result$V9 <- sapply(result$V9, function(x) { return (max(x, 1)) })
+  result <- result[, c("V1","V3", "V4", "V5",
+                       #"V6", "V7",
+                       "V8", "V9", "V10", "V11"
+                       #, "V12", "V13"
+                       )]
   names(result) <- c("timestamp","sessionId","message","totalMessageSize",
-                   "versionOrUpdateSize","valueSize","explicitGlobalMetadata","batchSizeFinestGrained",
-                   "batchSizeFinerGrained", "batchSizeCoarseGrained", "maxVVSize","maxVVExceptionsNum")
+                   #"versionOrUpdateSize","valueSize",
+                   "explicitGlobalMetadata","batchSizeFinestGrained",
+                   "batchSizeFinerGrained", "batchSizeCoarseGrained"
+                   #, "maxVVSize","maxVVExceptionsNum"
+                   )
+  result <- transform(result, sessionId = as.factor(sessionId),
+                      message=as.factor(message),
+                      totalMessageSize=as.numeric(totalMessageSize),
+                      #V6=as.numeric(V6), V7=as.numeric(V7),
+                      explicitGlobalMetadata=as.numeric(explicitGlobalMetadata),
+                      batchSizeFinestGrained=as.numeric(batchSizeFinestGrained),
+                      batchSizeFinerGrained=as.numeric(batchSizeFinestGrained),
+                      batchSizeCoarseGrained=as.numeric(batchSizeCoarseGrained)
+                      #, V12=as.numeric(V12), V13=as.numeric(V13),
+                     )
+  #result$batchSizeFinestGrained <- sapply(result$batchSizeFinestGrained, function(x) { return (max(x, 1)) })
+  #result$batchSizeFinerGrained <- sapply(result$batchSizeFinerGrained, function(x) { return (max(x, 1)) })
+  #result$batchSizeCoarseGrained <- sapply(result$batchSizeCoarseGrained, function(x) { return (max(x, 1)) })
   result$normalizedTotalMessageSizeByBatchSizeFinestGrained <- result$totalMessageSize / result$batchSizeFinestGrained
   result$normalizedTotalMessageSizeByBatchSizeFinerGrained <- result$totalMessageSize / result$batchSizeFinerGrained
   result$normalizedTotalMessageSizeByBatchSizeCoarseGrained <- result$totalMessageSize / result$batchSizeCoarseGrained
@@ -75,19 +92,20 @@ select_METADATA <- function (log) {
 }
 
 select_DATABASE_TABLE_SIZE <- function (log) {
-  result <- subset(log,log$V2=="DATABASE_TABLE_SIZE")
+  # Ignore "e" dummy table.
+  result <- subset(log,log$V2=="DATABASE_TABLE_SIZE" & log$V4 != "e")
   result <- result[, c("V1", "V3", "V4", "V5")]
-  result <- transform(result, V5=as.numeric(V5))
   names(result) <- c("timestamp","nodeId","tableName","tableSize")
+  result <- transform(result, nodeId=as.factor(nodeId), tableName=as.factor(tableName), tableSize=as.numeric(tableSize))
   return (result)
 }
 
 select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (log) {
   max_timestamp <- max(log$V1)
   result <- subset(log,log$V2=="IDEMPOTENCE_GUARD_SIZE")
-  result <- transform(result, V4=as.numeric(V4))
   result <- result[, c("V1", "V3", "V4")]
   names(result) <- c("timestamp","nodeId","idempotenceGuardSize")
+  result <- transform(result, nodeId=as.factor(nodeId), idempotenceGuardSize=as.numeric(idempotenceGuardSize))
   for (dc in unique(result$nodeId)) {
     dc_last_guard <- tail(subset(result, result$nodeId == dc), 1)
     MIN_SAMPLING_PERIOD <- 1000
