@@ -20,7 +20,7 @@ load_log_files <- function(files, selector, selector_name, filtered = FALSE, sub
     }
     # (optional) filter by duration
     if (filtered) {
-      # file_data <- subset(file_data, file_data$timestamp > PRUNE_START_MS & file_data$timestamp - PRUNE_START_MS < DURATION_RUN_MS)
+      file_data <- subset(file_data, file_data$timestamp > PRUNE_START_MS & file_data$timestamp - PRUNE_START_MS < DURATION_RUN_MS)
     }
     result <- rbind(result, file_data)
     rm(file_data)
