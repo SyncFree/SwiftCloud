@@ -11,8 +11,10 @@ SCATTER_PLOTS_MAX_SAMPLES <- 20000
 
 load_log_files <- function(files, selector, selector_name, filtered = FALSE, substract_timestamp = 0) {
   result <- data.frame()
+  total_entries <- 0
   for (file in files) {
     file_data <- read.table(file, comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE)
+    total_entries <- total_entries + nrow(file_data)
     # select and name interesting columns
     file_data <- selector(file_data)
     # compute relative timestamps
@@ -32,7 +34,7 @@ load_log_files <- function(files, selector, selector_name, filtered = FALSE, sub
   } else { 
     type_desc <- "raw"
   }
-  print(paste("Loaded", nrow(result), type_desc, selector_name, "entries from", length(files), "log files"))
+  print(paste("Loaded", nrow(result), type_desc, selector_name, "entries from total of", total_entries, "entries in", length(files), "log files"))
   return (result)
 }
 
@@ -143,7 +145,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     warning(paste("No DC logs found in", dir))
   }
   
-  dmins <- load_log_files(client_file_list, select_min_timestamp, "timestamp", FALSE)
+  dmins <- load_log_files(client_file_list, select_min_timestamp, "min. timestamp", FALSE)
   min_timestamp <- min(dmins$min_timestamp)
   rm(dmins)
 
