@@ -410,6 +410,7 @@ final class DCDataServer {
                 data.clock.merge(crdt.getClock());
                 data.pruneClock.merge(crdt.getPruneClock());
                 synchronized (this.cltClock) {
+                    // FIXME: WHAT IS THIS??? NO-OP?
                     this.cltClock.merge(cltClock);
                 }
             }
