@@ -754,15 +754,18 @@ final public class DCSurrogate extends SwiftProtocolHandler {
 
             BatchUpdatesNotification batch;
             if (FAKE_PRACTI_DEPOT_VECTORS) {
-                final CausalityClock fakeVector = ClockFactory.newClock();
-                // We compare against the stale vector matchin snapshot, but
-                // these entries
-                // would need to be eventually send anyways.
-                for (final String clientId : dataServer.cltClock.getSiteIds()) {
-                    final Timestamp clientTimestamp = dataServer.cltClock.getLatest(clientId);
-                    if (!clientFakeVectorKnowledge.includes(clientTimestamp)) {
-                        fakeVector.recordAllUntil(clientTimestamp);
-                        clientFakeVectorKnowledge.recordAllUntil(clientTimestamp);
+                final CausalityClock fakeVector;
+                synchronized (dataServer.cltClock) {
+                    // "dataServer.cltClock" represents a more recent state than
+                    // "snapshot" clock, but all of its entries would need to be
+                    // send later anyways, so it is fair to use it for metadata
+                    // comparison.  
+                    fakeVector = dataServer.cltClock.clone();
+                }
+                for (final String clientId : clientFakeVectorKnowledge.getSiteIds()) {
+                    final Timestamp clientTimestamp = fakeVector.getLatest(clientId);
+                    if (clientFakeVectorKnowledge.includes(clientTimestamp)) {
+                        fakeVector.drop(clientTimestamp.getIdentifier());
                     }
                 }
                 clientFakeVectorKnowledge.merge(fakeVector);
