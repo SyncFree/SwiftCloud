@@ -133,7 +133,7 @@ pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
 Topology.datacenters.each { dc ->
     pslurp( dc.surrogates, "sur-stderr.txt", dstDir, "sur-stderr.log", 30)
-    pslurp( dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 30)
+    pslurp( dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 300)
     if (!INTEGRATED_DC) {
         pslurp( dc.sequencers, "seq-stderr.txt", dstDir, "seq-stderr.log", 30)
         pslurp( dc.sequencers, "seq-stdout.txt", dstDir, "seq-stdout.log", 30)
