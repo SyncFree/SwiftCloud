@@ -314,24 +314,24 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   }
 }
 
-process_experiment_run <- function(path, spectrogram=TRUE, summarized=TRUE) {
+process_experiment_run <- function(path, spectrogram=TRUE, summarized=TRUE, output_dir=file.path(dirname(path), "processed")) {
   if (file.info(path)$isdir) {
-    prefix <- sub(paste(.Platform$file.sep, "$", sep=""),  "", path)
-    output_prefix <- file.path(dirname(prefix), "processed", basename(prefix))
+    # prefix <- sub(paste(.Platform$file.sep, "$", sep=""),  "", path)
+    output_prefix <- file.path(output_dir, basename(path))
     process_experiment_run_dir(dir=path, output_prefix=output_prefix, spectrogram, summarized)
   } else {
     # presume it is a tar.gz archive
     run_id <- sub(".tar.gz", "", basename(path))
     tmp_dir <- tempfile(pattern=run_id)
     untar(path, exdir=tmp_dir, compressed="gzip")
-    output_prefix <- file.path(dirname(path), "processed", run_id)
+    output_prefix <- file.path(output_dir, run_id)
     process_experiment_run_dir(dir=tmp_dir,  output_prefix=output_prefix, spectrogram, summarized)
     unlink(tmp_dir, recursive=TRUE)
   }
 }
 
 fail_usage <- function() {
-  stop("syntax: analyze_run.R <all|spectrogram|summarized> <directory or tar.gz archive with log files for a run>")
+  stop("syntax: analyze_run.R <all|spectrogram|summarized> <directory or tar.gz archive with log files for a run> [output directory]")
 }
 
 if (length(commandArgs(TRUE)) >= 2) {
@@ -348,7 +348,12 @@ if (length(commandArgs(TRUE)) >= 2) {
     fail_usage()
   }
   path <- normalizePath(commandArgs(TRUE)[2])
-  process_experiment_run(path, spectrogram, summarized)
+  if (length(commandArgs(TRUE)) >= 3) {
+    output_dir <- commandArgs(TRUE)[3]
+    process_experiment_run(path, spectrogram, summarized, output_dir)
+  } else {
+    process_experiment_run(path, spectrogram, summarized)
+  }
 } else {
   if (interactive()) {
     print("INTERACTIVE MODE: use process_experiment_run() function")
