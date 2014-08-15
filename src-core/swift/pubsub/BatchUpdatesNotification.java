@@ -173,7 +173,8 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
         }
         final int valuesSize = buffer.position();
 
-        final int vectorSize = newVersion.getSize();
+        final int vectorSize = Math.max(newVersion.getSize(),
+                fakePractiDepotVector != null ? fakePractiDepotVector.getSize() : 0);
         final int maxExceptionsNum = newVersion.getExceptionsNumber();
         collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps,
                 numberOfGroups, numberOfTxns, vectorSize, maxExceptionsNum);
