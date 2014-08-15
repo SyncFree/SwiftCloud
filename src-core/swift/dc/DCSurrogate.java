@@ -92,8 +92,8 @@ import sys.utils.Args;
  * @author preguica
  */
 final public class DCSurrogate extends SwiftProtocolHandler {
-    public static final boolean FAKE_PRACTI_DEPOT_VECTORS = false;
-    public static final boolean OPTIMIZED_VECTORS_IN_BATCH = false;
+    private final boolean notificationsSendFakePractiDepotVectors;
+    private final boolean notificationsSendDeltaVectorsOnly;
     static Logger logger = Logger.getLogger(DCSurrogate.class.getName());
 
     String siteId;
@@ -170,6 +170,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         } else {
             notificationPeriodMillis = DCConstants.DEFAULT_NOTIFICATION_PERIOD_MS;
         }
+        this.notificationsSendFakePractiDepotVectors = Boolean.valueOf(props.getProperty(
+                DCConstants.NOTIFICATIONS_SEND_FAKE_PRACTI_DEPOT_VECTORS_PROPERTY,
+                DCConstants.DEFAULT_NOTIFICATIONS_SEND_FAKE_PRACTI_DEPOT_VECTORS));
+        this.notificationsSendDeltaVectorsOnly = Boolean.valueOf(props.getProperty(
+                DCConstants.NOTIFICATIONS_SEND_DELTA_VECTORS_PROPERTY,
+                DCConstants.DEFAULT_NOTIFICATIONS_SEND_DELTA_VECTORS));
 
         initData(props);
 
@@ -645,10 +651,10 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             super(clientId);
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
-            if (FAKE_PRACTI_DEPOT_VECTORS) {
+            if (notificationsSendFakePractiDepotVectors) {
                 clientFakeVectorKnowledge = ClockFactory.newClock();
             }
-            if (OPTIMIZED_VECTORS_IN_BATCH) {
+            if (notificationsSendDeltaVectorsOnly) {
                 lastSnapshotVector = ClockFactory.newClock();
             }
         }
@@ -721,15 +727,6 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 snapshot.intersect(getEstimatedDCStableVersionCopy());
             }
 
-            if (OPTIMIZED_VECTORS_IN_BATCH) {
-                for (final String dcId : lastSnapshotVector.getSiteIds()) {
-                    if (lastSnapshotVector.includes(snapshot.getLatest(dcId))) {
-                        snapshot.drop(dcId);
-                    }
-                }
-                lastSnapshotVector.merge(snapshot);
-            }
-
             final HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> objectsUpdates = new HashMap<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>>();
             final Iterator<CRDTObjectUpdatesGroup<?>> iter = pending.iterator();
             while (iter.hasNext()) {
@@ -751,9 +748,18 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             // mobile in background mode), one could require a transaction to
             // declare his read set and force refresh the cache before the
             // transaction if necessary.
+            
+            if (notificationsSendDeltaVectorsOnly) {
+                for (final String dcId : lastSnapshotVector.getSiteIds()) {
+                    if (lastSnapshotVector.includes(snapshot.getLatest(dcId))) {
+                        snapshot.drop(dcId);
+                    }
+                }
+                lastSnapshotVector.merge(snapshot);
+            }
 
-            BatchUpdatesNotification batch;
-            if (FAKE_PRACTI_DEPOT_VECTORS) {
+            final BatchUpdatesNotification batch;
+            if (notificationsSendFakePractiDepotVectors) {
                 final CausalityClock fakeVector;
                 synchronized (dataServer.cltClock) {
                     // "dataServer.cltClock" represents a more recent state than

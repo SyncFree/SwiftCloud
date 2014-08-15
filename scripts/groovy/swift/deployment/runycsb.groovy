@@ -111,7 +111,10 @@ WORKLOAD = SwiftYCSB.WORKLOAD_B + ['recordcount': DbSize.toString(), 'operationc
 // STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB
 REPORTS = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA', 'swift.reportEveryOperation':'true']
 
-DC_PROPS = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE']
+DC_PROPS = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
+            'swift.notificationsFakePracti' : 'false',
+            'swift.notificationsDeltaVectors' : 'false',
+            ]
 OPTIONS = SwiftBase.CACHING_NOTIFICATIONS_PROPS
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + REPORTS + OPTIONS + ['maxexecutiontime' : Duration]
 

@@ -70,4 +70,12 @@ public class DCConstants {
     public static final String NOTIFICATION_PERIOD_PROPERTY = "swift.notificationPeriodMillis";
 
     public static final int DEFAULT_NOTIFICATION_PERIOD_MS = 1000;
+
+    public static final String NOTIFICATIONS_SEND_FAKE_PRACTI_DEPOT_VECTORS_PROPERTY = "swift.notificationsFakePracti";
+
+    public static final String DEFAULT_NOTIFICATIONS_SEND_FAKE_PRACTI_DEPOT_VECTORS = "false";
+
+    public static final String NOTIFICATIONS_SEND_DELTA_VECTORS_PROPERTY = "swift.notificationsDeltaVectors";
+
+    public static final String DEFAULT_NOTIFICATIONS_SEND_DELTA_VECTORS = "false";
 }
