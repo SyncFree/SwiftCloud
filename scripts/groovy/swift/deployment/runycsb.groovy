@@ -29,6 +29,8 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 
 // OPTIONS
+Threads = Integer.valueOf(args[1])
+
 DbSize = 100000
 OpsNum = 1000000
 PruningIntervalMillis = 60000
