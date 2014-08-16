@@ -9,7 +9,7 @@ import static swift.deployment.Topology.*;
 
 def __ = onControlC({
     pnuke(AllMachines, "java", 60)
-    System.exit(0);
+    System.exit(1);
 })
 
 INTEGRATED_DC = true
