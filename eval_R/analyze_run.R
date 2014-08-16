@@ -2,6 +2,7 @@
 require("ggplot2");
 require("reshape2");
 require("gridExtra");
+require("stringr")
 
 # That should include at least one pruning point (60s)
 PRUNE_START_MS <- 350000
@@ -119,6 +120,33 @@ select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (log) {
       result <- rbind(result, extrapolated_entries)
     }
   }
+  return (result)
+}
+
+select_object_accesses_from_STALENESS_YCSB_WRITE <- function (log) {
+  return (select_object_accesses_from_STALENESS_YCSB("STALENESS_YCSB_WRITE", log))
+}
+
+select_object_accesses_from_STALENESS_YCSB_READ <- function (log) {
+  return (select_object_accesses_from_STALENESS_YCSB("STALENESS_YCSB_READ", log))
+}
+
+select_object_accesses_from_STALENESS_YCSB <- function (entry_type, log) {
+  max_timestamp <- max(log$V1)
+  result <- subset(log,log$V2==entry_type)
+  result <- result[, c("V1", "V4")]
+  names(result) <- c("timestamp","objectId")
+  # TODO
+  objectWithFieldIntoObject <- function (id) {
+    match <- str_match(id, "([^:]+:[^:]+):.+")
+
+    if (length(match)<= 1 || is.na(match[2])) {
+      warning("cannot extract key id from object id", id)
+      return (id)
+    }
+    return (match[2])
+  }
+  result$objectId <- sapply(result$objectId, objectWithFieldIntoObject)
   return (result)
 }
 
@@ -311,6 +339,29 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(guard_size.plot)
     rm(dguardsize_raw)
+
+    process_requests_from_staleness <- function(reads) {
+      if (reads) {
+        selector <- select_object_accesses_from_STALENESS_YCSB_READ
+      } else {
+        selector <- select_object_accesses_from_STALENESS_YCSB_WRITE
+      }
+      type_str <- ifelse(reads, "reads", "writes")
+      drequests_raw <- load_log_files(client_file_list, selector, paste("ACCESSED OBJECT IDs (staleness", type_str, "entries)"), FALSE, min_timestamp)
+      if (nrow(drequests_raw) > 0) {
+        requested_objects_num <- length(unique(drequests_raw$objectId))
+        drequests_raw <- transform(drequests_raw,
+                               objectId = factor(objectId, levels = names(sort(-table(objectId))), labels = 1:requested_objects_num))
+        writes_distr.plot <- ggplot(drequests_raw, aes(x=objectId)) + geom_histogram(bin_width=1)
+        writes_distr.plot <- writes_distr.plot + labs(title = paste("object", type_str, "distribution"), x="object rank",y = paste("# field", type_str))
+        writes_distr.plot <- writes_distr.plot + scale_x_discrete(breaks = seq(1, requested_objects_num, by = max(1, round(requested_objects_num/ 15))))
+        ggsave(writes_distr.plot, file=paste(output_prefix, "-obj_", type_str, "_distr", FORMAT_EXT,collapse="", sep=""), scale=1)
+        rm(writes_distr.plot)
+        rm(drequests_raw)
+      }
+    }
+    process_requests_from_staleness(FALSE)
+    process_requests_from_staleness(TRUE)
   }
 }
 
