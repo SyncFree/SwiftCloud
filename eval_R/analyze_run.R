@@ -314,30 +314,34 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
 
     dtablesize_raw <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", FALSE, min_timestamp)
-    # Storage metadata/db size, plots over time
-    db_table_size.plot <- ggplot()
-    for (eachDc in unique(dtablesize_raw$nodeId)) {
-      dctablesize <- subset(dtablesize_raw, dtablesize_raw$nodeId == eachDc)
-      dctablesize$dcTable <- paste("DC", dctablesize$nodeId, ", table", dctablesize$tableName)
-      for (tab in unique(dctablesize$tableName)) {
-        tabdctablesize <- subset(dctablesize, dctablesize$tableName == tab)
-        db_table_size.plot <- db_table_size.plot + geom_line(data=tabdctablesize, mapping=aes(timestamp,tableSize, color=dcTable))
+    if (nrow(dtablesize_raw) > 0) {
+      # Storage metadata/db size, plots over time
+      db_table_size.plot <- ggplot()
+      for (eachDc in unique(dtablesize_raw$nodeId)) {
+        dctablesize <- subset(dtablesize_raw, dtablesize_raw$nodeId == eachDc)
+        dctablesize$dcTable <- paste("DC", dctablesize$nodeId, ", table", dctablesize$tableName)
+        for (tab in unique(dctablesize$tableName)) {
+          tabdctablesize <- subset(dctablesize, dctablesize$tableName == tab)
+          db_table_size.plot <- db_table_size.plot + geom_line(data=tabdctablesize, mapping=aes(timestamp,tableSize, color=dcTable))
+        }
       }
+      ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",FORMAT_EXT,collapse="", sep=""), scale=1)
+      rm(db_table_size.plot)
     }
-    ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",FORMAT_EXT,collapse="", sep=""), scale=1)
-    rm(db_table_size.plot)
     rm(dtablesize_raw)
 
-    
-    dguardsize_raw <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", FALSE, min_timestamp)
-    guard_size.plot <- ggplot()
-    for (eachDc in unique(dguardsize_raw$nodeId)) {
-      dcguardsize <- subset(dguardsize_raw, dguardsize_raw$nodeId == eachDc)
-      guard_size.plot <- guard_size.plot + geom_line(data=dcguardsize, mapping=aes(timestamp,idempotenceGuardSize,color=nodeId))
-    }
 
-    ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",FORMAT_EXT,collapse="", sep=""), scale=1)
-    rm(guard_size.plot)
+    dguardsize_raw <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", FALSE, min_timestamp)
+    if (nrow(dguardsize_raw) > 0) {
+      guard_size.plot <- ggplot()
+      for (eachDc in unique(dguardsize_raw$nodeId)) {
+        dcguardsize <- subset(dguardsize_raw, dguardsize_raw$nodeId == eachDc)
+        guard_size.plot <- guard_size.plot + geom_line(data=dcguardsize, mapping=aes(timestamp,idempotenceGuardSize,color=nodeId))
+      }
+  
+      ggsave(guard_size.plot, file=paste(output_prefix, "-guard_size",FORMAT_EXT,collapse="", sep=""), scale=1)
+      rm(guard_size.plot)
+    }
     rm(dguardsize_raw)
 
     process_requests_from_staleness <- function(reads) {
