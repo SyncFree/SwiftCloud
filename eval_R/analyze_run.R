@@ -43,11 +43,15 @@ select_min_timestamp <- function (log) {
   return (data.frame(min_timestamp=min(log$V1)))
 }
 
+abbrvSessionId <- function(log) {
+  return (transform(log, sessionId = factor(sessionId, labels=substr(levels(sessionId), 1, 5))))
+}
+
 select_OP <- function (log) {
   result <- subset(log,log$V2=="APP_OP")
   result <- result[, c("V1", "V3", "V4", "V5")]
   names(result) <- c("timestamp","sessionId","operation","duration")
-  result <- transform(result, sessionId=as.factor(sessionId), operation=as.factor(operation), duration = as.numeric(duration))
+  result <- transform(result, sessionId=factor(sessionId), operation=factor(operation), duration = as.numeric(duration))
   return (result)
 }
 
@@ -55,7 +59,7 @@ select_OP_FAILURE <- function (log) {
   result <- subset(log,log$V2=="APP_OP_FAILURE")
   result <- result[, c("V1", "V3", "V4", "V5")]
   names(result) <- c("timestamp","sessionId","operation","cause")
-  result <- transform(result, sessionId=as.factor(sessionId), operation=as.factor(operation), cause = as.factor(cause))
+  result <- transform(result, sessionId=factor(sessionId), operation=factor(operation), cause = factor(cause))
   return (result)
 }
 
@@ -72,8 +76,8 @@ select_METADATA <- function (log) {
                    "batchSizeFinestGrained", "batchSizeFinerGrained", "batchSizeCoarseGrained",
                    "maxVVSize","maxVVExceptionsNum"
                    )
-  result <- transform(result, sessionId = as.factor(sessionId),
-                      message=as.factor(message),
+  result <- transform(result, sessionId = factor(sessionId),
+                      message=factor(message),
                       totalMessageSize=as.numeric(totalMessageSize),
                       #V6=as.numeric(V6), V7=as.numeric(V7),
                       batchIndependentGlobalMetadata=as.numeric(batchIndependentGlobalMetadata),
@@ -101,7 +105,7 @@ select_DATABASE_TABLE_SIZE <- function (log) {
   result <- subset(log,log$V2=="DATABASE_TABLE_SIZE" & log$V4 != "e")
   result <- result[, c("V1", "V3", "V4", "V5")]
   names(result) <- c("timestamp","nodeId","tableName","tableSize")
-  result <- transform(result, nodeId=as.factor(nodeId), tableName=as.factor(tableName), tableSize=as.numeric(tableSize))
+  result <- transform(result, nodeId=factor(nodeId), tableName=factor(tableName), tableSize=as.numeric(tableSize))
   return (result)
 }
 
@@ -110,7 +114,7 @@ select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (log) {
   result <- subset(log,log$V2=="IDEMPOTENCE_GUARD_SIZE")
   result <- result[, c("V1", "V3", "V4")]
   names(result) <- c("timestamp","nodeId","idempotenceGuardSize")
-  result <- transform(result, nodeId=as.factor(nodeId), idempotenceGuardSize=as.numeric(idempotenceGuardSize))
+  result <- transform(result, nodeId=factor(nodeId), idempotenceGuardSize=as.numeric(idempotenceGuardSize))
   for (dc in unique(result$nodeId)) {
     dc_last_guard <- tail(subset(result, result$nodeId == dc), 1)
     MIN_SAMPLING_PERIOD <- 1000
@@ -190,9 +194,10 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
 
     dop_filtered <- load_log_files(client_file_list, select_OP, "OP", TRUE, min_timestamp)
+    dop_filtered <- abbrvSessionId(dop_filtered)
     # Throughput over time plot
     # Careful: It seems that the first and last bin only cover 5000 ms
-    throughput.plot <- ggplot(dop_filtered, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
+    throughput.plot <- ggplot(dop_filtered, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000) 
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(throughput.plot)
@@ -220,6 +225,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     # Metadata size descriptive statistics
     dmetadata_filtered <- load_log_files(client_file_list, select_METADATA, "METADATA", TRUE,min_timestamp)
+    dmetadata_filtered <- abbrvSessionId(dmetadata_filtered)
     metadata_size_stats <- data.frame(stat=stats, stat_params=stats_params)
     for (m in unique(dmetadata_filtered$message)) {
       m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
@@ -236,17 +242,20 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       metadata_size_stats[[paste(m, "meta-tot", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinestGrained)
       metadata_size_stats[[paste(m, "meta-tot", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinerGrained)
       metadata_size_stats[[paste(m, "meta-tot", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeCoarseGrained)
-      metadata_size_stats[[paste(m, "vvSize", sep="-")]] <- compute_stats(m_filtered$maxVVSize)
-      metadata_size_stats[[paste(m, "vvExceptionsNum", sep="-")]] <- compute_stats(m_filtered$maxVVExceptionsNum)
+      metadata_size_stats[[paste(m, "vv-size", sep="-")]] <- compute_stats(m_filtered$maxVVSize)
+      metadata_size_stats[[paste(m, "vv-exceptions", sep="-")]] <- compute_stats(m_filtered$maxVVExceptionsNum)
+      metadata_size_stats[[paste(m, "batch1", sep="-")]] <- compute_stats(m_filtered$batchSizeFinestGrained)
+      metadata_size_stats[[paste(m, "batch2", sep="-")]] <- compute_stats(m_filtered$batchSizeFinerGrained)
+      metadata_size_stats[[paste(m, "batch3", sep="-")]] <- compute_stats(m_filtered$batchSizeCoarseGrained)
+    }
+    rm(dmetadata_filtered)
+    dtablesize_filtered <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
+    if (nrow(dtablesize_filtered) > 0) {
       for (eachTable in unique(dtablesize_filtered$tableName)) {
         tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
         metadata_size_stats[[paste(eachTable, "table", sep="-")]] <- compute_stats(tablestats$tableSize)
       }
       metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize_filtered$idempotenceGuardSize)
-    }
-    rm(dmetadata_filtered)
-    dtablesize_filtered <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
-    if (nrow(dtablesize_filtered) > 0) {
     }  
     rm(dtablesize_filtered)
     dguardsize_filtered <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", TRUE, min_timestamp)
@@ -271,6 +280,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   # "SPECTROGRAM" MODE OUPUT
   if (spectrogram) {
     dop_raw <- load_log_files(client_file_list, select_OP, "OP", FALSE, min_timestamp)
+    dop_raw <- abbrvSessionId(dop_raw)
 
     # Response time scatterplot over time  
     dop_raw_sampled <- sample_entries(dop_raw)
@@ -279,7 +289,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     rm(scatter.plot)
     
     # Throughput over time plot
-    throughput.plot <- ggplot(dop_raw, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
+    throughput.plot <- ggplot(dop_raw, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000) 
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput_full",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(throughput.plot)
@@ -291,10 +301,11 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     
     dmetadata_raw <- load_log_files(client_file_list, select_METADATA, "METADATA", FALSE, min_timestamp)
+    dmetadata_raw <- abbrvSessionId(dmetadata_raw)
     # Message occurences over time plot(s)
     for (m in unique(dmetadata_raw$message)) {
       m_metadata <- subset(dmetadata_raw, dmetadata_raw$message==m) 
-      msg.plot <- ggplot(m_metadata, aes(x=timestamp)) + geom_histogram(binwidth=1000) 
+      msg.plot <- ggplot(m_metadata, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000) 
       # msg.plot
       ggsave(msg.plot, file=paste(output_prefix, "-msg_occur-", m, FORMAT_EXT,collapse="", sep=""), scale=1)
       rm(msg.plot)
@@ -340,6 +351,18 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     metadata_norm3_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
     ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_dep_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm3_size.plot)
+    
+    metadata_batch1_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, batchSizeFinestGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_batch1_size.plot, file=paste(output_prefix, "-batch_size1",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_batch1_size.plot)
+    
+    metadata_batch2_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, batchSizeFinerGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_batch2_size.plot, file=paste(output_prefix, "-batch_size2",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_batch2_size.plot)
+    
+    metadata_batch3_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, batchSizeCoarseGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_batch3_size.plot, file=paste(output_prefix, "-batch_size3",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_batch3_size.plot)
     
     rm(dmetadata_raw)
     rm(dmetadata_raw_sampled)
