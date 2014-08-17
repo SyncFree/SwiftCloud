@@ -32,7 +32,7 @@ AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 Threads = Integer.valueOf(args[1])
 
 DbSize = 100000
-OpsNum = 1000000
+OpsNum = 10000000
 PruningIntervalMillis = 60000
 NotificationsPeriodMillis = 1000
 

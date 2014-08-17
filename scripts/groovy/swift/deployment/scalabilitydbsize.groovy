@@ -14,8 +14,8 @@ def __ = onControlC({
 
 INTEGRATED_DC = true
 
-if (args.length != 4) {
-    System.err.println "usage: scalabilitythroughput.groovy <topology file> <workload> <mode> <opslimit> "
+if (args.length != 5) {
+    System.err.println "usage: runycsb.groovy <topology configuration file> <workload> <mode> <dbsize> <outputdir>"
     System.exit(1)
 }
 
@@ -27,11 +27,9 @@ Scouts = ( Topology.scouts() ).unique()
 ShepardAddr = Topology.datacenters[0].surrogates[0];
 AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
-
 // VARs
 WorkloadName = args[1]
 ModeName = args[2]
-IncomingOpPerSecLimit  = Integer.parseInt(args[3])
 WORKLOADS= [
     'workloada-uniform' : SwiftYCSB.WORKLOAD_A + ['requestdistribution': 'uniform'],
     'workloada' : SwiftYCSB.WORKLOAD_A,
@@ -45,20 +43,22 @@ MODES = [
     'notifications-frequent': SwiftBase.CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
     'no-caching' : SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS,
     'notifications-infrequent': SwiftBase.CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
+    'notifications-frequent-practi': SwiftBase.CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
 ]
+DbSize = Integer.parseInt(args[3])
+OutputDir = args[4]
+
 Mode = MODES[ModeName]
 
-
-// TODO: avoid copy-pasting and redundancy with runycsb.groovy
 // OPTIONS
-Proportion = "0.8"
-Threads = 40
-        
-DbSize = 100000
+OBJECTS_PER_CLIENT = 50
+OPS_PER_CLIENT = 2.5
+Clients = DbSize / OBJECTS_PER_CLIENT
+IncomingOpPerSecLimit = (int) (OPS_PER_CLIENT * ((double) Clients))
+Threads = Scouts.size()
 OpsNum = 10000000
 PruningIntervalMillis = 60000
 NotificationsPeriodMillis = Mode.containsKey('swift.notificationPeriodMillis') ? Mode['swift.notificationPeriodMillis'] : '1000'
-
 IncomingOpPerSecPerClientLimit = (int) (IncomingOpPerSecLimit / Scouts.size())
 
 Duration = 600
@@ -67,23 +67,27 @@ InterCmdDelay = 30
 
 WORKLOAD = BaseWorkload + ['recordcount': DbSize.toString(), 'operationcount':OpsNum.toString(),
     'target':IncomingOpPerSecPerClientLimit,
-    // 'requestdistribution':'uniform',
 
     'localpoolfromglobaldistribution':'true',
     'localrequestdistribution':'uniform',
     'localrecordcount':'150',
-    'localrequestproportion':Proportion
+    'localrequestproportion':'0.8',
 ]
-REPORTS = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA', 'swift.reportEveryOperation':'true']
-DC_PROPS = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE']
+// STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB
+REPORTS = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA,STALENESS_YCSB_WRITE', 'swift.reportEveryOperation':'true']
+
+DC_PROPS = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
+    'swift.notificationsFakePracti' : Mode.containsKey('swift.notificationsFakePracti')? Mode['swift.notificationsFakePracti'] : 'false',
+    'swift.notificationsDeltaVectors' : 'false',
+]
 YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + REPORTS + Mode + ['maxexecutiontime' : Duration]
 
 // Options for DB initialization
 INIT_NO_REPORTS = ['swift.reports':'']
 INIT_OPTIONS = SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS
-INIT_THREADS = 4
+INIT_THREADS = 2
 
-INIT_YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD + ['target':'10000000'] + INIT_NO_REPORTS+ INIT_OPTIONS
+INIT_YCSB_PROPS = SwiftYCSB.DEFAULT_PROPS + WORKLOAD  + ['target':'1000000'] + INIT_NO_REPORTS+ INIT_OPTIONS
 
 Version = getGitCommitId()
 String config = getBinding().getVariables()
@@ -105,7 +109,6 @@ deployTo(AllMachines, SwiftYCSB.genPropsFile(INIT_YCSB_PROPS).absolutePath, INIT
 
 def shep = SwiftBase.runShepard( ShepardAddr, Duration + DurationShepardGrace, "Released" )
 
-println "==== LAUNCHING SEQUENCERS"
 if (!INTEGRATED_DC) {
     println "==== LAUNCHING SEQUENCERS"
     Topology.datacenters.each { datacenter ->
@@ -135,7 +138,7 @@ SwiftYCSB.initDB( INIT_DB_CLIENT, INIT_DB_DC, INITYCSBProps, INIT_THREADS)
 println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
 Sleep(InterCmdDelay)
 
-SwiftYCSB.runClients(Topology.scoutGroups, YCSBProps, ShepardAddr, Threads, "3072m")
+SwiftYCSB.runClients(Topology.scoutGroups, YCSBProps, ShepardAddr, Threads, "2560m")
 
 println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
 shep.take()
@@ -144,8 +147,9 @@ Countdown( "Max. remaining time: ", Duration + InterCmdDelay)
 
 pnuke(AllMachines, "java", 60)
 
-def dstDir="results/ycsb/multi-DC/scalabilitythroughput/" +
-        String.format("%s-mode-%s-opslimit-%d", WorkloadName, ModeName, IncomingOpPerSecLimit)
+def dstDir=String.format("%s/%s-mode-%s-dbsize-%d", OutputDir, WorkloadName, ModeName, DbSize)
+// add suffixes on demand, based on per-experiment variable
+//        + String.format("DC-%s-SU-%s-pruning-%d-notifications-%d-SC-%s-TH-%s-records-%d-operations-%d", Topology.datacenters.size(), Topology.datacenters[0].surrogates.size(), PruningIntervalMillis, NotificationsPeriodMillis, Topology.totalScouts(), Threads, DbSize, OpsNum)
 
 pslurp( Scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
 pslurp( Scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
@@ -163,20 +167,27 @@ configFile.withWriter { out ->
     out.writeLine(config)
 }
 
-exec([
+def stats = exec([
     "/bin/bash",
     "-c",
     "wc " + dstDir + "/*/*"
-]).waitFor()
+])
 
-def compressor = exec([
+exec([
     "tar",
     "-czf",
     dstDir+".tar.gz",
     dstDir
-])
-compressor.waitFor()
-exec(["/bin/rm", "-Rf", dstDir]).waitFor()
+]).waitFor()
+
+stats.waitFor()
+
+exec([
+    "rm",
+    "-Rf",
+    dstDir
+]).waitFor()
+
 
 System.exit(0)
 
