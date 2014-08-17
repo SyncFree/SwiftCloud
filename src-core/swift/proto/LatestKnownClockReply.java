@@ -95,10 +95,11 @@ public class LatestKnownClockReply implements RpcMessage, MetadataSamplable {
         if (disasterDurableClock != null) {
             kryo.writeObject(buffer, disasterDurableClock);
         }
-        final int globalMetadata = buffer.position();
+        final int batchIndependentGlobalMetadata = buffer.position();
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, 1, 1, 1, maxVectorSize, maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, 0, 0, batchIndependentGlobalMetadata, 0, 1, 1, 1, maxVectorSize,
+                maxExceptionsNum);
     }
 }

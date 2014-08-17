@@ -63,34 +63,36 @@ select_METADATA <- function (log) {
   result <- subset(log,log$V2=="METADATA")
   result <- result[, c("V1","V3", "V4", "V5",
                        #"V6", "V7",
-                       "V8", "V9", "V10", "V11"
-                       #, "V12", "V13"
+                       "V8", "V9", "V10", "V11", "V12",
+                       "V13", "V14"
                        )]
   names(result) <- c("timestamp","sessionId","message","totalMessageSize",
                    #"versionOrUpdateSize","valueSize",
-                   "explicitGlobalMetadata","batchSizeFinestGrained",
-                   "batchSizeFinerGrained", "batchSizeCoarseGrained"
-                   #, "maxVVSize","maxVVExceptionsNum"
+                   "batchIndependentGlobalMetadata", "batchDependentGlobalMetadata",
+                   "batchSizeFinestGrained", "batchSizeFinerGrained", "batchSizeCoarseGrained",
+                   "maxVVSize","maxVVExceptionsNum"
                    )
   result <- transform(result, sessionId = as.factor(sessionId),
                       message=as.factor(message),
                       totalMessageSize=as.numeric(totalMessageSize),
                       #V6=as.numeric(V6), V7=as.numeric(V7),
-                      explicitGlobalMetadata=as.numeric(explicitGlobalMetadata),
+                      batchIndependentGlobalMetadata=as.numeric(batchIndependentGlobalMetadata),
+                      batchDependentGlobalMetadata=as.numeric(batchDependentGlobalMetadata),
                       batchSizeFinestGrained=as.numeric(batchSizeFinestGrained),
                       batchSizeFinerGrained=as.numeric(batchSizeFinestGrained),
                       batchSizeCoarseGrained=as.numeric(batchSizeCoarseGrained)
                       #, V12=as.numeric(V12), V13=as.numeric(V13),
                      )
-  #result$batchSizeFinestGrained <- sapply(result$batchSizeFinestGrained, function(x) { return (max(x, 1)) })
-  #result$batchSizeFinerGrained <- sapply(result$batchSizeFinerGrained, function(x) { return (max(x, 1)) })
-  #result$batchSizeCoarseGrained <- sapply(result$batchSizeCoarseGrained, function(x) { return (max(x, 1)) })
   result$normalizedTotalMessageSizeByBatchSizeFinestGrained <- result$totalMessageSize / result$batchSizeFinestGrained
   result$normalizedTotalMessageSizeByBatchSizeFinerGrained <- result$totalMessageSize / result$batchSizeFinerGrained
   result$normalizedTotalMessageSizeByBatchSizeCoarseGrained <- result$totalMessageSize / result$batchSizeCoarseGrained
-  result$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained <- result$explicitGlobalMetadata / result$batchSizeFinestGrained
-  result$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained <- result$explicitGlobalMetadata / result$batchSizeFinerGrained
-  result$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained <- result$explicitGlobalMetadata / result$batchSizeCoarseGrained
+  result$normalizedBatchDependentGlobalMetadataByBatchSizeFinestGrained <- result$batchDependentGlobalMetadata / result$batchSizeFinestGrained
+  result$normalizedBatchDependentGlobalMetadataByBatchSizeFinerGrained <- result$batchDependentGlobalMetadata / result$batchSizeFinerGrained
+  result$normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained <- result$batchDependentGlobalMetadata / result$batchSizeCoarseGrained
+  result$totalGlobalMetadata <- result$batchIndependentGlobalMetadata + result$batchDependentGlobalMetadata
+  result$normalizedTotalGlobalMetadataByBatchSizeFinestGrained <- result$totalGlobalMetadata / result$batchSizeFinestGrained
+  result$normalizedTotalGlobalMetadataByBatchSizeFinerGrained <- result$totalGlobalMetadata / result$batchSizeFinerGrained
+  result$normalizedTotalGlobalMetadataByBatchSizeCoarseGrained <- result$totalGlobalMetadata / result$batchSizeCoarseGrained
   return (result)
 }
 
@@ -140,7 +142,7 @@ select_object_accesses_from_STALENESS_YCSB <- function (entry_type, log) {
   objectWithFieldIntoObject <- function (id) {
     match <- str_match(id, "([^:]+:[^:]+):.+")
 
-    if (length(match)<= 1 || is.na(match[2])) {
+    if (length(match) < 2 || is.na(match[2])) {
       warning("cannot extract key id from object id", id)
       return (id)
     }
@@ -218,8 +220,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     # Metadata size descriptive statistics
     dmetadata_filtered <- load_log_files(client_file_list, select_METADATA, "METADATA", TRUE,min_timestamp)
-    dtablesize_filtered <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
-    dguardsize_filtered <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", TRUE, min_timestamp)
     metadata_size_stats <- data.frame(stat=stats, stat_params=stats_params)
     for (m in unique(dmetadata_filtered$message)) {
       m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
@@ -227,22 +227,34 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       metadata_size_stats[[paste(m,"msg", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinestGrained)
       metadata_size_stats[[paste(m,"msg", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinerGrained)
       metadata_size_stats[[paste(m,"msg", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeCoarseGrained)
-      metadata_size_stats[[paste(m, "meta", sep="-")]] <- compute_stats(m_filtered$explicitGlobalMetadata)
-      metadata_size_stats[[paste(m, "meta", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)
-      metadata_size_stats[[paste(m, "meta", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)
-      metadata_size_stats[[paste(m, "meta", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)
+      metadata_size_stats[[paste(m, "meta-indep", sep="-")]] <- compute_stats(m_filtered$batchIndependentGlobalMetadata)
+      metadata_size_stats[[paste(m, "meta-dep", sep="-")]] <- compute_stats(m_filtered$batchDependentGlobalMetadata)
+      metadata_size_stats[[paste(m, "meta-tot", sep="-")]] <- compute_stats(m_filtered$totalGlobalMetadata)
+      metadata_size_stats[[paste(m, "meta-dep", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeFinestGrained)
+      metadata_size_stats[[paste(m, "meta-dep", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeFinerGrained)
+      metadata_size_stats[[paste(m, "meta-dep", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained)
+      metadata_size_stats[[paste(m, "meta-tot", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinestGrained)
+      metadata_size_stats[[paste(m, "meta-tot", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinerGrained)
+      metadata_size_stats[[paste(m, "meta-tot", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeCoarseGrained)
+      metadata_size_stats[[paste(m, "vvSize", sep="-")]] <- compute_stats(m_filtered$maxVVSize)
+      metadata_size_stats[[paste(m, "vvExceptionsNum", sep="-")]] <- compute_stats(m_filtered$maxVVExceptionsNum)
+      for (eachTable in unique(dtablesize_filtered$tableName)) {
+        tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
+        metadata_size_stats[[paste(eachTable, "table", sep="-")]] <- compute_stats(tablestats$tableSize)
+      }
+      metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize_filtered$idempotenceGuardSize)
     }
-    for (eachTable in unique(dtablesize_filtered$tableName)) {
-      tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
-      metadata_size_stats[[paste(eachTable, "table", sep="-")]] <- compute_stats(tablestats$tableSize)
+    rm(dmetadata_filtered)
+    dtablesize_filtered <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
+    if (nrow(dtablesize_filtered) > 0) {
+    }  
+    rm(dtablesize_filtered)
+    dguardsize_filtered <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", TRUE, min_timestamp)
+    if (nrow(dguardsize_filtered) > 0) {
     }
-    metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize_filtered$idempotenceGuardSize)
+    rm(dguardsize_filtered)
     write.table(metadata_size_stats, paste(output_prefix, "meta_size.csv", sep="-"), sep=",", row.names=FALSE)
 
-    rm(dmetadata_filtered)
-    rm(dtablesize_filtered)
-    rm(dguardsize_filtered)
-    
     
     derr <- load_log_files(client_file_list, select_OP_FAILURE, "OP_FAILURE", FALSE, min_timestamp)
     # Errors descriptive statistics
@@ -293,20 +305,40 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     ggsave(msg_size.plot, file=paste(output_prefix, "-msg_size",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(msg_size.plot)
 
-    metadata_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp,explicitGlobalMetadata)) + geom_point(aes(color=message))
-    ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta",FORMAT_EXT,collapse="", sep=""), scale=1)
+    metadata_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp,batchIndependentGlobalMetadata)) + geom_point(aes(color=message))
+    ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta_indep",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_size.plot)
+    
+    metadata_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp,totalGlobalMetadata)) + geom_point(aes(color=message))
+    ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta_tot",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_size.plot)
+    
+    metadata_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp,batchDependentGlobalMetadata)) + geom_point(aes(color=message))
+    ggsave(metadata_size.plot, file=paste(output_prefix, "-msg_meta_dep",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_size.plot)
 
-    metadata_norm1_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
-    ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_norm1",FORMAT_EXT,collapse="", sep=""), scale=1)
+    metadata_norm1_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedTotalGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_tot_norm1",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm1_size.plot)
 
-    metadata_norm2_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
-    ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_norm2",FORMAT_EXT,collapse="", sep=""), scale=1)
+    metadata_norm2_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedTotalGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_tot_norm2",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm2_size.plot)
 
-    metadata_norm3_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedExplicitGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
-    ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
+    metadata_norm3_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedTotalGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_tot_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_norm3_size.plot)
+    
+    metadata_norm1_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedBatchDependentGlobalMetadataByBatchSizeFinestGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm1_size.plot, file=paste(output_prefix, "-msg_meta_dep_norm1",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_norm1_size.plot)
+    
+    metadata_norm2_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedBatchDependentGlobalMetadataByBatchSizeFinerGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm2_size.plot, file=paste(output_prefix, "-msg_meta_dep_norm2",FORMAT_EXT,collapse="", sep=""), scale=1)
+    rm(metadata_norm2_size.plot)
+    
+    metadata_norm3_size.plot <- ggplot(dmetadata_raw_sampled, aes(timestamp, normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained)) + geom_point(aes(color=message))
+    ggsave(metadata_norm3_size.plot, file=paste(output_prefix, "-msg_meta_dep_norm3",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(metadata_norm3_size.plot)
     
     rm(dmetadata_raw)

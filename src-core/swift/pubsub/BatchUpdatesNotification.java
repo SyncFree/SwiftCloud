@@ -118,6 +118,10 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
             kryo.writeObject(buffer, newVersion);
         }
         kryo.writeObject(buffer, newVersionDisasterSafe);
+        final int batchIndependentGlobalMetadata = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
         for (final Entry<CRDTIdentifier, List<CRDTObjectUpdatesGroup<?>>> entry : objectsUpdates.entrySet()) {
             for (final CRDTObjectUpdatesGroup<?> group : entry.getValue()) {
                 if (fakePractiDepotVector != null) {
@@ -127,7 +131,7 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
                 }
             }
         }
-        final int globalMetadata = buffer.position();
+        final int batchDependentGlobalMetadata = buffer.position();
 
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
@@ -176,8 +180,8 @@ public class BatchUpdatesNotification extends PubSubNotification<CRDTIdentifier>
         final int vectorSize = Math.max(newVersion.getSize(),
                 fakePractiDepotVector != null ? fakePractiDepotVector.getSize() : 0);
         final int maxExceptionsNum = newVersion.getExceptionsNumber();
-        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps,
-                numberOfGroups, numberOfTxns, vectorSize, maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, batchIndependentGlobalMetadata,
+                batchDependentGlobalMetadata, numberOfOps, numberOfGroups, numberOfTxns, vectorSize, maxExceptionsNum);
     }
 
     @Override

@@ -73,7 +73,7 @@ public class UnsubscribeUpdatesRequest extends ClientRequest implements Metadata
 
         // TODO: capture from the wire, rather than recompute here
         kryo.writeObject(buffer, this);
-        collector.recordMessageStats(this, buffer.position(), 0, 0, 0, unsubscriptions.size(), unsubscriptions.size(),
-                unsubscriptions.size(), 0, 0);
+        collector.recordMessageStats(this, buffer.position(), 0, 0, 0, 0, unsubscriptions.size(),
+                unsubscriptions.size(), unsubscriptions.size(), 0, 0);
     }
 }

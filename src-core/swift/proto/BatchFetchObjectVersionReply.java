@@ -198,6 +198,9 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         for (final ManagedCRDT crdt : crdts) {
             if (crdt != null) {
                 maxExceptionsNum = Math.max(crdt.getClock().getExceptionsNumber(), maxExceptionsNum);
+                maxExceptionsNum = Math.max(crdt.getPruneClock().getExceptionsNumber(), maxExceptionsNum);
+                maxVectorSize = Math.max(crdt.getClock().getSize(), maxVectorSize);
+                maxVectorSize = Math.max(crdt.getPruneClock().getSize(), maxVectorSize);
 
                 kryo = collector.getFreshKryo();
                 buffer = collector.getFreshKryoBuffer();
@@ -230,6 +233,14 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         if (estimatedLatestKnownClock != null) {
             kryo.writeObject(buffer, estimatedLatestKnownClock);
         }
+        if (compressionReferenceIdx >= 0) {
+            kryo.writeObject(buffer, crdts[compressionReferenceIdx].getClock());
+            kryo.writeObject(buffer, crdts[compressionReferenceIdx].getPruneClock());
+        }
+        final int batchIndependentGlobalMetadata = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
         int actualBatchSize = 0;
         for (int i = 0; i < getBatchSize(); i++) {
             if (statuses[i] != FetchStatus.UP_TO_DATE) {
@@ -237,11 +248,9 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
                 kryo.writeObject(buffer, statuses[i]);
             }
             if (crdts[i] != null) {
-                if (statuses[i] != FetchStatus.OK || compressionReferenceIdx < 0 || compressionReferenceIdx == i) {
+                if (statuses[i] != FetchStatus.OK || compressionReferenceIdx < 0) {
                     kryo.writeObject(buffer, crdts[i].getClock());
                     kryo.writeObject(buffer, crdts[i].getPruneClock());
-                    maxVectorSize = Math.max(crdts[i].getClock().getSize(), maxVectorSize);
-                    maxVectorSize = Math.max(crdts[i].getPruneClock().getSize(), maxVectorSize);
                 }
                 final List log = crdts[i].getUpdatesTimestampMappingsSince(crdts[i].getPruneClock());
                 if (!log.isEmpty()) {
@@ -249,10 +258,11 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
                 }
             }
         }
-        final int globalMetadata = buffer.position();
+        final int batchDependentGlobalMetadata = buffer.position();
 
-        collector.recordMessageStats(this, totalSize, versionSize, valueSize, globalMetadata, getBatchSize(),
-                actualBatchSize, actualBatchSize, maxVectorSize, maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, versionSize, valueSize, batchIndependentGlobalMetadata,
+                batchDependentGlobalMetadata, getBatchSize(), actualBatchSize, actualBatchSize, maxVectorSize,
+                maxExceptionsNum);
     }
 
     @Override

@@ -58,15 +58,16 @@ public class MetadataStatsCollectorImpl implements MetadataStatsCollector {
 
     @Override
     public void recordMessageStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize,
-            int explicitlyComputedGlobalMetadataSize, int batchSizeFinestGrained, int batchSizeFinerGrained,
-            int batchSizeCoarseGrained, int maxVectorSize, int maxExceptionsNum) {
+            int batchIndependentGlobalMetadataSize, int batchDependentGlobalMetadataSize, int batchSizeFinestGrained,
+            int batchSizeFinerGrained, int batchSizeCoarseGrained, int maxVectorSize, int maxExceptionsNum) {
         // TODO: we should intercept totalSize at the serialization time rather
         // than forcing re-serialization for measurements purposes
         if (isMessageReportEnabled()) {
             SafeLog.report(ReportType.METADATA, nodeId, message.getClass().getSimpleName(), totalSize,
-                    objectOrUpdateSize, objectOrUpdateValueSize, explicitlyComputedGlobalMetadataSize,
-                    Math.max(1, batchSizeFinestGrained), Math.max(1, batchSizeFinerGrained),
-                    Math.max(1, batchSizeCoarseGrained), maxVectorSize, maxExceptionsNum);
+                    objectOrUpdateSize, objectOrUpdateValueSize, batchIndependentGlobalMetadataSize,
+                    batchDependentGlobalMetadataSize, Math.max(1, batchSizeFinestGrained),
+                    Math.max(1, batchSizeFinerGrained), Math.max(1, batchSizeCoarseGrained), maxVectorSize,
+                    maxExceptionsNum);
         }
     }
 

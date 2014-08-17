@@ -128,10 +128,17 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
         kryo = collector.getFreshKryo();
         buffer = collector.getFreshKryoBuffer();
         kryo.writeObject(buffer, requestedVersion);
+        int maxVectorSize = requestedVersion.getSize();
+        int maxExceptionsNumber = requestedVersion.getExceptionsNumber();
+        if (knownVersion != null) {
+            kryo.writeObject(buffer, knownVersion);
+            maxVectorSize = Math.max(knownVersion.getSize(), maxVectorSize);
+            maxExceptionsNumber = Math.max(knownVersion.getExceptionsNumber(), maxExceptionsNumber);
+        }
         final int globalMetadata = buffer.position();
 
-        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, getBatchSize(), getBatchSize(),
-                getBatchSize(), requestedVersion.getSize(), requestedVersion.getExceptionsNumber());
+        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, 0, getBatchSize(), getBatchSize(),
+                getBatchSize(), maxVectorSize, maxExceptionsNumber);
     }
 
     @Override

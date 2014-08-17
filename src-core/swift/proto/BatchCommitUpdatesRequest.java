@@ -89,16 +89,27 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
         CausalityClock sharedDepsTest = null;
         for (final CommitUpdatesRequest req : commitRequests) {
             if (!req.fakePractiDepot) {
-                // Count the shared clock only once (it should appear 1 on the
-                // wire)
+                // Assume the first encountered clock is a shared clock and
+                // count it only once.
+                kryo.writeObject(buffer, req.getDependencyClock());
+                sharedDepsTest = req.getDependencyClock();
+                break;
+            }
+        }
+        final int batchIndependentGlobalMetadata = buffer.position();
+
+        kryo = collector.getFreshKryo();
+        buffer = collector.getFreshKryoBuffer();
+        for (final CommitUpdatesRequest req : commitRequests) {
+            if (!req.fakePractiDepot) {
+                // Count only clocks that are not shared.
                 if (sharedDepsTest != req.getDependencyClock()) {
                     kryo.writeObject(buffer, req.getDependencyClock());
-                    sharedDepsTest = req.getDependencyClock();
                 }
             }
             kryo.writeObject(buffer, req.getCltTimestamp());
         }
-        final int globalMetadata = buffer.position();
+        final int batchDependentGlobalMetadata = buffer.position();
 
         int maxExceptionsNum = 0;
         int maxVectorSize = 0;
@@ -146,8 +157,9 @@ public class BatchCommitUpdatesRequest extends ClientRequest implements Metadata
             }
         }
         final int valuesSize = buffer.position();
-        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, globalMetadata, numberOfOps,
-                numberOfGroups, numberOfTxns, maxVectorSize, maxExceptionsNum);
+        collector.recordMessageStats(this, totalSize, updatesSize, valuesSize, batchIndependentGlobalMetadata,
+                batchDependentGlobalMetadata, numberOfOps, numberOfGroups, numberOfTxns, maxVectorSize,
+                maxExceptionsNum);
     }
 
     @Override
