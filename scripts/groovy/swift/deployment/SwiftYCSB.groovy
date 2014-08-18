@@ -9,6 +9,35 @@ class SwiftYCSB extends SwiftBase {
     static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db " + YCSB_DRIVER
     static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db " + YCSB_DRIVER
 
+    static final WORKLOAD_A = ['recordcount':'1000',
+        'operationcount':'1000',
+        'workload':'com.yahoo.ycsb.workloads.CoreWorkload',
+        'readallfields':'true',
+        'readproportion':'0.5',
+        'updateproportion':'0.5',
+        'scanproportion':'0',
+        'insertproportion':'0',
+        'requestdistribution':'zipfian',
+    ]
+
+    static final WORKLOAD_B = ['recordcount':'1000',
+        'operationcount':'1000',
+        'workload':'com.yahoo.ycsb.workloads.CoreWorkload',
+        'readallfields':'true',
+        'readproportion':'0.95',
+        'updateproportion':'0.05',
+        'scanproportion':'0',
+        'insertproportion':'0',
+        'requestdistribution':'zipfian',
+    ]
+
+    static WORKLOADS= [
+        'workloada-uniform' : WORKLOAD_A + ['requestdistribution': 'uniform'],
+        'workloada' : WORKLOAD_A,
+        'workloadb-uniform' : WORKLOAD_B + ['requestdistribution': 'uniform'],
+        'workloadb' : WORKLOAD_B,
+    ]
+
     public static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
 
@@ -45,41 +74,6 @@ class SwiftYCSB extends SwiftBase {
         // Parallel.rsh( clients, cmd, resHandler, true, 500000)
     }
 
-    static final DEFAULT_PROPS = [
-        'swift.cacheEvictionTimeMillis':'5000000',
-        'swift.maxCommitBatchSize':'10',
-        'swift.maxAsyncTransactionsQueued':'50',
-        'swift.cacheSize':'0',
-        'swift.asyncCommit':'false',
-        'swift.notifications':'false',
-        'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED',
-        'swift.cachePolicy':'CACHED',
-        'swift.isolationLevel':'SNAPSHOT_ISOLATION',
-        'swift.reports':'APP_OP',
-    ]
-
-    static final WORKLOAD_A = ['recordcount':'1000',
-        'operationcount':'1000',
-        'workload':'com.yahoo.ycsb.workloads.CoreWorkload',
-        'readallfields':'true',
-        'readproportion':'0.5',
-        'updateproportion':'0.5',
-        'scanproportion':'0',
-        'insertproportion':'0',
-        'requestdistribution':'zipfian',
-    ]
-
-    static final WORKLOAD_B = ['recordcount':'1000',
-        'operationcount':'1000',
-        'workload':'com.yahoo.ycsb.workloads.CoreWorkload',
-        'readallfields':'true',
-        'readproportion':'0.95',
-        'updateproportion':'0.05',
-        'scanproportion':'0',
-        'insertproportion':'0',
-        'requestdistribution':'zipfian',
-    ]
-
     def dbSize = 100000
     def opsNum = 10000000
     def incomingOpPerSecLimit = 12000
@@ -111,6 +105,13 @@ class SwiftYCSB extends SwiftBase {
         ycsbProps = SwiftYCSB.DEFAULT_PROPS + workload + reports + mode + ['maxexecutiontime' : duration]
         ycsbPropsPath = "swiftycsb.properties"
         initYcsbPropsPath = "swiftycsb-init.properties"
+
+        if (ycsbProps.containsKey('swift.notificationsFakePracti')) {
+            dcProps['swift.notificationsFakePracti'] = ycsbProps['swift.notificationsFakePracti']
+        }
+        if (mode.containsKey('swift.notificationPeriodMillis')) {
+            notificationsPeriodMillis = Integer.parseInt(mode['swift.notificationPeriodMillis'])
+        }
 
         // Options for DB initialization
         def initNoReports = ['swift.reports':'']

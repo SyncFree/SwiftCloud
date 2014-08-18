@@ -8,7 +8,20 @@ abstract class SwiftBase {
     static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCServer"
     static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCSequencerServer"
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties sys.herd.Shepard"
-
+    
+    static final DEFAULT_PROPS = [
+        'swift.cacheEvictionTimeMillis':'5000000',
+        'swift.maxCommitBatchSize':'10',
+        'swift.maxAsyncTransactionsQueued':'50',
+        'swift.cacheSize':'0',
+        'swift.asyncCommit':'false',
+        'swift.notifications':'false',
+        'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED',
+        'swift.cachePolicy':'CACHED',
+        'swift.isolationLevel':'SNAPSHOT_ISOLATION',
+        'swift.reports':'APP_OP',
+    ]
+    
     static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
         'swift.asyncCommit':'true',
         'swift.notifications':'true',
@@ -23,6 +36,15 @@ abstract class SwiftBase {
         'swift.asyncCommit':'false',
         'swift.notifications':'false',
         'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED']
+    
+    static MODES = [
+        'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
+        'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
+        'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
+        'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
+        'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
+        'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
+    ]
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
         return "java " + YOUR_KIT_PROFILER_JAVA_OPTION + heap + " " + exec + "2> >(tee " + stderr + " 1>&2) > >(tee " + stdout + ")"
