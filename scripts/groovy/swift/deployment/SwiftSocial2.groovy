@@ -59,7 +59,15 @@ class SwiftSocial2 extends SwiftBase {
     }
 
 
-
+    static final DEFAULT_WORKLOAD = [
+        'swiftsocial.numUsers':'1000',
+        'swiftsocial.userFriends':'25',
+        'swiftsocial.biasedOps':'9',
+        'swiftsocial.randomOps':'1',
+        'swiftsocial.opGroups':'10000',
+        'swiftsocial.recordPageViews':'false',
+        'swiftsocial.thinkTime':'0'
+    ]
     static final DEFAULT_PROPS = [
         'swift.cacheEvictionTimeMillis':'5000000',
         'swift.maxCommitBatchSize':'10',
@@ -70,12 +78,5 @@ class SwiftSocial2 extends SwiftBase {
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.reports':'APP_OP', // 'APP_OP,METADATA'
-        'swiftsocial.numUsers':'1000',
-        'swiftsocial.userFriends':'25',
-        'swiftsocial.biasedOps':'9',
-        'swiftsocial.randomOps':'1',
-        'swiftsocial.opGroups':'10000',
-        'swiftsocial.recordPageViews':'false',
-        'swiftsocial.thinkTime':'0'
-    ]
+    ] + DEFAULT_WORKLOAD
 }

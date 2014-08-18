@@ -7,13 +7,8 @@ import static swift.deployment.SwiftYCSB.*
 import static swift.deployment.Tools.*
 import static swift.deployment.Topology.*;
 
-def __ = onControlC({
-    pnuke(AllMachines, "java", 60)
-    System.exit(1);
-})
-
 if (args.length != 5) {
-    System.err.println "usage: runycsb.groovy <topology configuration file> <workload> <mode> <dbsize> <outputdir>"
+    System.err.println "usage: runycsbscalabilitydbsize.groovy <topology configuration file> <workload> <mode> <dbsize> <outputdir>"
     System.exit(1)
 }
 
@@ -21,10 +16,6 @@ if (args.length != 5) {
 topologyDef = new File(args[0])
 println "==== Loading topology definition from file " + topologyDef + "===="
 evaluate(topologyDef)
-Scouts = ( Topology.scouts() ).unique()
-ShepardAddr = Topology.datacenters[0].surrogates[0];
-AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
-
 
 SwiftYCSB ycsb = new SwiftYCSB()
 
@@ -36,7 +27,9 @@ ycsb.mode = SwiftBase.MODES[modeName]
 ycsb.dbSize = Integer.parseInt(args[3])
 
 OBJECTS_PER_CLIENT = 50
-OPS_PER_CLIENT = 2.5
+// TODO: update for multi-DC setup?
+// TODO: update for workloada!
+OPS_PER_CLIENT = workloadName.startsWith("workloadb") ? 2.5 : 2.5
 int clients = ycsb.dbSize / OBJECTS_PER_CLIENT
 ycsb.incomingOpPerSecLimit = (int) (OPS_PER_CLIENT * ((double) clients))
 ycsb.threads = (int) (clients / ycsb.scouts.size())

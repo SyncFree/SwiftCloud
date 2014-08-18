@@ -8,7 +8,7 @@ abstract class SwiftBase {
     static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCServer"
     static String SEQUENCER_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCSequencerServer"
     static String SHEPARD_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties sys.herd.Shepard"
-    
+
     static final DEFAULT_PROPS = [
         'swift.cacheEvictionTimeMillis':'5000000',
         'swift.maxCommitBatchSize':'10',
@@ -21,7 +21,7 @@ abstract class SwiftBase {
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.reports':'APP_OP',
     ]
-    
+
     static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
         'swift.asyncCommit':'true',
         'swift.notifications':'true',
@@ -36,7 +36,7 @@ abstract class SwiftBase {
         'swift.asyncCommit':'false',
         'swift.notifications':'false',
         'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED']
-    
+
     static MODES = [
         'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
         'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
@@ -156,7 +156,22 @@ abstract class SwiftBase {
     def shepardAddr
     def allMachines
     def pruningIntervalMillis = 60000
-    def notificationsPeriodMillis = 1000
+    static int DEFAULT_NOTIFICATIONS_PERIOD_MS = 1000
+    def notificationsPeriodMillis = DEFAULT_NOTIFICATIONS_PERIOD_MS
+    def mode = CACHING_NOTIFICATIONS_PROPS
+    public void setMode(def newMode) {
+        mode = newMode
+        if (mode.containsKey('swift.notificationsFakePracti')) {
+            dcProps['swift.notificationsFakePracti'] = ycsbProps['swift.notificationsFakePracti']
+        } else {
+            dcProps.remove('swift.notificationsFakePracti')
+        }
+        if (mode.containsKey('swift.notificationPeriodMillis')) {
+            notificationsPeriodMillis = Integer.parseInt(mode['swift.notificationPeriodMillis'])
+        } else {
+            notificationsPeriodMillis = DEFAULT_NOTIFICATIONS_PERIOD_MS
+        }
+    }
     def duration = 600
     def durationShepardGrace = 12
     def interCmdDelay = 30

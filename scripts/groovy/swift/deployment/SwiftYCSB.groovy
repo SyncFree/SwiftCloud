@@ -80,7 +80,8 @@ class SwiftYCSB extends SwiftBase {
     def threads = 10
 
     def baseWorkload = WORKLOAD_A
-    def mode = CACHING_NOTIFICATIONS_PROPS
+    def localRecordCount = 150
+    def localRequestProportion = "0.8"
     def ycsbProps
     def ycsbPropsPath
 
@@ -99,19 +100,12 @@ class SwiftYCSB extends SwiftBase {
 
             'localpoolfromglobaldistribution':'true',
             'localrequestdistribution':'uniform',
-            'localrecordcount':'150',
-            'localrequestproportion':'0.8',
+            'localrecordcount': Integer.toString(localRecordCount),
+            'localrequestproportion': localRequestProportion,
         ]
         ycsbProps = SwiftYCSB.DEFAULT_PROPS + workload + reports + mode + ['maxexecutiontime' : duration]
         ycsbPropsPath = "swiftycsb.properties"
         initYcsbPropsPath = "swiftycsb-init.properties"
-
-        if (ycsbProps.containsKey('swift.notificationsFakePracti')) {
-            dcProps['swift.notificationsFakePracti'] = ycsbProps['swift.notificationsFakePracti']
-        }
-        if (mode.containsKey('swift.notificationPeriodMillis')) {
-            notificationsPeriodMillis = Integer.parseInt(mode['swift.notificationPeriodMillis'])
-        }
 
         // Options for DB initialization
         def initNoReports = ['swift.reports':'']
@@ -136,6 +130,6 @@ class SwiftYCSB extends SwiftBase {
     }
 
     protected void doRunClients() {
-        SwiftYCSB.runClients(Topology.scoutGroups, ycsbPropsPath, shepardAddr, threads, "2560m")
+        SwiftYCSB.runClients(Topology.scoutGroups, ycsbPropsPath, shepardAddr, threads, "3072m")
     }
 }

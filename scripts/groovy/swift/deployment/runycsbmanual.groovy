@@ -16,9 +16,6 @@ if (args.length != 1) {
 topologyDef = new File(args[0])
 println "==== Loading topology definition from file " + topologyDef + "===="
 evaluate(topologyDef)
-Scouts = ( Topology.scouts() ).unique()
-ShepardAddr = Topology.datacenters[0].surrogates[0];
-AllMachines = ( Topology.allMachines() + ShepardAddr).unique()
 
 SwiftYCSB ycsb = new SwiftYCSB()
 // ycsb.duration = 60
