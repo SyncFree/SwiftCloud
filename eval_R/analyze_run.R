@@ -205,7 +205,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     # Operation duration CDF plot for the filtered period
     cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
-    cdf.plot <- cdf.plot +  + labs(x="response time [ms]",y = "CDF")
+    cdf.plot <- cdf.plot + labs(x="response time [ms]",y = "CDF")
     # cdf.plot
     ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(cdf.plot)
