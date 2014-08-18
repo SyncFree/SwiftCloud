@@ -627,6 +627,9 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     knownVersionLowerBound.intersect(crdt.getClock());
                 }
             }
+            if (knownVersionLowerBound != null) {
+                knownVersionLowerBound.trim();
+            }
         }
 
         if (ids.isEmpty()) {
