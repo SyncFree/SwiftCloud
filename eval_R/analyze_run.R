@@ -92,7 +92,7 @@ select_METADATA <- function (log) {
   result$normalizedTotalMessageSizeByBatchSizeCoarseGrained <- result$totalMessageSize / ifelse(result$batchSizeCoarseGrained == 0, 1,result$batchSizeCoarseGrained)
   result$normalizedBatchDependentGlobalMetadataByBatchSizeFinestGrained <- ifelse(result$batchSizeFinestGrained == 0, 0, result$batchDependentGlobalMetadata / result$batchSizeFinestGrained)
   result$normalizedBatchDependentGlobalMetadataByBatchSizeFinerGrained <- ifelse(result$batchSizeFinerGrained == 0, 0, result$batchDependentGlobalMetadata / result$batchSizeFinerGrained)
-  result$normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained <- ifelse(result$batchSizeCoarseGrained, 0, result$batchDependentGlobalMetadata / result$batchSizeCoarseGrained)
+  result$normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained <- ifelse(result$batchSizeCoarseGrained == 0, 0, result$batchDependentGlobalMetadata / result$batchSizeCoarseGrained)
   result$totalGlobalMetadata <- result$batchIndependentGlobalMetadata + result$batchDependentGlobalMetadata
   result$normalizedTotalGlobalMetadataByBatchSizeFinestGrained <- result$totalGlobalMetadata / ifelse(result$batchSizeFinestGrained == 0, 1,result$batchSizeFinestGrained)
   result$normalizedTotalGlobalMetadataByBatchSizeFinerGrained <- result$totalGlobalMetadata / ifelse(result$batchSizeFinerGrained == 0, 1,result$batchSizeFinerGrained)
