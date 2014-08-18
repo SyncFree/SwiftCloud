@@ -83,7 +83,7 @@ select_METADATA <- function (log) {
                       batchIndependentGlobalMetadata=as.numeric(batchIndependentGlobalMetadata),
                       batchDependentGlobalMetadata=as.numeric(batchDependentGlobalMetadata),
                       batchSizeFinestGrained=as.numeric(batchSizeFinestGrained),
-                      batchSizeFinerGrained=as.numeric(batchSizeFinestGrained),
+                      batchSizeFinerGrained=as.numeric(batchSizeFinerGrained),
                       batchSizeCoarseGrained=as.numeric(batchSizeCoarseGrained)
                       #, V12=as.numeric(V12), V13=as.numeric(V13),
                      )
