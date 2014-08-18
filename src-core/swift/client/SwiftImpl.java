@@ -81,7 +81,6 @@ import swift.proto.CommitUpdatesRequest;
 import swift.proto.LatestKnownClockReply;
 import swift.proto.LatestKnownClockRequest;
 import swift.proto.MetadataStatsCollector;
-import swift.proto.MetadataStatsCollectorImpl;
 import swift.proto.PingReply;
 import swift.proto.PingRequest;
 import swift.proto.SwiftProtocolHandler;
@@ -340,7 +339,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         }
         this.cacheStats = new CoarseCacheStats(stats);
 
-        this.metadataStatsCollector = new MetadataStatsCollectorImpl(sessionId);
+        this.metadataStatsCollector = new MetadataStatsCollector(sessionId);
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
@@ -639,19 +638,19 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             logger.info(getScoutId() + ": " + "Refreshing cache (" + ids.size() + " objects) to version " + version);
         }
 
-        final BatchFetchObjectVersionRequest fetchRequest = new BatchFetchObjectVersionRequest(scoutId, disasterSafe,
+        final BatchFetchObjectVersionRequest refreshRequest = new BatchFetchObjectVersionRequest(scoutId, disasterSafe,
                 knownVersionLowerBound, version, false, false, false, ids.toArray(new CRDTIdentifier[0]));
 
         // final BatchFetchObjectVersionReply fetchReply =
         // localEndpoint.request(serverEndpoint(), fetchRequest);
-        RpcHandle reply = localEndpoint.send(serverEndpoint(), fetchRequest, RpcHandler.NONE, deadlineMillis);
+        RpcHandle reply = localEndpoint.send(serverEndpoint(), refreshRequest, RpcHandler.NONE, deadlineMillis);
         if (reply.failed() || reply.getReply() == null) {
             logger.warning(getScoutId() + ": " + "Refreshing cached objects timed out");
             return;
         }
-        final BatchFetchObjectVersionReply fetchReply = (BatchFetchObjectVersionReply) reply.getReply().getPayload();
-        fetchRequest.recordMetadataSample(metadataStatsCollector);
-        fetchReply.recordMetadataSample(metadataStatsCollector);
+        final BatchFetchObjectVersionReply refreshReply = (BatchFetchObjectVersionReply) reply.getReply().getPayload();
+        refreshRequest.recordMetadataSample(metadataStatsCollector, "CacheRefreshRequest");
+        refreshReply.recordMetadataSample(metadataStatsCollector, "CacheRefreshReply");
 
         synchronized (this) {
             try {
@@ -667,11 +666,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
 
                 // Process all replies and advance next snapshot clock.
-                for (int i = 0; i < fetchRequest.getBatchSize(); i++) {
+                for (int i = 0; i < refreshRequest.getBatchSize(); i++) {
                     try {
                         // FIXME: <V extends CRDT<V>> should be really part of
                         // ID, because the code below is not type-safe.
-                        handleFetchObjectReply(null, fetchRequest, fetchReply, i, CRDT.class, false,
+                        handleFetchObjectReply(null, refreshRequest, refreshReply, i, CRDT.class, false,
                                 requestedScoutVersion);
                     } catch (SwiftException x) {
                         logger.warning(getScoutId() + ": "

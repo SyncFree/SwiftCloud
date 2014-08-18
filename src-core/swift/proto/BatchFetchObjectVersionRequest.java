@@ -115,6 +115,10 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
+        recordMetadataSample(collector, MetadataStatsCollector.defaultMessageName(this));
+    }
+
+    public void recordMetadataSample(MetadataStatsCollector collector, String messageName) {
         if (!collector.isMessageReportEnabled()) {
             return;
         }
@@ -137,7 +141,7 @@ public class BatchFetchObjectVersionRequest extends ClientRequest implements Met
         }
         final int globalMetadata = buffer.position();
 
-        collector.recordMessageStats(this, totalSize, 0, 0, globalMetadata, 0, getBatchSize(), getBatchSize(),
+        collector.recordMessageStats(messageName, totalSize, 0, 0, globalMetadata, 0, getBatchSize(), getBatchSize(),
                 getBatchSize(), maxVectorSize, maxExceptionsNumber);
     }
 

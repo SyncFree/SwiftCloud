@@ -9,7 +9,6 @@ import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.ManagedCRDT;
 import swift.dc.CRDTData;
 import swift.proto.MetadataStatsCollector;
-import swift.proto.MetadataStatsCollectorImpl;
 import swift.utils.SafeLog.ReportType;
 import sys.scheduler.PeriodicTask;
 
@@ -31,7 +30,7 @@ public class StatsNodeDatabaseWrapper implements DCNodeDatabase {
 
     public StatsNodeDatabaseWrapper(final DCNodeDatabase wrappedDb, final String dcId) {
         this.wrappedDb = wrappedDb;
-        this.statsCollector = new MetadataStatsCollectorImpl(dcId);
+        this.statsCollector = new MetadataStatsCollector(dcId);
     }
 
     @Override

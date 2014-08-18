@@ -169,6 +169,10 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
 
     @Override
     public void recordMetadataSample(MetadataStatsCollector collector) {
+        recordMetadataSample(collector, MetadataStatsCollector.defaultMessageName(this));
+    }
+
+    public void recordMetadataSample(MetadataStatsCollector collector, String messageName) {
         if (!collector.isMessageReportEnabled()) {
             return;
         }
@@ -260,7 +264,7 @@ public class BatchFetchObjectVersionReply implements RpcMessage, MetadataSamplab
         }
         final int batchDependentGlobalMetadata = buffer.position();
 
-        collector.recordMessageStats(this, totalSize, versionSize, valueSize, batchIndependentGlobalMetadata,
+        collector.recordMessageStats(messageName, totalSize, versionSize, valueSize, batchIndependentGlobalMetadata,
                 batchDependentGlobalMetadata, getBatchSize(), actualBatchSize, actualBatchSize, maxVectorSize,
                 maxExceptionsNum);
     }

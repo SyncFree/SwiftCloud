@@ -1,22 +1,69 @@
 package swift.proto;
 
+import swift.utils.SafeLog;
+import swift.utils.SafeLog.ReportType;
+import sys.net.impl.KryoLib;
+
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.ByteBufferOutput;
 import com.esotericsoftware.kryo.io.Output;
 
-public interface MetadataStatsCollector {
+/**
+ * A collector of metadata statistics.
+ * 
+ * @author mzawirski
+ */
+public class MetadataStatsCollector {
+    public final static int EXPECTED_BUFFER_SIZE = 2 << 15;
+    public static final int MAX_BUFFER_SIZE = 2 << 23;
 
-    public abstract boolean isMessageReportEnabled();
+    public static String defaultMessageName(Object message) {
+        return message.getClass().getSimpleName();
+    }
+
+    private String nodeId;
+    private ThreadLocal<Output> freshKryoBuffer = new ThreadLocal<Output>() {
+        protected Output initialValue() {
+            return new ByteBufferOutput(EXPECTED_BUFFER_SIZE, MAX_BUFFER_SIZE);
+        }
+    };
+
+    /**
+     * Creates a collector.
+     */
+    public MetadataStatsCollector(final String nodeId) {
+        this.nodeId = nodeId;
+    }
+
+    public boolean isMessageReportEnabled() {
+        return ReportType.METADATA.isEnabled();
+    }
 
     /**
      * @return a thread-local cleared kryo buffer that can be used to compute
      *         the size of messages
      */
-    public abstract Output getFreshKryoBuffer();
+    public Output getFreshKryoBuffer() {
+        Output buffer = freshKryoBuffer.get();
+        if (buffer.position() < EXPECTED_BUFFER_SIZE) {
+            // Reuse an existing buffer.
+            buffer.clear();
+        } else {
+            // Lower memory footprint by creating a fresh buffer.
+            freshKryoBuffer.remove();
+            buffer = freshKryoBuffer.get();
+        }
+        return buffer;
+    }
 
     /**
      * @return a Kryo instance that can be used to compute the size of messages
      */
-    public abstract Kryo getFreshKryo();
+    public Kryo getFreshKryo() {
+        final Kryo kryo = KryoLib.kryoWithoutAutoreset();
+        kryo.reset();
+        return kryo;
+    }
 
     /**
      * Records a stats sample for a message. Assumption: totalSize >=
@@ -38,12 +85,35 @@ public interface MetadataStatsCollector {
      * @param maxExceptionsNum
      *            maximum number of exceptions in a vector in the message
      */
-    public abstract void recordMessageStats(Object message, int totalSize, int objectOrUpdateSize,
+    public void recordMessageStats(Object message, int totalSize, int objectOrUpdateSize, int objectOrUpdateValueSize,
+            int batchIndependentGlobalMetadataSize, int batchDependentGlobalMetadataSize, int batchSizeFinestGrained,
+            int batchSizeFinerGrained, int batchSizeCoarseGrained, int maxVectorSize, int maxExceptionsNum) {
+        recordMessageStats(defaultMessageName(message), totalSize, objectOrUpdateSize, objectOrUpdateValueSize,
+                batchIndependentGlobalMetadataSize, batchDependentGlobalMetadataSize, batchSizeFinestGrained,
+                batchSizeFinerGrained, batchSizeCoarseGrained, maxVectorSize, maxExceptionsNum);
+    }
+
+    public void recordMessageStats(String messageName, int totalSize, int objectOrUpdateSize,
             int objectOrUpdateValueSize, int batchIndependentGlobalMetadataSize, int batchDependentGlobalMetadataSize,
             int batchSizeFinestGrained, int batchSizeFinerGrained, int batchSizeCoarseGrained, int maxVectorSize,
-            int maxExceptionsNum);
+            int maxExceptionsNum) {
+        // TODO: we should intercept totalSize at the serialization time rather
+        // than forcing re-serialization for measurements purposes
+        if (isMessageReportEnabled()) {
+            SafeLog.report(ReportType.METADATA, nodeId, messageName, totalSize, objectOrUpdateSize,
+                    objectOrUpdateValueSize, batchIndependentGlobalMetadataSize, batchDependentGlobalMetadataSize,
+                    batchSizeFinestGrained, batchSizeFinerGrained, batchSizeCoarseGrained, maxVectorSize,
+                    maxExceptionsNum);
+        }
+    }
 
-    boolean isDatabaseTableReportEnabled();
+    public boolean isDatabaseTableReportEnabled() {
+        return ReportType.DATABASE_TABLE_SIZE.isEnabled();
+    }
 
-    void recordDatabaseTableStats(String tableName, int size);
+    public void recordDatabaseTableStats(String tableName, int size) {
+        if (isDatabaseTableReportEnabled()) {
+            SafeLog.report(ReportType.DATABASE_TABLE_SIZE, nodeId, tableName, size);
+        }
+    }
 }
