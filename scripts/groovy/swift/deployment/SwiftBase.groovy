@@ -160,8 +160,8 @@ abstract class SwiftBase {
     def duration = 600
     def durationShepardGrace = 12
     def interCmdDelay = 30
-    def reports = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA', 'swift.reportEveryOperation':'true']
-    // STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB
+    def reports = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA,STALENESS_YCSB_WRITE', 'swift.reportEveryOperation':'true']
+    // STALENESS_YCSB_READ,STALENESS_CALIB
     def dcProps = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
         'swift.notificationsFakePracti' : 'false',
         'swift.notificationsDeltaVectors' : 'false',
