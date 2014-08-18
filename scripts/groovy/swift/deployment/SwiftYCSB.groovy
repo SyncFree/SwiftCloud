@@ -1,6 +1,7 @@
 package swift.deployment
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import static swift.deployment.Tools.*
 
 class SwiftYCSB extends SwiftBase {
@@ -8,7 +9,7 @@ class SwiftYCSB extends SwiftBase {
     static String INITDB_CMD = "-cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db " + YCSB_DRIVER
     static String YCSB_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties com.yahoo.ycsb.Client -db " + YCSB_DRIVER
 
-    static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
+    public static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
         println "CLIENT: " + client + " SERVER: " + server + " CONFIG: " + config
 
         def cmd = INITDB_CMD + " -load -s -P " + config + " -p swift.hostname=" + server + " -threads " + threads +" "
@@ -17,7 +18,7 @@ class SwiftYCSB extends SwiftBase {
         return res
     }
 
-    static void runClients(List scoutGroups, String config, String shepard, int threads = 1, String heap ="512m" ) {
+    public static void runClients(List scoutGroups, String config, String shepard, int threads = 1, String heap ="512m" ) {
         def hosts = []
 
         scoutGroups.each{ hosts += it.all() }
@@ -57,7 +58,6 @@ class SwiftYCSB extends SwiftBase {
         'swift.reports':'APP_OP',
     ]
 
-    // TODO: use properties file?
     static final WORKLOAD_A = ['recordcount':'1000',
         'operationcount':'1000',
         'workload':'com.yahoo.ycsb.workloads.CoreWorkload',
@@ -79,4 +79,62 @@ class SwiftYCSB extends SwiftBase {
         'insertproportion':'0',
         'requestdistribution':'zipfian',
     ]
+
+    def dbSize = 100000
+    def opsNum = 10000000
+    def incomingOpPerSecLimit = 12000
+    def threads = 10
+
+    def baseWorkload = WORKLOAD_A
+    def mode = CACHING_NOTIFICATIONS_PROPS
+    def ycsbProps
+    def ycsbPropsPath
+
+    def initThreads = 2
+    def initYcsbProps
+    def initYcsbPropsPath
+
+    public SwiftYCSB() {
+        super()
+    }
+
+    protected void generateConfig() {
+        def incomingOpPerSecPerClientLimit = (int) (incomingOpPerSecLimit / scouts.size())
+        def workload = baseWorkload + ['recordcount': dbSize.toString(), 'operationcount':opsNum.toString(),
+            'target':incomingOpPerSecPerClientLimit,
+
+            'localpoolfromglobaldistribution':'true',
+            'localrequestdistribution':'uniform',
+            'localrecordcount':'150',
+            'localrequestproportion':'0.8',
+        ]
+        ycsbProps = SwiftYCSB.DEFAULT_PROPS + workload + reports + mode + ['maxexecutiontime' : duration]
+        ycsbPropsPath = "swiftycsb.properties"
+        initYcsbPropsPath = "swiftycsb-init.properties"
+
+        // Options for DB initialization
+        def initNoReports = ['swift.reports':'']
+        def initOptions = SwiftBase.NO_CACHING_NOTIFICATIONS_PROPS
+        initYcsbProps = SwiftYCSB.DEFAULT_PROPS + workload + ['target':'10000000'] + initNoReports + initOptions
+
+        config = properties + ['incomingOpPerSecPerClientLimit' : incomingOpPerSecPerClientLimit, 'workload': workload,
+            'ycsbProps': ycsbProps, 'initYcsbProps': initYcsbProps, 'version': version]
+        println config
+    }
+
+    protected void deployConfig() {
+        deployTo(allMachines, SwiftYCSB.genPropsFile(ycsbProps).absolutePath, ycsbPropsPath)
+        deployTo(allMachines, SwiftYCSB.genPropsFile(initYcsbProps).absolutePath, initYcsbPropsPath)
+    }
+
+    protected void doInitDB() {
+        def initDbDc = Topology.datacenters[0].surrogates[0]
+        def initDbClient  = Topology.datacenters[0].sequencers[0]
+
+        SwiftYCSB.initDB( initDbClient, initDbDc, initYcsbPropsPath, initThreads)
+    }
+
+    protected void doRunClients() {
+        SwiftYCSB.runClients(Topology.scoutGroups, ycsbPropsPath, shepardAddr, threads, "2560m")
+    }
 }

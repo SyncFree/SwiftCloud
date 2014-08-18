@@ -2,7 +2,7 @@ package swift.deployment
 
 import static swift.deployment.Tools.*
 
-class SwiftBase {
+abstract class SwiftBase {
     static boolean ENABLE_YOUR_KIT_PROFILER = false
     static String YOUR_KIT_PROFILER_JAVA_OPTION =  ENABLE_YOUR_KIT_PROFILER ? " -agentpath:yjp/bin/linux-x86-64/libyjpagent.so " : ""
     static String SURROGATE_CMD = "-Xincgc -cp swiftcloud.jar -Djava.util.logging.config.file=logging.properties swift.dc.DCServer"
@@ -128,5 +128,137 @@ class SwiftBase {
         }
         result += " "
         return result
+    }
+
+    def scouts
+    def shepardAddr
+    def allMachines
+    def pruningIntervalMillis = 60000
+    def notificationsPeriodMillis = 1000
+    def duration = 600
+    def durationShepardGrace = 12
+    def interCmdDelay = 30
+    def reports = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA', 'swift.reportEveryOperation':'true']
+    // STALENESS_YCSB_READ,STALENESS_YCSB_WRITE,STALENESS_CALIB
+    def dcProps = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
+        'swift.notificationsFakePracti' : 'false',
+        'swift.notificationsDeltaVectors' : 'false',
+    ]
+
+    def integratedDC = true
+    def version = getGitCommitId()
+
+    Map config
+
+    protected SwiftBase() {
+        scouts = (Topology.scouts()).unique()
+        shepardAddr = Topology.datacenters[0].surrogates[0];
+        allMachines = (Topology.allMachines() + shepardAddr).unique()
+    }
+
+    public void runExperiment(String outputDir) {
+        generateConfig()
+        prepareNodes()
+
+        def shep = startShepard()
+        startDCs()
+        println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
+        Sleep(interCmdDelay)
+        runInitDB()
+        println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
+        Sleep(interCmdDelay)
+        runClientsWithShepard(shep)
+        collectResults(outputDir)
+    }
+
+    protected abstract void generateConfig()
+    protected abstract void deployConfig()
+    protected abstract void doRunClients()
+    protected abstract void doInitDB()
+
+    private prepareNodes() {
+        pnuke(allMachines, "java", 60)
+        println "==== BUILDING JAR for version " + version + "..."
+        sh("ant -buildfile smd-jar-build.xml").waitFor()
+        deployTo(allMachines, "swiftcloud.jar")
+        deployTo(allMachines, "stuff/logging.properties", "logging.properties")
+        deployConfig()
+    }
+
+    private def startShepard() {
+        return SwiftBase.runShepard(shepardAddr, duration + durationShepardGrace, "Released" )
+    }
+
+    private startDCs() {
+        if (!integratedDC) {
+            println "==== LAUNCHING SEQUENCERS"
+            Topology.datacenters.each { datacenter ->
+                datacenter.deploySequencers(shepardAddr, "1024m" )
+            }
+            Sleep(10)
+        }
+
+        println "==== LAUNCHING SURROGATES"
+        Topology.datacenters.each { datacenter ->
+            if (integratedDC) {
+                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + SwiftBase.genDCServerPropArgs(dcProps), "2048m")
+            } else {
+                datacenter.deploySurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + SwiftBase.genDCServerPropArgs(dcProps), "2048m")
+            }
+        }
+    }
+
+    private runClientsWithShepard(def shep) {
+        doRunClients()
+
+        println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
+        shep.take()
+        Countdown( "Max. remaining time: ", duration + interCmdDelay)
+        pnuke(allMachines, "java", 60)
+    }
+
+
+    private collectResults(String dstDir) {
+        pslurp(scouts, "scout-stdout.txt", dstDir, "scout-stdout.log", 300)
+        pslurp(scouts, "scout-stderr.txt", dstDir, "scout-stderr.log", 300)
+        Topology.datacenters.each { dc ->
+            pslurp(dc.surrogates, "sur-stderr.txt", dstDir, "sur-stderr.log", 30)
+            pslurp(dc.surrogates, "sur-stdout.txt", dstDir, "sur-stdout.log", 300)
+            if (!integratedDC) {
+                pslurp(dc.sequencers, "seq-stderr.txt", dstDir, "seq-stderr.log", 30)
+                pslurp(dc.sequencers, "seq-stdout.txt", dstDir, "seq-stdout.log", 30)
+            }
+        }
+        def configFile = new File(dstDir, "config")
+        configFile.createNewFile()
+        configFile.withWriter { out ->
+            out.writeLine(config.toString())
+        }
+
+        def stats = exec([
+            "/bin/bash",
+            "-c",
+            "wc " + dstDir + "/*/*"
+        ])
+
+        exec([
+            "tar",
+            "-czf",
+            dstDir+".tar.gz",
+            dstDir
+        ]).waitFor()
+
+        stats.waitFor()
+
+        exec([
+            "rm",
+            "-Rf",
+            dstDir
+        ]).waitFor()
+    }
+
+    private void runInitDB() {
+        println "==== INITIALIZING DATABASE ===="
+        doInitDB()
     }
 }
