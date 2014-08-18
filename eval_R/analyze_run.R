@@ -5,8 +5,8 @@ require("gridExtra");
 require("stringr")
 
 # That should include at least one pruning point (60s)
-PRUNE_START_MS <- 350000
-DURATION_RUN_MS <- 100000
+PRUNE_START_MS <- 3500
+DURATION_RUN_MS <- 10000
 FORMAT_EXT <- ".png"
 SCATTER_PLOTS_MAX_SAMPLES <- 20000
 
@@ -41,10 +41,6 @@ load_log_files <- function(files, selector, selector_name, filtered = FALSE, sub
 
 select_min_timestamp <- function (log) {
   return (data.frame(min_timestamp=min(log$V1)))
-}
-
-abbrvSessionId <- function(log) {
-  return (transform(log, sessionId = factor(sessionId, labels=substr(levels(sessionId), 1, 5))))
 }
 
 select_OP <- function (log) {
@@ -194,7 +190,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
 
     dop_filtered <- load_log_files(client_file_list, select_OP, "OP", TRUE, min_timestamp)
-    dop_filtered <- abbrvSessionId(dop_filtered)
     # Throughput over time plot
     # Careful: It seems that the first and last bin only cover 5000 ms
     throughput.plot <- ggplot(dop_filtered, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000)
@@ -227,7 +222,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     # Metadata size descriptive statistics
     dmetadata_filtered <- load_log_files(client_file_list, select_METADATA, "METADATA", TRUE,min_timestamp)
-    dmetadata_filtered <- abbrvSessionId(dmetadata_filtered)
     metadata_size_stats <- data.frame(stat=stats, stat_params=stats_params)
     for (m in unique(dmetadata_filtered$message)) {
       m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
@@ -282,7 +276,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
   # "SPECTROGRAM" MODE OUPUT
   if (spectrogram) {
     dop_raw <- load_log_files(client_file_list, select_OP, "OP", FALSE, min_timestamp)
-    dop_raw <- abbrvSessionId(dop_raw)
 
     # Response time scatterplot over time  
     dop_raw_sampled <- sample_entries(dop_raw)
@@ -291,7 +284,8 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     rm(scatter.plot)
     
     # Throughput over time plot
-    throughput.plot <- ggplot(dop_raw, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000) 
+    throughput.plot <- ggplot(dop_raw, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000)
+    throughput.plot <- throughput.plot + labs(title="Throughput colored by client  session", x="time [ms]",y = "throughput [txn/s]") + guides(fill=FALSE)
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput_full",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(throughput.plot)
@@ -303,7 +297,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     
     dmetadata_raw <- load_log_files(client_file_list, select_METADATA, "METADATA", FALSE, min_timestamp)
-    dmetadata_raw <- abbrvSessionId(dmetadata_raw)
     # Message occurences over time plot(s)
     for (m in unique(dmetadata_raw$message)) {
       m_metadata <- subset(dmetadata_raw, dmetadata_raw$message==m) 
