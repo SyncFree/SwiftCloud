@@ -255,11 +255,11 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
         tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
         metadata_size_stats[[paste(eachTable, "table", sep="-")]] <- compute_stats(tablestats$tableSize)
       }
-      metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize_filtered$idempotenceGuardSize)
     }  
     rm(dtablesize_filtered)
     dguardsize_filtered <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", TRUE, min_timestamp)
     if (nrow(dguardsize_filtered) > 0) {
+      metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize_filtered$idempotenceGuardSize)
     }
     rm(dguardsize_filtered)
     write.table(metadata_size_stats, paste(output_prefix, "meta_size.csv", sep="-"), sep=",", row.names=FALSE)
