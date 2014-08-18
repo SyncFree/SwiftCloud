@@ -197,13 +197,15 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     dop_filtered <- abbrvSessionId(dop_filtered)
     # Throughput over time plot
     # Careful: It seems that the first and last bin only cover 5000 ms
-    throughput.plot <- ggplot(dop_filtered, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000) 
+    throughput.plot <- ggplot(dop_filtered, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000)
+    throughput.plot <- throughput.plot + labs(title="Throughput colored by client  session", x="time [ms]",y = "throughput [txn/s]") + guides(fill=FALSE)
     #throughput.plot
     ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(throughput.plot)
 
     # Operation duration CDF plot for the filtered period
     cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
+    cdf.plot <- cdf.plot +  + labs(x="response time [ms]",y = "CDF")
     # cdf.plot
     ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
     rm(cdf.plot)
@@ -306,6 +308,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     for (m in unique(dmetadata_raw$message)) {
       m_metadata <- subset(dmetadata_raw, dmetadata_raw$message==m) 
       msg.plot <- ggplot(m_metadata, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000) 
+      msg.plot <- msg.plot + labs(title=paste(m, "message occurence, colored by client session"), x="time [ms]",y = "#occurrences / s") + guides(fill=FALSE)
       # msg.plot
       ggsave(msg.plot, file=paste(output_prefix, "-msg_occur-", m, FORMAT_EXT,collapse="", sep=""), scale=1)
       rm(msg.plot)
