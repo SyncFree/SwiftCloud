@@ -43,8 +43,9 @@ OregonEC2 = [
 // TOPOLOGY
 Topology.clear()
 
-DC_EU = DC([EuropeEC2[0]], [EuropeEC2[0]])
+// DC_NV as a first DC - used to initialize the DB 
 DC_NV = DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
+DC_EU = DC([EuropeEC2[0]], [EuropeEC2[0]])
 DC_OR = DC([OregonEC2[0]], [OregonEC2[0]])
 
 ScoutsToEU = SGroup(NVirginiaEC2[1..6], DC_EU)
