@@ -207,7 +207,7 @@ abstract class SwiftBase {
         generateConfig()
         prepareNodes()
         onControlC({
-            pnuke(AllMachines, "java", 60)
+            pnuke(allMachines, "java", 60)
             System.exit(1);
         })
 
