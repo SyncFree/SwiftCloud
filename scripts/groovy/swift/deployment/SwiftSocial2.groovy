@@ -65,11 +65,17 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.randomOps':'1',
         'swiftsocial.opGroups':'10000',
         'swiftsocial.recordPageViews':'true',
-        'swiftsocial.thinkTime':'0'
+        'swiftsocial.thinkTime':'0',
+        'swiftsocial.targetOpsPerSec':'-1'
     ]
 
+    // Two alternative mechanism to throttle the target throughput:
+    // Low level think time between each operation.
     def thinkTime = 0
+    // If set, takes priority over think time:
+    def targetOpsPerSec = -1
     def baseWorkload = DEFAULT_WORKLOAD
+    def recordPageViews = true
 
     def swiftSocialProps
     def swiftSocialPropsPath
@@ -80,7 +86,9 @@ class SwiftSocial2 extends SwiftBase {
 
     protected void generateConfig() {
         def workload = baseWorkload + ['swiftsocial.numUsers':dbSize.toString(),
-            'swiftsocial.thinktime': thinkTime.toString()
+            'swiftsocial.thinktime': thinkTime.toString(),
+            'swiftsocial.targetOpsPerSec' : targetOpsPerSec.toString,
+            'swiftsocial.recordPageViews': recordPageViews.toString()
         ]
         swiftSocialProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + mode
         swiftSocialPropsPath = "swiftsocial.properties"

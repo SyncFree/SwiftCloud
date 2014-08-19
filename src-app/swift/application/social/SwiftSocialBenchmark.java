@@ -127,6 +127,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
         // concurrentSessions.
         final ExecutorService threadPool = Executors.newFixedThreadPool(concurrentSessions, Threading.factory("App"));
 
+        final double sessionOpsPerMs = ((double) targetOpsPerSec / (double) concurrentSessions) / 1000.0;
         System.err.println("Spawning session threads.");
         for (int i = 0; i < concurrentSessions; i++) {
             final int sessionId = site * concurrentSessions + i;
@@ -136,7 +137,8 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
                     // Randomize startup to avoid clients running all at the
                     // same time; causes problems akin to DDOS symptoms.
                     Threading.sleep(Sys.rg.nextInt(10000));
-                    SwiftSocialBenchmark.super.runClientSession(Integer.toString(sessionId), commands, false);
+                    SwiftSocialBenchmark.super.runClientSession(Integer.toString(sessionId), commands, false,
+                            sessionOpsPerMs);
                 }
             });
         }

@@ -59,6 +59,7 @@ public class SwiftSocialApp {
     protected boolean asyncCommit;
 
     protected int thinkTime;
+    protected int opsPerMs;
     protected int numUsers;
     protected int userFriends;
     protected int biasedOps;
@@ -71,6 +72,7 @@ public class SwiftSocialApp {
     private Properties props;
 
     private String propFile;
+    protected int targetOpsPerSec;
 
     public void init(String[] args) {
         System.err.println(Arrays.asList(args));
@@ -94,6 +96,7 @@ public class SwiftSocialApp {
         opGroups = Props.intValue(props, "swiftsocial.opGroups", 500);
         recordPageViews = Props.boolValue(props, "swiftsocial.recordPageViews", false);
         thinkTime = Props.intValue(props, "swiftsocial.thinkTime", 1000);
+        targetOpsPerSec = Props.intValue(props, "swiftsocial.targetOpsPerSec", -1);
 
         Workload.generateUsers(numUsers);
     }
@@ -112,11 +115,12 @@ public class SwiftSocialApp {
         return socialClient;
     }
 
-    void runClientSession(final String sessionId, final Workload commands, boolean loop4Ever) {
+    void runClientSession(final String sessionId, final Workload commands, boolean loop4Ever, double opsPerMsTarget) {
         final SwiftSocialOps socialClient = getSwiftSocial(sessionId);
 
         totalCommands.addAndGet(commands.size());
         final long sessionStartTime = System.currentTimeMillis();
+        int sessionOpsDone = 0;
         SafeLog.report(ReportType.APP_OP, sessionId, "INIT", 0);
 
         do
@@ -144,8 +148,20 @@ public class SwiftSocialApp {
                     SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "unknown");
                 }
 
-                Threading.sleep(thinkTime);
                 commandsDone.incrementAndGet();
+                sessionOpsDone++;
+                // Throttling mechanism borrowed from YCSB's Client.java.
+                if (opsPerMsTarget > 0) {
+                    while (System.currentTimeMillis() - sessionStartTime < ((double) sessionOpsDone) / opsPerMsTarget) {
+                        try {
+                            Thread.sleep(1);
+                        } catch (InterruptedException e) {
+                            // do nothing.
+                        }
+                    }
+                } else {
+                    Threading.sleep(thinkTime);
+                }
             }
         while (loop4Ever);
 
