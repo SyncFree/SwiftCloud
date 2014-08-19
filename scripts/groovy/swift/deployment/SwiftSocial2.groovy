@@ -58,25 +58,49 @@ class SwiftSocial2 extends SwiftBase {
         }
     }
 
-
     static final DEFAULT_WORKLOAD = [
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
         'swiftsocial.biasedOps':'9',
         'swiftsocial.randomOps':'1',
         'swiftsocial.opGroups':'10000',
-        'swiftsocial.recordPageViews':'false',
+        'swiftsocial.recordPageViews':'true',
         'swiftsocial.thinkTime':'0'
     ]
-    static final DEFAULT_PROPS = [
-        'swift.cacheEvictionTimeMillis':'5000000',
-        'swift.maxCommitBatchSize':'10',
-        'swift.maxAsyncTransactionsQueued':'50',
-        'swift.cacheSize':'256',
-        'swift.asyncCommit':'true',
-        'swift.notifications':'true',
-        'swift.cachePolicy':'CACHED',
-        'swift.isolationLevel':'SNAPSHOT_ISOLATION',
-        'swift.reports':'APP_OP', // 'APP_OP,METADATA'
-    ] + DEFAULT_WORKLOAD
+
+    def thinkTime = 0
+    def baseWorkload = DEFAULT_WORKLOAD
+
+    def swiftSocialProps
+    def swiftSocialPropsPath
+
+    public SwiftSocial2() {
+        super()
+    }
+
+    protected void generateConfig() {
+        def workload = baseWorkload + ['swiftsocial.numUsers':dbSize.toString(),
+            'swiftsocial.thinktime': thinkTime.toString()
+        ]
+        swiftSocialProps = DEFAULT_PROPS + workload + reports + mode
+        swiftSocialPropsPath = "swiftsocial.properties"
+
+        config = properties + ['workload': workload, 'swiftSocialProps': swiftSocialProps]
+        println config
+    }
+
+    protected void deployConfig() {
+        deployTo(allMachines, genPropsFile(swiftSocialProps).absolutePath, swiftSocialPropsPath)
+    }
+
+    protected void doInitDB() {
+        def initDbDc = Topology.datacenters[0].surrogates[0]
+        def initDbClient  = Topology.datacenters[0].sequencers[0]
+
+        SwiftSocial2.initDB(initDbClient, initDbDc, swiftSocialPropsPath, "1024m")
+    }
+
+    protected void doRunClients() {
+        SwiftSocial2.runScouts(Topology.scoutGroups, swiftSocialPropsPath, shepardAddr, threads, "3072m")
+    }
 }
