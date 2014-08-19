@@ -125,29 +125,38 @@ select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE <- function (log) {
   return (result)
 }
 
+extract_objid_from_STALENESS_YCSB_key <- function (key) {
+  match <- str_match(key, "([^:]+:[^:]+):.+")
+  
+  if (length(match) < 2 || is.na(match[2])) {
+    warning("cannot extract key id from object id", key)
+    return (key)
+  }
+  return (match[2])
+}
+
 select_object_accesses_from_STALENESS_YCSB_WRITE <- function (log) {
-  return (select_object_accesses_from_STALENESS_YCSB("STALENESS_YCSB_WRITE", log))
+  return (select_object_accesses_from_STALENESS(log, "STALENESS_YCSB_WRITE", extract_objid_from_STALENESS_YCSB_key))
 }
 
 select_object_accesses_from_STALENESS_YCSB_READ <- function (log) {
-  return (select_object_accesses_from_STALENESS_YCSB("STALENESS_YCSB_READ", log))
+  return (select_object_accesses_from_STALENESS(log, "STALENESS_YCSB_READ", extract_objid_from_STALENESS_YCSB_key))
 }
 
-select_object_accesses_from_STALENESS_YCSB <- function (entry_type, log) {
+select_object_accesses_from_STALENESS_READ <- function (log) {
+  return (select_object_accesses_from_STALENESS(log, "STALENESS_READ", identity))
+}
+
+select_object_accesses_from_STALENESS_WRITE <- function (log) {
+  return (select_object_accesses_from_STALENESS(log, "STALENESS_WRITE", identity))
+}
+
+select_object_accesses_from_STALENESS <- function (entry_type, log, idExtractor) {
   max_timestamp <- max(log$V1)
   result <- subset(log,log$V2==entry_type)
   result <- result[, c("V1", "V4")]
   names(result) <- c("timestamp","objectId")
   # TODO
-  objectWithFieldIntoObject <- function (id) {
-    match <- str_match(id, "([^:]+:[^:]+):.+")
-
-    if (length(match) < 2 || is.na(match[2])) {
-      warning("cannot extract key id from object id", id)
-      return (id)
-    }
-    return (match[2])
-  }
   result$objectId <- sapply(result$objectId, objectWithFieldIntoObject)
   return (result)
 }
@@ -395,12 +404,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
     rm(dguardsize_raw)
 
-    process_requests_from_staleness <- function(reads) {
-      if (reads) {
-        selector <- select_object_accesses_from_STALENESS_YCSB_READ
-      } else {
-        selector <- select_object_accesses_from_STALENESS_YCSB_WRITE
-      }
+    process_requests_from_staleness <- function(type_str, selector) {
       type_str <- ifelse(reads, "reads", "writes")
       drequests_raw <- load_log_files(client_file_list, selector, paste("ACCESSED OBJECT IDs (staleness", type_str, "entries)"), FALSE, min_timestamp)
       if (nrow(drequests_raw) > 0) {
@@ -415,8 +419,10 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
         rm(drequests_raw)
       }
     }
-    process_requests_from_staleness(FALSE)
-    process_requests_from_staleness(TRUE)
+    process_requests_from_staleness("writes", select_object_accesses_from_STALENESS_YCSB_WRITE)
+    process_requests_from_staleness("reads", select_object_accesses_from_STALENESS_YCSB_READ)
+    process_requests_from_staleness("writes", select_object_accesses_from_STALENESS_WRITE)
+    process_requests_from_staleness("reads", select_object_accesses_from_STALENESS_READ)
   }
 }
 
