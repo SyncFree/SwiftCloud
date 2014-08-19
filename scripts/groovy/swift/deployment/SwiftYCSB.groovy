@@ -82,6 +82,7 @@ class SwiftYCSB extends SwiftBase {
     def localRequestProportion = "0.8"
     def ycsbProps
     def ycsbPropsPath
+    def reportEveryOperation = true
 
     def initThreads = 2
     def initYcsbProps
@@ -101,7 +102,8 @@ class SwiftYCSB extends SwiftBase {
             'localrecordcount': Integer.toString(localRecordCount),
             'localrequestproportion': localRequestProportion,
         ]
-        ycsbProps = SwiftYCSB.DEFAULT_PROPS + workload + reports + mode + ['maxexecutiontime' : duration]
+        ycsbProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + ['swift.reportEveryOperation':reportEveryOperation.toString()]
+        + mode + ['maxexecutiontime' : duration]
         ycsbPropsPath = "swiftycsb.properties"
         initYcsbPropsPath = "swiftycsb-init.properties"
 

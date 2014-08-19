@@ -82,7 +82,7 @@ class SwiftSocial2 extends SwiftBase {
         def workload = baseWorkload + ['swiftsocial.numUsers':dbSize.toString(),
             'swiftsocial.thinktime': thinkTime.toString()
         ]
-        swiftSocialProps = DEFAULT_PROPS + workload + reports + mode
+        swiftSocialProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + mode
         swiftSocialPropsPath = "swiftsocial.properties"
 
         config = properties + ['workload': workload, 'swiftSocialProps': swiftSocialProps]
