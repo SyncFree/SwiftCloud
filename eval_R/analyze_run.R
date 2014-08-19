@@ -151,7 +151,7 @@ select_object_accesses_from_STALENESS_WRITE <- function (log) {
   return (select_object_accesses_from_STALENESS(log, "STALENESS_WRITE", identity))
 }
 
-select_object_accesses_from_STALENESS <- function (entry_type, log, idExtractor) {
+select_object_accesses_from_STALENESS <- function (log, entry_type, idExtractor) {
   max_timestamp <- max(log$V1)
   result <- subset(log,log$V2==entry_type)
   result <- result[, c("V1", "V4")]
