@@ -32,7 +32,11 @@ import swift.crdt.core.IsolationLevel;
 import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
+import swift.exceptions.NetworkException;
+import swift.exceptions.NoSuchObjectException;
 import swift.exceptions.SwiftException;
+import swift.exceptions.VersionNotFoundException;
+import swift.exceptions.WrongTypeException;
 import swift.utils.SafeLog;
 import swift.utils.SafeLog.ReportType;
 import sys.utils.Args;
@@ -118,10 +122,27 @@ public class SwiftSocialApp {
         do
             for (String cmdLine : commands) {
                 long txnStartTime = System.currentTimeMillis();
-                Commands cmd = runCommandLine(socialClient, cmdLine);
-                long txnEndTime = System.currentTimeMillis();
-                final long txnExecTime = txnEndTime - txnStartTime;
-                SafeLog.report(ReportType.APP_OP, sessionId, cmd, txnExecTime);
+                final Commands cmd = Commands.extract(cmdLine);
+                if (cmd == null) {
+                    SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "unsupported_operation");
+                    continue;
+                }
+                try {
+                    runCommandLine(socialClient, cmd, cmdLine);
+                    long txnEndTime = System.currentTimeMillis();
+                    final long txnExecTime = txnEndTime - txnStartTime;
+                    SafeLog.report(ReportType.APP_OP, sessionId, cmd, txnExecTime);
+                } catch (NoSuchObjectException e) {
+                    SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "object_not_found");
+                } catch (NetworkException e) {
+                    SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "network_failure");
+                } catch (VersionNotFoundException e) {
+                    SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "version_pruned");
+                } catch (WrongTypeException e) {
+                    SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "wrong_object_type");
+                } catch (SwiftException e) {
+                    SafeLog.report(ReportType.APP_OP_FAILURE, sessionId, cmd, "unknown");
+                }
 
                 Threading.sleep(thinkTime);
                 commandsDone.incrementAndGet();
@@ -136,9 +157,8 @@ public class SwiftSocialApp {
         SafeLog.flush();
     }
 
-    public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
+    public void runCommandLine(SwiftSocialOps socialClient, Commands cmd, String cmdLine) throws SwiftException {
         String[] toks = cmdLine.split(";");
-        final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
         switch (cmd) {
         case LOGIN:
             if (toks.length == 3) {
@@ -178,10 +198,10 @@ public class SwiftSocialApp {
             }
         default:
             System.err.println("Can't parse command line :" + cmdLine);
-            System.err.println("Exiting...");
-            System.exit(1);
+            throw new SwiftException("Malformed command line " + cmdLine);
+            // System.err.println("Exiting...");
+            // System.exit(1);
         }
-        return cmd;
     }
 
     public void initUsers(SwiftOptions swiftOptions, final List<String> users, AtomicInteger counter, int total) {

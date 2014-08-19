@@ -49,9 +49,7 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
     }
 
     @Override
-    public Commands runCommandLine(SwiftSocialOps socialClient, String cmdLine) {
-        String[] toks = cmdLine.split(";");
-        final Commands cmd = Commands.valueOf(toks[0].toUpperCase());
+    public void runCommandLine(SwiftSocialOps socialClient, Commands cmd, String cmdLine) {
         switch (cmd) {
         case LOGIN:
         case LOGOUT:
@@ -68,7 +66,6 @@ public class SwiftSocialBenchmarkClient extends SwiftSocialBenchmark {
             System.err.println("Exiting...");
             System.exit(1);
         }
-        return cmd;
     }
 
     Map<SwiftSocialOps, RpcEndpoint> endpoints = new ConcurrentHashMap<SwiftSocialOps, RpcEndpoint>();

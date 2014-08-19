@@ -33,6 +33,7 @@ public class SafeLog {
 
         APP_OP("session_id", "operation_name", "duration_ms"),
 
+        // WISHME: type-safely unify "cause" field across applications?
         APP_OP_FAILURE("session_id", "operation_name", "cause"),
 
         IDEMPOTENCE_GUARD_SIZE("node_id", "entries"),

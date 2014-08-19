@@ -18,4 +18,16 @@ package swift.application.social;
 
 public enum Commands {
     LOGIN, LOGOUT, FRIEND, READ, SEE_FRIENDS, STATUS, POST;
+
+    public static Commands extract(String cmdLine) {
+        final int sepIdx = cmdLine.indexOf(';');
+        if (sepIdx < 0) {
+            return null;
+        }
+        try {
+            return Commands.valueOf(cmdLine.substring(0, sepIdx).toUpperCase());
+        } catch (IllegalArgumentException x) {
+            return null;
+        }
+    }
 }

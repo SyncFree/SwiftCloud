@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import swift.application.social.Commands;
 import swift.application.social.SwiftSocialApp;
 import swift.application.social.SwiftSocialBenchmark;
 import swift.application.social.SwiftSocialOps;
@@ -72,7 +73,8 @@ public class SwiftSocialBenchmarkServer extends SwiftSocialBenchmark {
                 String sessionId = handle.remoteEndpoint().toString();
                 SwiftSocialOps socialClient = getSession(sessionId, app);
                 try {
-                    app.runCommandLine(socialClient, cmdLine);
+                    final Commands cmd = Commands.extract(cmdLine);
+                    app.runCommandLine(socialClient, cmd, cmdLine);
                     handle.reply(new Reply("OK"));
                 } catch (Exception x) {
                     handle.reply(new Request("ERROR"));

@@ -73,7 +73,7 @@ public class SwiftSocialOps {
     }
 
     // FIXME Return type integer encoding error msg?
-    public boolean login(String loginName, String passwd) {
+    public boolean login(String loginName, String passwd) throws SwiftException {
         logger.info("Got login request from user " + loginName);
 
         // Check if user is already logged in
@@ -125,8 +125,10 @@ public class SwiftSocialOps {
             }
         } catch (NoSuchObjectException e) {
             logger.severe("User " + loginName + " is not known");
+            throw e;
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -193,7 +195,7 @@ public class SwiftSocialOps {
     }
 
     @SuppressWarnings("unchecked")
-    void updateUser(boolean status, String fullName, long birthday) {
+    void updateUser(boolean status, String fullName, long birthday) throws SwiftException {
         logger.info("Update user data for " + this.currentUser.loginName);
         this.currentUser.active = status;
         this.currentUser.fullName = fullName;
@@ -207,6 +209,7 @@ public class SwiftSocialOps {
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -216,7 +219,7 @@ public class SwiftSocialOps {
 
     @SuppressWarnings("unchecked")
     public int read(final String name, final Collection<Message> msgs, final Collection<Message> evnts,
-            boolean readPageViewsCounter) {
+            boolean readPageViewsCounter) throws SwiftException {
         logger.info("Get site report for " + name);
         TxnHandle txn = null;
         User user = null;
@@ -244,6 +247,7 @@ public class SwiftSocialOps {
             // ((ArrayList<Message>)msgs).get(0).getDate());
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -254,7 +258,7 @@ public class SwiftSocialOps {
 
     // FIXME return error code?
     @SuppressWarnings("unchecked")
-    public void postMessage(String receiverName, String msg, long date) {
+    public void postMessage(String receiverName, String msg, long date) throws SwiftException {
         logger.info("Post status msg from " + this.currentUser.loginName + " for " + receiverName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has posted a message  to " + receiverName,
@@ -273,6 +277,7 @@ public class SwiftSocialOps {
             SafeLog.report(ReportType.STALENESS_WRITE, server.getScout().getScoutId(), receiver.msgList);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -280,7 +285,7 @@ public class SwiftSocialOps {
         }
     }
 
-    public void updateStatus(String msg, long date) {
+    public void updateStatus(String msg, long date) throws SwiftException {
         logger.info("Update status for " + this.currentUser.loginName);
         Message newMsg = new Message(msg, this.currentUser.loginName, date);
         Message newEvt = new Message(currentUser.loginName + " has an updated status", this.currentUser.loginName, date);
@@ -299,6 +304,7 @@ public class SwiftSocialOps {
             // TODO Broadcast update to friends
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -345,7 +351,7 @@ public class SwiftSocialOps {
         }
     }
 
-    void sendFriendRequest(String receiverName) {
+    void sendFriendRequest(String receiverName) throws SwiftException {
         logger.info("Sending friend request from to " + receiverName);
         TxnHandle txn = null;
         try {
@@ -365,6 +371,7 @@ public class SwiftSocialOps {
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -372,7 +379,7 @@ public class SwiftSocialOps {
         }
     }
 
-    public void befriend(String receiverName) {
+    public void befriend(String receiverName) throws SwiftException {
         logger.info("Befriending " + receiverName);
         TxnHandle txn = null;
         try {
@@ -395,6 +402,7 @@ public class SwiftSocialOps {
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
@@ -402,7 +410,7 @@ public class SwiftSocialOps {
         }
     }
 
-    public Set<Friend> readFriendList(String name) {
+    public Set<Friend> readFriendList(String name) throws SwiftException {
         logger.info("Get friends of " + name);
         Set<Friend> friends = new HashSet<Friend>();
         TxnHandle txn = null;
@@ -425,6 +433,7 @@ public class SwiftSocialOps {
             commitTxn(txn);
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
+            throw e;
         } finally {
             if (txn != null && !txn.getStatus().isTerminated()) {
                 txn.rollback();
