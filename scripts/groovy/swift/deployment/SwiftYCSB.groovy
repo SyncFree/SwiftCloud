@@ -74,10 +74,8 @@ class SwiftYCSB extends SwiftBase {
         // Parallel.rsh( clients, cmd, resHandler, true, 500000)
     }
 
-    def dbSize = 100000
     def opsNum = 10000000
     def incomingOpPerSecLimit = 12000
-    int threads = 10
 
     def baseWorkload = WORKLOAD_A
     def localRecordCount = 150
@@ -113,7 +111,7 @@ class SwiftYCSB extends SwiftBase {
         initYcsbProps = SwiftYCSB.DEFAULT_PROPS + workload + ['target':'10000000'] + initNoReports + initOptions
 
         config = properties + ['incomingOpPerSecPerClientLimit' : incomingOpPerSecPerClientLimit, 'workload': workload,
-            'ycsbProps': ycsbProps, 'initYcsbProps': initYcsbProps, 'version': version]
+            'ycsbProps': ycsbProps, 'initYcsbProps': initYcsbProps]
         println config
     }
 

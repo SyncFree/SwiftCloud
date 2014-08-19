@@ -155,6 +155,10 @@ abstract class SwiftBase {
     def scouts
     def shepardAddr
     def allMachines
+    
+    int dbSize = 100000
+    int threads = 10
+    
     def pruningIntervalMillis = 60000
     static int DEFAULT_NOTIFICATIONS_PERIOD_MS = 1000
     def notificationsPeriodMillis = DEFAULT_NOTIFICATIONS_PERIOD_MS

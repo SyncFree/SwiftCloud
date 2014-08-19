@@ -34,7 +34,7 @@ addShutdownHook {
     if (acquiredConfigRenamed.renameTo(acquiredConfig)) {
         println "Topology configuration " + acquiredConfig + " released"
     } else {
-        println "WARNING: could not release topology configuration " + acquiredConfig " acuired by process" + pid
+        println "WARNING: could not release topology configuration " + acquiredConfig " acquired by process" + pid
     }
 }
 evaluate(acquiredConfigRenamed)

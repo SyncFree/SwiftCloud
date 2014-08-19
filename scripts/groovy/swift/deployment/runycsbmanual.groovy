@@ -8,7 +8,7 @@ import static swift.deployment.Tools.*
 import static swift.deployment.Topology.*;
 
 if (args.length != 1) {
-    System.err.println "usage: runycsb.groovy <topology configuration file>"
+    System.err.println "usage: runycsbmanual.groovy <topology configuration file>"
     System.exit(1)
 }
 
