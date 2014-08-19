@@ -151,13 +151,13 @@ select_object_accesses_from_STALENESS_WRITE <- function (log) {
   return (select_object_accesses_from_STALENESS(log, "STALENESS_WRITE", identity))
 }
 
-select_object_accesses_from_STALENESS <- function (log, entry_type, idExtractor) {
+select_object_accesses_from_STALENESS <- function (log, entry_type, id_extractor) {
   max_timestamp <- max(log$V1)
   result <- subset(log,log$V2==entry_type)
   result <- result[, c("V1", "V4")]
   names(result) <- c("timestamp","objectId")
   # TODO
-  result$objectId <- sapply(result$objectId, objectWithFieldIntoObject)
+  result$objectId <- sapply(result$objectId, id_extractor)
   return (result)
 }
 
