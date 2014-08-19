@@ -33,7 +33,6 @@ import swift.crdt.core.SwiftSession;
 import swift.crdt.core.TxnHandle;
 import swift.dc.DCConstants;
 import swift.exceptions.SwiftException;
-import swift.proto.MetadataStatsCollectorImpl;
 import swift.utils.SafeLog;
 import swift.utils.SafeLog.ReportType;
 import sys.utils.Args;
