@@ -77,7 +77,7 @@ class SwiftYCSB extends SwiftBase {
     def dbSize = 100000
     def opsNum = 10000000
     def incomingOpPerSecLimit = 12000
-    def threads = 10
+    int threads = 10
 
     def baseWorkload = WORKLOAD_A
     def localRecordCount = 150

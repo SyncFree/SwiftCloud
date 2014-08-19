@@ -158,11 +158,15 @@ abstract class SwiftBase {
     def pruningIntervalMillis = 60000
     static int DEFAULT_NOTIFICATIONS_PERIOD_MS = 1000
     def notificationsPeriodMillis = DEFAULT_NOTIFICATIONS_PERIOD_MS
+    def dcProps = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
+        'swift.notificationsFakePracti' : 'false',
+        'swift.notificationsDeltaVectors' : 'false',
+    ]
     def mode = CACHING_NOTIFICATIONS_PROPS
     public void setMode(def newMode) {
         mode = newMode
         if (mode.containsKey('swift.notificationsFakePracti')) {
-            dcProps['swift.notificationsFakePracti'] = ycsbProps['swift.notificationsFakePracti']
+            dcProps['swift.notificationsFakePracti'] = mode['swift.notificationsFakePracti']
         } else {
             dcProps.remove('swift.notificationsFakePracti')
         }
@@ -177,10 +181,6 @@ abstract class SwiftBase {
     def interCmdDelay = 30
     def reports = ['swift.reports':'APP_OP,APP_OP_FAILURE,METADATA,STALENESS_YCSB_WRITE', 'swift.reportEveryOperation':'true']
     // STALENESS_YCSB_READ,STALENESS_CALIB
-    def dcProps = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
-        'swift.notificationsFakePracti' : 'false',
-        'swift.notificationsDeltaVectors' : 'false',
-    ]
 
     def integratedDC = true
     def version = getGitCommitId()

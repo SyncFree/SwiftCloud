@@ -32,7 +32,7 @@ if (workloadName.startsWith("workloada")) {
     ycsb.incomingOpPerSecLimit = 4000
 }
 def clients = Integer.parseInt(args[3])
-ycsb.threads = clients / Scouts.size()
+ycsb.threads = clients / ycsb.scouts.size()
 def outputDir = args[4]
 ycsb.runExperiment(String.format("%s/%s-mode-%s-clients-%d", outputDir, workloadName, modeName, clients))
 

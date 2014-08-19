@@ -36,7 +36,7 @@ if (workloadName.startsWith("workloada")) {
 ycsb.localRequestProportion = args[3]
 ycsb.threads = 40
 def outputDir = args[4]
-ycsb.runExperiment(String.format("%s/%s-mode-%s-locality-%s", outputDir, workloadName, modeName, locality))
+ycsb.runExperiment(String.format("%s/%s-mode-%s-locality-%s", outputDir, workloadName, modeName, ycsb.localRequestProportion))
 
 System.exit(0)
 
