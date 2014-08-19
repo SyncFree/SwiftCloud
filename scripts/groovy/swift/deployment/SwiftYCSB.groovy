@@ -103,7 +103,7 @@ class SwiftYCSB extends SwiftBase {
             'localrequestproportion': localRequestProportion,
         ]
         ycsbProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + ['swift.reportEveryOperation':reportEveryOperation.toString()]
-        + mode + ['maxexecutiontime' : duration]
+        ycsbProps += mode + ['maxexecutiontime' : duration]
         ycsbPropsPath = "swiftycsb.properties"
         initYcsbPropsPath = "swiftycsb-init.properties"
 
