@@ -405,7 +405,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     rm(dguardsize_raw)
 
     process_requests_from_staleness <- function(type_str, selector) {
-      type_str <- ifelse(reads, "reads", "writes")
       drequests_raw <- load_log_files(client_file_list, selector, paste("ACCESSED OBJECT IDs (staleness", type_str, "entries)"), FALSE, min_timestamp)
       if (nrow(drequests_raw) > 0) {
         requested_objects_num <- length(unique(drequests_raw$objectId))
