@@ -206,6 +206,10 @@ abstract class SwiftBase {
     public void runExperiment(String outputDir) {
         generateConfig()
         prepareNodes()
+        onControlC({
+            pnuke(AllMachines, "java", 60)
+            System.exit(1);
+        })
 
         def shep = startShepard()
         startDCs()
