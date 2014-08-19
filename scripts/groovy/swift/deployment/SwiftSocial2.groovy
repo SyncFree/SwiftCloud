@@ -73,7 +73,7 @@ class SwiftSocial2 extends SwiftBase {
     // Low level think time between each operation.
     def thinkTime = 0
     // If set, takes priority over think time:
-    def targetOpsPerSec = -1
+    def targetGlobalOpsPerSec = -1
     def baseWorkload = DEFAULT_WORKLOAD
     def recordPageViews = true
 
@@ -87,7 +87,7 @@ class SwiftSocial2 extends SwiftBase {
     protected void generateConfig() {
         def workload = baseWorkload + ['swiftsocial.numUsers':dbSize.toString(),
             'swiftsocial.thinkTime': thinkTime.toString(),
-            'swiftsocial.targetOpsPerSec' : targetOpsPerSec.toString(),
+            'swiftsocial.targetOpsPerSec' : ((Integer) (targetGlobalOpsPerSec / scouts())).toString(),
             'swiftsocial.recordPageViews': recordPageViews.toString()
         ]
         swiftSocialProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + mode
