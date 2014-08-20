@@ -242,10 +242,10 @@ abstract class SwiftBase {
             Sleep(10)
         }
         def dcProps = ['swift.reports': dcReports.join(',')]
-        dcProps += mode.subMap([
-            'swift.notificationsFakePracti'
-        ])
-        def notificationsPeriodMillis = mode['swift.notificationPeriodMillis']
+        if (mode.containsKey('swift.notificationsFakePracti')) {
+            dcProps['swift.notificationsFakePracti'] = mode['swift.notificationsFakePracti']
+        }
+        def notificationsPeriodMillis = mode.containsKey('swift.notificationPeriodMillis') ? mode['swift.notificationPeriodMillis'] : DEFAULT_PROPS['swift.notificationPeriodMillis']
 
         println "==== LAUNCHING SURROGATES"
         Topology.datacenters.each { datacenter ->
