@@ -40,7 +40,7 @@ import com.esotericsoftware.kryo.io.Output;
  */
 public class DatabaseSizeStats {
     public static final String DB_STATS_REPORT_PERIOD_SEC_PROP_NAME = "swift.dbReportPeriodSec";
-    public static final String DEFAULT_STATS_REPORT_PERIOD_SEC = "1.0";
+    public static final String DEFAULT_STATS_REPORT_PERIOD_SEC = "10.0";
     private final MetadataStatsCollector statsCollector;
     private final ConcurrentHashMap<String, TableStats> tablesStats = new ConcurrentHashMap<>();
     private final AtomicInteger totalSize = new AtomicInteger();
