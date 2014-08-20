@@ -9,12 +9,13 @@ PRUNE_START_MS <- 350000
 DURATION_RUN_MS <- 100000
 FORMAT_EXT <- ".png"
 SCATTER_PLOTS_MAX_SAMPLES <- 20000
+COLUMNS <- 14
 
 load_log_files <- function(files, selector, selector_name, filtered = FALSE, substract_timestamp = 0) {
   result <- data.frame()
   total_entries <- 0
   for (file in files) {
-    file_data <- read.table(file, comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE)
+    file_data <- read.table(file, comment.char = "#", fill = TRUE, sep = ",", stringsAsFactors=FALSE, col.names=paste("V", 1:COLUMNS, sep=""))
     total_entries <- total_entries + nrow(file_data)
     # select and name interesting columns
     file_data <- selector(file_data)
