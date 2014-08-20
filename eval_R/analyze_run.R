@@ -254,14 +254,18 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       metadata_size_stats[[paste(m, "batch3", sep="-")]] <- compute_stats(m_filtered$batchSizeCoarseGrained)
     }
     rm(dmetadata_filtered)
-    dtablesize_filtered <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
-    if (nrow(dtablesize_filtered) > 0) {
-      for (eachTable in unique(dtablesize_filtered$tableName)) {
-        tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
-        metadata_size_stats[[paste(eachTable, "table", sep="-")]] <- compute_stats(tablestats$tableSize)
+    process_db_size <- function(file_list, node_type) {
+      dtablesize_filtered <- load_log_files(file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
+      if (nrow(dtablesize_filtered) > 0) {
+        for (eachTable in unique(dtablesize_filtered$tableName)) {
+          tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
+          metadata_size_stats[[paste(eachTable, "table", node_type, sep="-")]] <- compute_stats(tablestats$tableSize)
+        }
       }
-    }  
-    rm(dtablesize_filtered)
+      rm(dtablesize_filtered)
+    }
+    process_db_size(dc_file_list, "dc")
+    process_db_size(client_file_list, "client")
     dguardsize_filtered <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", TRUE, min_timestamp)
     if (nrow(dguardsize_filtered) > 0) {
       metadata_size_stats$idempotenceGuard <- compute_stats(dguardsize_filtered$idempotenceGuardSize)
@@ -373,23 +377,29 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     rm(dmetadata_raw_sampled)
 
 
-    dtablesize_raw <- load_log_files(dc_file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", FALSE, min_timestamp)
-    if (nrow(dtablesize_raw) > 0) {
-      # Storage metadata/db size, plots over time
-      db_table_size.plot <- ggplot()
-      for (eachDc in unique(dtablesize_raw$nodeId)) {
-        dctablesize <- subset(dtablesize_raw, dtablesize_raw$nodeId == eachDc)
-        dctablesize$dcTable <- paste("DC", dctablesize$nodeId, ", table", dctablesize$tableName)
-        for (tab in unique(dctablesize$tableName)) {
-          tabdctablesize <- subset(dctablesize, dctablesize$tableName == tab)
-          db_table_size.plot <- db_table_size.plot + geom_line(data=tabdctablesize, mapping=aes(timestamp,tableSize, color=dcTable))
+    process_db_size_raw <- function(file_list, node_type) {
+      dtablesize_raw <- load_log_files(file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", FALSE, min_timestamp)
+      if (nrow(dtablesize_raw) > 0) {
+        # Storage metadata/db size, plots over time
+        for (tab in unique(dtablesize_raw$tableName)) {
+          db_table_size.plot <- ggplot()
+          tabsize <- subset(dtablesize_raw, tableName == tab)
+          for (eachNode in unique(tabsize$nodeId)) {
+            dctablesize <- subset(tabsize, nodeId == eachNode)
+            dctablesize$dcName <- paste(node_type, dctablesize$nodeId)
+            db_table_size.plot <- db_table_size.plot + geom_line(data=dctablesize, mapping=aes(timestamp,tableSize, color=dcName))
+          }
+          db_table_size.plot <- db_table_size.plot + labs(title=paste(tab, "table size"), x="time [ms]",y = "size [bytes]")
+          # TODO title: ", table", dctablesize$tableName
+          ggsave(db_table_size.plot, file=paste(output_prefix, "-tab_size-", tolower(node_type), "-", tab, FORMAT_EXT,collapse="", sep=""), scale=1)
+          rm(db_table_size.plot)
         }
       }
-      ggsave(db_table_size.plot, file=paste(output_prefix, "-table_size",FORMAT_EXT,collapse="", sep=""), scale=1)
-      rm(db_table_size.plot)
+      rm(dtablesize_raw)  
     }
-    rm(dtablesize_raw)
-
+    process_db_size_raw(dc_file_list, "DC")
+    process_db_size_raw(client_file_list, "client")
+    
 
     dguardsize_raw <- load_log_files(dc_file_list, select_and_extrapolate_IDEMPOTENCE_GUARD_SIZE, "IDEMPOTENCE_GUARD_SIZE", FALSE, min_timestamp)
     if (nrow(dguardsize_raw) > 0) {
