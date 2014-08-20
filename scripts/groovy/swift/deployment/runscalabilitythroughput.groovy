@@ -8,7 +8,7 @@ import static swift.deployment.Tools.*
 import static swift.deployment.Topology.*;
 
 if (args.length != 5) {
-    System.err.println "usage: runycsbscalabilitythroughput.groovy <topology file> <workload> <mode> <opslimit> <outputdir>"
+    System.err.println "usage: runycscalabilitythroughput.groovy <topology file> <workload> <mode> <opslimit> <outputdir>"
     System.exit(1)
 }
 
