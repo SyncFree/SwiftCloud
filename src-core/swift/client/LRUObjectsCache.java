@@ -33,6 +33,7 @@ import swift.clocks.CausalityClock;
 import swift.clocks.Timestamp;
 import swift.crdt.core.CRDTIdentifier;
 import swift.crdt.core.ManagedCRDT;
+import swift.utils.DatabaseSizeStats;
 
 /**
  * Local cache of CRDT objects with LRU eviction policy. Elements get evicted
@@ -56,8 +57,10 @@ class LRUObjectsCache {
     // TODO: what are shadow entries for?
     private Map<CRDTIdentifier, Entry> shadowEntries;
     private Set<Long> evictionProtections;
+    private DatabaseSizeStats stats;
 
     private EvictionListener evictionListener = new EvictionListener() {
+        @Override
         public void onEviction(CRDTIdentifier id) {
         }
     };
@@ -74,10 +77,11 @@ class LRUObjectsCache {
      *            milliseconds
      */
     @SuppressWarnings("serial")
-    public LRUObjectsCache(final long evictionTimeMillis, final int maxElements) {
+    public LRUObjectsCache(final long evictionTimeMillis, final int maxElements, final DatabaseSizeStats sizeStats) {
 
         this.evictionTimeMillis = evictionTimeMillis;
         this.maxElements = maxElements;
+        this.stats = sizeStats;
 
         entries = new LinkedHashMap<CRDTIdentifier, Entry>(32, 0.75f, true) {
             protected boolean removeEldestEntry(Map.Entry<CRDTIdentifier, Entry> eldest) {
@@ -106,6 +110,7 @@ class LRUObjectsCache {
 
     private void handleEvicted(CRDTIdentifier evicted) {
         evictionListener.onEviction(evicted);
+        stats.removeObject(evicted);
     }
 
     /**
@@ -122,7 +127,7 @@ class LRUObjectsCache {
         Entry e = new Entry(object, txnSerial);
         entries.put(object.getUID(), e);
         shadowEntries.put(object.getUID(), e);
-
+        stats.updateObject(object.getUID(), object);
     }
 
     /**
@@ -160,6 +165,21 @@ class LRUObjectsCache {
             result.add(entry.getObject());
         }
         return result;
+    }
+
+    public synchronized void markUpdatedWithoutTouch(final CRDTIdentifier id, boolean clocksOnly) {
+        final ManagedCRDT<?> crdt = getWithoutTouch(id);
+        if (crdt != null) {
+            updateStats(id, crdt, clocksOnly);
+        }
+    }
+
+    private void updateStats(final CRDTIdentifier id, final ManagedCRDT<?> crdt, boolean clocksOnly) {
+        if (clocksOnly) {
+            // TODO: record it depending on a configuration flag?
+        } else {
+            stats.updateObject(id, crdt);
+        }
     }
 
     /**
@@ -221,9 +241,11 @@ class LRUObjectsCache {
         logger.info(evictedObjects + " objects evicted from the cache due to timeout");
     }
 
+    // TODO: update stats in this case or not?
     synchronized void augmentAllWithDCCausalClockWithoutMappings(final CausalityClock causalClock) {
         for (final Entry entry : entries.values()) {
             entry.object.augmentWithDCClockWithoutMappings(causalClock);
+            updateStats(entry.object.getUID(), entry.object, true);
         }
     }
 
@@ -236,6 +258,7 @@ class LRUObjectsCache {
     synchronized void augmentAllWithScoutTimestampWithoutMappings(Timestamp clientTimestamp) {
         for (final Entry entry : entries.values()) {
             entry.object.augmentWithScoutTimestamp(clientTimestamp);
+            updateStats(entry.object.getUID(), entry.object, true);
         }
     }
 

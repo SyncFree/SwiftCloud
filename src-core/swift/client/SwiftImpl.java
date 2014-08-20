@@ -32,6 +32,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedSet;
@@ -86,6 +87,7 @@ import swift.proto.PingRequest;
 import swift.proto.SwiftProtocolHandler;
 import swift.pubsub.BatchUpdatesNotification;
 import swift.pubsub.ScoutPubSubService;
+import swift.utils.DatabaseSizeStats;
 import swift.utils.DummyLog;
 import swift.utils.KryoDiskLog;
 import swift.utils.NoFlushLogDecorator;
@@ -187,8 +189,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
 
     public static SwiftSession newSingleSessionInstance(SwiftOptions options, String sessionId) {
         Endpoint[] servers = parseEndpoints(options.getServerHostname());
-        final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers,
-                new LRUObjectsCache(options.getCacheEvictionTimeMillis(), options.getCacheSize()), options, sessionId);
+        final SwiftScout sharedImpl = new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers, options,
+                sessionId);
         return sharedImpl.newSession(sessionId);
     }
 
@@ -203,8 +205,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     public static SwiftScout newMultiSessionInstance(final SwiftOptions options) {
         Endpoint[] servers = parseEndpoints(options.getServerHostname());
 
-        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers, new LRUObjectsCache(
-                options.getCacheEvictionTimeMillis(), options.getCacheSize()), options, "multi-session-instance");
+        return new SwiftImpl(Networking.rpcConnect().toDefaultService(), servers, options, "multi-session-instance");
     }
 
     private static String generateScoutId() {
@@ -317,9 +318,10 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     private PeriodicTask stalenessCalibrationTask;
     private boolean cacheRefreshReady;
 
-    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final LRUObjectsCache objectsCache,
-            final SwiftOptions options, String sessionId) {
+    SwiftImpl(final RpcEndpoint localEndpoint, final Endpoint[] serverEndpoints, final SwiftOptions options,
+            String sessionId) {
         this.scoutId = generateScoutId();
+        this.metadataStatsCollector = new MetadataStatsCollector(sessionId);
         this.concurrentOpenTransactions = options.isConcurrentOpenTransactions();
         this.maxAsyncTransactionsQueued = options.getMaxAsyncTransactionsQueued();
         this.disasterSafe = options.isDisasterSafe();
@@ -327,9 +329,13 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
         this.maxCommitBatchSize = options.getMaxCommitBatchSize();
         this.localEndpoint = localEndpoint;
         this.serverEndpoints = serverEndpoints;
-        this.objectsCache = objectsCache;
         this.cacheUpdateProtocol = options.getCacheUpdateProtocol();
         this.cacheRefreshPeriodSec = ((double) options.getCacheRefreshPeriodMillis()) / 1000.0;
+        final DatabaseSizeStats databaseStats = new DatabaseSizeStats(metadataStatsCollector);
+        // FIXME: fix flags passing!!
+        databaseStats.init(new Properties());
+        this.objectsCache = new LRUObjectsCache(options.getCacheEvictionTimeMillis(), options.getCacheSize(),
+                databaseStats);
 
         if (options.isEnableStatistics()) {
             this.stats = StatsImpl.getInstance("scout-" + scoutId, StatsImpl.SAMPLING_INTERVAL_MILLIS,
@@ -338,8 +344,6 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             this.stats = new DummyStats();
         }
         this.cacheStats = new CoarseCacheStats(stats);
-
-        this.metadataStatsCollector = new MetadataStatsCollector(sessionId);
 
         this.locallyCommittedTxnsOrderedQueue = new TreeSet<AbstractTxnHandle>();
         this.globallyCommittedUnstableTxns = new LinkedList<AbstractTxnHandle>();
@@ -919,6 +923,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             final ManagedCRDT<?> crdt = SwiftImpl.this.objectsCache.getWithoutTouch(id);
             if (crdt != null) {
                 crdt.prune(pruneClock, true);
+                objectsCache.markUpdatedWithoutTouch(id, false);
             }
         }
     }
@@ -1304,11 +1309,18 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                     cacheCRDT = crdt;
                     // Apply any local updates that may not be present in
                     // received version.
+                    boolean touched = false;
+                    boolean newUpdates = false;
                     for (final AbstractTxnHandle localTxn : globallyCommittedUnstableTxns) {
-                        applyLocalObjectUpdates(cacheCRDT, localTxn);
+                        newUpdates |= applyLocalObjectUpdates(cacheCRDT, localTxn);
+                        touched = true;
                     }
                     for (final AbstractTxnHandle localTxn : locallyCommittedTxnsOrderedQueue) {
-                        applyLocalObjectUpdates(cacheCRDT, localTxn);
+                        newUpdates |= applyLocalObjectUpdates(cacheCRDT, localTxn);
+                        touched = true;
+                    }
+                    if (touched) {
+                        objectsCache.markUpdatedWithoutTouch(request.getUid(idxInBatch), !newUpdates);
                     }
                 } else {
                     // possible in the case of UP_TO_DATE reply only:
@@ -1329,9 +1341,11 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         cacheCRDT = crdt;
                         objectsCache.add(crdt, txn == null ? -1L : txn.serial);
                     }
+                    objectsCache.markUpdatedWithoutTouch(request.getUid(idxInBatch), false);
                 } else {
                     // case: UP_TO_DATE
                     cacheCRDT.augmentWithDCClockWithoutMappings(request.getVersion());
+                    objectsCache.markUpdatedWithoutTouch(request.getUid(idxInBatch), true);
                 }
             }
             // FIXME: check scout clock and trigger recovery?
@@ -1374,12 +1388,15 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private void applyLocalObjectUpdates(ManagedCRDT cachedCRDT, final AbstractTxnHandle localTxn) {
+    /**
+     * @return true if new updates were applied on an object
+     */
+    private boolean applyLocalObjectUpdates(ManagedCRDT cachedCRDT, final AbstractTxnHandle localTxn) {
         // Try to apply changes in a cached copy of an object.
         if (cachedCRDT == null) {
             logger.warning(getScoutId() + ": "
                     + "object evicted from the local cache, cannot apply local transaction changes");
-            return;
+            return false;
         }
 
         final CRDTObjectUpdatesGroup objectUpdates = localTxn.getObjectUpdates(cachedCRDT.getUID());
@@ -1387,7 +1404,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             // IGNORE dependencies checking, for RR transaction
             // dependencies are overestimated.
             // TODO: during failover, it may be unsafe to IGNORE.
-            cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
+            return cachedCRDT.execute(objectUpdates, CRDTOperationDependencyPolicy.IGNORE);
         } else {
             cachedCRDT.augmentWithScoutTimestamp(localTxn.getClientTimestamp());
             CausalityClock dcTimetsamps = ClockFactory.newClock();
@@ -1395,6 +1412,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 dcTimetsamps.record(sysTs);
             }
             cachedCRDT.augmentWithDCClockWithoutMappings(dcTimetsamps);
+            return false;
         }
     }
 
@@ -1464,6 +1482,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                 }
             }
         }
+        objectsCache.markUpdatedWithoutTouch(id, false);
     }
 
     private synchronized void handleObjectUpdatesTryNotify(CRDTIdentifier id,
@@ -1695,6 +1714,7 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
             for (final CRDTObjectUpdatesGroup<?> opsGroup : txn.getAllUpdates()) {
                 final CRDTIdentifier id = opsGroup.getTargetUID();
                 applyLocalObjectUpdates(objectsCache.getWithoutTouch(id), txn);
+                objectsCache.markUpdatedWithoutTouch(id, false);
                 // Look if there is any other session to notify.
                 final Map<String, UpdateSubscriptionWithListener> sessionsSubs = objectSessionsUpdateSubscriptions
                         .get(id);
@@ -1828,7 +1848,8 @@ public class SwiftImpl implements SwiftScout, TxnManager, FailOverHandler {
                         final CRDTIdentifier id = update.getTargetUID();
                         updatedObjectIds[idIdx++] = id;
                         final ManagedCRDT<?> crdt = objectsCache.getWithoutTouch(id);
-                        applyLocalObjectUpdates(crdt, txn);
+                        final boolean newUpdates = applyLocalObjectUpdates(crdt, txn);
+                        objectsCache.markUpdatedWithoutTouch(id, !newUpdates);
                     }
                     // Advance clock of all objects.
                     objectsCache.augmentAllWithDCCausalClockWithoutMappings(systemTxnClock);
