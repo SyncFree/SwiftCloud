@@ -84,7 +84,7 @@ class LRUObjectsCache {
                 Entry e = eldest.getValue();
                 if (!evictionProtections.contains(e.id()) && size() > maxElements) {
                     shadowEntries.remove(eldest.getKey());
-                    evictionListener.onEviction(eldest.getKey());
+                    handleEvicted(eldest.getKey());
 
                     // System.err.println(eldest.getKey() +
                     // " evicted from the cache due to size limit, acesses:"
@@ -102,6 +102,10 @@ class LRUObjectsCache {
 
     void setEvictionListener(EvictionListener evictionListener) {
         this.evictionListener = evictionListener;
+    }
+
+    private void handleEvicted(CRDTIdentifier evicted) {
+        evictionListener.onEviction(evicted);
     }
 
     /**
@@ -173,7 +177,7 @@ class LRUObjectsCache {
                     it.remove();
                     evictedObjects++;
                     shadowEntries.remove(e.getKey());
-                    evictionListener.onEviction(e.getKey());
+                    handleEvicted(e.getKey());
                     // System.err.println( e.getKey() +
                     // " evicted from the cache due to size limit, acesses:" +
                     // e.getValue().getNumberOfAccesses());
@@ -205,7 +209,7 @@ class LRUObjectsCache {
                 it.remove();
                 evictedObjects++;
                 shadowEntries.remove(e.getKey());
-                evictionListener.onEviction(e.getKey());
+                handleEvicted(e.getKey());
             } else {
                 break;
             }
@@ -223,11 +227,11 @@ class LRUObjectsCache {
         }
     }
 
-    synchronized void pruneAll(CausalityClock nextPruneClock) {
-        for (final Entry entry : entries.values()) {
-            entry.object.prune(nextPruneClock, true);
-        }
-    }
+    // synchronized void pruneAll(CausalityClock nextPruneClock) {
+    // for (final Entry entry : entries.values()) {
+    // entry.object.prune(nextPruneClock, true);
+    // }
+    // }
 
     synchronized void augmentAllWithScoutTimestampWithoutMappings(Timestamp clientTimestamp) {
         for (final Entry entry : entries.values()) {
