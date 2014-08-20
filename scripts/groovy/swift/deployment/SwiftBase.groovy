@@ -20,6 +20,8 @@ abstract class SwiftBase {
         'swift.cachePolicy':'CACHED',
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.reports':'APP_OP',
+        'swift.notificationPeriodMillis':'1000',
+        'swift.notificationsFakePracti' : 'false'
     ]
 
     static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
@@ -160,26 +162,11 @@ abstract class SwiftBase {
     int threads = 10
 
     def pruningIntervalMillis = 60000
-    static int DEFAULT_NOTIFICATIONS_PERIOD_MS = 1000
-    def notificationsPeriodMillis = DEFAULT_NOTIFICATIONS_PERIOD_MS
-    def dcProps = ['swift.reports':'DATABASE_TABLE_SIZE,IDEMPOTENCE_GUARD_SIZE',
-        'swift.notificationsFakePracti' : 'false',
-        'swift.notificationsDeltaVectors' : 'false',
+    def dcReports = [
+        'DATABASE_TABLE_SIZE',
+        'IDEMPOTENCE_GUARD_SIZE'
     ]
     def mode = CACHING_NOTIFICATIONS_PROPS
-    public void setMode(def newMode) {
-        mode = newMode
-        if (mode.containsKey('swift.notificationsFakePracti')) {
-            dcProps['swift.notificationsFakePracti'] = mode['swift.notificationsFakePracti']
-        } else {
-            dcProps.remove('swift.notificationsFakePracti')
-        }
-        if (mode.containsKey('swift.notificationPeriodMillis')) {
-            notificationsPeriodMillis = Integer.parseInt(mode['swift.notificationPeriodMillis'])
-        } else {
-            notificationsPeriodMillis = DEFAULT_NOTIFICATIONS_PERIOD_MS
-        }
-    }
     def duration = 600
     def durationShepardGrace = 12
     def interCmdDelay = 30
@@ -199,6 +186,12 @@ abstract class SwiftBase {
 
     protected SwiftBase() {
         scouts = (Topology.scouts()).unique()
+        if (scouts.isEmpty()) {
+            println "Error: no scouts defined in topology"
+        }
+        if (Topology.datacenters.isEmpty()) {
+            println "Error: no DCs defined in topology"
+        }
         shepardAddr = Topology.datacenters[0].surrogates[0];
         allMachines = (Topology.allMachines() + shepardAddr).unique()
     }
@@ -248,13 +241,18 @@ abstract class SwiftBase {
             }
             Sleep(10)
         }
+        def dcProps = ['swift.reports': dcReports.join(',')]
+        dcProps += mode.subMap([
+            'swift.notificationsFakePracti'
+        ])
+        def notificationsPeriodMillis = mode['swift.notificationPeriodMillis']
 
         println "==== LAUNCHING SURROGATES"
         Topology.datacenters.each { datacenter ->
             if (integratedDC) {
-                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + SwiftBase.genDCServerPropArgs(dcProps), "2048m")
+                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + genDCServerPropArgs(dcProps), "2048m")
             } else {
-                datacenter.deploySurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + SwiftBase.genDCServerPropArgs(dcProps), "2048m")
+                datacenter.deploySurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + genDCServerPropArgs(dcProps), "2048m")
             }
         }
     }
