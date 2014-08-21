@@ -7,6 +7,8 @@ import java.util.EnumSet;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import sys.scheduler.PeriodicTask;
+
 /**
  * Shared logging class for safe reporting of predefined types of values from
  * concurrent threads.
@@ -71,7 +73,9 @@ public class SafeLog {
     public static final char COMMENT_CHAR = '#';
     private static Logger logger = Logger.getLogger(SafeLog.class.getName());
     private static EnumSet<ReportType> enabledReportsEnumSet = EnumSet.noneOf(ReportType.class);
+    private static PeriodicTask autoFlushTask;
     private static final BufferedWriter bufferedOutput = new BufferedWriter(new OutputStreamWriter(System.out));
+    public static final double AUTO_FLUSH_PERIOD_SEC = 10.0;
 
     public synchronized static void configure(Properties props) {
         String reportsProp = props.getProperty("swift.reports");
@@ -102,6 +106,12 @@ public class SafeLog {
                 SafeLog.close();
             }
         });
+        autoFlushTask = new PeriodicTask(AUTO_FLUSH_PERIOD_SEC, AUTO_FLUSH_PERIOD_SEC) {
+            @Override
+            public void run() {
+                SafeLog.flush();
+            }
+        };
     }
 
     public synchronized static void report(ReportType type, Object... args) {
@@ -135,6 +145,7 @@ public class SafeLog {
 
     public synchronized static void close() {
         try {
+            autoFlushTask.cancel();
             bufferedOutput.close();
             enabledReportsEnumSet.clear();
         } catch (IOException e) {
