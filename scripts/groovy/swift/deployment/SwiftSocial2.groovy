@@ -58,7 +58,7 @@ class SwiftSocial2 extends SwiftBase {
         }
     }
 
-    static final DEFAULT_WORKLOAD = [
+    static final WORKLOAD_VIEWS_COUNTER = [
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
         'swiftsocial.biasedOps':'9',
@@ -66,16 +66,33 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.opGroups':'10000',
         'swiftsocial.recordPageViews':'true',
         'swiftsocial.thinkTime':'0',
-        'swiftsocial.targetOpsPerSec':'-1'
+        'swiftsocial.targetOpsPerSec':'-1',
+        'swiftsocial.recordPageViews' : 'true'
+    ]
+
+    static final WORKLOAD_NO_VIEWS_COUNTER = [
+        'swiftsocial.numUsers':'1000',
+        'swiftsocial.userFriends':'25',
+        'swiftsocial.biasedOps':'9',
+        'swiftsocial.randomOps':'1',
+        'swiftsocial.opGroups':'10000',
+        'swiftsocial.recordPageViews':'true',
+        'swiftsocial.thinkTime':'0',
+        'swiftsocial.targetOpsPerSec':'-1',
+        'swiftsocial.recordPageViews' : 'false'
+    ]
+
+    static WORKLOADS= [
+        'workload-social-views-counter' : WORKLOAD_VIEWS_COUNTER,
+        'workload-social-no-views-counter' : WORKLOAD_NO_VIEWS_COUNTER
     ]
 
     // Two alternative mechanism to throttle the target throughput:
     // Low level think time between each operation.
     def thinkTime = 0
     // If set, takes priority over think time:
-    def targetGlobalOpsPerSec = -1
-    def baseWorkload = DEFAULT_WORKLOAD
-    def recordPageViews = true
+    def incomingOpPerSecLimit = -1
+    def baseWorkload = WORKLOAD_NO_VIEWS_COUNTER
 
     def swiftSocialProps
     def swiftSocialPropsPath
@@ -87,8 +104,7 @@ class SwiftSocial2 extends SwiftBase {
     protected void generateConfig() {
         def workload = baseWorkload + ['swiftsocial.numUsers':dbSize.toString(),
             'swiftsocial.thinkTime': thinkTime.toString(),
-            'swiftsocial.targetOpsPerSec' : ((Integer) (targetGlobalOpsPerSec / scouts().size())).toString(),
-            'swiftsocial.recordPageViews': recordPageViews.toString()
+            'swiftsocial.targetOpsPerSec' : ((Integer) (incomingOpPerSecLimit / scouts().size())).toString(),
         ]
         swiftSocialProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + mode
         swiftSocialPropsPath = "swiftsocial.properties"

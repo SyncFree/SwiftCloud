@@ -17,16 +17,22 @@ topologyDef = new File(args[0])
 println "==== Loading topology definition from file " + topologyDef + "===="
 evaluate(topologyDef)
 
-SwiftYCSB ycsb = new SwiftYCSB()
 // VARs
 def workloadName = args[1]
-ycsb.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
+def exp
+if (workloadName.st("workload-social")) {
+    exp = new SwiftSocial2()
+    exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
+} else {
+    exp = new SwiftYCSB()
+    exp.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
+}
 def modeName = args[2]
-ycsb.mode = SwiftYCSB.MODES[modeName]
-ycsb.incomingOpPerSecLimit  = Integer.parseInt(args[3])
-ycsb.threads = 40
+exp.mode = SwiftBase.MODES[modeName]
+exp.incomingOpPerSecLimit  = Integer.parseInt(args[3])
+exp.threads = 40
 def outputDir = args[4]
-ycsb.runExperiment(String.format("%s/%s-mode-%s-opslimit-%d", outputDir, workloadName, modeName, ycsb.incomingOpPerSecLimit))
+exp.runExperiment(String.format("%s/%s-mode-%s-opslimit-%d", outputDir, workloadName, modeName, exp.incomingOpPerSecLimit))
 
 System.exit(0)
 
