@@ -7,6 +7,7 @@ import java.util.EnumSet;
 import java.util.Properties;
 import java.util.logging.Logger;
 
+import sys.Sys;
 import sys.scheduler.PeriodicTask;
 
 /**
@@ -94,6 +95,7 @@ public class SafeLog {
     }
 
     public synchronized static void configure(EnumSet<ReportType> reports) {
+        Sys.init();
         printlnComment("The log includes the following reports:");
         for (final ReportType report : reports) {
             enabledReportsEnumSet.add(report);
