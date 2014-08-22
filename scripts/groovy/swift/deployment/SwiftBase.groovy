@@ -167,6 +167,8 @@ abstract class SwiftBase {
     def shepardAddr
     def allMachines
 
+    boolean buildJar = true
+    boolean deployJar = true
     int dbSize = 50000
     int clients = 100
 
@@ -240,9 +242,13 @@ abstract class SwiftBase {
 
     private prepareNodes() {
         pnuke(allMachines, "java", 60)
-        println "==== BUILDING JAR for version " + version + "..."
-        sh("ant -buildfile smd-jar-build.xml").waitFor()
-        deployTo(allMachines, "swiftcloud.jar")
+        if (buildJar) {
+            println "==== BUILDING JAR for version " + version + "..."
+            sh("ant -buildfile smd-jar-build.xml").waitFor()
+        }
+        if (deployJar) {
+            deployTo(allMachines, "swiftcloud.jar")
+        }
         deployTo(allMachines, "stuff/logging.properties", "logging.properties")
         deployConfig()
     }
