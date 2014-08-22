@@ -4,4 +4,4 @@
 package swift.deployment
 import static swift.deployment.Topology.*;
 
-evaluate(Topology.acquireTopologyFile("topology_multidc_3dcs_30clients"))
+evaluate(Topology.acquireTopologyFile("topology_3dcs_30clients"))
