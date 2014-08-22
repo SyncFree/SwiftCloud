@@ -21,7 +21,7 @@ evaluate(topologyDef)
 // VARs
 def workloadName = args[1]
 def exp
-int OPS_PER_CLIENT
+double OPS_PER_CLIENT
 if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
     OPS_PER_CLIENT = workloadName.endsWith("views-counter") ? 0.5 : 1
