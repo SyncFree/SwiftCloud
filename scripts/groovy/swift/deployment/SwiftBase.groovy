@@ -21,7 +21,14 @@ abstract class SwiftBase {
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.reports':'APP_OP',
         'swift.notificationPeriodMillis':'1000',
-        'swift.notificationsFakePracti' : 'false'
+        'swift.pruningIntervalMillis' :'60000',
+        'swift.notificationsFakePracti' : 'false',
+    ]
+
+    static DC_PROPS_KEYS = [
+        'swift.pruningIntervalMillis',
+        'swift.notificationsFakePracti',
+        'swift.notificationPeriodMillis'
     ]
 
     static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
@@ -41,8 +48,10 @@ abstract class SwiftBase {
 
     static MODES = [
         'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
+        'refresh-frequent-no-pruning': CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000', 'swift.pruningIntervalMillis' :'1000000000',],
         'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
+        'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000', 'swift.pruningIntervalMillis' :'1000000000',],
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
         'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
@@ -161,7 +170,6 @@ abstract class SwiftBase {
     int dbSize = 50000
     int clients = 100
 
-    def pruningIntervalMillis = 60000
     def dcReports = [
         'DATABASE_TABLE_SIZE',
         'IDEMPOTENCE_GUARD_SIZE'
@@ -252,18 +260,15 @@ abstract class SwiftBase {
             }
             Sleep(10)
         }
-        def dcProps = ['swift.reports': dcReports.join(',')]
-        if (mode.containsKey('swift.notificationsFakePracti')) {
-            dcProps['swift.notificationsFakePracti'] = mode['swift.notificationsFakePracti']
-        }
-        def notificationsPeriodMillis = mode.containsKey('swift.notificationPeriodMillis') ? mode['swift.notificationPeriodMillis'] : DEFAULT_PROPS['swift.notificationPeriodMillis']
+        def dcProps = (DEFAULT_PROPS + mode).subMap(DC_PROPS_KEYS)
+        dcProps['swift.reports'] = dcReports.join(',')
 
         println "==== LAUNCHING SURROGATES"
         Topology.datacenters.each { datacenter ->
             if (integratedDC) {
-                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + genDCServerPropArgs(dcProps), "2048m")
+                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, genDCServerPropArgs(dcProps), "2048m")
             } else {
-                datacenter.deploySurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + genDCServerPropArgs(dcProps), "2048m")
+                datacenter.deploySurrogatesExtraArgs(shepardAddr, genDCServerPropArgs(dcProps), "2048m")
             }
         }
     }
