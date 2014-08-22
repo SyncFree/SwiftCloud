@@ -1,5 +1,7 @@
 package swift.deployment
 
+import java.lang.management.ManagementFactory;
+import java.util.Random
 import static swift.deployment.Tools.*
 import static swift.deployment.SwiftBase.*
 
@@ -95,13 +97,13 @@ class Topology {
             }
         }
 
-		void deployIntegratedSurrogatesExtraArgs(String shepard, String extraArgs, String surHeap = "512m") {
+        void deployIntegratedSurrogatesExtraArgs(String shepard, String extraArgs, String surHeap = "512m") {
             def siteId = dcKey( Topology.datacenters.indexOf(this));
 
             def otherSequencers = sequencers() - this.sequencers
-			def seqArgs = "-integrated -sequencers "
-        	otherSequencers.each { seqArgs += it + " "}
-        
+            def seqArgs = "-integrated -sequencers "
+            otherSequencers.each { seqArgs += it + " "}
+
             surrogates.each { host ->
                 def otherSurrogates = surrogates - host
                 rshC(host, swift_app_cmd_nostdout( "-Xms"+surHeap, surrogateCmd( siteId, shepard, sequencers[0], otherSurrogates, seqArgs + extraArgs ), "sur-stderr.txt", "sur-stdout.txt" ))
@@ -131,5 +133,41 @@ class Topology {
         def List all() {
             return scouts
         }
+    }
+
+    static int ACQUIRE_WAIT_MAX_MS = 2000
+
+    static File acquireTopologyFile(String fileNamePrefix) {
+        def random = new Random();
+        File acquiredConfig = null
+        File acquiredConfigRenamed = null
+        def pid = ManagementFactory.getRuntimeMXBean().getName()
+        while (acquiredConfig == null) {
+            // Everyone needs to wait in the first place to achieve fairness
+            sleep(random.nextInt(ACQUIRE_WAIT_MAX_MS))
+            for (File child : new File("scripts/groovy/swift/deployment/").listFiles()) {
+                if (child.name.startsWith(fileNamePrefix) && child.name.endsWith(".groovy")) {
+                    File candidateConfigRenamed = new File(child.absolutePath + ".locked." + pid)
+                    if (child.renameTo(candidateConfigRenamed)) {
+                        acquiredConfig = child
+                        acquiredConfigRenamed = candidateConfigRenamed
+                        break
+                    }
+                }
+            }
+            if (acquiredConfig == null) {
+                println("No topology configuration available - retrying in max. " + ACQUIRE_WAIT_MAX_MS + "ms")
+            }
+        }
+
+        println "Topology configuration " + acquiredConfig + " acquired by process " + pid
+        addShutdownHook {
+            if (acquiredConfigRenamed.renameTo(acquiredConfig)) {
+                println "Topology configuration " + acquiredConfig + " released"
+            } else {
+                println "WARNING: could not release topology configuration " + acquiredConfig + " acquired by process" + pid
+            }
+        }
+        return acquiredConfigRenamed
     }
 }
