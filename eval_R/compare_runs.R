@@ -8,8 +8,8 @@ format_ext <- ".png"
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter")
 WORKLOAD_LABELS <- c("YCSB workload A (uniform)", "YCSB workload A (zipf)", "YCSB workload B (uniform)", "YCSB workload B (zipf)", "SwiftSocial", "SwiftSocial w/page view counters")
-MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-practi", "notifications-infrequent", "notifications-infrequent-practi", "no-caching", "refresh-frequent", "refresh-infrequent")
-MODE_LABELS <- c("mutable cache + 1 notification/s", "mutable cache + 1 notification/s + PRACTI metadata", "mutable cache + 1 notification/10s", "mutable cache + 1 notification/10s + PRACTI metadata", "no cache replica", "mutable cache + 1 refresh/s", "mutable cache + 1 refresh/10s")
+MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-infrequent", "notifications-infrequent-practi", "no-caching", "refresh-frequent", "refresh-frequent-no-caching", "refresh-infrequent")
+MODE_LABELS <- c("mutable cache + 1 notification/s", "mutable cache + 1 notification/s + no pruning", "mutable cache + 1 notification/s + PRACTI metadata", "mutable cache + 1 notification/10s", "mutable cache + 1 notification/10s + PRACTI metadata", "no cache replica", "mutable cache + 1 refresh/s", "mutable cache + 1 refresh/s + no pruning", "mutable cache + 1 refresh/10s")
 
 decode_filename <- function(file, var_name, suffix) {
   pattern_alternatives <- function(patterns) {
