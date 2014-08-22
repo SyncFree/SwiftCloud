@@ -31,7 +31,7 @@ def modeName = args[2]
 exp.mode = SwiftBase.MODES[modeName]
 exp.incomingOpPerSecLimit  = args[3].toInteger()
 // TODO: use a different number for no-caching mode?
-exp.clients = 1000
+exp.clients = 1500
 // Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC
 exp.dcReports -= 'DATABASE_TABLE_SIZE'
 def outputDir = args[4]
