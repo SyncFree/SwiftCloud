@@ -5,7 +5,7 @@ require("gridExtra");
 require("stringr")
 
 # That should include at least one pruning point (60s)
-PRUNE_START_MS <- 350000
+PRUNE_START_MS <- 570000
 DURATION_RUN_MS <- 100000
 FORMAT_EXT <- ".png"
 SCATTER_PLOTS_MAX_SAMPLES <- 20000

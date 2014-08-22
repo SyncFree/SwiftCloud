@@ -167,7 +167,7 @@ abstract class SwiftBase {
         'IDEMPOTENCE_GUARD_SIZE'
     ]
     def mode = CACHING_NOTIFICATIONS_PROPS
-    def duration = 600
+    def duration = 800
     def durationShepardGrace = 12
     def interCmdDelay = 30
     def reports = [
