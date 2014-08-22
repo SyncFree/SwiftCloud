@@ -20,7 +20,7 @@ evaluate(topologyDef)
 // VARs
 def workloadName = args[1]
 def exp
-if (workloadName.st("workload-social")) {
+if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
 } else {
@@ -30,7 +30,7 @@ if (workloadName.st("workload-social")) {
 def modeName = args[2]
 exp.mode = SwiftBase.MODES[modeName]
 exp.incomingOpPerSecLimit  = args[3].toInteger()
-// TODO: use a different number for no-caching mode? 
+// TODO: use a different number for no-caching mode?
 exp.clients = 1000
 // Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC
 exp.dcReports -= 'DATABASE_TABLE_SIZE'
