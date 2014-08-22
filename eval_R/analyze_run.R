@@ -221,10 +221,13 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     # summary(through$counts)
     # summary(dop_filtered$duration)
 
-    # TODO: add colors by session
     operations_stats <- data.frame(stat=stats, stat_param=stats_params,
                                    throughput=compute_stats(through$counts),
                                    response_time=compute_stats(dop_filtered$duration))
+    for (op in unique(dop_filtered$operation)) {
+      op_filtered <- subset(dop_filtered, operation == op)
+      operations_stats[[paste("response_time", op, sep="_")]] <- compute_stats(op_filtered$duration)
+    }
     write.table(operations_stats, paste(output_prefix, "ops.csv", sep="-"), sep=",", row.names=FALSE)
     rm(through)
     rm(dop_filtered)
