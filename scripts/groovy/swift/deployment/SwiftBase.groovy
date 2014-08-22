@@ -175,7 +175,8 @@ abstract class SwiftBase {
         'APP_OP_FAILURE',
         'METADATA',
         'STALENESS_YCSB_WRITE',
-        'STALENESS_WRITE'
+        'STALENESS_WRITE',
+        'DATABASE_TABLE_SIZE',
     ]
     // STALENESS_YCSB_READ,STALENESS_READ,STALENESS_CALIB
 
@@ -192,7 +193,7 @@ abstract class SwiftBase {
         if (Topology.datacenters.isEmpty()) {
             println "Error: no DCs defined in topology"
         }
-        shepardAddr = Topology.datacenters[0].surrogates[0];
+        shepardAddr = scouts[0];
         allMachines = (Topology.allMachines() + shepardAddr).unique()
     }
 
@@ -200,7 +201,7 @@ abstract class SwiftBase {
         return clients / scouts.size()
     }
 
-    public void runExperiment(String outputDir) {
+    public void runExperiment(String... outputDirs) {
         generateConfig()
         prepareNodes()
         onControlC({
@@ -208,15 +209,20 @@ abstract class SwiftBase {
             System.exit(1);
         })
 
-        def shep = startShepard()
         startDCs()
         println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
         Sleep(interCmdDelay)
         runInitDB()
-        println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
-        Sleep(interCmdDelay)
-        runClientsWithShepard(shep)
-        collectResults(outputDir)
+        for (final int i = 0; i < outputDirs.size(); i++) {
+            def shep = startShepard()
+            println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
+            Sleep(interCmdDelay)
+            runClientsWithShepardForDuration(shep)
+            if (i == outputDirs.size() - 1) {
+                pnuke(allMachines, "java", 60)
+            }
+            collectResults(outputDirs[i])
+        }
     }
 
     protected abstract void generateConfig()
@@ -234,6 +240,7 @@ abstract class SwiftBase {
     }
 
     private def startShepard() {
+        println "==== LAUNCHING SHEPARD ===="
         return SwiftBase.runShepard(shepardAddr, duration + durationShepardGrace, "Released" )
     }
 
@@ -261,13 +268,13 @@ abstract class SwiftBase {
         }
     }
 
-    private runClientsWithShepard(def shep) {
+    private runClientsWithShepardForDuration(def shep) {
         doRunClients()
 
         println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
         shep.take()
         Countdown( "Max. remaining time: ", duration + interCmdDelay)
-        pnuke(allMachines, "java", 60)
+        pnuke((scouts + shepardAddr).unique(), "java", 60)
     }
 
 

@@ -36,8 +36,9 @@ if (modeName == "no-caching" && exp.incomingOpPerSecLimit > 6000) {
     // TODO: lower number of clients?
     exp.clients = 1500
 }
-// Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC
+// Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC/clients
 exp.dcReports -= 'DATABASE_TABLE_SIZE'
+exp.reports -= 'DATABASE_TABLE_SIZE'
 def outputDir = args[4]
 exp.runExperiment(String.format("%s/%s-mode-%s-opslimit-%d", outputDir, workloadName, modeName, exp.incomingOpPerSecLimit))
 
