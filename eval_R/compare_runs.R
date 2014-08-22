@@ -6,11 +6,10 @@ require("plyr")
 
 format_ext <- ".png"
 
-# TODO: use factors for workloads & modes?
-WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb")
-WORKLOAD_LABELS <- c("workload A (uniform)", "workload A (zipf)", "workload B (uniform)", "workload B (zipf)")
-MODE_LEVELS <- c("notifications-frequent", "notifications-infrequent", "no-caching", "refresh-frequent", "refresh-infrequent")
-MODE_LABELS <- c("mutable cache + notifications (every 1s)", "mutable cache + notifications (every 10s)", "no cache replica", "mutable cache + refresh (every 1s)", "mutable cache + refresh (every 10s)")
+WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter")
+WORKLOAD_LABELS <- c("YCSB workload A (uniform)", "YCSB workload A (zipf)", "YCSB workload B (uniform)", "YCSB workload B (zipf)", "SwiftSocial", "SwiftSocial w/page view counters")
+MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-practi", "notifications-infrequent", "notifications-infrequent-practi", "no-caching", "refresh-frequent", "refresh-infrequent")
+MODE_LABELS <- c("mutable cache + 1 notification/s", "mutable cache + 1 notification/s + PRACTI metadata", "mutable cache + 1 notification/10s", "mutable cache + 1 notification/10s + PRACTI metadata", "no cache replica", "mutable cache + 1 refresh/s", "mutable cache + 1 refresh/10s")
 
 decode_filename <- function(file, var_name, suffix) {
   pattern_alternatives <- function(patterns) {
@@ -63,7 +62,7 @@ throughput_response_time_plot <- function(dir, output_dir = file.path(dir, "comp
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
     p <- ggplot() 
-    p <- p + ggtitle(label = paste("YCSB", w))
+    p <- p + ggtitle(label =  w)
     p <- p + labs(x="throughput [txn/s]",y = "mean response time [ms]")
     #p <- p + theme(legend.position="none")
     #p <- p + theme(axis.line = element_line(color = 'black'))
@@ -80,7 +79,7 @@ throughput_response_time_plot <- function(dir, output_dir = file.path(dir, "comp
       p <- p + geom_path(data=mean_stats,
                          mapping=aes(y=response_time, x=throughput, colour=mode),
                          arrow = arrow(length = unit(0.1,"cm")))
-      #TODO show errors bars? what exactly?
+      #TODO for mean throughput, plot 50th, 70th and 90th percentiles
     }
     p <- p + scale_colour_discrete(breaks = unique(workload_stats$mode))
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
@@ -101,7 +100,7 @@ multi_cdf_plot <- function(dir, var_name, var_label, output_dir = file.path(dir,
       RESPONSE_TIME_CUTOFF <- 1000
       p <- p + coord_cartesian(xlim = c(0, RESPONSE_TIME_CUTOFF), ylim = c(0, 1.05))
       p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
-      p <- p + ggtitle(label = paste("YCSB ", w, ", ", m, sep=""))
+      p <- p + ggtitle(label = paste(w, ", ", m, sep=""))
       labels <- c()
       for (v in unique(mode_stats$var)) {
         mode_var_stats <- subset(mode_stats, mode_stats$var == v)
@@ -140,7 +139,7 @@ var_throughput_plot <- function(dir, var_name, var_label, output_dir = file.path
   stats <- read_runs(dir, var_name, "ops.csv")
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
-    p <- ggplot() + ggtitle(label = paste("YCSB ", w))
+    p <- ggplot() + ggtitle(label =  w)
     p <- p + labs(x=var_label,y = "throughput [txn/s]")
     p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
     # TODO: add error_bars
@@ -161,7 +160,7 @@ var_throughput_per_client_plot <- function(dir, var_name, var_label, clients_num
   stats <- read_runs(dir, var_name, "ops.csv")
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
-    p <- ggplot() + ggtitle(label = paste("YCSB ", w))
+    p <- ggplot() + ggtitle(label =  w)
     p <- p + labs(x=var_label,y = "throughput per client [txn/s]")
     p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
     # TODO: add error_bars
@@ -182,7 +181,7 @@ var_clock_size_in_fetch_plot <- function(dir, var_name, var_label, output_dir = 
   stats <- read_runs(dir, var_name, "meta_size.csv")
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
-    p <- ggplot() + ggtitle(label = paste("YCSB ", w))
+    p <- ggplot() + ggtitle(label = w)
     p <- p + labs(x=var_label,y = "fetch clock size [bytes]")
     p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
     # TODO: add error_bars
@@ -202,7 +201,7 @@ var_clock_size_in_commit_plot <- function(dir, var_name, var_label, output_dir =
   stats <- read_runs(dir, var_name, "meta_size.csv")
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
-    p <- ggplot() + ggtitle(label = paste("YCSB ", w))
+    p <- ggplot() + ggtitle(label = w)
     p <- p + labs(x=var_label,y = "commit clock size per transaction [bytes]")
     p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
     # TODO: add error_bars
