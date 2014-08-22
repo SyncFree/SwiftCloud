@@ -29,8 +29,11 @@ if (workloadName.st("workload-social")) {
 }
 def modeName = args[2]
 exp.mode = SwiftBase.MODES[modeName]
-exp.incomingOpPerSecLimit  = Integer.parseInt(args[3])
-exp.threads = 40
+exp.incomingOpPerSecLimit  = args[3].toInteger()
+// TODO: use a different number for no-caching mode? 
+exp.clients = 1000
+// Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC
+exp.dcReports -= 'DATABASE_TABLE_SIZE'
 def outputDir = args[4]
 exp.runExperiment(String.format("%s/%s-mode-%s-opslimit-%d", outputDir, workloadName, modeName, exp.incomingOpPerSecLimit))
 

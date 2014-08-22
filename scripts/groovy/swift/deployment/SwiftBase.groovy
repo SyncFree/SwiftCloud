@@ -158,8 +158,8 @@ abstract class SwiftBase {
     def shepardAddr
     def allMachines
 
-    int dbSize = 100000
-    int threads = 10
+    int dbSize = 50000
+    int clients = 100
 
     def pruningIntervalMillis = 60000
     def dcReports = [
@@ -194,6 +194,10 @@ abstract class SwiftBase {
         }
         shepardAddr = Topology.datacenters[0].surrogates[0];
         allMachines = (Topology.allMachines() + shepardAddr).unique()
+    }
+
+    public int getThreads() {
+        return clients / scouts.size()
     }
 
     public void runExperiment(String outputDir) {
