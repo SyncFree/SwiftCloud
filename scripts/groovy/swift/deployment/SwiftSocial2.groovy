@@ -84,7 +84,7 @@ class SwiftSocial2 extends SwiftBase {
 
     static WORKLOADS= [
         'workload-social-views-counter' : WORKLOAD_VIEWS_COUNTER,
-        'workload-social-no-views-counter' : WORKLOAD_NO_VIEWS_COUNTER
+        'workload-social' : WORKLOAD_NO_VIEWS_COUNTER
     ]
 
     // Two alternative mechanism to throttle the target throughput:
