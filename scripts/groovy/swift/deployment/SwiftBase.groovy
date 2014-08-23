@@ -48,10 +48,16 @@ abstract class SwiftBase {
 
     static MODES = [
         'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
-        'refresh-frequent-no-pruning': CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000', 'swift.pruningIntervalMillis' :'1000000000',],
+        'refresh-frequent-no-pruning': CACHING_PERIODIC_REFRESH_PROPS + [
+            'swift.cacheRefreshPeriodMillis' : '1000',
+            'swift.pruningIntervalMillis' :'1000000000',
+            'swift.deadlineMillis' : '120000'],
         'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
-        'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000', 'swift.pruningIntervalMillis' :'1000000000',],
+        'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + [
+            'swift.notificationPeriodMillis':'1000',
+            'swift.pruningIntervalMillis' :'1000000000',
+            'swift.deadlineMillis' : '120000'],
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
         'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
