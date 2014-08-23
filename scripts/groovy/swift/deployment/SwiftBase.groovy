@@ -229,7 +229,7 @@ abstract class SwiftBase {
             Sleep(interCmdDelay)
             runClientsWithShepardForDuration(shep)
             if (i == outputDirs.size() - 1) {
-                pnuke(allMachines, "java", 60)
+                pnuke(allMachines.minus(scouts), "java", 60)
             }
             collectResults(outputDirs[i])
         }
