@@ -22,17 +22,29 @@ evaluate(topologyDef)
 def workloadName = args[1]
 def exp
 double OPS_PER_CLIENT
+def modeName = args[2]
 if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
-    OPS_PER_CLIENT = workloadName.endsWith("views-counter") ? 0.5 : 1
+    exp.mode = SwiftBase.MODES[modeName]
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
+    if (workloadName.endsWith("views-counter")) {
+        OPS_PER_CLIENT = 0.5
+    } else {
+        OPS_PER_CLIENT = 1
+    }
 } else {
     exp = new SwiftYCSB()
-    OPS_PER_CLIENT = workloadName.startsWith("workloadb") ? 2.5 : 0.25
+    exp.mode = SwiftBase.MODES[modeName]
     exp.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
+    if (workloadName.startsWith("workloada")) {
+        // a bigger cache needs too much time to get warm
+        exp.mode['swift.cacheSize'] = '64'
+        exp.localRecordCount = 48
+        OPS_PER_CLIENT = 0.25
+    } else {
+        OPS_PER_CLIENT = 2.5
+    }
 }
-def modeName = args[2]
-exp.mode = SwiftBase.MODES[modeName]
 exp.dbSize = Integer.parseInt(args[3])
 
 OBJECTS_PER_CLIENT = 20
