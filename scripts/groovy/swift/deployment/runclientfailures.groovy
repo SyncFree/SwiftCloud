@@ -35,7 +35,7 @@ exp.clients = 500
 exp.incomingOpPerSecLimit = 1000
 def outputDir = args[4]
 def outputDirs = []
-for (int accFailures = 0; accFailures < failures; accFailures += exp.clients) {
+for (int accFailures = 0; accFailures <= failures; accFailures += exp.clients) {
     outputDirs += String.format("%s/%s-mode-%s-failures-%d", outputDir, workloadName, modeName, accFailures)
 }
 
