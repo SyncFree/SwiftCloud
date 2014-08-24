@@ -59,6 +59,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
 
         String propFile = Args.valueOf(args, "-props", "swiftsocial-test.props");
         Properties properties = Props.parseFile("swiftsocial", propFile);
+        configBloatedCounters(properties);
         SafeLog.configure(properties);
 
         System.err.println("Populating db with users...");
