@@ -51,6 +51,8 @@ abstract class SwiftBase {
 
     static BLOATED_COUNTERS_PROPS = ['swift.bloatedCounters' : 'true']
 
+    static NO_K_STABILITY_PROPS = ['swift.disasterSafe' : 'false']
+
     static MODES = [
         'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
         'refresh-frequent-no-pruning': CACHING_PERIODIC_REFRESH_PROPS + [
@@ -64,7 +66,8 @@ abstract class SwiftBase {
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
         'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + [
             'swift.notificationPeriodMillis':'1000']  + NO_PRUNING_PROPS,
-        'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
+        'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],
+        'no-caching-strict-freshness-no-k-stability': NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'] + NO_K_STABILITY_PROPS,
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
         'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
     ]
