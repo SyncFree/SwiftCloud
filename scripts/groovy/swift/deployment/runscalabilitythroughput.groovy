@@ -30,10 +30,18 @@ if (workloadName.startsWith("workload-social")) {
 def modeName = args[2]
 exp.mode = SwiftBase.MODES[modeName]
 exp.incomingOpPerSecLimit  = args[3].toInteger()
-if (modeName == "no-caching" && exp.incomingOpPerSecLimit > 4000) {
-    exp.clients = 2500
+if (modeName == "no-caching") {
+    if  (exp.incomingOpPerSecLimit > 4000) {
+         exp.clients = 2500
+    } else {
+         exp.clients = 1000
+    }
 } else {
-    exp.clients = 1000
+    if (workloadName.startsWith("workloada")) {
+         exp.clients = 500
+    } else {
+         exp.clients = 1000
+    }
 }
 // Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC/clients
 exp.dcReports -= 'DATABASE_TABLE_SIZE'
