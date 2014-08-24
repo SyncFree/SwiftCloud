@@ -28,6 +28,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import swift.client.SwiftOptions;
+import swift.client.SwiftImpl.CacheUpdateProtocol;
 import swift.dc.DCConstants;
 import swift.dc.DCSequencerServer;
 import swift.dc.DCServer;
@@ -81,6 +82,7 @@ public class SwiftSocialBenchmark extends SwiftSocialApp {
             pool.execute(new Runnable() {
                 public void run() {
                     SwiftOptions options = new SwiftOptions(servers, DCConstants.SURROGATE_PORT);
+                    options.setCacheUpdateProtocol(CacheUpdateProtocol.NO_CACHE_OR_UNCOORDINATED);
                     SwiftSocialBenchmark.super.initUsers(options, partition, counter, NumUsers);
                 }
             });
