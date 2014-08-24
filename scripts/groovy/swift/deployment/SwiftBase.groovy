@@ -46,18 +46,24 @@ abstract class SwiftBase {
         'swift.notifications':'false',
         'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED']
 
+    static NO_PRUNING_PROPS = ['swift.pruningIntervalMillis' :'1000000000',
+        'swift.deadlineMillis' : '120000']
+
+    static BLOATED_COUNTERS_PROPS = ['swift.bloatedCounters' : 'true']
+
     static MODES = [
         'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
         'refresh-frequent-no-pruning': CACHING_PERIODIC_REFRESH_PROPS + [
-            'swift.cacheRefreshPeriodMillis' : '1000',
-            'swift.pruningIntervalMillis' :'1000000000',
-            'swift.deadlineMillis' : '120000'],
+            'swift.cacheRefreshPeriodMillis' : '1000'] + NO_PRUNING_PROPS,
+        // WISHME: this should rather be a workload property than a "mode" hack
+        'refresh-frequent-bloated-counter' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000'] + BLOATED_COUNTERS_PROPS),
         'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
+        'refresh-infrequent-no-pruning': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + NO_PRUNING_PROPS),
+        'refresh-infrequent-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
+        'refresh-infrequent-no-pruning-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS + NO_PRUNING_PROPS),
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
         'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + [
-            'swift.notificationPeriodMillis':'1000',
-            'swift.pruningIntervalMillis' :'1000000000',
-            'swift.deadlineMillis' : '120000'],
+            'swift.notificationPeriodMillis':'1000']  + NO_PRUNING_PROPS,
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
         'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
