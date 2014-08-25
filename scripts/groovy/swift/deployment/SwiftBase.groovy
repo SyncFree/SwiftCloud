@@ -325,7 +325,7 @@ abstract class SwiftBase {
         def stats = exec([
             "/bin/bash",
             "-c",
-            "wc " + dstDir + "/*/*"
+            "ls -l " + dstDir + "/*/*"
         ])
 
         exec([
