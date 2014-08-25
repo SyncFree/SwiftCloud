@@ -183,8 +183,6 @@ abstract class SwiftBase {
     def shepardAddr
     def allMachines
 
-    boolean buildJar = true
-    boolean deployJar = true
     int dbSize = 50000
     int clients = 100
 
@@ -208,6 +206,8 @@ abstract class SwiftBase {
 
     def integratedDC = true
     def version = getGitCommitId()
+    String jar = "swiftcloud-" + version + ".jar"
+    boolean deployJar = true
 
     Map config
 
@@ -258,12 +258,12 @@ abstract class SwiftBase {
 
     private prepareNodes() {
         pnuke(allMachines, "java", 60)
-        if (buildJar) {
-            println "==== BUILDING JAR for version " + version + "..."
-            sh("ant -buildfile smd-jar-build.xml").waitFor()
-        }
+        println "==== BUILDING JAR for version " + version + "..."
+	if (!new File(jar).exists()) {
+            sh("ant -buildfile smd-jar-build.xml -Djarname=" + jar).waitFor()
+	}
         if (deployJar) {
-            deployTo(allMachines, "swiftcloud.jar")
+            deployTo(allMachines, jar, "swiftcloud.jar")
         }
         deployTo(allMachines, "stuff/logging.properties", "logging.properties")
         deployConfig()

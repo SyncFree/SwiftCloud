@@ -1,6 +1,5 @@
 package swift.deployment
 
-import java.lang.management.ManagementFactory;
 import java.util.Random
 import static swift.deployment.Tools.*
 import static swift.deployment.SwiftBase.*
@@ -141,7 +140,7 @@ class Topology {
         def random = new Random();
         File acquiredConfig = null
         File acquiredConfigRenamed = null
-        def pid = ManagementFactory.getRuntimeMXBean().getName()
+        def pid = getPID()
         while (acquiredConfig == null) {
             // Everyone needs to wait in the first place to achieve fairness
             sleep(random.nextInt(ACQUIRE_WAIT_MAX_MS))

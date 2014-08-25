@@ -1,4 +1,6 @@
 package swift.deployment
+
+import java.lang.management.ManagementFactory
 import java.util.concurrent.atomic.AtomicInteger
 
 class Tools {
@@ -205,5 +207,9 @@ class Tools {
             return "unknown"
         }
         return ids[0].substring(0, 8)
+    }
+
+    static String getPID() {
+         return ManagementFactory.getRuntimeMXBean().getName() 
     }
 }
