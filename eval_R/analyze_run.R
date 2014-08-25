@@ -263,7 +263,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       if (nrow(dtablesize_filtered) > 0) {
         for (eachTable in unique(dtablesize_filtered$tableName)) {
           tablestats <- subset(dtablesize_filtered, dtablesize_filtered$tableName == eachTable)
-          metadata_size_stats[[paste(eachTable, "table", node_type, sep="-")]] <- compute_stats(tablestats$tableSize)
+          metadata_size_stats[[paste(eachTable, "table", node_type, sep="-")]] <<- compute_stats(tablestats$tableSize)
         }
       }
       rm(dtablesize_filtered)
@@ -276,6 +276,7 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
     rm(dguardsize_filtered)
     write.table(metadata_size_stats, paste(output_prefix, "meta_size.csv", sep="-"), sep=",", row.names=FALSE)
+    rm(metadata_size_stats)
 
     
     derr <- load_log_files(client_file_list, select_OP_FAILURE, "OP_FAILURE", FALSE, min_timestamp)
