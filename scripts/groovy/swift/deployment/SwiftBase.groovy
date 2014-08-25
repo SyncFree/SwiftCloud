@@ -260,7 +260,7 @@ abstract class SwiftBase {
         pnuke(allMachines, "java", 60)
         println "==== BUILDING JAR for version " + version + "..."
 	if (!new File(jar).exists()) {
-            sh("ant -buildfile smd-jar-build.xml -Djarname=" + jar).waitFor()
+            sh("ant -buildfile jar-build.xml -Djarname=" + jar).waitFor()
 	}
         if (deployJar) {
             deployTo(allMachines, jar, "swiftcloud.jar")
