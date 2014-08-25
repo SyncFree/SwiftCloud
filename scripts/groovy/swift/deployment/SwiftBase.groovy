@@ -258,8 +258,8 @@ abstract class SwiftBase {
 
     private prepareNodes() {
         pnuke(allMachines, "java", 60)
-        println "==== BUILDING JAR for version " + version + "..."
-	if (!new File(jar).exists()) {
+        if (!new File(jar).exists()) {
+            println "==== BUILDING JAR for version " + version + "..."
             sh("ant -buildfile jar-build.xml -Djarname=" + jar).waitFor()
 	}
         if (deployJar) {
