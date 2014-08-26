@@ -26,9 +26,9 @@ if (workloadName.startsWith("workload-social")) {
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
     exp.mode = SwiftBase.MODES[modeName]
     if (workloadName.endsWith("views-counter")) {
-        exp.incomingOpPerSecLimit = 1500
+        exp.incomingOpPerSecLimit = 800
     } else {
-        exp.incomingOpPerSecLimit = 3000
+        exp.incomingOpPerSecLimit = 1000
     }
 } else {
     exp = new SwiftYCSB()
@@ -39,11 +39,11 @@ if (workloadName.startsWith("workload-social")) {
         exp.mode['swift.cacheSize'] = '64'
         exp.localRecordCount = 48
     } else {
-        exp.incomingOpPerSecLimit = 4000
+        exp.incomingOpPerSecLimit = 1000
     }
 }
 exp.clients = Integer.parseInt(args[3])
-exp.dbSize = 1000
+exp.dbSize = 10000
 def outputDir = args[4]
 exp.runExperiment(String.format("%s/%s-mode-%s-clients-%d", outputDir, workloadName, modeName, exp.clients))
 
