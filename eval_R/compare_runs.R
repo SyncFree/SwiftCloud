@@ -142,6 +142,10 @@ scalabilityclients_response_time_plot <- function() {
   var_response_time_plot(experiment_dir("scalabilityclients"), var_name="clients", var_label="#clients")
 }
 
+scalabilityclientssmalldb_response_time_plot <- function() {
+  var_response_time_plot(experiment_dir("scalabilityclients-smalldb"), var_name="clients", var_label="#clients")
+}
+
 # If var_label == NA, then load (throughput op/s) is used as a variable
 multi_cdf_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) {
   stats <- read_runs_full(dir, var_name, "ops.csv")
@@ -275,6 +279,10 @@ var_throughput_plot <- function(dir, var_name, var_label, output_dir = file.path
 
 scalabilityclients_throughput_plot <- function() {
   var_throughput_plot(experiment_dir("scalabilityclients"), "clients", "#clients")
+}
+
+scalabilityclientssmalldb_throughput_plot <- function() {
+  var_throughput_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#clients")
 }
 
 scalabilitydbsize_throughput_plot <- function() {
@@ -466,7 +474,7 @@ clientfailures_cacherefresh_metadata_plot <- function() {
 
 IDEMPOTENCE_GUARD_ENTRY_BYTES <- 6
 select_table <- function (workload) {
-  if (grepl("social", workload)) {
+  if (grepl("social", workload, ignore.case=TRUE)) {
     return ("views.table")
   }
   return ("usertable.table")
@@ -501,6 +509,10 @@ clientfailures_storage_plot <- function() {
 
 scalabilityclients_storage_plot <- function() {
   var_storage_plot(experiment_dir("scalabilityclients"), "clients", "#clients")
+}
+
+scalabilityclientssmalldb_storage_plot <- function() {
+  var_storage_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#clients")
 }
 
 client_table <- function(table) {

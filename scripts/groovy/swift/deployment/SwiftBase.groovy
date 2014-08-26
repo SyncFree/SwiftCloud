@@ -59,6 +59,7 @@ abstract class SwiftBase {
             'swift.cacheRefreshPeriodMillis' : '1000'] + NO_PRUNING_PROPS,
         // WISHME: this should rather be a workload property than a "mode" hack
         'refresh-frequent-bloated-counter' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000'] + BLOATED_COUNTERS_PROPS),
+	'refresh-frequent-no-pruning-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000'] + BLOATED_COUNTERS_PROPS + NO_PRUNING_PROPS), 
         'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
         'refresh-infrequent-no-pruning': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + NO_PRUNING_PROPS),
         'refresh-infrequent-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
