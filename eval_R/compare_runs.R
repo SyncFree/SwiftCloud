@@ -7,11 +7,13 @@ require("plyr")
 format_ext <- ".png"
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter")
-WORKLOAD_LABELS <- c("YCSB workload A (uniform)", "YCSB workload A (zipf)", "YCSB workload B (uniform)", "YCSB workload B (zipf)", "SwiftSocial", "SwiftSocial with page view counters")
+WORKLOAD_LABELS <- c("YCSB A (uniform)", "YCSB A (zipf)", "YCSB B (uniform)", "YCSB B (zipf)", "SwiftSocial", "SwiftSocial (page view counters)")
 MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-infrequent", "notifications-infrequent-practi", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
 MODE_LABELS <- rep(MODE_LEVELS, 1)
 #MODE_LABELS <- c("mutable cache with 1 notification per sec", "mutable cache with 1 notification per sec" + no pruning", "mutable cache + 1 notification/s + PRACTI metadata", "mutable cache + 1 notification/10s", "mutable cache + 1 notification/10s + PRACTI metadata", "no cache replica", "mutable cache + 1 refresh/s", "mutable cache + 1 refresh/s + no pruning", "mutable cache + 1 refresh/10s")
 
+THEME <- theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank(),
+                            legend.position='bottom', legend.direction='vertical', legend.box='horizontal', legend.key=element_blank())
 TOP_DIR <- "~/Dropbox/INRIA/results/"
 experiment_dir <- function(experiment) {
   return (file.path(TOP_DIR, experiment, "processed"))  
@@ -119,14 +121,17 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
       xvar <- "throughput.mean"
     }
     p <- p + labs(x=var_label,y = "response time [ms]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
       mode_stats <- mode_stats[order(mode_stats$var), ]
-      p <- p + geom_line(data=mode_stats,
-                         mapping=aes_string(y="response_time.q75", x=xvar, color="mode"), line_type=1)
-      p <- p + geom_line(data=mode_stats,
-                         mapping=aes_string(y="response_time.q95", x=xvar, color="mode"), line_type=2)
+      melted <- melt(mode_stats, id.vars=c("workload", "mode", xvar))
+      # Is this a canonical way to do this?
+      melted <- subset(melted, variable %in% c("response_time.q75", "response_time.q95"))
+      p <- p + geom_line(data=melted,
+                         mapping=aes_string(y="value", x=xvar, group="variable", color="mode", linetype="variable"))
+      p <- p + geom_point(data=melted,
+                         mapping=aes_string(y="value", x=xvar, group="variable", color="mode", shape="mode"))
     }
     p <- p + scale_colour_discrete(breaks = unique(workload_stats$mode))
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
@@ -163,7 +168,7 @@ multi_cdf_plot <- function(dir, var_name, var_label, output_dir = file.path(dir,
         p <- p + labs(x="operation response time [ms]",y = "CDF [%]")
         RESPONSE_TIME_CUTOFF <- 1500
         p <- p + coord_cartesian(xlim = c(0, RESPONSE_TIME_CUTOFF), ylim = c(0, 1.05))
-        p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+        p <- p + THEME
         p <- p + ggtitle(label = paste(w, ", ", m, sep=""))
         labels <- c()
         for (v in unique(mode_stats$var)) {
@@ -214,32 +219,23 @@ scalabilitydbsize_multi_cdf_plot <- function() {
 
 var_errors_plot <- function(dir, var_name, var_axis_label, output_dir = file.path(dir, "comparison")) {
   stats <- read_runs_errors(dir, var_name, "errors.csv")
-  error_types <- names(stats)[grepl("errors.", names(stats))]
-  for (w in unique(stats$workload)) {
-    workload_stats <- subset(stats, stats$workload == w)
-    layers <- 0 
-    p <- ggplot()
-    p <- p + labs(x=var_axis_label,y = "operation failures/run")
-    p <- p + theme_bw() + theme(plot.background = element_blank(), panel.border = element_blank())
-    p <- p + ggtitle(label = paste(w))
-    for (m in unique(workload_stats$mode)) {
-      mode_stats <- subset(workload_stats, mode == m)
-      mode_stats <- mode_stats[order(mode_stats$var), ]
-      for (error_type in error_types) {
-        mode_stats[[error_type]][is.na(mode_stats[[error_type]])] <- 0
-        if (length(mode_stats[[error_type]][mode_stats[[error_type]] != 0]) > 0) {
-          layers <- layers + 1
-          copy_mode_stats <- mode_stats
-          copy_mode_stats$errorDesc <- paste(m, error_type)
-          p <- p + geom_line(data=copy_mode_stats, mapping=aes_string(x="var", y=error_type, color="errorDesc"))
-        }
-      }
-    }
-    dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-    if (layers > 0) {
-      ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-errors", format_ext, sep="")), scale=1)
-    }
+  p <- ggplot()
+  p <- p + labs(x=var_axis_label,y = "operation failures/run")
+  p <- p + THEME
+  p <- p + ggtitle(label = "Errors")
+  for (m in unique(stats$mode)) {
+    mode_stats <- subset(stats, mode == m)
+    mode_stats <- mode_stats[order(mode_stats$var), ]
+    melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"), na.rm=TRUE) 
+    p <- p + geom_point(data=melted, mapping=aes_string(x="var", y="value", group="variable", color="mode", shape="variable"))
   }
+  p<- p + facet_grid(workload ~ ., scale = "free")
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-errors", format_ext, sep="")), scale=1)
+}
+
+scalabilitythroughput_errors_plot <- function() {
+  var_errors_plot(experiment_dir("scalabilitythroughput"), var_name = "opslimit", var_axis_label= "throughput [txn/s]")
 }
 
 scalabilityclients_errors_plot <- function() {
@@ -248,6 +244,10 @@ scalabilityclients_errors_plot <- function() {
 
 scalabilitydbsize_errors_plot <- function() {
   var_errors_plot(experiment_dir("scalabilitydbsize"), var_name = "dbsize", var_axis_label= "#objects (~ #clients)")
+}
+
+clientfailures_errors_plot <- function() {
+  var_errors_plot(experiment_dir("clientfailures"), var_name = "failures", var_axis_label= "#unavilable client replicas")
 }
 
 responsetimelocality_errors_plot <- function() {
@@ -260,7 +260,7 @@ var_throughput_plot <- function(dir, var_name, var_label, output_dir = file.path
     workload_stats <- subset(stats, stats$workload == w)
     p <- ggplot() + ggtitle(label =  w)
     p <- p + labs(x=var_label,y = "throughput [txn/s]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
       mode_stats <- mode_stats[order(mode_stats$var), ]
@@ -296,7 +296,7 @@ var_throughput_per_client_plot <- function(dir, var_name, var_label, clients_num
     workload_stats <- subset(stats, stats$workload == w)
     p <- ggplot() + ggtitle(label =  w)
     p <- p + labs(x=var_label,y = "throughput per client [txn/s]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     # TODO: add error_bars
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
@@ -324,7 +324,7 @@ var_clock_size_in_fetch_plot <- function(dir, var_name, var_label, output_dir = 
     workload_stats <- subset(stats, stats$workload == w)
     p <- ggplot() + ggtitle(label = w)
     p <- p + labs(x=var_label,y = "fetch clock size [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     # TODO: add error_bars
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
@@ -364,7 +364,7 @@ var_notifications_metadata_plot <- function(dir, var_name, var_label, output_dir
     workload_stats <- subset(stats, workload == w)
     p <- ggplot() + ggtitle(label = paste(w, "normalized notifications message metadata"))
     p <- p + labs(x=var_label,y = "notification message metadata for 10 updates [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     p <- p + scale_y_continuous(limits=c(1, 20000)) #, breaks=c(1, 10, 100, 1000, 10000))
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
@@ -376,15 +376,15 @@ var_notifications_metadata_plot <- function(dir, var_name, var_label, output_dir
       p <- p + geom_errorbar(data=mode_stats,
                              mapping=aes(ymax=BatchUpdatesNotification.meta.max.scaled,
                                          ymin=BatchUpdatesNotification.meta.min.scaled,
-                                         x=var), color="black", width=10)
+                                         x=var), color="black", width=15)
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-BatchUpdatesNotification-metadata", format_ext, sep="")), scale=1)
   }
 }
 
-scalabilityclients_notifications_metadata_plot <- function() {
-  var_notifications_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#clients")
+scalabilityclientssmalldb_notifications_metadata_plot <- function() {
+  var_notifications_metadata_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#clients")
 }
 
 scalabilitydbsize_notifications_metadata_plot <- function() {
@@ -402,7 +402,7 @@ var_commit_metadata_plot <- function(dir, var_name, var_label, output_dir = file
     workload_stats <- subset(stats, workload == w)
     p <- ggplot() + ggtitle(label = paste(w, "normalized commit message metadata"))
     p <- p + labs(x=var_label,y = "commit message metadata for 10 updates [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     p <- p + scale_y_continuous(limits=c(1, 100)) #, breaks=c(1, 10, 100, 1000, 10000))
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
@@ -414,7 +414,7 @@ var_commit_metadata_plot <- function(dir, var_name, var_label, output_dir = file
       p <- p + geom_errorbar(data=mode_stats,
                              mapping=aes(ymax=BatchCommitUpdatesRequest.meta.max.scaled,
                                          ymin=BatchCommitUpdatesRequest.meta.min.scaled,
-                                         x=var), color="black", width=10)
+                                         x=var), color="black", width=15)
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-BatchCommitUpdatesRequest-metadata", format_ext, sep="")), scale=1)
@@ -423,6 +423,10 @@ var_commit_metadata_plot <- function(dir, var_name, var_label, output_dir = file
 
 scalabilityclients_commit_metadata_plot <- function() {
   var_commit_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#clients")
+}
+
+scalabilityclientssmalldb_commit_metadata_plot <- function() {
+  var_commit_metadata_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#clients")
 }
 
 scalabilitydbsize_commit_metadata_plot <- function() {
@@ -440,7 +444,7 @@ var_cacherefresh_metadata_plot <- function(dir, var_name, var_label, output_dir 
     workload_stats <- subset(stats, workload == w)
     p <- ggplot() + ggtitle(label = paste(w, "normalized cache refresh message metadata"))
     p <- p + labs(x=var_label,y = "cache refresh message metadata for 10 updated objects [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     p <- p + scale_y_continuous(limits=c(1, 100)) #, breaks=c(1, 10, 100, 1000, 10000))
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
@@ -452,7 +456,7 @@ var_cacherefresh_metadata_plot <- function(dir, var_name, var_label, output_dir 
       p <- p + geom_errorbar(data=mode_stats,
                              mapping=aes(ymax=CacheRefreshReply.meta.max.scaled,
                                          ymin=CacheRefreshReply.meta.min.scaled,
-                                         x=var), color="black", width=10)
+                                         x=var), color="black", width=15)
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-CacheRefreshReply-metadata", format_ext, sep="")), scale=1)
@@ -463,8 +467,16 @@ scalabilityclients_cacherefresh_metadata_plot <- function() {
   var_cacherefresh_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#clients")
 }
 
+scalabilityclientssmalldb_cacherefresh_metadata_plot <- function() {
+  var_cacherefresh_metadata_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#clients")
+}
+
 scalabilitydbsize_cacherefresh_metadata_plot <- function() {
   var_cacherefresh_metadata_plot(experiment_dir("scalabilitydbsize"), "dbsize", "#objects (~ #clients)")
+}
+
+clientfailures_cacherefresh_metadata_plot <- function() {
+  var_cacherefresh_metadata_plot(experiment_dir("clientfailures"), "failures", "#unavailable client replicas")
 }
 
 clientfailures_cacherefresh_metadata_plot <- function() {
@@ -489,14 +501,18 @@ var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(di
     workload_stats <- subset(stats, workload == w)
     p <- ggplot() + ggtitle(label = w)
     p <- p + labs(x=var_label,y = "DC replica storage utilization [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     p <- p + scale_y_log10()
-    # TODO: add error_bars
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
       mode_stats <- mode_stats[order(mode_stats$var), ]
+      mode_stats$idempotenceGuard.scaled.mean <- mode_stats$idempotenceGuard.mean*IDEMPOTENCE_GUARD_ENTRY_BYTES
+      mode_stats$total <- mode_stats$idempotenceGuard.scaled.mean + mode_stats[[paste(dc_table(select_table(w)), "mean", sep=".")]]
       p <- p + geom_path(data=mode_stats, mapping=aes_string(y=paste(dc_table(select_table(w)), "mean", sep="."), x="var", color="mode"), linetype=1)
-      p <- p + geom_path(data=mode_stats, mapping=aes(y=idempotenceGuard.mean*IDEMPOTENCE_GUARD_ENTRY_BYTES, x=var, color=mode), linetype=2)
+      p <- p + geom_path(data=mode_stats, mapping=aes(y=idempotenceGuard.scaled.mean, x=var, color=mode), linetype=2)
+      p <- p + geom_path(data=mode_stats, mapping=aes(y=total, x=var, color=mode), linetype=3)
+      p <- p + scale_linetype_manual(values=c(1,2,3), labels=c("objects", "idempotence guard", "total"), name="type")
+      p <- p + guides(linetype=TRUE)
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-storage_dc", format_ext, sep="")), scale=1)
@@ -524,7 +540,7 @@ var_client_storage_plot <- function(dir, var_name, var_label, output_dir = file.
     workload_stats <- subset(stats, workload == w)
     p <- ggplot() + ggtitle(label = w)
     p <- p + labs(x=var_label,y = "client replica storage utilization [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     p <- p + scale_y_log10()
     # TODO: add error_bars
     for (m in unique(workload_stats$mode)) {
@@ -547,7 +563,7 @@ var_clock_size_in_commit_plot <- function(dir, var_name, var_label, output_dir =
     workload_stats <- subset(stats, stats$workload == w)
     p <- ggplot() + ggtitle(label = w)
     p <- p + labs(x=var_label,y = "commit clock size per transaction [bytes]")
-    p <- p + theme_bw() + theme(plot.background = element_blank(),panel.border = element_blank())
+    p <- p + THEME
     # TODO: add error_bars
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
