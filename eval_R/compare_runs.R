@@ -111,15 +111,15 @@ read_runs_impl <- function(dir, var_name, suffix, processor) {
 # If var_label == NA, then load (throughput op/s) is used as a variable
 var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) {
   stats <- read_runs_params(dir, var_name, "ops.csv")
+  xvar <- "var"
+  if (is.na(var_label)) {
+    var_label <- "throughput [txn/s]"
+    xvar <- "throughput.mean"
+  }
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
     p <- ggplot() 
     p <- p + ggtitle(label =  w)
-    xvar <- "var"
-    if (is.na(var_label)) {
-      var_label <- "throughput [txn/s]"
-      xvar <- "throughput.mean"
-    }
     p <- p + labs(x=var_label,y = "response time [ms]")
     p <- p + THEME
     for (m in unique(workload_stats$mode)) {
@@ -128,7 +128,7 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
       melted <- melt(mode_stats, id.vars=c("workload", "mode", xvar))
       # Is this a canonical way to do this?
       melted <- subset(melted, variable %in% c("response_time.q75", "response_time.q95"))
-      p <- p + geom_line(data=melted,
+      p <- p + geom_path(data=melted,
                          mapping=aes_string(y="value", x=xvar, group="variable", color="mode", linetype="variable"))
       p <- p + geom_point(data=melted,
                          mapping=aes_string(y="value", x=xvar, group="variable", color="mode", shape="mode"))
