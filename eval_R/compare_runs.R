@@ -235,11 +235,15 @@ var_errors_plot <- function(dir, var_name, var_axis_label, output_dir = file.pat
 }
 
 scalabilitythroughput_errors_plot <- function() {
-  var_errors_plot(experiment_dir("scalabilitythroughput"), var_name = "opslimit", var_axis_label= "throughput [txn/s]")
+  var_errors_plot(experiment_dir("scalabilitythroughput"), var_name = "opslimit", var_axis_label= "load limit [txn/s]")
 }
 
 scalabilityclients_errors_plot <- function() {
   var_errors_plot(experiment_dir("scalabilityclients"), var_name = "clients", var_axis_label= "#clients")
+}
+
+scalabilityclientssmalldb_errors_plot <- function() {
+  var_errors_plot(experiment_dir("scalabilityclients-smalldb"), var_name = "clients", var_axis_label= "#clients")
 }
 
 scalabilitydbsize_errors_plot <- function() {
@@ -508,11 +512,9 @@ var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(di
       mode_stats <- mode_stats[order(mode_stats$var), ]
       mode_stats$idempotenceGuard.scaled.mean <- mode_stats$idempotenceGuard.mean*IDEMPOTENCE_GUARD_ENTRY_BYTES
       mode_stats$total <- mode_stats$idempotenceGuard.scaled.mean + mode_stats[[paste(dc_table(select_table(w)), "mean", sep=".")]]
-      p <- p + geom_path(data=mode_stats, mapping=aes_string(y=paste(dc_table(select_table(w)), "mean", sep="."), x="var", color="mode"), linetype=1)
-      p <- p + geom_path(data=mode_stats, mapping=aes(y=idempotenceGuard.scaled.mean, x=var, color=mode), linetype=2)
-      p <- p + geom_path(data=mode_stats, mapping=aes(y=total, x=var, color=mode), linetype=3)
-      p <- p + scale_linetype_manual(values=c(1,2,3), labels=c("objects", "idempotence guard", "total"), name="type")
-      p <- p + guides(linetype=TRUE)
+      melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"))
+      melted <- subset(melted, variable %in% c("idempotenceGuard.scaled.mean", paste(dc_table(select_table(w)), "mean", sep="."), "total"))
+      p <- p + geom_path(data=melted, mapping=aes_string(y="value", x="var", color="mode", linetype="variable"))
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-storage_dc", format_ext, sep="")), scale=1)
