@@ -8,7 +8,7 @@ import static swift.deployment.Tools.*
 import static swift.deployment.Topology.*;
 
 if (args.length != 5) {
-    System.err.println "usage: runscalabilitydbsize.groovy <topology configuration file> <workload> <mode> <dbsize> <outputdir>"
+    System.err.println "usage: runscalabilityclients.groovy <topology configuration file> <workload> <mode> <clients_number> <outputdir>"
     System.exit(1)
 }
 
@@ -17,42 +17,34 @@ topologyDef = new File(args[0])
 println "==== Loading topology definition from file " + topologyDef + "===="
 evaluate(topologyDef)
 
-
 // VARs
 def workloadName = args[1]
 def exp
-double OPS_PER_CLIENT
 def modeName = args[2]
 if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
-    exp.mode = SwiftBase.MODES[modeName]
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
+    exp.mode = SwiftBase.MODES[modeName]
     if (workloadName.endsWith("views-counter")) {
-        OPS_PER_CLIENT = 0.5
+        exp.incomingOpPerSecLimit = 800
     } else {
-        OPS_PER_CLIENT = 1
+        exp.incomingOpPerSecLimit = 1000
     }
 } else {
     exp = new SwiftYCSB()
-    exp.mode = SwiftBase.MODES[modeName]
     exp.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
+    exp.mode = SwiftBase.MODES[modeName]
     if (workloadName.startsWith("workloada")) {
-        // a bigger cache needs too much time to get warm
+        exp.incomingOpPerSecLimit = 400
         exp.mode['swift.cacheSize'] = '64'
         exp.localRecordCount = 48
-        OPS_PER_CLIENT = 0.25
     } else {
-        OPS_PER_CLIENT = 2.5
+        exp.incomingOpPerSecLimit = 1000
     }
 }
-exp.dbSize = Integer.parseInt(args[3])
-
-OBJECTS_PER_CLIENT = 20
-exp.clients = exp.dbSize / OBJECTS_PER_CLIENT
-exp.incomingOpPerSecLimit = (int) (OPS_PER_CLIENT * ((double) exp.clients))
-
+exp.clients = Integer.parseInt(args[3])
+exp.dbSize = 10000
 def outputDir = args[4]
-exp.runExperiment(String.format("%s/%s-mode-%s-dbsize-%d", outputDir, workloadName, modeName, exp.dbSize))
+exp.runExperiment(String.format("%s/%s-mode-%s-clients-%d", outputDir, workloadName, modeName, exp.clients))
 
 System.exit(0)
-

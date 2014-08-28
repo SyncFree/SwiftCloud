@@ -1,5 +1,5 @@
 bin/
-swiftcloud.jar
+swiftcloud*.jar
 org.eclipse.jdt.internal.junit.runner.RemoteTestRunner@*stats.xml
 planetlab-key*
 swiftcloud.pub

@@ -26,8 +26,8 @@ import java.util.logging.Logger;
 import swift.crdt.AddWinsIdSetCRDT;
 import swift.crdt.AddWinsMessageSetCRDT;
 import swift.crdt.AddWinsSetCRDT;
+import swift.crdt.BloatedIntegerCRDT;
 import swift.crdt.IntegerCRDT;
-import swift.crdt.LWWRegisterCRDT;
 import swift.crdt.LWWUserRegisterCRDT;
 import swift.crdt.core.CRDT;
 import swift.crdt.core.CRDTIdentifier;
@@ -58,14 +58,16 @@ public class SwiftSocialOps {
     private final CachePolicy cachePolicy;
     private final ObjectUpdatesListener updatesSubscriber;
     private final boolean asyncCommit;
+    private final boolean bloatedCounters;
 
     public SwiftSocialOps(SwiftSession clientServer, IsolationLevel isolationLevel, CachePolicy cachePolicy,
-            boolean subscribeUpdates, boolean asyncCommit) {
+            boolean subscribeUpdates, boolean asyncCommit, boolean bloatedCounters) {
         server = clientServer;
         this.isolationLevel = isolationLevel;
         this.cachePolicy = cachePolicy;
         this.updatesSubscriber = subscribeUpdates ? TxnHandle.UPDATES_SUBSCRIBER : null;
         this.asyncCommit = asyncCommit;
+        this.bloatedCounters = bloatedCounters;
     }
 
     public SwiftSession getSwift() {
@@ -185,7 +187,11 @@ public class SwiftSocialOps {
         txn.get(newUser.friendList, true, AddWinsIdSetCRDT.class, null);
         txn.get(newUser.inFriendReq, true, AddWinsIdSetCRDT.class, null);
         txn.get(newUser.outFriendReq, true, AddWinsIdSetCRDT.class, null);
-        txn.get(newUser.viewsCounter, true, IntegerCRDT.class, null);
+        if (bloatedCounters) {
+            txn.get(newUser.viewsCounter, true, BloatedIntegerCRDT.class, null);
+        } else {
+            txn.get(newUser.viewsCounter, true, IntegerCRDT.class, null);
+        }
 
         // Create registration event for user
         Message newEvt = new Message(fullName + " has registered!", loginName, date);
@@ -236,10 +242,17 @@ public class SwiftSocialOps {
             msgs.addAll((get(txn, user.msgList, false, AddWinsMessageSetCRDT.class, updatesSubscriber)).getValue());
             evnts.addAll((get(txn, user.eventList, false, AddWinsMessageSetCRDT.class, updatesSubscriber)).getValue());
             if (readPageViewsCounter) {
-                final IntegerCRDT pageViewsCounter = get(txn, user.viewsCounter, false, IntegerCRDT.class,
-                        updatesSubscriber);
-                currentPageViews = pageViewsCounter.getValue();
-                pageViewsCounter.add(1);
+                if (bloatedCounters) {
+                    final BloatedIntegerCRDT pageViewsCounter = get(txn, user.viewsCounter, false,
+                            BloatedIntegerCRDT.class, updatesSubscriber);
+                    currentPageViews = pageViewsCounter.getValue();
+                    pageViewsCounter.add(1);
+                } else {
+                    final IntegerCRDT pageViewsCounter = get(txn, user.viewsCounter, false, IntegerCRDT.class,
+                            updatesSubscriber);
+                    currentPageViews = pageViewsCounter.getValue();
+                    pageViewsCounter.add(1);
+                }
             }
             commitTxn(txn);
 

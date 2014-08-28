@@ -73,6 +73,7 @@ public class SwiftSocialApp {
 
     private String propFile;
     protected int targetOpsPerSec;
+    private boolean bloatedCounters;
 
     public void init(String[] args) {
         System.err.println(Arrays.asList(args));
@@ -97,8 +98,13 @@ public class SwiftSocialApp {
         recordPageViews = Props.boolValue(props, "swiftsocial.recordPageViews", false);
         thinkTime = Props.intValue(props, "swiftsocial.thinkTime", 1000);
         targetOpsPerSec = Props.intValue(props, "swiftsocial.targetOpsPerSec", -1);
+        configBloatedCounters(props);
 
         Workload.generateUsers(numUsers);
+    }
+
+    protected void configBloatedCounters(Properties properties) {
+        bloatedCounters = Props.boolValue(properties, "swift.bloatedCounters", false);
     }
 
     public Workload getWorkloadFromConfig(int site, int numberOfSites) {
@@ -111,7 +117,7 @@ public class SwiftSocialApp {
         final SwiftOptions options = new SwiftOptions(server, DCConstants.SURROGATE_PORT, props);
         SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(options, sessionId);
         SwiftSocialOps socialClient = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
-                asyncCommit);
+                asyncCommit, bloatedCounters);
         return socialClient;
     }
 
@@ -224,7 +230,7 @@ public class SwiftSocialApp {
         try {
             SwiftSession swiftClient = SwiftImpl.newSingleSessionInstance(swiftOptions);
             SwiftSocialOps client = new SwiftSocialOps(swiftClient, isolationLevel, cachePolicy, subscribeUpdates,
-                    asyncCommit);
+                    asyncCommit, bloatedCounters);
 
             TxnHandle txn = swiftClient.beginTxn(IsolationLevel.SNAPSHOT_ISOLATION, CachePolicy.CACHED, false);
             int txnSize = 0;

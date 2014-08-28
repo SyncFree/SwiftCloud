@@ -84,7 +84,7 @@ class SwiftSocial2 extends SwiftBase {
 
     static WORKLOADS= [
         'workload-social-views-counter' : WORKLOAD_VIEWS_COUNTER,
-        'workload-social-no-views-counter' : WORKLOAD_NO_VIEWS_COUNTER
+        'workload-social' : WORKLOAD_NO_VIEWS_COUNTER
     ]
 
     // Two alternative mechanism to throttle the target throughput:
@@ -104,7 +104,7 @@ class SwiftSocial2 extends SwiftBase {
     protected void generateConfig() {
         def workload = baseWorkload + ['swiftsocial.numUsers':dbSize.toString(),
             'swiftsocial.thinkTime': thinkTime.toString(),
-            'swiftsocial.targetOpsPerSec' : ((Integer) (incomingOpPerSecLimit / scouts().size())).toString(),
+            'swiftsocial.targetOpsPerSec' : ((Integer) (incomingOpPerSecLimit / scouts.size())).toString(),
         ]
         swiftSocialProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + mode
         swiftSocialPropsPath = "swiftsocial.properties"

@@ -21,7 +21,14 @@ abstract class SwiftBase {
         'swift.isolationLevel':'SNAPSHOT_ISOLATION',
         'swift.reports':'APP_OP',
         'swift.notificationPeriodMillis':'1000',
-        'swift.notificationsFakePracti' : 'false'
+        'swift.pruningIntervalMillis' :'60000',
+        'swift.notificationsFakePracti' : 'false',
+    ]
+
+    static DC_PROPS_KEYS = [
+        'swift.pruningIntervalMillis',
+        'swift.notificationsFakePracti',
+        'swift.notificationPeriodMillis'
     ]
 
     static CACHING_NOTIFICATIONS_PROPS = ['swift.cacheSize':'256',
@@ -39,11 +46,30 @@ abstract class SwiftBase {
         'swift.notifications':'false',
         'swift.cacheUpdateProtocol':'NO_CACHE_OR_UNCOORDINATED']
 
+    static NO_PRUNING_PROPS = ['swift.pruningIntervalMillis' :'1000000000',
+        'swift.deadlineMillis' : '120000']
+
+    static BLOATED_COUNTERS_PROPS = ['swift.bloatedCounters' : 'true']
+
+    static NO_K_STABILITY_PROPS = ['swift.disasterSafe' : 'false']
+
     static MODES = [
         'refresh-frequent' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000']),
+        'refresh-frequent-no-pruning': CACHING_PERIODIC_REFRESH_PROPS + [
+            'swift.cacheRefreshPeriodMillis' : '1000'] + NO_PRUNING_PROPS,
+        // WISHME: this should rather be a workload property than a "mode" hack
+        'refresh-frequent-bloated-counter' : (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000'] + BLOATED_COUNTERS_PROPS),
+	'refresh-frequent-no-pruning-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '1000'] + BLOATED_COUNTERS_PROPS + NO_PRUNING_PROPS), 
         'refresh-infrequent': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000']),
+        'refresh-infrequent-no-pruning': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + NO_PRUNING_PROPS),
+        'refresh-infrequent-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
+        'refresh-infrequent-no-pruning-bloated-counters': (CACHING_PERIODIC_REFRESH_PROPS + ['swift.cacheRefreshPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS + NO_PRUNING_PROPS),
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
+        'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + [
+            'swift.notificationPeriodMillis':'1000']  + NO_PRUNING_PROPS,
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
+        'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],
+        'no-caching-strict-freshness-no-k-stability': NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'] + NO_K_STABILITY_PROPS,
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
         'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
     ]
@@ -161,7 +187,6 @@ abstract class SwiftBase {
     int dbSize = 50000
     int clients = 100
 
-    def pruningIntervalMillis = 60000
     def dcReports = [
         'DATABASE_TABLE_SIZE',
         'IDEMPOTENCE_GUARD_SIZE'
@@ -175,12 +200,15 @@ abstract class SwiftBase {
         'APP_OP_FAILURE',
         'METADATA',
         'STALENESS_YCSB_WRITE',
-        'STALENESS_WRITE'
+        'STALENESS_WRITE',
+        'DATABASE_TABLE_SIZE',
     ]
     // STALENESS_YCSB_READ,STALENESS_READ,STALENESS_CALIB
 
     def integratedDC = true
     def version = getGitCommitId()
+    String jar = "swiftcloud-" + version + ".jar"
+    boolean deployJar = true
 
     Map config
 
@@ -192,7 +220,7 @@ abstract class SwiftBase {
         if (Topology.datacenters.isEmpty()) {
             println "Error: no DCs defined in topology"
         }
-        shepardAddr = Topology.datacenters[0].surrogates[0];
+        shepardAddr = scouts[0];
         allMachines = (Topology.allMachines() + shepardAddr).unique()
     }
 
@@ -200,7 +228,7 @@ abstract class SwiftBase {
         return clients / scouts.size()
     }
 
-    public void runExperiment(String outputDir) {
+    public void runExperiment(String... outputDirs) {
         generateConfig()
         prepareNodes()
         onControlC({
@@ -208,15 +236,20 @@ abstract class SwiftBase {
             System.exit(1);
         })
 
-        def shep = startShepard()
         startDCs()
         println "==== WAITING A BIT BEFORE INITIALIZING DB ===="
         Sleep(interCmdDelay)
         runInitDB()
-        println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
-        Sleep(interCmdDelay)
-        runClientsWithShepard(shep)
-        collectResults(outputDir)
+        for (final int i = 0; i < outputDirs.size(); i++) {
+            def shep = startShepard()
+            println "==== WAITING A BIT BEFORE STARTING SCOUTS ===="
+            Sleep(interCmdDelay)
+            runClientsWithShepardForDuration(shep)
+            if (i == outputDirs.size() - 1) {
+                pnuke(allMachines.minus(scouts), "java", 60)
+            }
+            collectResults(outputDirs[i])
+        }
     }
 
     protected abstract void generateConfig()
@@ -226,14 +259,19 @@ abstract class SwiftBase {
 
     private prepareNodes() {
         pnuke(allMachines, "java", 60)
-        println "==== BUILDING JAR for version " + version + "..."
-        sh("ant -buildfile smd-jar-build.xml").waitFor()
-        deployTo(allMachines, "swiftcloud.jar")
+        if (!new File(jar).exists()) {
+            println "==== BUILDING JAR for version " + version + "..."
+            sh("ant -buildfile jar-build.xml -Djarname=" + jar).waitFor()
+	}
+        if (deployJar) {
+            deployTo(allMachines, jar, "swiftcloud.jar")
+        }
         deployTo(allMachines, "stuff/logging.properties", "logging.properties")
         deployConfig()
     }
 
     private def startShepard() {
+        println "==== LAUNCHING SHEPARD ===="
         return SwiftBase.runShepard(shepardAddr, duration + durationShepardGrace, "Released" )
     }
 
@@ -245,29 +283,26 @@ abstract class SwiftBase {
             }
             Sleep(10)
         }
-        def dcProps = ['swift.reports': dcReports.join(',')]
-        if (mode.containsKey('swift.notificationsFakePracti')) {
-            dcProps['swift.notificationsFakePracti'] = mode['swift.notificationsFakePracti']
-        }
-        def notificationsPeriodMillis = mode.containsKey('swift.notificationPeriodMillis') ? mode['swift.notificationPeriodMillis'] : DEFAULT_PROPS['swift.notificationPeriodMillis']
+        def dcProps = (DEFAULT_PROPS + mode).subMap(DC_PROPS_KEYS)
+        dcProps['swift.reports'] = dcReports.join(',')
 
         println "==== LAUNCHING SURROGATES"
         Topology.datacenters.each { datacenter ->
             if (integratedDC) {
-                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + genDCServerPropArgs(dcProps), "2048m")
+                datacenter.deployIntegratedSurrogatesExtraArgs(shepardAddr, genDCServerPropArgs(dcProps), "2048m")
             } else {
-                datacenter.deploySurrogatesExtraArgs(shepardAddr, "-pruningMs " + pruningIntervalMillis + " -notificationsMs " + notificationsPeriodMillis + genDCServerPropArgs(dcProps), "2048m")
+                datacenter.deploySurrogatesExtraArgs(shepardAddr, genDCServerPropArgs(dcProps), "2048m")
             }
         }
     }
 
-    private runClientsWithShepard(def shep) {
+    private runClientsWithShepardForDuration(def shep) {
         doRunClients()
 
         println "==== WAITING FOR SHEPARD SIGNAL PRIOR TO COUNTDOWN ===="
         shep.take()
         Countdown( "Max. remaining time: ", duration + interCmdDelay)
-        pnuke(allMachines, "java", 60)
+        pnuke((scouts + shepardAddr).unique(), "java", 60)
     }
 
 
@@ -291,7 +326,7 @@ abstract class SwiftBase {
         def stats = exec([
             "/bin/bash",
             "-c",
-            "wc " + dstDir + "/*/*"
+            "ls -l " + dstDir + "/*/*"
         ])
 
         exec([

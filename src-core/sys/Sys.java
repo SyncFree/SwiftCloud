@@ -103,8 +103,10 @@ public class Sys {
 
             new Task(60 * 60) {
                 public void run() {// TODO. Make this an option...
-                    System.err.println("BOOOM. Self shutdown to avoid leaving processes running on PlanetLab.");
-                    System.exit(0);
+                    // mzawirski: if you want to use it, yes - I am disabling it
+                    // by default!!
+                    // System.err.println("BOOOM. Self shutdown to avoid leaving processes running on PlanetLab.");
+                    // System.exit(0);
                 }
             };
         }

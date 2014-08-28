@@ -23,9 +23,12 @@ def exp
 if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
+    exp.baseWorkload['biasedOps'] = '4'
+    exp.baseWorkload['randomOps'] = '6'
 } else {
     exp = new SwiftYCSB()
     exp.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
+    exp.localRequestProportion = '0.4'
 }
 def modeName = args[2]
 exp.mode = SwiftBase.MODES[modeName]
