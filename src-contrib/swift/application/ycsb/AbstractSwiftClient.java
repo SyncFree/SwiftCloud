@@ -159,6 +159,7 @@ public abstract class AbstractSwiftClient extends DB {
         long startTimestamp = 0;
         if (reportEveryOperation) {
             startTimestamp = System.currentTimeMillis();
+            setTimestamp( startTimestamp, values);
             reportStalenessOnWrite(table, key, values);
         }
         final int returnCode = updateTxn(table, key, values);
@@ -188,12 +189,18 @@ public abstract class AbstractSwiftClient extends DB {
             cleanUpTxn(txn);
         }
     }
+    
+    private void setTimestamp( long ts, HashMap<String, ByteIterator> values) {
+        for( ByteIterator bit : values.values())
+            bit.setTimestamp(ts);
+    }
 
     @Override
     public int insert(String table, String key, HashMap<String, ByteIterator> values) {
         long startTimestamp = 0;
         if (reportEveryOperation) {
             startTimestamp = System.currentTimeMillis();
+            setTimestamp( startTimestamp, values);
             reportStalenessOnWrite(table, key, values);
         }
         final int returnCode = insertTxn(table, key, values);

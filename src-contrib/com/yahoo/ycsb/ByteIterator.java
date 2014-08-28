@@ -44,8 +44,9 @@ import java.util.ArrayList;
  */
 public abstract class ByteIterator implements Iterator<Byte> {
 
+    transient long ts = 0;
     transient byte []b = new byte[6];
-    transient short read = 0;   // number of bytes in b
+    transient protected short read = 0;   // number of bytes in b
     transient short consumed  = 0;   // number of bytes consumed from b
     
 	@Override
@@ -57,10 +58,16 @@ public abstract class ByteIterator implements Iterator<Byte> {
 		//return nextByte();
 	}
 
+	public final void setTimestamp( long ts) {
+	    this.ts = ts;
+	}
+
 	public final long getTimestamp() {
+	    short temp = consumed;
 	    while( read < 6 && bytesLeft0() > 0) {
-	        b[read++] = nextByte0();
+	        nextByte();
 	    }
+	    consumed = temp;
 	    if( read < 6)
 	        return -1;
 	    long t = (b[5] - ' ');
@@ -79,7 +86,8 @@ public abstract class ByteIterator implements Iterator<Byte> {
 	        return nextByte0();
 	    if( consumed < read)
 	        return b[consumed++];
-	    b[read++] = nextByte0();
+	    b[read] = nextByte0();
+	    read++;
 	    return b[consumed++];
 	}
 	

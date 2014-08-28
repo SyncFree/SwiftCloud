@@ -21,13 +21,14 @@ package com.yahoo.ycsb;
  */
 public class RandomByteIterator extends ByteIterator {
   private long len;
-  private long off;
-  private int bufOff;
+  private long off;     // global offset
+  private int bufOff;   // offset in the buffer
   private byte[] buf;
+  private boolean clean = true;
 
   @Override
   public boolean hasNext() {
-    return (off + bufOff) < len;
+    return off < len;
   }
 
   private void fillBytesImpl(byte[] buffer, int base) {
@@ -43,14 +44,13 @@ public class RandomByteIterator extends ByteIterator {
   }
 
   private void fillDateImpl(byte[] buffer, int base) {
-      long t = System.currentTimeMillis();
       try {
-        buffer[base+0] = (byte)(((t) & 31) + ' ');
-        buffer[base+1] = (byte)(((t >> 5) & 31) + ' ');
-        buffer[base+2] = (byte)(((t >> 10) & 31) + ' ');
-        buffer[base+3] = (byte)(((t >> 15) & 31) + ' ');
-        buffer[base+4] = (byte)(((t >> 20) & 31) + ' ');
-        buffer[base+5] = (byte)(((t >> 25) & 31) + ' ');
+        buffer[base+0] = (byte)(((ts) & 31) + ' ');
+        buffer[base+1] = (byte)(((ts >> 5) & 31) + ' ');
+        buffer[base+2] = (byte)(((ts >> 10) & 31) + ' ');
+        buffer[base+3] = (byte)(((ts >> 15) & 31) + ' ');
+        buffer[base+4] = (byte)(((ts >> 20) & 31) + ' ');
+        buffer[base+5] = (byte)(((ts >> 25) & 31) + ' ');
       } catch (ArrayIndexOutOfBoundsException e) { /* ignore it */ }
     }
 
@@ -58,7 +58,6 @@ public class RandomByteIterator extends ByteIterator {
     if(bufOff ==  buf.length) {
       fillBytesImpl(buf, 0);
       bufOff = 0;
-      off += buf.length;
     }
   }
   
@@ -66,7 +65,6 @@ public class RandomByteIterator extends ByteIterator {
       if(bufOff ==  buf.length) {
         fillDateImpl(buf, 0);
         bufOff = 0;
-        off += buf.length;
       }
     }
     
@@ -74,13 +72,16 @@ public class RandomByteIterator extends ByteIterator {
   public RandomByteIterator(long len) {
     this.len = len;
     this.buf = new byte[6];
-    this.bufOff = buf.length;
-    fillDate();
+    this.bufOff = 6;
     this.off = 0;
   }
 
   protected byte nextByte0() {
-    fillBytes();
+      if( super.read == 0)
+          fillDate();
+      else
+          fillBytes();
+    off++;
     bufOff++;
     return buf[bufOff-1];
   }
@@ -103,6 +104,6 @@ public class RandomByteIterator extends ByteIterator {
 
   @Override
   protected long bytesLeft0() {
-    return len - off - bufOff;
+    return len - off;
   }
 }

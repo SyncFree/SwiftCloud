@@ -225,6 +225,7 @@ public class SwiftSocialOps {
         User user = null;
         int currentPageViews = 0;
         try {
+            final long startTimestamp = System.currentTimeMillis();
             final boolean readOnly = !readPageViewsCounter;
             txn = server.beginTxn(isolationLevel, cachePolicy, readOnly);
             LWWUserRegisterCRDT reg = get(txn, NamingScheme.forUser(name), false, LWWUserRegisterCRDT.class);
