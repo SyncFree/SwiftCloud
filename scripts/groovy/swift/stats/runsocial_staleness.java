@@ -53,23 +53,23 @@ public class runsocial_staleness {
                 break;
             String[] elems = line.split(",");
             if (elems.length == 5 && elems[1].equals("STALENESS_WRITE")) {
-                // STALENESS_WRITE,time,scoutid,key,curtime - 5
+                // time,STALENESS_WRITE,scoutid,key
                 List<Write> l = msgs.get(elems[3]);
                 if (l == null) {
                     l = new ArrayList<Write>();
                     msgs.put(elems[3], l);
                 }
-                l.add(new Write(Long.parseLong(elems[4]), strs(elems[2])));
+                l.add(new Write(Long.parseLong(elems[0]), strs(elems[2])));
             } else if (elems.length == 6 && elems[1].equals("STALENESS_READ")) {
-                // STALENESS_READ,time,scoutid,key,curtime,size - 6
+                // time,STALENESS_READ,scoutid,key,size,snapshot_time
                 List<Read> l = reads.get(elems[3]);
                 if (l == null) {
                     l = new ArrayList<Read>();
                     reads.put(elems[3], l);
                 }
-                l.add(new Read(Long.parseLong(elems[4]), Integer.parseInt(elems[5]), strs(elems[2])));
+                l.add(new Read(Long.parseLong(elems[5]), Integer.parseInt(elems[4]), strs(elems[2])));
             } else if (elems.length == 7 && elems[1].equals("STALENESS_CALIB")) {
-                // STALENESS_CALIB,time,rtt,skew,scoutid,ip,server_ip - 7
+                // time,STALENESS_CALIB,rtt,skew,scoutid,ip,server_ip - 7
                 NetInfo info = netinfo.get(elems[4]);
                 if (info == null) {
                     info = new NetInfo(Long.parseLong(elems[3]), Long.parseLong(elems[2]) / 2);

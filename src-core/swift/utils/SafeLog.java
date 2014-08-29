@@ -19,7 +19,7 @@ import sys.scheduler.PeriodicTask;
 public class SafeLog {
     // TODO: alternatively, just inline these things as methods for type safety
     public static enum ReportType {
-        STALENESS_READ("scoutid", "object", "#msgs"),
+        STALENESS_READ("scoutid", "object", "#msgs", "snapshot_time"),
 
         STALENESS_WRITE("scoutid", "object"),
 

@@ -257,7 +257,7 @@ public class SwiftSocialOps {
             commitTxn(txn);
 
             // scoutid,key,size
-            SafeLog.report(ReportType.STALENESS_READ, server.getScout().getScoutId(), user.msgList, msgs.size());
+            SafeLog.report(ReportType.STALENESS_READ, server.getScout().getScoutId(), user.msgList, msgs.size(), startTimestamp);
             // ((ArrayList<Message>)msgs).get(0).getDate());
         } catch (SwiftException e) {
             logger.warning(e.getMessage());
