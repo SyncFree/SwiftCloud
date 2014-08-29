@@ -61,8 +61,8 @@ class SwiftSocial2 extends SwiftBase {
     static final WORKLOAD_VIEWS_COUNTER = [
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
-        'swiftsocial.biasedOps':'9',
-        'swiftsocial.randomOps':'1',
+        'swiftsocial.biasedOps':'8',
+        'swiftsocial.randomOps':'2',
         'swiftsocial.opGroups':'10000',
         'swiftsocial.recordPageViews':'true',
         'swiftsocial.thinkTime':'0',
@@ -73,8 +73,8 @@ class SwiftSocial2 extends SwiftBase {
     static final WORKLOAD_NO_VIEWS_COUNTER = [
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
-        'swiftsocial.biasedOps':'9',
-        'swiftsocial.randomOps':'1',
+        'swiftsocial.biasedOps':'8',
+        'swiftsocial.randomOps':'2',
         'swiftsocial.opGroups':'10000',
         'swiftsocial.recordPageViews':'true',
         'swiftsocial.thinkTime':'0',
