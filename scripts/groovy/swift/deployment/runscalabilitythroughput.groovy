@@ -7,8 +7,8 @@ import static swift.deployment.SwiftYCSB.*
 import static swift.deployment.Tools.*
 import static swift.deployment.Topology.*;
 
-if (args.length != 5) {
-    System.err.println "usage: runycscalabilitythroughput.groovy <topology file> <workload> <mode> <opslimit> <outputdir>"
+if (args.length < 5) {
+    System.err.println "usage: runycscalabilitythroughput.groovy <topology file> <workload> <mode> <opslimit> <outputdir> [#clients]"
     System.exit(1)
 }
 
@@ -30,24 +30,19 @@ if (workloadName.startsWith("workload-social")) {
 def modeName = args[2]
 exp.mode = SwiftBase.MODES[modeName]
 exp.incomingOpPerSecLimit  = args[3].toInteger()
-if (modeName == "no-caching") {
-    if  (exp.incomingOpPerSecLimit > 4000) {
-         exp.clients = 2500
-    } else {
-         exp.clients = 1000
-    }
-} else {
-    if (workloadName.startsWith("workloada")) {
-         exp.clients = 500
-    } else {
-         exp.clients = 1000
-    }
+def outputDir = args[4]
+exp.clients = 1000
+if (args.length > 5) {
+    exp.clients = args[5].toInteger()
 }
+if (modeName == "no-caching" && exp.incomingOpPerSecLimit > 4000) {
+    exp.clients = 2500
+}
+
 // Do not compute DATABASE_TABLE_SIZE as it puts more load on the DC/clients
 exp.dcReports -= 'DATABASE_TABLE_SIZE'
 exp.reports -= 'DATABASE_TABLE_SIZE'
-def outputDir = args[4]
-exp.runExperiment(String.format("%s/%s-mode-%s-opslimit-%d", outputDir, workloadName, modeName, exp.incomingOpPerSecLimit))
+exp.runExperiment(outputDir)
 
 System.exit(0)
 

@@ -82,9 +82,16 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.recordPageViews' : 'false'
     ]
 
+    private static LOWLOCALITY = [
+        'swiftsocial.biasedOps':'4',
+        'swiftsocial.randomOps':'6',
+    ]
+
     static WORKLOADS= [
         'workload-social-views-counter' : WORKLOAD_VIEWS_COUNTER,
-        'workload-social' : WORKLOAD_NO_VIEWS_COUNTER
+        'workload-social' : WORKLOAD_NO_VIEWS_COUNTER,
+        'workload-social-views-counter-lowlocality' : WORKLOAD_VIEWS_COUNTER + LOWLOCALITY,
+        'workload-social-lowlocality' : WORKLOAD_NO_VIEWS_COUNTER + LOWLOCALITY,
     ]
 
     // Two alternative mechanism to throttle the target throughput:
