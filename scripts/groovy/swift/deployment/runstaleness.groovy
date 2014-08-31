@@ -32,6 +32,7 @@ exp.mode = SwiftBase.MODES[modeName]
 exp.dbSize = args[3].toInteger()
 exp.clients = 500
 exp.incomingOpPerSecLimit = 1000
+exp.reports += ['STALENESS_YCSB_READ', 'STALENESS_READ', 'STALENESS_CALIB']
 def outputDir = args[4]
 exp.runExperiment(outputDir)
 
