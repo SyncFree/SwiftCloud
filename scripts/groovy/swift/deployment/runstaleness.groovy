@@ -33,7 +33,7 @@ exp.dbSize = args[3].toInteger()
 exp.clients = 500
 exp.incomingOpPerSecLimit = 1000
 def outputDir = args[4]
-exp.runExperiment(String.format("%s/%s-mode-%s-dbsize-%d", outputDir, workloadName, modeName, exp.dbSize))
+exp.runExperiment(outputDir)
 
 System.exit(0)
 
