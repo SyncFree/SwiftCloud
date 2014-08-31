@@ -190,11 +190,11 @@ scalabilitythroughput_response_time_plot <- function() {
 }
 
 scalabilitythroughputlowlocality_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="lowlocality", mode_pattern="(no-caching|notifications)")
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications")))
 }
 
 scalabilitythroughputclients_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, mode_pattern="clients")
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, mode_pattern=pattern_alternatives(c("no-caching", "notifications-")), workload_pattern=pattern_alternatives(c("workloada-uniform", "workloadb-uniform", "workload-social"), TRUE))
 }
 
 scalabilitythroughput9dcs_response_time_plot <- function() {
@@ -285,20 +285,22 @@ scalabilitydbsize_multi_cdf_plot <- function() {
 
 var_errors_plot <- function(dir, var_name, var_axis_label, output_dir = file.path(dir, "comparison")) {
   stats <- read_runs_errors(dir, var_name, "errors.csv")
-  p <- ggplot()
-  p <- p + labs(x=var_axis_label,y = "operation failures/run")
-  p <- p + THEME
-  p <- add_title(p, "Errors")
-  for (m in unique(stats$mode)) {
-    mode_stats <- subset(stats, mode == m)
-    mode_stats <- mode_stats[order(mode_stats$var), ]
-    melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"), na.rm=TRUE) 
-    p <- p + geom_point(data=melted, mapping=aes_string(x="var", y="value", group="variable", color="mode", shape="variable"),
-                        position=position_jitter(w=30, h=0))
+  for (w in unique(stats$workload)) {
+    workload_stats <- subset(stats, workload == w)
+    p <- ggplot()
+    p <- p + labs(x=var_axis_label,y = "operation failures/run")
+    p <- p + THEME
+    p <- add_title(p, paste(w, "errors"))
+    for (m in unique(stats$mode)) {
+      mode_stats <- subset(workload_stats, mode == m)
+      mode_stats <- mode_stats[order(mode_stats$var), ]
+      melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"), na.rm=TRUE) 
+      p <- p + geom_point(data=melted, mapping=aes_string(x="var", y="value", group="variable", color="mode", shape="variable"),
+                          position=position_jitter(w=30, h=0))
+    }
+    dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+    ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-errors", format_ext, sep="")), scale=1)
   }
-  p<- p + facet_grid(workload ~ ., scale = "free")
-  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-errors", format_ext, sep="")), scale=1)
 }
 
 scalabilitythroughput_errors_plot <- function() {
