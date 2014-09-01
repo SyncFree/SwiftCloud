@@ -67,11 +67,12 @@ abstract class SwiftBase {
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
         'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + [
             'swift.notificationPeriodMillis':'1000']  + NO_PRUNING_PROPS,
+        'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'1000', 'swift.notificationsFakePracti':'true'],
+        'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
+        'notifications-infrequent-bloated-counters': (CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
         'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],
         'no-caching-strict-freshness-no-k-stability': NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'] + NO_K_STABILITY_PROPS,
-        'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
-        'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'1000', 'swift.notificationsFakePracti':'true'],
     ]
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
