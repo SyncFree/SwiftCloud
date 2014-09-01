@@ -21,11 +21,11 @@ evaluate(topologyDef)
 def workloadName = args[1]
 def exp
 def modeName = args[2]
-if (args.length > 5) {
-    exp.dbSize = args[5].toInteger()
-} 
 if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
+    if (args.length > 5) {
+        exp.dbSize = args[5].toInteger()
+    } 
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
     exp.mode = SwiftBase.MODES[modeName]
     if (workloadName.endsWith("views-counter")) {
@@ -41,6 +41,9 @@ if (workloadName.startsWith("workload-social")) {
     }
 } else {
     exp = new SwiftYCSB()
+    if (args.length > 5) {
+        exp.dbSize = args[5].toInteger()
+    } 
     exp.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
     exp.mode = SwiftBase.MODES[modeName]
     if (workloadName.startsWith("workloada")) {
