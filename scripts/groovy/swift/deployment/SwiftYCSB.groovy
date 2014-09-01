@@ -31,13 +31,14 @@ class SwiftYCSB extends SwiftBase {
         'requestdistribution':'zipfian',
     ]
 
+    private static HIGHLOCALITY = ['localrequestproportion' : '0.8']
     private static LOWLOCALITY = ['localrequestproportion' : '0.4']
     private static UNIFORM = ['requestdistribution': 'uniform']
     static WORKLOADS= [
-        'workloada-uniform' : WORKLOAD_A + UNIFORM,
-        'workloada' : WORKLOAD_A,
-        'workloadb-uniform' : WORKLOAD_B + UNIFORM,
-        'workloadb' : WORKLOAD_B,
+        'workloada-uniform' : WORKLOAD_A + UNIFORM + HIGHLOCALITY,
+        'workloada' : WORKLOAD_A + HIGHLOCALITY,
+        'workloadb-uniform' : WORKLOAD_B + UNIFORM + HIGHLOCALITY,
+        'workloadb' : WORKLOAD_B + HIGHLOCALITY,
         'workloada-uniform-lowlocality' : WORKLOAD_A + UNIFORM + LOWLOCALITY,
         'workloada-lowlocality' : WORKLOAD_A + LOWLOCALITY,
         'workloadb-uniform-lowlocality' : WORKLOAD_B + UNIFORM + LOWLOCALITY,
