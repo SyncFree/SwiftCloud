@@ -8,6 +8,8 @@ import static swift.deployment.Topology.*;
 EuropeEC2 = [
     // DC only
     'ec2-54-72-3-142.eu-west-1.compute.amazonaws.com',
+'ec2-54-77-165-249.eu-west-1.compute.amazonaws.com',
+'ec2-54-77-166-3.eu-west-1.compute.amazonaws.com',
 ]
 
 NVirginiaEC2 = [
@@ -35,6 +37,9 @@ NVirginiaEC2 = [
 'ec2-54-165-30-105.compute-1.amazonaws.com',
 'ec2-54-165-26-63.compute-1.amazonaws.com',
 'ec2-54-165-31-209.compute-1.amazonaws.com',
+
+'ec2-54-164-200-117.compute-1.amazonaws.com',
+'ec2-54-164-191-23.compute-1.amazonaws.com',
 ]
 
 OregonEC2 = [
@@ -50,7 +55,10 @@ OregonEC2 = [
     'ec2-54-218-62-162.us-west-2.compute.amazonaws.com',
     'ec2-54-218-64-244.us-west-2.compute.amazonaws.com',
     'ec2-54-218-67-211.us-west-2.compute.amazonaws.com',
-    'ec2-54-218-68-40.us-west-2.compute.amazonaws.com'
+    'ec2-54-218-68-40.us-west-2.compute.amazonaws.com',
+
+'ec2-54-68-56-226.us-west-2.compute.amazonaws.com',
+'ec2-54-68-41-7.us-west-2.compute.amazonaws.com',
 ]
 
 // TOPOLOGY
