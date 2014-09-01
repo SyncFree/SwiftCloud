@@ -154,8 +154,14 @@ read_runs_impl <- function(dir, var_name, suffix, processor, workload_pattern, m
 }
 
 # If var_label == NA, then load (throughput op/s) is used as a variable
-var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison"), workload_pattern=".+", mode_pattern=".+") {
+var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison"),
+                                   workload_pattern=".+", mode_pattern=".+", modes=c(), modes_labels=c(),
+                                   lower_quantile=70, file_suffix = "") {
+  if (length(modes) > 0) {
+    mode_pattern <- pattern_alternatives(modes, TRUE)
+  }
   stats <- read_runs_params(dir, var_name, "ops.csv", workload_pattern=workload_pattern, mode_pattern=mode_pattern)
+  response_time_lower_quantile <- paste("response_time.q", lower_quantile, sep="")
   xvar <- "var"
   if (is.na(var_label)) {
     var_label <- "throughput [txn/s]"
@@ -166,22 +172,30 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
     p <- ggplot() 
     p <- add_title(p, w)
     p <- p + labs(x=var_label,y = "response time [ms]")
-    p <- p + scale_y_continuous(limits=c(0, 2000))
+    p <- p + scale_y_continuous(limits=c(0, 1000))
     p <- p + THEME
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
       mode_stats <- mode_stats[order(mode_stats$var), ]
       melted <- melt(mode_stats, id.vars=c("workload", "mode", xvar))
       # Is this a canonical way to do this?
-      melted <- subset(melted, variable %in% c("response_time.q75", "response_time.q95"))
+      melted <- subset(melted, variable %in% c(response_time_lower_quantile, "response_time.q95"))
       p <- p + geom_path(data=melted,
                          mapping=aes_string(y="value", x=xvar, group="variable", color="mode", linetype="variable"))
       p <- p + geom_point(data=melted,
                          mapping=aes_string(y="value", x=xvar, group="variable", color="mode", shape="mode"))
     }
-    p <- p + scale_colour_discrete(breaks = unique(workload_stats$mode))
+    if (length(modes) > 0) {
+      p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+      p <- p + scale_shape_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+    } else {
+      p <- p + scale_color_discrete(breaks = unique(workload_stats$mode))
+    }
+    p <- p + scale_linetype_discrete(name = "Response time w.r.t. access locality",
+                                     breaks = c(response_time_lower_quantile, "response_time.q95"),
+                                     labels = c(paste(lower_quantile, "th percentile (expected local request)", sep=""), "95th percentile (remote request)"))
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-    ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-response_time", format_ext, sep="")), scale=1)
+    ggsave(p, file=paste(paste(file.path(output_dir, w), file_suffix, "-", var_name, "-response_time", format_ext, sep="")), scale=1)
   }
 }
 
@@ -190,11 +204,17 @@ scalabilitythroughput_response_time_plot <- function() {
 }
 
 scalabilitythroughputlowlocality_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications")))
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada.+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=20)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="(workloadb|social).+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=20)
 }
 
 scalabilitythroughputclients_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, mode_pattern=pattern_alternatives(c("no-caching", "notifications-")), workload_pattern=pattern_alternatives(c("workloada-uniform", "workloadb-uniform", "workload-social"), TRUE))
+  clients <- seq(500, 2000, by=500)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA,
+                         modes=c("no-caching-clients-1000", paste("notifications-frequent-clients-", clients, sep="")),
+                         modes_labels=c("no client replicas", paste(clients, "client replicas")),
+                         workload_pattern=pattern_alternatives(c("workloada-uniform", "workloadb-uniform", "workload-social"), TRUE),
+                         file_suffix="-clients")
 }
 
 scalabilitythroughput9dcs_response_time_plot <- function() {
@@ -268,7 +288,7 @@ scalabilitythroughput_multi_cdf_plot <- function() {
 }
 
 scalabilitythroughputlowlocality_multi_cdf_plot <- function() {
-  multi_cdf_plot(experiment_dir("scalabilitythroughput-low-locality"), var_name = "opslimit", var_label = NA)
+  multi_cdf_plot(experiment_dir("scalabilitythroughput"), var_name = "opslimit", var_label = NA, workload_pattern="lowlocality")
 }
 
 scalabilityclients_multi_cdf_plot <- function() {
@@ -305,18 +325,6 @@ var_errors_plot <- function(dir, var_name, var_axis_label, output_dir = file.pat
 
 scalabilitythroughput_errors_plot <- function() {
   var_errors_plot(experiment_dir("scalabilitythroughput"), var_name = "opslimit", var_axis_label= "load limit [txn/s]")
-}
-
-scalabilitythroughputlowlocality_errors_plot <- function() {
-  var_errors_plot(experiment_dir("scalabilitythroughput-low-locality"), var_name = "opslimit", var_axis_label= "load limit [txn/s]")
-}
-
-scalabilitythroughput9dcs_errors_plot <- function() {
-  var_errors_plot(experiment_dir("scalabilitythroughput-9dcs"), var_name = "opslimit", var_axis_label= "load limit [txn/s]")
-}
-
-scalabilitythroughputmoreclients_errors_plot <- function() {
-  var_errors_plot(experiment_dir("scalabilitythroughput-more-clients"), var_name = "opslimit", var_axis_label= "load limit [txn/s]")
 }
 
 scalabilityclients_errors_plot <- function() {
@@ -479,8 +487,8 @@ var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, outpu
     #p <- p + scale_y_continuous(limits=c(0, ceiling(max_y/1000)*1000)) #, breaks=c(1, 10, 100, 1000, 10000))
     p <- p + cs_log_scale(min_y, max_y)
     if (length(modes) > 0) {
-      p <- p + scale_color_discrete(name="Protocol mode", breaks=modes, labels=modes_labels)
-      p <- p + scale_linetype_discrete(name="Protocol mode", breaks=modes, labels=modes_labels)
+      p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+      p <- p + scale_linetype_discrete(name="System configuration", breaks=modes, labels=modes_labels)
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-BatchUpdatesNotification-metadata", format_ext, sep="")), scale=1)
@@ -489,6 +497,12 @@ var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, outpu
 
 scalabilitythroughput_notifications_metadata_plot <- function() {
   var_notifications_metadata_plot(experiment_dir("scalabilitythroughput"), "opslimit", "load")
+}
+
+scalabilityclients_notifications_metadata_plot <- function() {
+  var_notifications_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#active client replicas",
+                                  modes=c("notifications-frequent", "notifications-infrequent", "notifications-frequent-practi"),
+                                  modes_labels=c("SwiftCloud, notifications every 1s", "SwiftCloud, notifications every 10s", "Client-assigned metadata à la PRACTI/Depot, notifications every 1s"))
 }
 
 scalabilityclientssmalldb_notifications_metadata_plot <- function() {
