@@ -7,7 +7,7 @@ import static swift.deployment.SwiftYCSB.*
 import static swift.deployment.Tools.*
 import static swift.deployment.Topology.*;
 
-if (args.length != 5) {
+if (args.length < 5) {
     System.err.println "usage: runscalabilityclients.groovy <topology configuration file> <workload> <mode> <clients_number> <outputdir> [dbsize]"
     System.exit(1)
 }
