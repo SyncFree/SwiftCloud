@@ -134,6 +134,10 @@ read_runs_impl <- function(dir, var_name, suffix, processor, workload_pattern, m
 
   stats <- data.frame()
   for (file in file_list) {
+    hide_file <- paste(sub(paste(suffix, "$", sep=""), "", file), "hide")
+    if (file.exists(hide_file)) {
+      next
+    }
      decoded <- decode_filename(file, var_name, suffix)
      if (!grepl(workload_pattern, decoded$workload) | !grepl(mode_pattern, decoded$mode)) {
        next
