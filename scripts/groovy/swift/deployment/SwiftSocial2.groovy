@@ -86,6 +86,11 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.biasedOps':'4',
         'swiftsocial.randomOps':'6',
     ]
+    
+    public static LEGACY_HIGHLOCALITY = [
+        'swiftsocial.biasedOps':'9',
+        'swiftsocial.randomOps':'1',
+    ]
 
     static WORKLOADS= [
         'workload-social-views-counter' : WORKLOAD_VIEWS_COUNTER,
