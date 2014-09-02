@@ -191,6 +191,17 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
   # "SUMMARIZED" MODE OUTPUT
   if (summarized) {
+    # Errors descriptive statistics
+    derr <- load_log_files(client_file_list, select_OP_FAILURE, "OP_FAILURE", FALSE, min_timestamp)
+    errors.stats <- data.frame(cause=character(),occurences=integer())  
+    # TODO: do it in R-idiomatic way
+    for (c in unique(derr$cause)) {
+      o <- nrow(subset(derr, derr$cause==c))
+      errors.stats <- rbind(errors.stats, data.frame(cause=c, occurences=o))
+    }
+    write.table(errors.stats, paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
+    rm(derr)
+    
     # common output format for descriptive statistics
     quantile_steps <- seq(from=0.0, to=1.0, by=0.001)
     stats <- c("mean", "stddev", rep("permille", length(quantile_steps)))
@@ -277,18 +288,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     rm(dguardsize_filtered)
     write.table(metadata_size_stats, paste(output_prefix, "meta_size.csv", sep="-"), sep=",", row.names=FALSE)
     rm(metadata_size_stats)
-
-    
-    derr <- load_log_files(client_file_list, select_OP_FAILURE, "OP_FAILURE", FALSE, min_timestamp)
-    # Errors descriptive statistics
-    errors.stats <- data.frame(cause=character(),occurences=integer())  
-    # TODO: do it in R-idiomatic way
-    for (c in unique(derr$cause)) {
-      o <- nrow(subset(derr, derr$cause==c))
-      errors.stats <- rbind(errors.stats, data.frame(cause=c, occurences=o))
-    }
-    write.table(errors.stats, paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
-    rm(derr)
   }
 
   # "SPECTROGRAM" MODE OUPUT
