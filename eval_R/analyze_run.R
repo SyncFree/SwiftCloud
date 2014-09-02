@@ -448,7 +448,10 @@ process_experiment_run <- function(path, spectrogram=TRUE, summarized=TRUE, outp
     # presume it is a tar.gz archive
     run_id <- sub(".tar.gz", "", basename(path))
     tmp_dir <- tempfile(pattern=run_id)
-    untar(path, exdir=tmp_dir, compressed="gzip")
+    untar_code <- untar(path, exdir=tmp_dir, compressed="gzip")
+    if (untar_code != 0) {
+      stop(paste("untar of", path, "failed"))
+    }
     output_prefix <- file.path(output_dir, run_id)
     process_experiment_run_dir(dir=tmp_dir,  output_prefix=output_prefix, spectrogram, summarized)
     unlink(tmp_dir, recursive=TRUE)

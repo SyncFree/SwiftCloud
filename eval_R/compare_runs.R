@@ -87,7 +87,6 @@ read_runs_full <- function(dir, var_name, suffix, workload_pattern=".+", mode_pa
     s$workload <- rep(type$workload, nrow(s))
     s$mode <- rep(type$mode, nrow(s))
     s$var <- rep(type$var, nrow(s))
-    s$stat_param
     return (s)
   }
   return (read_runs_impl(dir, var_name, suffix, full_processor, workload_pattern, mode_pattern))
@@ -143,6 +142,10 @@ read_runs_impl <- function(dir, var_name, suffix, processor, workload_pattern, m
        next
      }
      s <- read.table(file,sep = ",",row.names=NULL, header=TRUE)
+     if (nrow(s) == 0) {
+       warning(paste("ignoring empty file"), file)
+       next
+     }
      if ("stat_params" %in% names(s)) {
        # HOTFIX for old files generated with a typo
        s$stat_param <- s$stat_params
@@ -209,13 +212,13 @@ scalabilitythroughput_response_time_plot <- function() {
 }
 
 scalabilitythroughputbest_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=20)
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="(workloadb|social)", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=20)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloada", "workloada-uniform")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=70)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloadb", "workloadb-uniform", "workload-social")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=70)
 }
 
 scalabilitythroughputlowlocality_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada.+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=20)
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="(workloadb|social).+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=20)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada.+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-(500|1000|1500)")), lower_quantile=20)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="(workloadb|social).+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-(500|1000|1500)")), lower_quantile=20)
 }
 
 scalabilitythroughputclients_response_time_plot <- function() {
