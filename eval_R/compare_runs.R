@@ -15,10 +15,10 @@ add_title <- function(plot, title) {
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter", "workloada-uniform-lowlocality", "workloada-lowlocality", "workloadb-uniform-lowlocality", "workloadb-lowlocality", "workload-social-lowlocality", "workload-social-views-counter-lowlocality")
 WORKLOAD_LABELS <- c("YCSB A (uniform)", "YCSB A (zipf)", "YCSB B (uniform)", "YCSB B (zipf)", "SwiftSocial", "SwiftSocial (page view counters)", "YCSB A (uniform, low locality)", "YCSB A (zipf, low locality)", "YCSB B (uniform, low locality)", "YCSB B (zipf, low locality)", "SwiftSocial (low locality)", "SwiftSocial (page view counters, low locality)")
-PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-infrequent", "notifications-infrequent-practi", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
+PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-frequent-bloated-counters", "notifications-infrequent", "notifications-infrequent-practi", "notifications-infrequent-bloated-counters", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
 MODE_LEVELS <- PURE_MODE_LEVELS
 # TODO: use cartesian product
-for (cc in paste("clients", seq(500, 2000, by=500), sep="-")) {
+for (cc in paste("clients", seq(500, 2500, by=500), sep="-")) {
   MODE_LEVELS <- union(MODE_LEVELS, paste(PURE_MODE_LEVELS, cc, sep="-"))
 }
 DCED_MODE_LEVELS <- rep(MODE_LEVELS, 1)
@@ -477,10 +477,10 @@ var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, outpu
       p <- p + geom_line(data=mode_stats,
                          mapping=aes(y=BatchUpdatesNotification.meta.mean.scaled,
                                      x=var, color=mode, linetype=mode))
-      p <- p + geom_errorbar(data=mode_stats,
+      p <- p + geom_errorbar(data=mode_stats, position=position_dodge(width = 30),
                              mapping=aes(ymax=BatchUpdatesNotification.meta.max.scaled,
                                          ymin=BatchUpdatesNotification.meta.min.scaled,
-                                         x=var), color="black", width=15)
+                                         x=var), color=mode, width=15)
       min_y <- min(min_y, na.omit(mode_stats$BatchUpdatesNotification.meta.min.scaled))
       max_y <- max(max_y, na.omit(mode_stats$BatchUpdatesNotification.meta.max.scaled))
     }
@@ -499,16 +499,18 @@ scalabilitythroughput_notifications_metadata_plot <- function() {
   var_notifications_metadata_plot(experiment_dir("scalabilitythroughput"), "opslimit", "load")
 }
 
+MODES_SCALABILITY_CLIENTS <- c("notifications-infrequent", "notifications-frequent-practi", "notifications-infrequent-dcs-9", "notifications-frequent-practi-dcs-9") # "notifications-infrequent", 
+MODES_LABELS_SCALABILITY_CLIENTS <- c("SwiftCloud (3 DCs)", "Client-assigned metadata à la PRACTI/Depot (3 DCs)", "SwiftCloud (9 DCs)", "Client-assigned metadata à la PRACTI/Depot (9 DCs)")
 scalabilityclients_notifications_metadata_plot <- function() {
   var_notifications_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#active client replicas",
-                                  modes=c("notifications-frequent", "notifications-infrequent", "notifications-frequent-practi"),
-                                  modes_labels=c("SwiftCloud, notifications every 1s", "SwiftCloud, notifications every 10s", "Client-assigned metadata à la PRACTI/Depot, notifications every 1s"))
+                                  modes=MODES_SCALABILITY_CLIENTS,
+                                  modes_labels=MODES_LABELS_SCALABILITY_CLIENTS)
 }
 
 scalabilityclientssmalldb_notifications_metadata_plot <- function() {
   var_notifications_metadata_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#active client replicas",
-                                  modes=c("notifications-frequent", "notifications-infrequent", "notifications-frequent-practi"),
-                                  modes_labels=c("SwiftCloud, notifications every 1s", "SwiftCloud, notifications every 10s", "Client-assigned metadata à la PRACTI/Depot, notifications every 1s"))
+                                  modes=MODES_SCALABILITY_CLIENTS,
+                                  modes_labels=MODES_LABELS_SCALABILITY_CLIENTS)
 }
 
 scalabilitydbsize_notifications_metadata_plot <- function() {

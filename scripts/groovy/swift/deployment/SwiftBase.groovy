@@ -69,6 +69,7 @@ abstract class SwiftBase {
             'swift.notificationPeriodMillis':'1000']  + NO_PRUNING_PROPS,
         'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'1000', 'swift.notificationsFakePracti':'true'],
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
+        'notifications-infrequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
         'notifications-infrequent-bloated-counters': (CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
         'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],
