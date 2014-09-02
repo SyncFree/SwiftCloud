@@ -15,7 +15,7 @@ add_title <- function(plot, title) {
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter", "workloada-uniform-lowlocality", "workloada-lowlocality", "workloadb-uniform-lowlocality", "workloadb-lowlocality", "workload-social-lowlocality", "workload-social-views-counter-lowlocality")
 WORKLOAD_LABELS <- c("YCSB A (uniform)", "YCSB A (zipf)", "YCSB B (uniform)", "YCSB B (zipf)", "SwiftSocial", "SwiftSocial (page view counters)", "YCSB A (uniform, low locality)", "YCSB A (zipf, low locality)", "YCSB B (uniform, low locality)", "YCSB B (zipf, low locality)", "SwiftSocial (low locality)", "SwiftSocial (page view counters, low locality)")
-PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-frequent-bloated-counters", "notifications-infrequent", "notifications-infrequent-practi", "notifications-infrequent-bloated-counters", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
+PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-frequent-practi-no-deltas", "notifications-frequent-bloated-counters", "notifications-infrequent", "notifications-infrequent-practi", "notifications-frequent-practi-no-deltas", "notifications-infrequent-bloated-counters", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
 MODE_LEVELS <- PURE_MODE_LEVELS
 # TODO: use cartesian product
 for (cc in paste("clients", seq(500, 2500, by=500), sep="-")) {
@@ -176,7 +176,8 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
     p <- ggplot() 
     p <- add_title(p, w)
     p <- p + labs(x=var_label,y = "response time [ms]")
-    p <- p + scale_y_continuous(limits=c(0, 1000))
+    p <- p + scale_y_log10(breaks=c(1, 10, 100, 1000), limits=c(1,10000))
+    #p <- p + coord_cartesian(ylim=c(-10, 2500))
     p <- p + THEME
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
@@ -207,6 +208,11 @@ scalabilitythroughput_response_time_plot <- function() {
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA)
 }
 
+scalabilitythroughputbest_response_time_plot <- function() {
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=20)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="(workloadb|social)", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=20)
+}
+
 scalabilitythroughputlowlocality_response_time_plot <- function() {
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada.+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=20)
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="(workloadb|social).+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=20)
@@ -215,8 +221,8 @@ scalabilitythroughputlowlocality_response_time_plot <- function() {
 scalabilitythroughputclients_response_time_plot <- function() {
   clients <- seq(500, 2000, by=500)
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA,
-                         modes=c("no-caching-clients-1000", paste("notifications-frequent-clients-", clients, sep="")),
-                         modes_labels=c("no client replicas", paste(clients, "client replicas")),
+                         modes=c("no-caching-clients-1000", paste("notifications-infrequent-clients-", clients, sep=""), paste("notifications-frequent-clients-", clients, sep="")),
+                         modes_labels=c("no client replicas", paste(clients, "client replicas (1 notification / 10s)"), paste(clients, "client replicas (1 notification / 1s)")),
                          workload_pattern=pattern_alternatives(c("workloada-uniform", "workloadb-uniform", "workload-social"), TRUE),
                          file_suffix="-clients")
 }
@@ -503,8 +509,8 @@ scalabilitythroughput_notifications_metadata_plot <- function() {
   var_notifications_metadata_plot(experiment_dir("scalabilitythroughput"), "opslimit", "load")
 }
 
-MODES_SCALABILITY_CLIENTS <- c("notifications-infrequent", "notifications-frequent-practi", "notifications-infrequent-dcs-9", "notifications-frequent-practi-dcs-9") # "notifications-infrequent", 
-MODES_LABELS_SCALABILITY_CLIENTS <- c("SwiftCloud (3 DCs)", "Client-assigned metadata à la PRACTI/Depot (3 DCs)", "SwiftCloud (9 DCs)", "Client-assigned metadata à la PRACTI/Depot (9 DCs)")
+MODES_SCALABILITY_CLIENTS <- c("notifications-infrequent", "notifications-infrequent-dcs-9", "notifications-infrequent-practi", "notifications-infrequent-practi-dcs-9") # "notifications-infrequent", 
+MODES_LABELS_SCALABILITY_CLIENTS <- c("SwiftCloud (3 DCs)","SwiftCloud (9 DCs)", "Client-assigned metadata à la PRACTI/Depot (3 DCs)", "Client-assigned metadata à la PRACTI/Depot (9 DCs)")
 scalabilityclients_notifications_metadata_plot <- function() {
   var_notifications_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#active client replicas",
                                   modes=MODES_SCALABILITY_CLIENTS,
@@ -641,10 +647,14 @@ var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(di
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
       mode_stats <- mode_stats[order(mode_stats$var), ]
-      mode_stats$idempotenceGuard.scaled.mean <- mode_stats$idempotenceGuard.mean*IDEMPOTENCE_GUARD_ENTRY_BYTES
-      mode_stats$total <- mode_stats$idempotenceGuard.scaled.mean + mode_stats[[paste(dc_table(select_table(w)), "mean", sep=".")]]
+      mode_stats$extraMetadata <- mode_stats$extraMetadata*IDEMPOTENCE_GUARD_ENTRY_BYTES
+      if (grepl("practi", mode) & !grepl("no-deltas", mode)) {
+          # For each client, the DC needs to store a vector indexed by client ids
+          mode_stats$extraMetadata <-mode_stats$extraMetadata**2
+      }
+      mode_stats$total <- mode_stats$extraMetadata + mode_stats[[paste(dc_table(select_table(w)), "mean", sep=".")]]
       melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"))
-      melted <- subset(melted, variable %in% c("idempotenceGuard.scaled.mean", paste(dc_table(select_table(w)), "mean", sep="."), "total"))
+      melted <- subset(melted, variable %in% c("extraMetadata", paste(dc_table(select_table(w)), "mean", sep="."), "total"))
       p <- p + geom_path(data=melted, mapping=aes_string(y="value", x="var", color="mode", linetype="variable"))
     }
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
