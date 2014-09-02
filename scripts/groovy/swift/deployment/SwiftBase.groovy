@@ -67,9 +67,11 @@ abstract class SwiftBase {
         'notifications-frequent': CACHING_NOTIFICATIONS_PROPS  + ['swift.notificationPeriodMillis':'1000'],
         'notifications-frequent-no-pruning': CACHING_NOTIFICATIONS_PROPS  + [
             'swift.notificationPeriodMillis':'1000']  + NO_PRUNING_PROPS,
-        'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'1000', 'swift.notificationsFakePracti':'true'],
+        'notifications-frequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'1000', 'swift.notificationsFakePracti':'true', 'swift.notificationsDeltaVectors' : 'true'],
+        'notifications-frequent-practi-no-deltas': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'1000', 'swift.notificationsFakePracti':'true', 'swift.notificationsDeltaVectors' : 'false'],
         'notifications-infrequent': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000'],
-        'notifications-infrequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true'],
+        'notifications-infrequent-practi': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true', 'swift.notificationsDeltaVectors' : 'true'],
+        'notifications-infrequent-practi-no-deltas': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true', 'swift.notificationsDeltaVectors' : 'false'],
         'notifications-infrequent-bloated-counters': (CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
         'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],

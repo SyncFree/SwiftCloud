@@ -651,7 +651,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             super(clientId);
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
-            if (notificationsSendFakePractiDepotVectors) {
+            if (notificationsSendFakePractiDepotVectors && notificationsSendDeltaVectorsOnly) {
                 clientFakeVectorKnowledge = ClockFactory.newClock();
             }
             if (notificationsSendDeltaVectorsOnly) {
@@ -768,10 +768,12 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     // comparison.  
                     fakeVector = dataServer.cltClock.clone();
                 }
-                for (final String clientId : clientFakeVectorKnowledge.getSiteIds()) {
-                    final Timestamp clientTimestamp = fakeVector.getLatest(clientId);
-                    if (clientFakeVectorKnowledge.includes(clientTimestamp)) {
-                        fakeVector.drop(clientTimestamp.getIdentifier());
+                if (notificationsSendDeltaVectorsOnly) {
+                    for (final String clientId : clientFakeVectorKnowledge.getSiteIds()) {
+                        final Timestamp clientTimestamp = fakeVector.getLatest(clientId);
+                        if (clientFakeVectorKnowledge.includes(clientTimestamp)) {
+                            fakeVector.drop(clientTimestamp.getIdentifier());
+                        }
                     }
                 }
                 clientFakeVectorKnowledge.merge(fakeVector);
