@@ -775,8 +775,8 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                             fakeVector.drop(clientTimestamp.getIdentifier());
                         }
                     }
+                    clientFakeVectorKnowledge.merge(fakeVector);
                 }
-                clientFakeVectorKnowledge.merge(fakeVector);
                 batch = new BatchUpdatesNotification(snapshot, disasterSafe, objectsUpdates, fakeVector);
             } else {
                 batch = new BatchUpdatesNotification(snapshot, disasterSafe, objectsUpdates);
