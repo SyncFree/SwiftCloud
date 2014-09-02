@@ -31,8 +31,10 @@ if (workloadName.startsWith("workload-social")) {
     if (workloadName.endsWith("views-counter")) {
         exp.incomingOpPerSecLimit = 1500
         if (exp.dbSize == 10000) {
-            exp.incomingOpPerSecLimit = 800
+            exp.incomingOpPerSecLimit = 500
         }
+        exp.mode['swift.cacheSize'] = '64'
+        exp.baseWorkload['swiftsocial.userFriends'] = '9'
     } else {
         exp.incomingOpPerSecLimit = 3000
         if (exp.dbSize == 10000) {
