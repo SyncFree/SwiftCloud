@@ -199,7 +199,6 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       o <- nrow(subset(derr, derr$cause==c))
       errors.stats <- rbind(errors.stats, data.frame(cause=c, occurences=o))
     }
-    write.table(errors.stats, paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
     rm(derr)
     
     # common output format for descriptive statistics
@@ -211,64 +210,77 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
 
     dop_filtered <- load_log_files(client_file_list, select_OP, "OP", TRUE, min_timestamp)
-    # Throughput over time plot
-    # Careful: It seems that the first and last bin only cover 5000 ms
-    throughput.plot <- ggplot(dop_filtered, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000)
-    throughput.plot <- throughput.plot + labs(title="Throughput colored by client  session", x="time [ms]",y = "throughput [txn/s]") + guides(fill=FALSE)
-    #throughput.plot
-    ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
-    rm(throughput.plot)
-
-    # Operation duration CDF plot for the filtered period
-    cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
-    cdf.plot <- cdf.plot + labs(x="response time [ms]",y = "CDF")
-    # cdf.plot
-    ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
-    rm(cdf.plot)
-    
-    # Throughput / response time descriptive statistics over filtered data
-    time_steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
-    through <- hist(dop_filtered$timestamp, breaks=time_steps)
-    # summary(through$counts)
-    # summary(dop_filtered$duration)
-
-    operations_stats <- data.frame(stat=stats, stat_param=stats_params,
-                                   throughput=compute_stats(through$counts),
-                                   response_time=compute_stats(dop_filtered$duration))
-    for (op in unique(dop_filtered$operation)) {
-      op_filtered <- subset(dop_filtered, operation == op)
-      operations_stats[[paste("response_time", op, sep="_")]] <- compute_stats(op_filtered$duration)
+    if (nrow(dop_filtered) > 0) {
+      # Throughput over time plot
+      # Careful: It seems that the first and last bin only cover 5000 ms
+      throughput.plot <- ggplot(dop_filtered, aes(x=timestamp, color=sessionId)) + geom_histogram(binwidth=1000)
+      throughput.plot <- throughput.plot + labs(title="Throughput colored by client  session", x="time [ms]",y = "throughput [txn/s]") + guides(fill=FALSE)
+      #throughput.plot
+      ggsave(throughput.plot, file=paste(output_prefix, "-throughput",FORMAT_EXT,collapse="", sep=""), scale=1)
+      rm(throughput.plot)
+  
+      # Operation duration CDF plot for the filtered period
+      cdf.plot <- ggplot(dop_filtered, aes(x=duration)) + stat_ecdf(aes(colour=operation)) # + ggtitle (paste("TH",th))
+      cdf.plot <- cdf.plot + labs(x="response time [ms]",y = "CDF")
+      # cdf.plot
+      ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
+      rm(cdf.plot)
+      
+      # Throughput / response time descriptive statistics over filtered data
+      time_steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
+      through <- hist(dop_filtered$timestamp, breaks=time_steps)
+      # summary(through$counts)
+      # summary(dop_filtered$duration)
+  
+      operations_stats <- data.frame(stat=stats, stat_param=stats_params,
+                                     throughput=compute_stats(through$counts),
+                                     response_time=compute_stats(dop_filtered$duration))
+      for (op in unique(dop_filtered$operation)) {
+        op_filtered <- subset(dop_filtered, operation == op)
+        operations_stats[[paste("response_time", op, sep="_")]] <- compute_stats(op_filtered$duration)
+      }
+      write.table(operations_stats, paste(output_prefix, "ops.csv", sep="-"), sep=",", row.names=FALSE)
+      rm(through)
+    } else {
+      warning(paste("no filtered OPs found in", dir))
+      errors.stats <- rbind(errors.stats, data.frame(cause="no_OPs_found", occurences=10000))
     }
-    write.table(operations_stats, paste(output_prefix, "ops.csv", sep="-"), sep=",", row.names=FALSE)
-    rm(through)
     rm(dop_filtered)
 
 
     # Metadata size descriptive statistics
     dmetadata_filtered <- load_log_files(client_file_list, select_METADATA, "METADATA", TRUE,min_timestamp)
-    metadata_size_stats <- data.frame(stat=stats, stat_param=stats_params)
-    for (m in unique(dmetadata_filtered$message)) {
-      m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
-      metadata_size_stats[[paste(m, "msg", sep="-")]] <- compute_stats(m_filtered$totalMessageSize)
-      metadata_size_stats[[paste(m,"msg", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinestGrained)
-      metadata_size_stats[[paste(m,"msg", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinerGrained)
-      metadata_size_stats[[paste(m,"msg", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeCoarseGrained)
-      metadata_size_stats[[paste(m, "meta-indep", sep="-")]] <- compute_stats(m_filtered$batchIndependentGlobalMetadata)
-      metadata_size_stats[[paste(m, "meta-dep", sep="-")]] <- compute_stats(m_filtered$batchDependentGlobalMetadata)
-      metadata_size_stats[[paste(m, "meta-tot", sep="-")]] <- compute_stats(m_filtered$totalGlobalMetadata)
-      metadata_size_stats[[paste(m, "meta-dep", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeFinestGrained)
-      metadata_size_stats[[paste(m, "meta-dep", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeFinerGrained)
-      metadata_size_stats[[paste(m, "meta-dep", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained)
-      metadata_size_stats[[paste(m, "meta-tot", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinestGrained)
-      metadata_size_stats[[paste(m, "meta-tot", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinerGrained)
-      metadata_size_stats[[paste(m, "meta-tot", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeCoarseGrained)
-      metadata_size_stats[[paste(m, "vv-size", sep="-")]] <- compute_stats(m_filtered$maxVVSize)
-      metadata_size_stats[[paste(m, "vv-exceptions", sep="-")]] <- compute_stats(m_filtered$maxVVExceptionsNum)
-      metadata_size_stats[[paste(m, "batch1", sep="-")]] <- compute_stats(m_filtered$batchSizeFinestGrained)
-      metadata_size_stats[[paste(m, "batch2", sep="-")]] <- compute_stats(m_filtered$batchSizeFinerGrained)
-      metadata_size_stats[[paste(m, "batch3", sep="-")]] <- compute_stats(m_filtered$batchSizeCoarseGrained)
+    if (nrow(dmetadata_filtered) > 0) {
+      metadata_size_stats <- data.frame(stat=stats, stat_param=stats_params)
+      for (m in unique(dmetadata_filtered$message)) {
+        m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
+        metadata_size_stats[[paste(m, "msg", sep="-")]] <- compute_stats(m_filtered$totalMessageSize)
+        metadata_size_stats[[paste(m,"msg", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinestGrained)
+        metadata_size_stats[[paste(m,"msg", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeFinerGrained)
+        metadata_size_stats[[paste(m,"msg", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalMessageSizeByBatchSizeCoarseGrained)
+        metadata_size_stats[[paste(m, "meta-indep", sep="-")]] <- compute_stats(m_filtered$batchIndependentGlobalMetadata)
+        metadata_size_stats[[paste(m, "meta-dep", sep="-")]] <- compute_stats(m_filtered$batchDependentGlobalMetadata)
+        metadata_size_stats[[paste(m, "meta-tot", sep="-")]] <- compute_stats(m_filtered$totalGlobalMetadata)
+        metadata_size_stats[[paste(m, "meta-dep", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeFinestGrained)
+        metadata_size_stats[[paste(m, "meta-dep", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeFinerGrained)
+        metadata_size_stats[[paste(m, "meta-dep", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedBatchDependentGlobalMetadataByBatchSizeCoarseGrained)
+        metadata_size_stats[[paste(m, "meta-tot", "norm1",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinestGrained)
+        metadata_size_stats[[paste(m, "meta-tot", "norm2",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeFinerGrained)
+        metadata_size_stats[[paste(m, "meta-tot", "norm3",sep="-")]] <- compute_stats(m_filtered$normalizedTotalGlobalMetadataByBatchSizeCoarseGrained)
+        metadata_size_stats[[paste(m, "vv-size", sep="-")]] <- compute_stats(m_filtered$maxVVSize)
+        metadata_size_stats[[paste(m, "vv-exceptions", sep="-")]] <- compute_stats(m_filtered$maxVVExceptionsNum)
+        metadata_size_stats[[paste(m, "batch1", sep="-")]] <- compute_stats(m_filtered$batchSizeFinestGrained)
+        metadata_size_stats[[paste(m, "batch2", sep="-")]] <- compute_stats(m_filtered$batchSizeFinerGrained)
+        metadata_size_stats[[paste(m, "batch3", sep="-")]] <- compute_stats(m_filtered$batchSizeCoarseGrained)
+      }
+    } else {
+      warning(paste("no METADATA entriesfound in", dir))
+      errors.stats <- rbind(errors.stats, data.frame(cause="no_METADATAs_found", occurences=10000))
     }
     rm(dmetadata_filtered)
+
+    write.table(errors.stats, paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
+    
     process_db_size <- function(file_list, node_type) {
       dtablesize_filtered <- load_log_files(file_list, select_DATABASE_TABLE_SIZE, "DATABASE_TABLE_SIZE", TRUE, min_timestamp)
       if (nrow(dtablesize_filtered) > 0) {
@@ -448,11 +460,12 @@ process_experiment_run <- function(path, spectrogram=TRUE, summarized=TRUE, outp
     # presume it is a tar.gz archive
     run_id <- sub(".tar.gz", "", basename(path))
     tmp_dir <- tempfile(pattern=run_id)
+    output_prefix <- file.path(output_dir, run_id)
     untar_code <- untar(path, exdir=tmp_dir, compressed="gzip")
     if (untar_code != 0) {
+      write.table(data.frame(cause="untar_failed", occurences=10000), paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
       stop(paste("untar of", path, "failed"))
     }
-    output_prefix <- file.path(output_dir, run_id)
     process_experiment_run_dir(dir=tmp_dir,  output_prefix=output_prefix, spectrogram, summarized)
     unlink(tmp_dir, recursive=TRUE)
   }
