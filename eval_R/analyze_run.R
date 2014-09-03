@@ -250,8 +250,8 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
 
     # Metadata size descriptive statistics
     dmetadata_filtered <- load_log_files(client_file_list, select_METADATA, "METADATA", TRUE,min_timestamp)
+    metadata_size_stats <- data.frame(stat=stats, stat_param=stats_params)
     if (nrow(dmetadata_filtered) > 0) {
-      metadata_size_stats <- data.frame(stat=stats, stat_param=stats_params)
       for (m in unique(dmetadata_filtered$message)) {
         m_filtered <- subset(dmetadata_filtered, dmetadata_filtered$message==m)
         metadata_size_stats[[paste(m, "msg", sep="-")]] <- compute_stats(m_filtered$totalMessageSize)

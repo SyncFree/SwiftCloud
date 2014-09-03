@@ -15,7 +15,7 @@ add_title <- function(plot, title) {
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter", "workloada-uniform-lowlocality", "workloada-lowlocality", "workloadb-uniform-lowlocality", "workloadb-lowlocality", "workload-social-lowlocality", "workload-social-views-counter-lowlocality")
 WORKLOAD_LABELS <- c("YCSB A (uniform)", "YCSB A (zipf)", "YCSB B (uniform)", "YCSB B (zipf)", "SwiftSocial", "SwiftSocial (page view counters)", "YCSB A (uniform, low locality)", "YCSB A (zipf, low locality)", "YCSB B (uniform, low locality)", "YCSB B (zipf, low locality)", "SwiftSocial (low locality)", "SwiftSocial (page view counters, low locality)")
-PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-frequent-practi-no-deltas", "notifications-frequent-bloated-counters", "notifications-infrequent", "notifications-infrequent-practi", "notifications-frequent-practi-no-deltas", "notifications-infrequent-bloated-counters", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
+PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-veryfrequent", "notifications-frequent-no-pruning",  "notifications-frequent-practi", "notifications-frequent-practi-no-deltas", "notifications-frequent-bloated-counters", "notifications-infrequent", "notifications-infrequent-practi", "notifications-infrequent-practi-no-deltas", "notifications-infrequent-bloated-counters", "no-caching", "refresh-frequent", "refresh-frequent-no-pruning", "refresh-infrequent", "refresh-infrequent-bloated-counters", "refresh-infrequent-no-pruning", "refresh-infrequent-no-pruning-bloated-counters")
 MODE_LEVELS <- PURE_MODE_LEVELS
 # TODO: use cartesian product
 for (cc in paste("clients", seq(500, 2500, by=500), sep="-")) {
@@ -142,7 +142,7 @@ read_runs_impl <- function(dir, var_name, suffix, processor, workload_pattern, m
        next
      }
      s <- read.table(file,sep = ",",row.names=NULL, header=TRUE)
-     if (nrow(s) == 0) {
+     if (length(names(s)) == 0) {
        warning(paste("ignoring empty file"), file)
        next
      }
