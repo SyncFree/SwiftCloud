@@ -207,13 +207,31 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
   }
 }
 
+modevar_max_throughput_plot <- function(dir, var_name, output_dir = file.path(dir, "comparison"),
+                                        workload_pattern=".+", modes=c(), modes_labels=c(),
+                                        modesvars, modesvar_label, lower_quantile=70, file_suffix = "") {
+  stats <- read_runs_params(dir, var_name, "ops.csv", workload_pattern=workload_pattern, mode_pattern=mode_pattern)
+  response_time_lower_quantile <- paste("response_time.q", lower_quantile, sep="")
+  modes_info <- data.frame(modes=modes, modes_labels=modes_labels, modesvars=modesvars)
+  summary <- data.frame(workload, modes_info)
+  for (info in modes_info) {
+    
+  }
+  if (is.na(var_label)) {
+    var_label <- "throughput [txn/s]"
+    xvar <- "throughput.mean"
+  }
+  for (w in unique(stats$workload)) {
+}
+  
+
 scalabilitythroughput_response_time_plot <- function() {
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA)
 }
 
 scalabilitythroughputbest_response_time_plot <- function() {
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloada", "workloada-uniform")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-500")), lower_quantile=70)
-  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloadb", "workloadb-uniform", "workload-social")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-1000")), lower_quantile=70)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloada", "workloada-uniform")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in|very)?frequent-clients-500")), lower_quantile=70)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloadb", "workloadb-uniform", "workload-social")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in|very)?frequent-clients-1000")), lower_quantile=70)
 }
 
 scalabilitythroughputlowlocality_response_time_plot <- function() {
@@ -638,8 +656,15 @@ TABLES <- c(select_table("swiftsocial"), select_table("YCSB"))
 dc_table <- function(table) {
   return (paste(table, "dc", sep="."))
 }
-var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) {
-  stats <- read_runs_params(dir, var_name, "meta_size.csv", c("idempotenceGuard", dc_table(TABLES)))
+var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison"),
+                             workload_pattern=".+", modes=c(), modes_labels=c()) {
+  if (length(modes) == 0) {
+    mode_pattern = ".+"
+  } else {
+    mode_pattern = pattern_alternatives(modes, exact_match=TRUE)
+  }
+  stats <- read_runs_params(dir, var_name, "meta_size.csv", c("idempotenceGuard", dc_table(TABLES)),
+                            workload_pattern = workload_pattern, mode_pattern = mode_pattern)
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, workload == w)
     p <- ggplot()
@@ -650,8 +675,8 @@ var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(di
     for (m in unique(workload_stats$mode)) {
       mode_stats <- subset(workload_stats, workload_stats$mode == m)
       mode_stats <- mode_stats[order(mode_stats$var), ]
-      mode_stats$extraMetadata <- mode_stats$extraMetadata*IDEMPOTENCE_GUARD_ENTRY_BYTES
-      if (grepl("practi", mode) & !grepl("no-deltas", mode)) {
+      mode_stats$extraMetadata <- mode_stats$idempotenceGuard.mean*IDEMPOTENCE_GUARD_ENTRY_BYTES
+      if (grepl("practi", m) & !grepl("no-deltas", m)) {
           # For each client, the DC needs to store a vector indexed by client ids
           mode_stats$extraMetadata <-mode_stats$extraMetadata**2
       }
@@ -659,7 +684,15 @@ var_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(di
       melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"))
       melted <- subset(melted, variable %in% c("extraMetadata", paste(dc_table(select_table(w)), "mean", sep="."), "total"))
       p <- p + geom_path(data=melted, mapping=aes_string(y="value", x="var", color="mode", linetype="variable"))
+      p <- p + geom_point(data=melted, mapping=aes_string(y="value", x="var", color="mode", shape="mode"))
     }
+    if (length(modes) > 0) {
+      p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+      p <- p + scale_shape_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+    }
+    p <- p + scale_linetype_discrete(name="Type of data",
+                                     breaks=c(paste(dc_table(select_table(w)), "mean", sep="."), "extraMetadata", "total"),
+                                     labels=c("Objects data+metadata", "System metadata", "Total"))
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-storage_dc", format_ext, sep="")), scale=1)
   }
@@ -674,7 +707,11 @@ scalabilityclients_storage_plot <- function() {
 }
 
 scalabilityclientssmalldb_storage_plot <- function() {
-  var_storage_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#client replicas")
+  modes <- c("notifications-infrequent", "notifications-infrequent-practi", "notifications-infrequent-practi-no-deltas", "notifications-infrequent-bloated-counters",
+             "notifications-infrequent-dcs-9", "notifications-infrequent-practi-dcs-9", "notifications-infrequent-practi-no-deltas-dcs-9", "notifications-infrequent-bloated-counters-dcs-9")
+  var_storage_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#client replicas",
+                   modes=modes,
+                   modes_labels=modes)
 }
 
 DB_SIZE_CHECKPOINT_EXP <- 10000
@@ -708,7 +745,7 @@ clientfailures_checkpoint_size_plot <- function() {
 client_table <- function(table) {
   return (paste(table, "client", sep="."))
 }
-var_client_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) {
+var_client_storage_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) { 
   stats <- read_runs_params(dir, var_name, "meta_size.csv", client_table(TABLES))
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, workload == w)
