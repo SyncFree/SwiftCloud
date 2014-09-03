@@ -60,6 +60,23 @@ select_OP_FAILURE <- function (log) {
   return (result)
 }
 
+select_OP_FAILURE_timeout_as_20000 <- function (log) {
+  return (select_OP_FAILURE_by_cause_as_OP(log, "network_failure", 20000))
+}
+
+select_OP_FAILURE_pruned_as_20000 <- function (log) {
+  return (select_OP_FAILURE_by_cause_as_OP(log, "network_failure", 20000))
+}
+
+select_OP_FAILURE_by_cause_as_OP <- function (log, cause, fake_duration) {
+  result <- subset(log,log$V2=="APP_OP_FAILURE" & log$V5 == cause)
+  result <- result[, c("V1", "V3", "V4")]
+  names(result) <- c("timestamp","sessionId","operation")
+  result <- transform(result, sessionId=factor(sessionId), operation=factor(operation))
+  result$duration <- rep(fake_duration, nrow(result))
+  return (result)
+}
+
 select_METADATA <- function (log) {
   result <- subset(log,log$V2=="METADATA")
   result <- result[, c("V1","V3", "V4", "V5",
@@ -210,6 +227,12 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
     }
 
     dop_filtered <- load_log_files(client_file_list, select_OP, "OP", TRUE, min_timestamp)
+    #dop_timeout_filtered <- load_log_files(client_file_list, select_OP_FAILURE_timeout_as_20000, "OP_FAILURE", TRUE, min_timestamp)
+    #dop_pruned_filtered <- load_log_files(client_file_list, select_OP_FAILURE_pruned_as_20000, "OP_FAILURE", TRUE, min_timestamp)
+    #dop_with_timeout_filtered <- rbind(dop_filtered, dop_timeout_filtered)
+    #dop_with_timeout_pruned_filtered <- rbind(dop_with_timeout_filtered, dop_pruned_filtered)
+    #rm(dop_timeout_filtered)
+    #rm(dop_pruned_filtered)
     if (nrow(dop_filtered) > 0) {
       # Throughput over time plot
       # Careful: It seems that the first and last bin only cover 5000 ms
@@ -226,21 +249,27 @@ process_experiment_run_dir <- function(dir, output_prefix, spectrogram=TRUE,summ
       ggsave(cdf.plot, file=paste(output_prefix, "-cdf",FORMAT_EXT,collapse="", sep=""), scale=1)
       rm(cdf.plot)
       
-      # Throughput / response time descriptive statistics over filtered data
-      time_steps <- c(seq(min(dop_filtered$timestamp),max(dop_filtered$timestamp),by=1000), max(dop_filtered$timestamp))
-      through <- hist(dop_filtered$timestamp, breaks=time_steps)
-      # summary(through$counts)
-      # summary(dop_filtered$duration)
-  
-      operations_stats <- data.frame(stat=stats, stat_param=stats_params,
-                                     throughput=compute_stats(through$counts),
-                                     response_time=compute_stats(dop_filtered$duration))
-      for (op in unique(dop_filtered$operation)) {
-        op_filtered <- subset(dop_filtered, operation == op)
-        operations_stats[[paste("response_time", op, sep="_")]] <- compute_stats(op_filtered$duration)
+      operations_stats <- data.frame(stat=stats, stat_param=stats_params)
+      compute_all_stats <- function (ops, ops_name_suffix) {
+        # Throughput / response time descriptive statistics over filtered data
+        time_steps <- c(seq(min(ops$timestamp),max(ops$timestamp),by=1000), max(ops$timestamp))
+        through <- hist(ops$timestamp, breaks=time_steps)
+    
+        operations_stats[[paste("throughput", ops_name_suffix, sep="")]] <<- compute_stats(through$counts)
+        operations_stats[[paste("response_time", ops_name_suffix, sep="")]] <<- compute_stats(ops$duration)
+        for (op in unique(ops$operation)) {
+          op_filtered <- subset(ops, operation == op)
+          operations_stats[[paste(paste("response_time", ops_name_suffix, sep=""), op, sep="_")]] <<- compute_stats(op_filtered$duration)
+        }
+        rm(through)
+        rm(time_steps)
       }
+      compute_all_stats(dop_filtered, "")
+      # compute_all_stats(dop_with_timeout_filtered, "_with_timeout")
+      # rm(dop_with_timeout_filtered)
+      # rm(dop_with_timeout_pruned_filtered)
+      # compute_all_stats(dop_with_timeout_pruned_filtered, "_with_timeout_pruned")
       write.table(operations_stats, paste(output_prefix, "ops.csv", sep="-"), sep=",", row.names=FALSE)
-      rm(through)
     } else {
       warning(paste("no filtered OPs found in", dir))
       errors.stats <- rbind(errors.stats, data.frame(cause="no_OPs_found", occurences=10000))
@@ -464,6 +493,7 @@ process_experiment_run <- function(path, spectrogram=TRUE, summarized=TRUE, outp
     untar_code <- untar(path, exdir=tmp_dir, compressed="gzip")
     if (untar_code != 0) {
       write.table(data.frame(cause="untar_failed", occurences=10000), paste(output_prefix, "errors.csv", sep="-"), sep=",", row.names=FALSE)
+      unlink(tmp_dir, recursive=TRUE)
       stop(paste("untar of", path, "failed"))
     }
     process_experiment_run_dir(dir=tmp_dir,  output_prefix=output_prefix, spectrogram, summarized)
