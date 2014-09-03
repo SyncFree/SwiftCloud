@@ -75,6 +75,7 @@ abstract class SwiftBase {
         'notifications-infrequent-practi-no-deltas': CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis':'10000', 'swift.notificationsFakePracti':'true', 'swift.notificationsDeltaVectors' : 'false'],
         'notifications-infrequent-bloated-counters': (CACHING_NOTIFICATIONS_PROPS + ['swift.notificationPeriodMillis' : '10000'] + BLOATED_COUNTERS_PROPS),
         'no-caching' : NO_CACHING_NOTIFICATIONS_PROPS,
+        'no-caching-no-pruning' : NO_CACHING_NOTIFICATIONS_PROPS + NO_PRUNING_PROPS,
         'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],
         'no-caching-strict-freshness-no-k-stability': NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'] + NO_K_STABILITY_PROPS,
     ]
