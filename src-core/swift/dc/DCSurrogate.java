@@ -193,7 +193,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
         new PeriodicTask(0.0, CLOCKS_REPORTING_PERIOD_SEC) {
             public void run() {
                 System.err.printf("DC %s: VV=%s, VV_K=%s\n", DCSurrogate.this.siteId,
-                        getEstimatedDCVersionCopy(), getEstimatedDCVersionCopy());
+                        getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy());
             };
         };
     }
