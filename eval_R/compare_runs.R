@@ -222,6 +222,7 @@ modevar_max_throughput_plot <- function(dir, var_name, output_dir = file.path(di
     xvar <- "throughput.mean"
   }
   for (w in unique(stats$workload)) {
+  }
 }
   
 
@@ -233,6 +234,12 @@ scalabilitythroughputbest_response_time_plot <- function() {
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloada", "workloada-uniform")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in|very)?frequent-clients-500")), lower_quantile=70)
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloadb", "workloadb-uniform", "workload-social")), mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in|very)?frequent-clients-1000")), lower_quantile=70)
 }
+
+scalabilitythroughputbest9dcs_response_time_plot <- function() {
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloada", "workloada-uniform")), mode_pattern=pattern_alternatives(c("no-caching-clients-1000-dcs-9", "notifications-(in|very)?frequent-clients-500-dcs-9")), lower_quantile=70)
+  var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern=pattern_alternatives(c("workloadb", "workloadb-uniform", "workload-social")), mode_pattern=pattern_alternatives(c("no-caching-clients-1000-dcs-9", "notifications-(in|very)?frequent-clients-1000-dcs-9")), lower_quantile=70)
+}
+
 
 scalabilitythroughputlowlocality_response_time_plot <- function() {
   var_response_time_plot(experiment_dir("scalabilitythroughput"), var_name="opslimit", var_label=NA, workload_pattern="workloada.+lowlocality", mode_pattern=pattern_alternatives(c("no-caching", "notifications-(in)?frequent-clients-(500|1000|1500)")), lower_quantile=20)
