@@ -24,7 +24,7 @@ if (workloadName.startsWith("workload-social")) {
     exp = new SwiftSocial2()
     exp.baseWorkload = SwiftSocial2.WORKLOADS[workloadName]
     // results-backwards compatibility hack(!)
-    exp.baseWorkload += LEGACY_HIGHLOCALITY
+    exp.baseWorkload += SwiftSocial2.LEGACY_HIGHLOCALITY
 } else {
     exp = new SwiftYCSB()
     exp.baseWorkload = SwiftYCSB.WORKLOADS[workloadName]
