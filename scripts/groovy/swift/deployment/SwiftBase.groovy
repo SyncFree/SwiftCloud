@@ -79,6 +79,7 @@ abstract class SwiftBase {
         'no-caching-no-pruning' : NO_CACHING_NOTIFICATIONS_PROPS + NO_PRUNING_PROPS,
         'no-caching-strict-freshness' : NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'],
         'no-caching-strict-freshness-no-k-stability': NO_CACHING_NOTIFICATIONS_PROPS + ['swift.cachePolicy' : 'MOST_RECENT'] + NO_K_STABILITY_PROPS,
+        'no-caching-no-k-stability': NO_CACHING_NOTIFICATIONS_PROPS + NO_K_STABILITY_PROPS,
     ]
 
     static String swift_app_cmd( String heap, String exec, String stderr, String stdout ) {
