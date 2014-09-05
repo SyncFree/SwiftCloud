@@ -11,14 +11,14 @@ class Parallel {
     
     static Executor threads = Executors.newFixedThreadPool(48)
 
-    static Map rsh( List<String> hosts, Closure cmd,  Closure resHandler, boolean ignoreIO, int timeout ) {
+    static Map rsh( List<String> hosts, Closure cmd,  Closure resHandler, boolean ignoreIO, int timeout, boolean openTerminal = false) {
         def res = new ConcurrentHashMap<String, Process>()
 
         hosts.each { String it ->
             threads.execute( new Runnable() {
                         public void run() {
                             def cmdline = [
-                                "ssh",
+                                "ssh"] + (openTerminal ? ["-t"] : []) +[
                                 String.format("%s@%s", userName(), it),
                                 cmd.call(it)
                             ]
