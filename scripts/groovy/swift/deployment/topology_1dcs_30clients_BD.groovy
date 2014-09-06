@@ -45,21 +45,6 @@ NVirginiaEC2 = [
 'ec2-54-164-5-227.compute-1.amazonaws.com',
 ]
 
-OregonEC2 = [
-    // first node is a DC, followed by 10 scouts, and 2 DCs
-    'ec2-54-68-4-179.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-4-180.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-181.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-182.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-183.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-184.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-185.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-187.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-188.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-189.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-190.us-west-2.compute.amazonaws.com',
-]
-
 // TOPOLOGY
 Topology.clear()
 

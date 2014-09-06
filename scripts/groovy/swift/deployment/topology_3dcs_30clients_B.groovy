@@ -12,7 +12,8 @@ EuropeEC2 = [
 
 NVirginiaEC2 = [
     // first node is a DC, followed by two groups of 10 scouts, and 2 DCs
-'ec2-54-164-130-184.compute-1.amazonaws.com',
+'ec2-54-165-63-190.compute-1.amazonaws.com',
+    
 'ec2-54-164-81-205.compute-1.amazonaws.com',
 'ec2-54-164-177-141.compute-1.amazonaws.com',
 'ec2-54-164-197-149.compute-1.amazonaws.com',
@@ -23,6 +24,7 @@ NVirginiaEC2 = [
 'ec2-54-164-65-77.compute-1.amazonaws.com',
 'ec2-54-164-154-114.compute-1.amazonaws.com',
 'ec2-54-164-200-3.compute-1.amazonaws.com',
+
 'ec2-54-164-115-108.compute-1.amazonaws.com',
 'ec2-54-164-145-151.compute-1.amazonaws.com',
 'ec2-54-164-73-233.compute-1.amazonaws.com',
@@ -37,17 +39,19 @@ NVirginiaEC2 = [
 
 OregonEC2 = [
     // first node is a DC, followed by 10 scouts, and 2 DCs
-    'ec2-54-68-4-179.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-4-180.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-181.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-182.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-183.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-184.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-185.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-187.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-188.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-189.us-west-2.compute.amazonaws.com',
-'ec2-54-68-4-190.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-90-179.us-west-2.compute.amazonaws.com',
+
+    'ec2-54-68-105-97.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-105-29.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-104-88.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-104-71.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-104-96.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-104-5.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-104-143.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-103-11.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-105-17.us-west-2.compute.amazonaws.com',
+    'ec2-54-68-104-218.us-west-2.compute.amazonaws.com',
+
 ]
 
 // TOPOLOGY
