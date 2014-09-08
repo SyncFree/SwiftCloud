@@ -45,7 +45,8 @@ THEME <- THEME + theme(panel.border = element_blank(), plot.background = element
                         panel.grid.major = element_line(size = .3, color = "grey"),
                         axis.line = element_line(size=.4, color = "black"),
                         legend.position='bottom', legend.direction='vertical',
-                        legend.box='horizontal', legend.key=element_blank())
+                        legend.box='horizontal', legend.key=element_blank(),
+                        strip.background= element_rect(fill = 'white', colour = 'black'))
 
 # computer-scientish log. scale
 cs_log_scale <- function(min_value=10**0, max_value=10**6) {
@@ -424,7 +425,7 @@ cdfs_locality_plot <- function(dir, var_name, files,
   p <- p + labs(x="operation response time [ms]",y = "CDF for all sessions")
   p <- p + coord_cartesian(xlim = c(0, CDFS_RESPONSE_TIME_CUTOFF), ylim = c(0, 1.00))
   p <- p + scale_y_continuous(labels = percent)
-  p <- p + THEME + theme(legend.direction='vertical', strip.background= element_rect(fill = 'white', colour = 'black'),
+  p <- p + THEME + theme(legend.direction='vertical',
                          panel.margin= unit(0.79, 'lines'), legend.title = element_blank(), legend.key.height=unit(0.8,"line"))
   #p <- add_title(p, paste(w, m, dd, "DCs", cc, "clients", v, var_name))
   p <- p + scale_linetype_discrete(name = "",
