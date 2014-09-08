@@ -40,7 +40,7 @@ CLIENTS_LEVELS <-c(500,1000,1500,2000,2500)
 MODE_LABELS <- MODE_LEVELS #TODO
 #MODE_LABELS <- c("mutable cache with 1 notification per sec", "mutable cache with 1 notification per sec" + no pruning", "mutable cache + 1 notification/s + PRACTI metadata", "mutable cache + 1 notification/10s", "mutable cache + 1 notification/10s + PRACTI metadata", "no cache replica", "mutable cache + 1 refresh/s", "mutable cache + 1 refresh/s + no pruning", "mutable cache + 1 refresh/10s")
 
-THEME <- theme_bw(base_size=12, base_family="Helvetica")
+THEME <- theme_bw(base_size=11, base_family="Helvetica")
 THEME <- THEME + theme(panel.border = element_blank(), plot.background = element_blank(),
                         panel.grid.major = element_line(size = .3, color = "grey"),
                         axis.line = element_line(size=.4, color = "black"),
@@ -414,20 +414,19 @@ OPERATION_TYPES <- c("read", "update", "READ", "FRIEND", "SEE_FRIENDS", "POST", 
 RESPONSE_TIME_OPERATION_TYPES <- paste("response_time", OPERATION_TYPES, sep="_")
 OPERATION_TYPES_LABELS <- c("YCSB read", "YSCB update", "read wall", "add friend", "see friends", "post message", "post status")
 
-RESPONSE_TIME_CUTOFF <- 500
+CDFS_RESPONSE_TIME_CUTOFF <- 300
 RTT <- 60
-# If var_label == NA, then load (throughput op/s) is used as a variable
-cdf_locality_plot <- function(dir, var_name, files,
-                     output_dir = file.path(dir, "comparison"), output_suffix) {
+
+cdfs_locality_plot <- function(dir, var_name, files,
+                               output_dir = file.path(dir, "comparison"), output_suffix) {
   stats <- read_runs_full(dir, var_name, "ops.csv", files=files)
-  
   
   p <- ggplot()
   p <- p + labs(x="operation response time [ms]",y = "CDF for all sessions")
-  p <- p + coord_cartesian(xlim = c(0, RESPONSE_TIME_CUTOFF), ylim = c(0, 1.05))
+  p <- p + coord_cartesian(xlim = c(0, CDFS_RESPONSE_TIME_CUTOFF), ylim = c(0, 1.00))
   p <- p + scale_y_continuous(labels = percent)
   p <- p + THEME + theme(legend.direction='vertical', strip.background= element_rect(fill = 'white', colour = 'black'),
-                         panel.margin= unit(1, 'lines'), legend.title = element_blank())
+                         panel.margin= unit(0.79, 'lines'), legend.title = element_blank(), legend.key.height=unit(0.8,"line"))
   #p <- add_title(p, paste(w, m, dd, "DCs", cc, "clients", v, var_name))
   p <- p + scale_linetype_discrete(name = "",
                                    breaks = RESPONSE_TIME_OPERATION_TYPES,
@@ -435,13 +434,9 @@ cdf_locality_plot <- function(dir, var_name, files,
   p <- p + scale_color_discrete(name = "",
                                 breaks = RESPONSE_TIME_OPERATION_TYPES,
                                 labels = OPERATION_TYPES_LABELS)
-  p <- p + annotate("rect", xmin = RTT, xmax = 2*RTT, ymin = 0, ymax = 1, alpha = .05)
-  p <- p + annotate("rect", xmin = 2*RTT, xmax = RESPONSE_TIME_CUTOFF, ymin = 0, ymax = 1, alpha = .1)
-  p <- p + annotate("text", x=RTT*0.5, y=0.33, label="< 1 RTT", angle=90, size = 2.5, hjust=1)
-  p <- p + annotate("text", x=RTT*1.5, y=0.33, label="⪆ 1 RTT", angle=90, size = 2.5, hjust=1)
-  p <- p + annotate("text", x=RTT*2.5, y=0.33, label="⪆ 2 RTT", angle=90, size = 2.5, hjust=1)
-  #p <- p + annotate("text", x=RTT*1.4, y=0.028, label="⪆ RTT", size = 3)
-  #p <- p + annotate("text", x=RTT*2.5, y=0.028, label="⪆ 2 RTT", size = 3)
+  p <- p + annotate("rect", xmin = RTT, xmax = 2*RTT, ymin = 0, ymax = 1, alpha = .1)
+  p <- p + annotate("rect", xmin = 2*RTT, xmax = CDFS_RESPONSE_TIME_CUTOFF, ymin = 0, ymax = 1, alpha = .17)
+  p <- p + annotate("text", x=RTT*c(0.6, 1.6, 2.6), y=0.3, label=c("< 1 RTT", ">= 1 RTT", ">= 2 RTT"), angle=66, size =3,hjust=1)
   
   cols <-  names(stats)
   permilles <- subset(stats, stat == "permille")
@@ -466,25 +461,25 @@ cdf_locality_plot <- function(dir, var_name, files,
       }
       locality_ann <- rbind(locality_ann,
                             data.frame(locality=l, mode=m, expected_locality=expected_locality,
-                                       label="access locality potential"))
+                                       label="approx. access locality potential"))
     }
   } 
   p <- p + geom_hline(data=locality_ann, aes(yintercept = expected_locality), color = "gray")
   
   melted <- melt(permilles, id.vars=c("locality", "mode", "dcs", "clients", "var","stat_param"), cols[grepl("response_time_", cols)], na.rm=TRUE)
   melted <- transform(melted, variable = factor(variable, levels= RESPONSE_TIME_OPERATION_TYPES))
-  filling <- subset(melted, stat_param==1 & value < RESPONSE_TIME_CUTOFF)
-  filling$value <- rep(RESPONSE_TIME_CUTOFF, nrow(filling))
+  filling <- subset(melted, stat_param==1 & value < CDFS_RESPONSE_TIME_CUTOFF)
+  filling$value <- rep(CDFS_RESPONSE_TIME_CUTOFF, nrow(filling))
   melted <- rbind(melted, filling)
   p <- p + geom_line(data=melted,
                      mapping=aes(y=stat_param, x=value, group=interaction(locality, mode, dcs, clients, variable), colour=variable, linetype=variable))
-  p <- p + geom_text(data=locality_ann, aes(y=expected_locality, label=label), x=RESPONSE_TIME_CUTOFF/2,  size=2.5, show_guide=F)
+  p <- p + geom_text(data=locality_ann, aes(y=expected_locality+0.01, label=label), x=CDFS_RESPONSE_TIME_CUTOFF*0.6,  size=3, show_guide=F)
   
   mode_labeller <- function(value) {
     if (grepl("notifications", value)) {
-      return ("SwiftCloud")
+      return ("SwiftCloud with client-side replicas")
     } else {
-      return ("Server-side replication")
+      return ("Reference: server-side replicas only")
     }
   }
   labeller <- function(variable, value) {
@@ -496,24 +491,17 @@ cdf_locality_plot <- function(dir, var_name, files,
       return (NA)
     }
   }
-
+  
   dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-  filename <- paste(paste(file.path(output_dir, output_suffix), "-cdf_locality", format_ext, sep=""))
-  if (length(unique(permilles$locality)) > 1) {
-    p <- p + facet_grid(locality ~ mode, labeller = labeller)
-    p <- p + theme(legend.position = c(0.32, 0.6), legend.background=element_rect(fill=NA,colour=NA),
-                   legend.text = element_text(size=8))
-    ggsave(p, file=filename, scale=1, height=4.6)
-  } else {
-    p <- p + facet_grid(. ~ mode, labeller = labeller)
-    p <- p + theme(legend.position = c(0.32, 0.38), legend.background=element_rect(fill=NA,colour=NA),
-                   legend.text = element_text(size=8))
-    ggsave(p, file=filename, scale=1, height=2.6)
-  }
+  filename <- paste(paste(file.path(output_dir, output_suffix), "-cdfs_locality", format_ext, sep=""))
+  p <- p + facet_grid(locality ~ mode, labeller = labeller)
+  p <- p + theme(legend.position = c(0.887, 0.068), legend.background=element_rect(fill="white",colour="black"))
+                 #legend.text = element_text(size=8))
+  ggsave(plot=p, file=filename, height=4.6, width=6.2)
 }
 
-scalabilitythroughput_workloada_cdf_locality_plot <- function() {
-  cdf_locality_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
+scalabilitythroughput_workloada_cdfs_locality_plot <- function() {
+  cdfs_locality_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
                     var_name="opslimit",
                     files=c("workloada-mode-notifications-frequent-clients-500-opslimit-1000-ops.csv",
                             "workloada-mode-no-caching-clients-1000-opslimit-1000-ops.csv",
@@ -522,13 +510,75 @@ scalabilitythroughput_workloada_cdf_locality_plot <- function() {
                     output_suffix="YCSB-workloada")
 }
 
+CDF_RESPONSE_TIME_CUTOFF <- 400
+cdf_locality_plot <- function(dir, var_name, file, output_dir = file.path(dir, "comparison"), output_suffix) {
+  stats <- read_runs_full(dir, var_name, "ops.csv", files=file)
+  
+  p <- ggplot()
+  p <- p + labs(x="operation response time [ms]",y = "CDF for all sessions")
+  p <- p + coord_cartesian(xlim = c(0, CDF_RESPONSE_TIME_CUTOFF), ylim = c(0, 1.05))
+  p <- p + scale_y_continuous(labels = percent)
+  p <- p + THEME + theme(legend.direction='vertical', strip.background= element_rect(fill = 'white', colour = 'black'),
+                         panel.margin= unit(1, 'lines'), legend.title = element_blank(), legend.key.height=unit(0.8,"line"))
+  #p <- add_title(p, paste(w, m, dd, "DCs", cc, "clients", v, var_name))
+  p <- p + scale_linetype_discrete(name = "",
+                                   breaks = RESPONSE_TIME_OPERATION_TYPES,
+                                   labels = OPERATION_TYPES_LABELS)
+  p <- p + scale_color_discrete(name = "",
+                                breaks = RESPONSE_TIME_OPERATION_TYPES,
+                                labels = OPERATION_TYPES_LABELS)
+  p <- p + annotate("rect", xmin = RTT, xmax = 2*RTT, ymin = 0, ymax = 1, alpha = .1)
+  p <- p + annotate("rect", xmin = 2*RTT, xmax = CDF_RESPONSE_TIME_CUTOFF, ymin = 0, ymax = 1, alpha = .17)
+  p <- p + annotate("text", x=RTT*c(0.6, 1.6, 2.6), y=0.3, label=c("< 1 RTT", ">= 1 RTT", ">= 2 RTT"), angle=66, size =3,hjust=1)
+  
+  cols <-  names(stats)
+  permilles <- subset(stats, stat == "permille")
+  LOCALITY_LEVELS <- c("High locality workload", "Low locality workload")
+  locality <- function(w) {
+    if (grepl("locality", w)) {
+      return ("Low locality workload")
+    }
+    return ("High locality workload")
+  }
+  permilles$locality <- factor(lapply(permilles$workload, locality), levels=LOCALITY_LEVELS)
+  locality_ann <- data.frame()
+  for (l in unique(permilles$locality)) {
+    for (m in unique(permilles$mode)) {
+      if (grepl("no-caching", m)) {
+        next
+      }
+      if (grepl("Low locality", l)) {
+        expected_locality <- 0.4
+      } else {
+        expected_locality <- 0.8
+      }
+      locality_ann <- rbind(locality_ann,
+                            data.frame(locality=l, mode=m, expected_locality=expected_locality,
+                                       label="approx. access locality potential"))
+    }
+  } 
+  p <- p + geom_hline(data=locality_ann, aes(yintercept = expected_locality), color = "gray")
+  
+  melted <- melt(permilles, id.vars=c("locality", "mode", "dcs", "clients", "var","stat_param"), cols[grepl("response_time_", cols)], na.rm=TRUE)
+  melted <- transform(melted, variable = factor(variable, levels= RESPONSE_TIME_OPERATION_TYPES))
+  filling <- subset(melted, stat_param==1 & value < CDF_RESPONSE_TIME_CUTOFF)
+  filling$value <- rep(CDF_RESPONSE_TIME_CUTOFF, nrow(filling))
+  melted <- rbind(melted, filling)
+  p <- p + geom_line(data=melted,
+                     mapping=aes(y=stat_param, x=value, group=interaction(locality, mode, dcs, clients, variable), colour=variable, linetype=variable))
+  p <- p + geom_text(data=locality_ann, aes(y=expected_locality, label=label), x=CDF_RESPONSE_TIME_CUTOFF*.82,  size=3, show_guide=F)
+  
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  filename <- paste(paste(file.path(output_dir, output_suffix), "-cdf_locality", format_ext, sep=""))
+  p <- p + theme(legend.position = c(0.875, 0.28), legend.background=element_rect(fill="white", color="black"))
+  ggsave(p, file=filename, scale=1, height=2.6, width=6.2)
+}
+
+
 scalabilitythroughput_social_cdf_locality_plot <- function() {
   cdf_locality_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
                     var_name="opslimit",
-                    files=c("workload-social-mode-notifications-frequent-clients-500-opslimit-2000-ops.csv",
-                            "workload-social-mode-no-caching-clients-1000-opslimit-2000-ops.csv"),
-                            #"workload-social-lowlocality-mode-frequent-clients-500-opslimit-2000-ops.csv",
-                            #"workload-social-lowlocality-mode-no-caching-clients-1000-opslimit-2000-ops.csv"
+                    file="workload-social-mode-notifications-frequent-clients-500-opslimit-2000-ops.csv",
                     output_suffix="SwiftSocial")
 }
 
