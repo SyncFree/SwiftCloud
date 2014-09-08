@@ -207,53 +207,128 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
   if (length(modes) > 0) {
     mode_pattern <- pattern_alternatives(modes, TRUE)
   }
-  stats <- read_runs_params(dir, var_name, "ops.csv", workload_pattern=workload_pattern, mode_pattern=mode_pattern, clients_pattern=clients_pattern, dcs_pattern=dcs_pattern)
   response_time_lower_quantile <- paste("response_time.q", lower_quantile, sep="")
+  stats <- read_runs_params(dir, var_name, "ops.csv", workload_pattern=workload_pattern, mode_pattern=mode_pattern, clients_pattern=clients_pattern, dcs_pattern=dcs_pattern,
+                            params=c("throughput", "response_time"))
+  stats$response_time.q95 <- sapply(stats$response_time.q95, function(v) { (max(v, 1))})
+  stats[[response_time_lower_quantile]] <- sapply(stats[[response_time_lower_quantile]], function(v) { (max(v, 1))})
+  
   xvar <- "var"
   if (is.na(var_label)) {
     var_label <- "throughput [txn/s]"
     xvar <- "throughput.mean"
   }
+  
   for (w in unique(stats$workload)) {
     workload_stats <- subset(stats, stats$workload == w)
+    if (nrow(workload_stats) == 0) {
+      next
+    }
+    
     p <- ggplot() 
     p <- add_title(p, w)
     p <- p + labs(x=var_label,y = "response time [ms]")
     p <- p + scale_y_log10(breaks=c(1, 10, 100, 1000), limits=c(1,10000))
     #p <- p + coord_cartesian(ylim=c(-10, 2500))
     p <- p + THEME
-    for (m in unique(workload_stats$mode)) {
-      for (cc in unique(workload_stats$clients)) {
-        for (dd in unique(workload_stats$dcs)) {
-          mode_stats <- subset(workload_stats, workload_stats$mode == m & workload_stats$clients==cc & workload_stats$dcs==dd)
-          mode_stats <- mode_stats[order(mode_stats$var), ]
-          m_match <- match(m, modes)
-          if (is.na(m_match)) {
-            m_label <- m
-          } else {
-            m_label <- modes_labels[m_match]
-          }
-          mode_stats$modeAll <- rep(paste(m_label, paste(dd, "dcs"), paste(cc, "clients"), sep=" / "), nrow(mode_stats))
-          melted <- melt(mode_stats, id.vars=c("workload", "modeAll", xvar), measure.vars=c(response_time_lower_quantile, "response_time.q95"))
-          # Is this a canonical way to do this?
-          # melted <- subset(melted, variable %in% )
-          if (nrow(melted) > 0) {
-            p <- p + geom_path(data=melted,
-                               mapping=aes_string(y="value", x=xvar, group="variable", color="modeAll", linetype="variable"))
-            p <- p + geom_point(data=melted,
-                                mapping=aes_string(y="value", x=xvar, group="variable", color="modeAll", shape="modeAll"))  
-          }
-        }
-      }
-    }
+    workload_stats <- workload_stats[order(workload_stats$var), ]
+    #m_match <- match(m, modes)
+    #  if (is.na(m_match)) {
+    #    m_label <- m
+    #      } else {
+    #        m_label <- modes_labels[m_match]
+    #      }
+    #      mode_stats$modeAll <- rep(paste(m_label, paste(dd, "dcs"), paste(cc, "clients"), sep=" / "), nrow(mode_stats))
+    
+    p <- p + geom_path(data=workload_stats,
+                       mapping=aes_string(y=response_time_lower_quantile,
+                                          x=xvar, group="interaction(mode, dcs, clients)",
+                                          color="interaction(mode, dcs, clients)"), linetype="solid")
+    p <- p + geom_point(data=workload_stats,
+                        mapping=aes_string(y=response_time_lower_quantile,
+                                           x=xvar, group="interaction(mode, dcs, clients)",
+                                           color="interaction(mode, dcs, clients)",
+                                           shape="interaction(mode, dcs, clients)"))
+    
+    p <- p + geom_path(data=workload_stats,
+                       mapping=aes_string(y="response_time.q95",
+                                          x=xvar, group="interaction(mode, dcs, clients)",
+                                          color="interaction(mode, dcs, clients)"), linetype="dashed")
+    p <- p + geom_point(data=workload_stats,
+                        mapping=aes_string(y="response_time.q95",
+                                           x=xvar, group="interaction(mode, dcs, clients)",
+                                           color="interaction(mode, dcs, clients)",
+                                           shape="interaction(mode, dcs, clients)"))
     p <- p + scale_color_discrete(name="System configuration")
     p <- p + scale_shape_discrete(name="System configuration")
-    p <- p + scale_linetype_discrete(name = "Response time w.r.t. access locality",
-                                     breaks = c(response_time_lower_quantile, "response_time.q95"),
+    p <- p + guides(linetype = "legend")
+    p <- p + scale_linetype_manual(name = "Response time w.r.t. access locality",
+                                   values = c("solid", "dashed"),  guide="legend",
+                                      #breaks = c(response_time_lower_quantile, "response_time.q95"),
                                      labels = c(paste(lower_quantile, "th percentile (expected local request)", sep=""), "95th percentile (remote request)"))
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
     ggsave(p, file=paste(paste(file.path(output_dir, w), file_suffix, "-", var_name, "-response_time", format_ext, sep="")), scale=1)
   }
+}
+
+# If var_label == NA, then load (throughput op/s) is used as a variable
+workloads_throughput_response_time_plot <- function(dir, files, output_dir = file.path(dir, "comparison"), modes, modes_labels,
+                                   lower_quantile=70, file_suffix = "") {
+  response_time_lower_quantile <- paste("response_time.q", lower_quantile, sep="")
+  stats <- read_runs_params(dir, "opslimit", "ops.csv", files=files, params=c("throughput", "response_time"))
+  stats$response_time.q95 <- sapply(stats$response_time.q95, function(v) { (max(v, 1))})
+  stats[[response_time_lower_quantile]] <- sapply(stats[[response_time_lower_quantile]], function(v) { (max(v, 1))})
+  stats <- stats[order(stats$var), ]
+  stats$workload_name <- factor(sapply(stats$workload, function(w) {ifelse(grepl("YCSB A", w), "A", "B")}), levels=c("A", "B"), labels=c("YCSB workload A (50% updates)", "YCSB workload B (5% updates)"))
+  stats$workload_distribution <- factor(sapply(stats$workload, function(w) {ifelse(grepl("uniform", w), "uniform", "zipfian")}), levels=c("zipfian", "uniform"), labels=c("zipfian distribution", "uniform distribution"))
+  # anti reshape2-hack (reshape2 is somewhat at odds throughput.mean)
+  stats$fake_low_quantile <- rep("low", nrow(stats))
+  stats$fake_high_quantile <- rep("high", nrow(stats))
+  
+  p <- ggplot(stats) + THEME + theme(panel.margin= unit(0.79, 'lines'))
+  p <- p + labs(x="throughput [txn/s]", y = "response time [ms]")
+  #p <- p + coord_cartesian(ylim=c(0, 10000))
+  p <- p + scale_y_log10(breaks=c(1, 100, 10000), limits=c(1,10000))
+  
+  p <- p + geom_path(mapping=aes_string(y=response_time_lower_quantile,
+                                        x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
+                                        color="mode", linetype="fake_low_quantile"))
+  p <- p + geom_point(mapping=aes_string(y=response_time_lower_quantile,
+                                         x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
+                                         color="mode",
+                                         shape="mode"))
+  p <- p + geom_path(mapping=aes_string(y="response_time.q95",
+                                        x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
+                                        color="mode", linetype="fake_high_quantile"))
+  p <- p + geom_point(mapping=aes_string(y="response_time.q95",
+                                         x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
+                                         color="mode", shape="mode"))
+  p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+  p <- p + scale_shape_discrete(name="System configuration",breaks=modes, labels=modes_labels)
+  p <- p + scale_linetype_manual(name = "Response time w.r.t. access locality",
+                                 values = c("solid", "dashed"),  guide="legend",
+                                 breaks = c("low", "high"),
+                                 labels = c(paste(lower_quantile, "th percentile (expected local request)", sep=""), "95th percentile (remote request)"))
+  p <- p + facet_grid(workload_distribution ~ workload_name, scales="free_x")
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, file_suffix),"-workload_throughput_response_time", format_ext, sep="")),
+         width=6.2, height=4.6)
+}
+
+ycsb_workloads_throughput_response_time_plot <-function() {
+  workloads_throughput_response_time_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
+                                          files = c("workloada-mode-notifications-.*frequent-clients-500-opslimit.*",
+                                                    "workloada-mode-no-caching-clients-1000-opslimit.*",
+                                                    "workloada-uniform-mode-notifications-.*frequent-clients-500-opslimit.*",
+                                                    "workloada-uniform-mode-no-caching-clients-1000-opslimit.*",
+                                                    "workloadb-mode-notifications-.*frequent-clients-1000-opslimit.*",
+                                                    "workloadb-mode-no-caching-clients-1000-opslimit.*",
+                                                    "workloadb-uniform-mode-notifications-.*frequent-clients-1000-opslimit.*",
+                                                    "workloadb-uniform-mode-no-caching-clients-1000-opslimit.*"),
+                                          file_suffix = "YCSB",
+                                          modes=c("no-caching", "notifications-veryfrequent", "notifications-frequent", "notifications-infrequent"),
+                                          modes_labels=c("no client replicas", "client replicas with 1 notification/500ms", 
+                                                         "client replicas with 1 notification/1s", "client replicas with 1 notification/10s"))
 }
 
 clients_max_throughput_plot <- function(dir, var_name, output_dir = file.path(dir, "comparison"),
