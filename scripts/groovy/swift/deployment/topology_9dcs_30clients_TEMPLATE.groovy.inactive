@@ -12,7 +12,7 @@ EuropeEC2 = [
 
 NVirginiaEC2 = [
     // first node is a DC, followed by two groups of 10 scouts
-'ec2-54-165-121-170.compute-1.amazonaws.com',
+'ec2-54-165-22-172.compute-1.amazonaws.com',
 
 'ec2-54-165-23-103.compute-1.amazonaws.com',
 'ec2-54-165-26-186.compute-1.amazonaws.com',
@@ -39,18 +39,18 @@ NVirginiaEC2 = [
 
 OregonEC2 = [
     // first node is a DC, followed by 10 scouts
-'ec2-54-68-96-198.us-west-2.compute.amazonaws.com',
+    'ec2-54-187-132-242.us-west-2.compute.amazonaws.com',
 
-    'ec2-54-68-97-6.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-96-236.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-97-30.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-97-41.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-96-255.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-68-100.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-96-11.us-west-2.compute.amazonaws.com',
-    'ec2-54-68-96-43.us-west-2.compute.amazonaws.com',
-    'ec2-54-218-68-40.us-west-2.compute.amazonaws.com',
+    'ec2-54-213-143-202.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-50-173.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-56-145.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-60-104.us-west-2.compute.amazonaws.com',
     'ec2-54-218-61-19.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-61-75.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-62-162.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-64-244.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-67-211.us-west-2.compute.amazonaws.com',
+    'ec2-54-218-68-40.us-west-2.compute.amazonaws.com'
 ]
 
 // TOPOLOGY
@@ -60,7 +60,20 @@ Topology.clear()
 DC_NV = DC([NVirginiaEC2[0]], [NVirginiaEC2[0]])
 DC_EU = DC([EuropeEC2[0]], [EuropeEC2[0]])
 DC_OR = DC([OregonEC2[0]], [OregonEC2[0]])
+DC_NV2 = DC([NVirginiaEC2[21]], [NVirginiaEC2[21]])
+DC_EU2 = DC([EuropeEC2[1]], [EuropeEC2[1]])
+DC_OR2 = DC([OregonEC2[11]], [OregonEC2[11]])
+DC_NV3 = DC([NVirginiaEC2[22]], [NVirginiaEC2[22]])
+DC_EU3 = DC([EuropeEC2[2]], [EuropeEC2[2]])
+DC_OR3 = DC([OregonEC2[12]], [OregonEC2[12]])
 
-ScoutsToEU = SGroup(NVirginiaEC2[1..10], DC_EU)
-ScoutsToNV = SGroup(OregonEC2[1..10], DC_NV)
-ScoutsToOR = SGroup(NVirginiaEC2[11..20], DC_OR)
+ScoutsToEU = SGroup(NVirginiaEC2[1..4], DC_EU)
+ScoutsToEU2 = SGroup(NVirginiaEC2[5..7], DC_EU2)
+ScoutsToEU3 = SGroup(NVirginiaEC2[8..10], DC_EU3)
+ScoutsToNV = SGroup(OregonEC2[1..4], DC_NV)
+ScoutsToNV2 = SGroup(OregonEC2[5..7], DC_NV2)
+ScoutsToNV3 = SGroup(OregonEC2[8..10], DC_NV3)
+ScoutsToOR = SGroup(NVirginiaEC2[11..14], DC_OR)
+ScoutsToOR2 = SGroup(NVirginiaEC2[15..17], DC_OR2)
+ScoutsToOR3 = SGroup(NVirginiaEC2[18..20], DC_OR3)
+

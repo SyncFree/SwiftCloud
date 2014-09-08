@@ -189,6 +189,13 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                 updateEstimatedDCVersion();
             }
         };
+        final double CLOCKS_REPORTING_PERIOD_SEC = 30.0;
+        new PeriodicTask(0.0, CLOCKS_REPORTING_PERIOD_SEC) {
+            public void run() {
+                System.err.printf("DC %s: VV=%s, VV_K=%s\n", DCSurrogate.this.siteId,
+                        getEstimatedDCVersionCopy(), getEstimatedDCStableVersionCopy());
+            };
+        };
     }
 
     private void initData(Properties props) {
@@ -651,7 +658,7 @@ final public class DCSurrogate extends SwiftProtocolHandler {
             super(clientId);
             this.clientId = clientId;
             this.disasterSafe = disasterSafe;
-            if (notificationsSendFakePractiDepotVectors) {
+            if (notificationsSendFakePractiDepotVectors && notificationsSendDeltaVectorsOnly) {
                 clientFakeVectorKnowledge = ClockFactory.newClock();
             }
             if (notificationsSendDeltaVectorsOnly) {
@@ -768,13 +775,15 @@ final public class DCSurrogate extends SwiftProtocolHandler {
                     // comparison.  
                     fakeVector = dataServer.cltClock.clone();
                 }
-                for (final String clientId : clientFakeVectorKnowledge.getSiteIds()) {
-                    final Timestamp clientTimestamp = fakeVector.getLatest(clientId);
-                    if (clientFakeVectorKnowledge.includes(clientTimestamp)) {
-                        fakeVector.drop(clientTimestamp.getIdentifier());
+                if (notificationsSendDeltaVectorsOnly) {
+                    for (final String clientId : clientFakeVectorKnowledge.getSiteIds()) {
+                        final Timestamp clientTimestamp = fakeVector.getLatest(clientId);
+                        if (clientFakeVectorKnowledge.includes(clientTimestamp)) {
+                            fakeVector.drop(clientTimestamp.getIdentifier());
+                        }
                     }
+                    clientFakeVectorKnowledge.merge(fakeVector);
                 }
-                clientFakeVectorKnowledge.merge(fakeVector);
                 batch = new BatchUpdatesNotification(snapshot, disasterSafe, objectsUpdates, fakeVector);
             } else {
                 batch = new BatchUpdatesNotification(snapshot, disasterSafe, objectsUpdates);

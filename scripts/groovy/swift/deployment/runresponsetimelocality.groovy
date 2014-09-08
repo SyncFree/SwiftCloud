@@ -32,10 +32,10 @@ if (workloadName.startsWith("workloada")) {
     ycsb.mode['swift.cacheSize'] = '64'
     ycsb.localRecordCount = 48
 }
-ycsb.localRequestProportion = args[3]
+ycsb.mode['localRequestProportion'] = args[3]
 ycsb.clients = 1000
 def outputDir = args[4]
-ycsb.runExperiment(String.format("%s/%s-mode-%s-locality-%s", outputDir, workloadName, modeName, ycsb.localRequestProportion))
+ycsb.runExperiment(String.format("%s/%s-mode-%s-locality-%s", outputDir, workloadName, modeName, ycsb.mode['localRequestProportion']))
 
 System.exit(0)
 

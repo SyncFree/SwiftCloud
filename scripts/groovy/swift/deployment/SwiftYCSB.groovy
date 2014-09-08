@@ -31,11 +31,18 @@ class SwiftYCSB extends SwiftBase {
         'requestdistribution':'zipfian',
     ]
 
+    private static HIGHLOCALITY = ['localrequestproportion' : '0.8']
+    private static LOWLOCALITY = ['localrequestproportion' : '0.4']
+    private static UNIFORM = ['requestdistribution': 'uniform']
     static WORKLOADS= [
-        'workloada-uniform' : WORKLOAD_A + ['requestdistribution': 'uniform'],
-        'workloada' : WORKLOAD_A,
-        'workloadb-uniform' : WORKLOAD_B + ['requestdistribution': 'uniform'],
-        'workloadb' : WORKLOAD_B,
+        'workloada-uniform' : WORKLOAD_A + UNIFORM + HIGHLOCALITY,
+        'workloada' : WORKLOAD_A + HIGHLOCALITY,
+        'workloadb-uniform' : WORKLOAD_B + UNIFORM + HIGHLOCALITY,
+        'workloadb' : WORKLOAD_B + HIGHLOCALITY,
+        'workloada-uniform-lowlocality' : WORKLOAD_A + UNIFORM + LOWLOCALITY,
+        'workloada-lowlocality' : WORKLOAD_A + LOWLOCALITY,
+        'workloadb-uniform-lowlocality' : WORKLOAD_B + UNIFORM + LOWLOCALITY,
+        'workloadb-lowlocality' : WORKLOAD_B + LOWLOCALITY,
     ]
 
     public static int initDB( String client, String server, String config, int threads = 1, String heap = "512m") {
@@ -79,7 +86,6 @@ class SwiftYCSB extends SwiftBase {
 
     def baseWorkload = WORKLOAD_A
     def localRecordCount = 150
-    def localRequestProportion = "0.8"
     def ycsbProps
     def ycsbPropsPath
     def reportEveryOperation = true
@@ -100,7 +106,6 @@ class SwiftYCSB extends SwiftBase {
             'localpoolfromglobaldistribution':'true',
             'localrequestdistribution':'uniform',
             'localrecordcount': Integer.toString(localRecordCount),
-            'localrequestproportion': localRequestProportion,
         ]
         ycsbProps = DEFAULT_PROPS + workload + ['swift.reports' : reports.join(',')] + ['swift.reportEveryOperation':reportEveryOperation.toString()]
         ycsbProps += mode + ['maxexecutiontime' : duration]

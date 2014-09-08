@@ -61,8 +61,8 @@ class SwiftSocial2 extends SwiftBase {
     static final WORKLOAD_VIEWS_COUNTER = [
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
-        'swiftsocial.biasedOps':'9',
-        'swiftsocial.randomOps':'1',
+        'swiftsocial.biasedOps':'8',
+        'swiftsocial.randomOps':'2',
         'swiftsocial.opGroups':'10000',
         'swiftsocial.recordPageViews':'true',
         'swiftsocial.thinkTime':'0',
@@ -73,8 +73,8 @@ class SwiftSocial2 extends SwiftBase {
     static final WORKLOAD_NO_VIEWS_COUNTER = [
         'swiftsocial.numUsers':'1000',
         'swiftsocial.userFriends':'25',
-        'swiftsocial.biasedOps':'9',
-        'swiftsocial.randomOps':'1',
+        'swiftsocial.biasedOps':'8',
+        'swiftsocial.randomOps':'2',
         'swiftsocial.opGroups':'10000',
         'swiftsocial.recordPageViews':'true',
         'swiftsocial.thinkTime':'0',
@@ -82,9 +82,21 @@ class SwiftSocial2 extends SwiftBase {
         'swiftsocial.recordPageViews' : 'false'
     ]
 
+    private static LOWLOCALITY = [
+        'swiftsocial.biasedOps':'4',
+        'swiftsocial.randomOps':'6',
+    ]
+    
+    public static LEGACY_HIGHLOCALITY = [
+        'swiftsocial.biasedOps':'9',
+        'swiftsocial.randomOps':'1',
+    ]
+
     static WORKLOADS= [
         'workload-social-views-counter' : WORKLOAD_VIEWS_COUNTER,
-        'workload-social' : WORKLOAD_NO_VIEWS_COUNTER
+        'workload-social' : WORKLOAD_NO_VIEWS_COUNTER,
+        'workload-social-views-counter-lowlocality' : WORKLOAD_VIEWS_COUNTER + LOWLOCALITY,
+        'workload-social-lowlocality' : WORKLOAD_NO_VIEWS_COUNTER + LOWLOCALITY,
     ]
 
     // Two alternative mechanism to throttle the target throughput:

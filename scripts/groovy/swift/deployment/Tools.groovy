@@ -140,6 +140,17 @@ class Tools {
         }
         Parallel.rsh( hosts, cmd, resHandler, true, timeout)
     }
+    
+    static void shutdown( List hosts, String pattern, int timeout) {
+        println "SHUTTING DOWN" + hosts
+        AtomicInteger n = new AtomicInteger();
+        def cmd = { "sudo shutdown -h now "}
+        def resHandler = { host, res ->
+            def str = n.incrementAndGet() + "/" + hosts.size() + (res == 0 ? " [ OK ]" : " [FAILED]") + " : " + host
+            println str
+        }
+        Parallel.rsh( hosts, cmd, resHandler, true, timeout, true)
+    }
 
 
     static void prsync( List hosts, String src, String dst, int timeout, boolean verbose = false ) {
