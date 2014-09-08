@@ -654,9 +654,9 @@ public class DCSequencerServer extends SwiftProtocolHandler {
         this.addToOps(new CommitRecord(request.getDcNotUsed(), request.getObjectUpdateGroups(), request.getTimestamp(),
                 request.getCltTimestamp(), request.getPrvCltTimestamp()));
 
-        synchronized (this) {
-            stableClock.record(request.getTimestamp());
-        }
+        //synchronized (this) {
+        //    stableClock.record(request.getTimestamp());
+        //}
 
         conn.reply(new SeqCommitUpdatesReply(siteId, currentClockCopy(), stableClockCopy(), receivedMessagesCopy()));
 
