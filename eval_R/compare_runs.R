@@ -73,13 +73,13 @@ pattern_alternatives <- function(alternatives, exact_match = FALSE) {
   first <- TRUE
   exact_match_open <- ifelse(exact_match, "^", "")
   exact_match_end <- ifelse(exact_match, "$", "")
-  pattern <- ""
+  pattern <- "("
   for (s in alternatives) {
     sep = ifelse(first, "", "|")
     pattern <- paste(pattern, paste("(", exact_match_open, s, exact_match_end, ")", sep=""), sep=sep)
     first <- FALSE
   }
-  return (pattern)
+  return (paste(pattern, ")", sep=""))
 }
 
 DEFAULT_DCS <- 3
@@ -87,10 +87,10 @@ DEFAULT_CLIENTS <- 1000
 decode_filename <- function(file, var_name, suffix) {
   REGEX <- paste("(",pattern_alternatives(WORKLOAD_LEVELS),")-mode-(", pattern_alternatives(MODE_LEVELS), ")-", "(clients-(", pattern_alternatives(CLIENTS_LEVELS),")-)?(dcs-(", pattern_alternatives(DCS_LEVELS),")-)?", var_name, "-([0-9.]+)-", suffix, sep="")
   WORKLOAD_IDX <- 2
-  MODE_IDX <- WORKLOAD_IDX + length(WORKLOAD_LEVELS) + 1
-  CLIENTS_IDX <- MODE_IDX + length(MODE_LEVELS) + 2
-  DCS_IDX <- CLIENTS_IDX + length(CLIENTS_LEVELS) + 2
-  VAR_IDX <- DCS_IDX + length(DCS_LEVELS) + 1
+  MODE_IDX <- WORKLOAD_IDX + length(WORKLOAD_LEVELS) + 2
+  CLIENTS_IDX <- MODE_IDX + length(MODE_LEVELS) + 3
+  DCS_IDX <- CLIENTS_IDX + length(CLIENTS_LEVELS) + 3
+  VAR_IDX <- DCS_IDX + length(DCS_LEVELS) + 2
   match <- str_match(file, REGEX)
   
   if (length(match)<= 1 || is.element(c(match[WORKLOAD_IDX], match[MODE_IDX], match[VAR_IDX]), NA)) {
@@ -159,10 +159,9 @@ read_runs_impl <- function(dir, var_name, suffix, processor, workload_pattern, m
   }
 
   if (length(files) == 0) {
-    file_list <- list.files(dir, pattern=paste("*", suffix, sep=""),recursive=FALSE, full.names=TRUE)
-  } else {
-    file_list <- list.files(dir, pattern=pattern_alternatives(files), recursive=FALSE, full.names=TRUE)
+    files <- ".*"
   }
+  file_list <- list.files(dir, pattern=pattern_alternatives(paste(files, suffix, sep="-")), recursive=FALSE, full.names=TRUE)
   if (length(file_list) == 0) {
     stop(paste("no input files found in", dir))
   }
@@ -503,10 +502,10 @@ cdfs_locality_plot <- function(dir, var_name, files,
 scalabilitythroughput_workloada_cdfs_locality_plot <- function() {
   cdfs_locality_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
                     var_name="opslimit",
-                    files=c("workloada-mode-notifications-frequent-clients-500-opslimit-1000-ops.csv",
-                            "workloada-mode-no-caching-clients-1000-opslimit-1000-ops.csv",
-                            "workloada-lowlocality-mode-notifications-frequent-clients-500-opslimit-1000-ops.csv",
-                            "workloada-lowlocality-mode-no-caching-clients-1000-opslimit-1000-ops.csv"),
+                    files=c("workloada-mode-notifications-frequent-clients-500-opslimit-1000",
+                            "workloada-mode-no-caching-clients-1000-opslimit-1000",
+                            "workloada-lowlocality-mode-notifications-frequent-clients-500-opslimit-1000",
+                            "workloada-lowlocality-mode-no-caching-clients-1000-opslimit-1000"),
                     output_suffix="YCSB-workloada")
 }
 
@@ -578,7 +577,7 @@ cdf_locality_plot <- function(dir, var_name, file, output_dir = file.path(dir, "
 scalabilitythroughput_social_cdf_locality_plot <- function() {
   cdf_locality_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
                     var_name="opslimit",
-                    file="workload-social-mode-notifications-frequent-clients-500-opslimit-2000-ops.csv",
+                    file="workload-social-mode-notifications-frequent-clients-500-opslimit-2000",
                     output_suffix="SwiftSocial")
 }
 
