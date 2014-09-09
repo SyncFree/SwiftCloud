@@ -509,41 +509,31 @@ clients_max_throughput_plot <- function(dir, var_name, output_dir = file.path(di
                                         workload_pattern=".+", mode_groups_patterns=c(), mode_groups_labels=c(),
                                         lower_quantile_threshold = 10, high_quantile_threshold=5000) {
   stats <- read_runs_params(dir, var_name, "ops.csv", workload_pattern=workload_pattern, mode_pattern=mode_pattern)
+  caching_stats <- subset(stats, response_time.q95 <= high_quantile_threshold)
+  # TODO response_time.q70 <= lower_quantile_threshold
   # TODO threshold on errors?
-  for (w in unique(stats$workload)) {
-    workload_stats <- subset(stats, stats$workload == w)
-    throughput_stats <- data.frame()
-    no_caching_throughput_stats <- data.frame()
-    for (dd in unique(workload_stats$dcs)) {
-      for (m in unique(workload_stats$mode)) {
-        for (cc in unique(workload_stats$clients)) {
-          filtered_stats <- subset(stats, workload == w & mode == m & dcs == dd & clients == cc
-                                  & response_time.q70 <= lower_quantile_threshold
-                                  & response_time.q95 <= high_quantile_threshold)
-          if (nrow(filtered_stats) > 0) {
-            max_throughput <- max(filtered_stats$throughput.mean)
-            throughput_stats <- rbind(throughput_stats, data.frame(mode=m, dcs=dd, clients=cc, max_throughput=max_throughput))
-          }
-        }
-      }
-      max_no_caching <- max(subset(stats, workload == w & mode == "no-caching" & dcs == dd)$throughput.mean)
-      no_caching_throughput_stats <- rbind(no_caching_throughput_stats, data.frame(dcs=dd, max_throughput=max_no_caching))
-    }
-    if (nrow(throughput_stats) > 0) {
-      throughput_stats <- transform(throughput_stats, clients=as.numeric(levels(clients))[clients],
-                                    dcs=as.numeric(levels(dcs))[dcs])
-      throughput_stats <- throughput_stats[order(throughput_stats$clients), ]
-      throughput_stats$line_thickness <- rep(0.0001, nrow(throughput_stats))
+  melted_caching_stats <- melt(caching_stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
+  max_stats <- dcast(melted_caching_stats, workload + mode + dcs + clients ~ variable, max)
+  no_caching_stats <- subset(no_caching_stats, mode == "no-caching")
+  melted_no_caching_stats <- melt(no_caching_stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
+  max_no_caching_stats <- dcast(melted_no_caching_stats, workload + mode + dcs ~ variable, max)
+  for (w in unique(max_stats$workload)) {
+    workload_max_stats <- subset(max_stats, workload == w)
+    workload_max_no_caching_stats <- subset(max_no_caching_stats, workload == w)
+    if (nrow(workload_max_stats) > 0) {
+      #     throughput_stats <- transform(throughput_stats, clients=as.numeric(levels(clients))[clients],
+      #                                   dcs=as.numeric(levels(dcs))[dcs])
+      #     throughput_stats <- throughput_stats[order(throughput_stats$clients), ]
+      #     throughput_stats$line_thickness <- rep(0.0001, nrow(throughput_stats))
       p <- ggplot() + THEME
-      p <- add_title(p, w)
-      p <- p + coord_cartesian(ylim=c(0, ceiling(max(throughput_stats$max_throughput)/1000)*1000))
+      p <- p + coord_cartesian(ylim=c(0, ceiling(max(workload_max_stats$throughput.mean)/1000)*1000))
       #p <- p + scale_x_discrete(breaks=CLIENTS_LEVELS, limits=CLIENTS_LEVELS)
       p <- p + labs(x="#client replicas",y = "max. throughput [txn/s]")
-      p <- p + geom_path(data=throughput_stats,
-                         mapping=aes(y=max_throughput, x=clients, group=interaction(mode,dcs),
+      p <- p + geom_path(data=workload_max_stats,
+                         mapping=aes(y=throughput.mean, x=clients, group=interaction(mode,dcs),
                                      color=mode, linetype=mode), size=0.00005)
-      p <- p + geom_point(data=throughput_stats,
-                         mapping=aes(y=max_throughput, x=clients, color=mode, shape=mode))
+      p <- p + geom_point(data=workload_max_stats,
+                         mapping=aes(y=throughput.mean, x=clients, color=mode, shape=mode))
       dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
       ggsave(p, file=paste(paste(file.path(output_dir, w), "-client-max_throughput", format_ext, sep="")), scale=1)
     }
