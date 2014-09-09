@@ -5,7 +5,7 @@ require("grid")
 require("plyr")
 library(scales)
 
-preview <- TRUE
+preview <- FALSE
 format_ext <- ifelse(preview, ".png", ".pdf")
 add_title <- function(plot, title) {
   if (preview) {
@@ -504,44 +504,66 @@ scalabilitythroughput_3dcs_workloads_modes_max_throughput_plot <- function() {
                                       )
 }
 
-clients_max_throughput_plot <- function(dir, var_name, output_dir = file.path(dir, "comparison"),
-                                        mode_pattern=".+",
-                                        workload_pattern=".+", mode_groups_patterns=c(), mode_groups_labels=c(),
+clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.path(dir, "comparison"),
+                                        modes, modes_labels, modes_colors=c(),
                                         lower_quantile_threshold = 10, high_quantile_threshold=5000) {
-  stats <- read_runs_params(dir, var_name, "ops.csv", workload_pattern=workload_pattern, mode_pattern=mode_pattern)
-  caching_stats <- subset(stats, response_time.q95 <= high_quantile_threshold)
-  # TODO response_time.q70 <= lower_quantile_threshold
+  stats <- read_runs_params(dir, var_name, "ops.csv", files=files)
+  stats <- subset(stats, response_time.q95 <= high_quantile_threshold)
+  stats <- subset(stats, grepl("no-caching", mode) | response_time.q20 < lower_quantile_threshold)
+  stats <- subset(stats, grepl("no-caching", mode) | grepl("locality", workload) | response_time.q70 < lower_quantile_threshold)
   # TODO threshold on errors?
-  melted_caching_stats <- melt(caching_stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
-  max_stats <- dcast(melted_caching_stats, workload + mode + dcs + clients ~ variable, max)
-  no_caching_stats <- subset(no_caching_stats, mode == "no-caching")
-  melted_no_caching_stats <- melt(no_caching_stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
-  max_no_caching_stats <- dcast(melted_no_caching_stats, workload + mode + dcs ~ variable, max)
-  for (w in unique(max_stats$workload)) {
-    workload_max_stats <- subset(max_stats, workload == w)
-    workload_max_no_caching_stats <- subset(max_no_caching_stats, workload == w)
-    if (nrow(workload_max_stats) > 0) {
-      #     throughput_stats <- transform(throughput_stats, clients=as.numeric(levels(clients))[clients],
-      #                                   dcs=as.numeric(levels(dcs))[dcs])
-      #     throughput_stats <- throughput_stats[order(throughput_stats$clients), ]
-      #     throughput_stats$line_thickness <- rep(0.0001, nrow(throughput_stats))
-      p <- ggplot() + THEME
-      p <- p + coord_cartesian(ylim=c(0, ceiling(max(workload_max_stats$throughput.mean)/1000)*1000))
-      #p <- p + scale_x_discrete(breaks=CLIENTS_LEVELS, limits=CLIENTS_LEVELS)
-      p <- p + labs(x="#client replicas",y = "max. throughput [txn/s]")
-      p <- p + geom_path(data=workload_max_stats,
-                         mapping=aes(y=throughput.mean, x=clients, group=interaction(mode,dcs),
-                                     color=mode, linetype=mode), size=0.00005)
-      p <- p + geom_point(data=workload_max_stats,
-                         mapping=aes(y=throughput.mean, x=clients, color=mode, shape=mode))
-      dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-      ggsave(p, file=paste(paste(file.path(output_dir, w), "-client-max_throughput", format_ext, sep="")), scale=1)
+
+  melted_stats <- melt(stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
+  max_stats <- dcast(melted_stats, workload + mode + dcs + clients ~ variable, max, fill=0, subset=.(mode != "no-caching"))
+  max_no_caching_stats <- dcast(melted_stats, workload + mode + dcs ~ variable, max, fill=0, subset=.(mode == "no-caching"))
+  if (nrow(max_stats) > 0) {
+    #     throughput_stats <- transform(throughput_stats, clients=as.numeric(levels(clients))[clients],
+    #                                   dcs=as.numeric(levels(dcs))[dcs])
+    #     throughput_stats <- throughput_stats[order(throughput_stats$clients), ]
+    #     throughput_stats$line_thickness <- rep(0.0001, nrow(throughput_stats))
+    p <- ggplot() + THEME + theme(legend.title = element_blank(), legend.box="vertical",
+                                  legend.text = element_text(size=6), legend.key.height=unit(0.8,"line"))
+    p <- p + coord_cartesian(ylim=c(0, ceiling(max(max_stats$throughput.mean)/5000)*5000))
+    #p <- p + scale_x_discrete(breaks=CLIENTS_LEVELS, limits=CLIENTS_LEVELS)
+    p <- p + labs(x="#client replicas",y = "max. throughput [txn/s]")
+    p <- p + geom_path(data=max_stats,
+                       mapping=aes(y=throughput.mean, x=clients, group=interaction(workload,mode,dcs),
+                                   color=mode, size=dcs))
+    p <- p + geom_point(data=max_stats,
+                       mapping=aes(y=throughput.mean, x=clients, color=mode, shape=mode))
+    p <- p + geom_hline(data=max_no_caching_stats, mapping=aes(yintercept=throughput.mean, color=mode,
+                                                               size=dcs, shape=mode))
+    p <- p + facet_wrap(~workload)
+    if (length(modes_colors) > 0) {
+      p <- p + scale_color_manual(values=modes_colors, breaks=modes, labels=modes_labels)
+    } else {
+      p <- p + scale_color_discrete(breaks=modes, labels=modes_labels)
     }
+    p <- p + scale_shape_discrete(breaks=modes, labels=modes_labels)
+    dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+    p <- p + theme(legend.position = c(0.16, 0.598), legend.background=element_rect(fill="white",colour="black"),
+          legend.title=element_blank())
+    p <- p + scale_size_manual(values=c(0.25, 0.75), breaks=c(1, 3), labels=c("1 DC", "3 DCs"))
+    ggsave(p, file=paste(paste(file.path(output_dir, "clients-max_throughput"), format_ext, sep="")),
+           width=6.2, height=2.9)
   }
 }
 
 scalabilitythroughputclients_max_throughput_plot <- function() {
-  clients_max_throughput_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed", "opslimit")
+  clients_max_throughput_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed", "opslimit",
+                              files=c("workloada-uniform-mode-no-caching-clients-.*",
+                                      "workloada-uniform-mode-notifications-infrequent-clients-.*",
+                                      "workloada-uniform-mode-notifications-frequent-clients-.*",
+                                      "workloadb-uniform-mode-no-caching-clients-.*",
+                                      "workloadb-uniform-mode-notifications-infrequent-clients-.*",
+                                      "workloadb-uniform-mode-notifications-frequent-clients-.*",
+                                      "workload-social-mode-no-caching-clients-.*",
+                                      "workload-social-mode-notifications-infrequent-clients-.*",
+                                      "workload-social-mode-notifications-frequent-clients-.*"),
+                              modes=BASIC_MODES,
+                              modes_labels=c("reference: server replicas only", "client replicas updated every 500ms",
+                                             "client replicas updated every 1s", "client replicas updated every 10s"),
+                              modes_colors=BASIC_MODES_COLORS)
 }
 
 scalabilitythroughput_response_time_plot <- function() {
