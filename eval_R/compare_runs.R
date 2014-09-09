@@ -293,13 +293,21 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   stats <- stats[order(stats$var), ]
   stats$workload_name <- factor(sapply(stats$workload, function(w) {ifelse(grepl("YCSB A", w), "A", "B")}), levels=c("A", "B"), labels=c("YCSB workload A (50% updates)", "YCSB workload B (5% updates)"))
   stats$workload_distribution <- factor(sapply(stats$workload, function(w) {ifelse(grepl("uniform", w), "uniform", "zipfian")}), levels=c("zipfian", "uniform"), labels=c("zipfian distribution", "uniform distribution"))
-  # anti reshape2-hack (reshape2 is somewhat at odds throughput.mean)
+  # anti reshape2-hack (reshape2 is somewhat at odds with throughput.mean)
   stats$fake_low_quantile <- rep("low", nrow(stats))
   stats$fake_high_quantile <- rep("high", nrow(stats))
   
   p <- ggplot(stats) + THEME + theme(panel.margin= unit(0.79, 'lines'), legend.key.height=unit(0.8,"line"))
   p <- p + labs(x="throughput [txn/s]", y = "response time [ms]")
   #p <- p + coord_cartesian(ylim=c(0, 2500))
+  #p <- p + coord_cartesian(xlim=c(0, 25000))
+  #p <- p + expand_limits(x=185)
+  # HACK to force X acis to start with 0 on workload A facet
+  #fake_stats <- data.frame(workload_name=factor("A", levels=c("A", "B"), labels=c("YCSB workload A (50% updates)", "YCSB workload B (5% updates)")), min_x = 0)
+  #p <- p + geom_vline(data=fake_stats, aes(xintercept=min_x), alpha=0)
+  p <- p + expand_limits(x=1250)
+  p <- p + expand_limits(x=5000)
+  p <- p + scale_x_log10(breaks=c(1250, 2500, 5000, 10000, 20000, 40000))
   p <- p + scale_y_log10(breaks=c(1, 100, 10000), limits=c(1,5000))
   
   p <- p + geom_path(mapping=aes_string(y=response_time_lower_quantile,
@@ -374,7 +382,7 @@ ycsb_workloads_throughput_response_time_plot <-function() {
                                           file_suffix = "YCSB",
                                           modes=BASIC_MODES,
                                           modes_colors=BASIC_MODES_COLORS,
-                                          modes_labels=c("no client replicas", "client replicas updated every 500ms", 
+                                          modes_labels=c("reference: server-side replicas only", "client replicas updated every 500ms", 
                                                          "client replicas updated every 1s", "client replicas updated every 10s"))
 }
 
