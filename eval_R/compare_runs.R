@@ -29,6 +29,8 @@ MODE_LEVELS <- PURE_MODE_LEVELS
 BASIC_MODES <- c("no-caching", "notifications-veryfrequent", "notifications-frequent", "notifications-infrequent")
 BASIC_MODES_COLORS <- c("no-caching" = "black", "notifications-veryfrequent" = "#E69F00",
                   "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
+BASIC_MODES_FILLS <- c("no-caching" = "white", "notifications-veryfrequent" = "#E69F00",
+                        "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
 # more color-blindness-friendly colors:  "#56B4E9", "#F0E442", , "#D55E00", "#CC79A7"
 
 
@@ -384,6 +386,122 @@ ycsb_workloads_throughput_response_time_plot <-function() {
                                           modes_colors=BASIC_MODES_COLORS,
                                           modes_labels=c("reference: server-side replicas only", "client replicas updated every 500ms", 
                                                          "client replicas updated every 1s", "client replicas updated every 10s"))
+}
+
+workloads_modes_max_throughput_plot <- function(dir, var_name, files, output_dir = file.path(dir, "comparison"),
+                                                lower_quantile_threshold = 10, high_quantile_threshold=5000,
+                                                modes=c(), modes_labels=c(), modes_colors=c(), modes_fills=c()) {
+  stats <- read_runs_params(dir, var_name, "ops.csv", files=files)
+  stats$locality <- factor(sapply(stats$workload, function(w) {ifelse(grepl("locality", w), "low", "high")}), levels=c("high", "low"), labels=c("High locality workload", "Low locality workload"))
+  stats <- subset(stats, response_time.q95 <= high_quantile_threshold)
+  stats <- subset(stats, grepl("no-caching", mode) | response_time.q20 < lower_quantile_threshold)
+  stats <- subset(stats, grepl("no-caching", mode) | grepl("locality", workload) | response_time.q70 < lower_quantile_threshold)
+  # TODO threshold on errors?
+  melted_stats <- melt(stats, id.vars=c("workload", "locality", "mode", "var"), measure.vars=c("throughput.mean"))
+  mode_max_stats <- dcast(melted_stats, workload + locality + mode ~ variable, max, fill=0)
+  deltas_stats <- dcast(melt(mode_max_stats, id.vars=c("workload", "locality", "mode")), workload + locality ~ variable,
+                  function(v) { ((as.numeric(v[1])/as.numeric(v[2]) - 1) * 100)} , fill=0)
+  max_stats <- dcast(melted_stats, workload + locality ~ variable, max, fill=0)
+  mode_delta_stats <- merge(max_stats, deltas_stats, by=c("workload", "locality"), suffixes=c(".max", ".delta"))
+  mode_delta_stats$delta_text <- sapply(mode_delta_stats$throughput.mean.delta, function(delta) {
+    paste(ifelse(delta > 0, "+", ""), round(delta), "%", sep="")
+  })
+
+  mode_max_stats$workload_stripped <- sapply(mode_max_stats$workload, function(w) {(sub(", low locality", "", w))})
+  mode_delta_stats$workload_stripped <- sapply(mode_delta_stats$workload, function(w) {(sub(", low locality", "", w))})
+
+  p <- ggplot() + THEME + theme(axis.text.x = element_text(angle = 45, hjust = 1), axis.ticks.x =element_blank(),
+                                legend.key.height=unit(0.8,"line"))
+  p <- p + coord_cartesian(ylim=c(0, ceiling(max(mode_max_stats$throughput.mean)/5000)*5000))
+  p <- p + scale_y_continuous(limits=c(0, ceiling(max(mode_max_stats$throughput.mean)/5000)*5000))
+  #p <- p + scale_x_discrete(breaks=CLIENTS_LEVELS, limits=CLIENTS_LEVELS)
+  p <- p + labs(x="workload",y = "max. throughput [txn/s]")
+  p <- p + geom_bar(data=mode_max_stats,
+                     mapping=aes(y=throughput.mean, x=workload_stripped, group=mode, fill=mode),
+                    color="black", position="dodge", stat="identity") #, width=0.5)
+  p <- p + geom_text(data=mode_delta_stats, aes(label=delta_text, x = workload_stripped, y=throughput.mean.max + 1200),
+                     size = 2.8, color=BASIC_MODES_FILLS["notifications-frequent"], hjust=0.9)
+  #p <- p + coord_flip()
+  p <- p + facet_wrap(~ locality, scales="free_x")
+
+  if (length(modes_colors) > 0) {
+    p <- p + scale_color_manual(values=modes_colors, breaks=modes, labels=modes_labels)
+  } else {
+    p <- p + scale_color_discrete(breaks=modes, labels=modes_labels)
+  }
+  if (length(modes_fills) > 0) {
+    p <- p + scale_fill_manual(values=modes_fills, breaks=modes, labels=modes_labels)
+  } else {
+    p <- p + scale_fill_discrete(breaks=modes, labels=modes_labels)
+  }
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  p <- p + theme(legend.position = c(0.745, 0.768), legend.background=element_rect(fill="white",colour="black"),
+                 legend.title=element_blank(), axis.title.x = element_blank()) 
+  ggsave(p, file=paste(paste(file.path(output_dir, "workloads_modes_max_throughput"), format_ext, sep="")), width=6.2, height=3.0)
+}
+
+scalabilitythroughput_3dcs_workloads_modes_max_throughput_plot <- function() {
+  workloads_modes_max_throughput_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
+                                      "opslimit", files=c(
+                                        "workloada-mode-no-caching-clients-1000-opslimit.*",
+                                        paste("workloada-mode-no-caching-clients-1000-opslimit",
+                                              c(1400, 1800, 2200, 2600, 3400, 4000, 4500),sep="-"),
+                                        #"workloada-mode-notifications-infrequent-clients-500-opslimit.*",
+                                        #"workloada-mode-notifications-veryfrequent-clients-500-opslimit.*",
+                                        #paste("workloada-mode-notifications-veryfrequent-clients-500-opslimit",
+                                        #      c(1400, 1800, 2200, 2600, 3400, 4000),sep="-"),
+                                        #"workloada-mode-notifications-frequent-clients-500-opslimit.*",
+                                        paste("workloada-mode-notifications-frequent-clients-500-opslimit",
+                                              c(1400, 1800, 2200, 2600, 3000, 3400),sep="-"),
+                                        #"workloada-uniform-mode-no-caching-clients-1000-opslimit.*",
+                                        paste("workloada-uniform-mode-no-caching-clients-1000-opslimit",
+                                              c(2000, 2500, 3000, 3500, 4000, 4500),sep="-"),
+                                        #"workloada-uniform-mode-notifications-frequent-clients-500-opslimit.*",
+                                        paste("workloada-uniform-mode-notifications-frequent-clients-500-opslimit",
+                                              c(2000, 2500, 3000, 3500, 4000, 4500, 5000),sep="-"),
+                                        #"workloada-uniform-mode-notifications-infrequent-clients-500-opslimit.*",
+                                        #"workloada-uniform-mode-notifications-veryfrequent-clients-500-opslimit.*",
+                                        #paste("workloada-uniform-mode-notifications-veryfrequent-clients-500-opslimit",
+                                        #      c(2000, 2500, 3000, 3500, 4500, 5000),sep="-"),
+                                        #"workloadb-mode-no-caching-clients-1000-opslimit.*",
+                                        paste("workloadb-mode-no-caching-clients-1000-opslimit",
+                                              c(4000, 6000, 8000, 12000),sep="-"),
+                                        #"workloadb-mode-notifications-infrequent-clients-1000-opslimit.*",
+                                        #"workloadb-mode-notifications-veryfrequent-clients-1000-opslimit.*",
+                                        #paste("workloadb-mode-notifications-veryfrequent-clients-1000-opslimit",
+                                        #      c(4000, 6000, 8000, 10000, 12000, 14000, 16000),sep="-"),
+                                        #"workloadb-mode-notifications-frequent-clients-1000-opslimit.*",
+                                        paste("workloadb-mode-notifications-frequent-clients-1000-opslimit",
+                                              c(4000, 6000, 8000, 10000, 12000, 14000, 16000),sep="-"),
+                                        #"workloadb-uniform-mode-no-caching-clients-1000-opslimit.*",
+                                        paste("workloadb-uniform-mode-no-caching-clients-1000-opslimit",
+                                              c(4000, 6000, 8000, 10000, 12000),sep="-"),
+                                        #"workloadb-uniform-mode-notifications-infrequent-clients-1000-opslimit.*",
+                                        #"workloadb-uniform-mode-notifications-veryfrequent-clients-1000-opslimit.*",
+                                        #paste("workloadb-uniform-mode-notifications-veryfrequent-clients-1000-opslimit",
+                                        #      c(# MISSING EXECUTIONS? 4000, 6000, 8000, 10000,
+                                        #        12000, 16000,20000, 24000, 28000),sep="-"),
+                                        #"workloadb-uniform-mode-notifications-frequent-clients-1000-opslimit.*",
+                                        paste("workloadb-uniform-mode-notifications-frequent-clients-1000-opslimit",
+                                              c(4000, 6000, 8000, 12000, 16000, 20000, 24000, 28000),sep="-"),
+                                        "workload-social-mode-no-caching-clients-1000-opslimit.*",
+                                        "workload-social-mode-notifications-frequent-clients-1000-opslimit.*",
+                                        
+                                        "workloada-lowlocality-mode-no-caching-clients-1000-opslimit.*",
+                                        "workloada-lowlocality-mode-notifications-frequent-clients-500-opslimit.*",
+                                        "workloada-uniform-lowlocality-mode-no-caching-clients-1000-opslimit.*",
+                                        "workloada-uniform-lowlocality-mode-notifications-frequent-clients-500-opslimit.*",
+                                        "workloadb-lowlocality-mode-no-caching-clients-1000-opslimit.*",
+                                        "workloadb-lowlocality-mode-notifications-frequent-clients-1000-opslimit.*",
+                                        "workloadb-uniform-lowlocality-mode-no-caching-clients-1000-opslimit.*",
+                                        "workloadb-uniform-lowlocality-mode-notifications-frequent-clients-1000-opslimit.*",
+                                        "workload-social-lowlocality-mode-no-caching-clients-1000-opslimit.*",
+                                        "workload-social-lowlocality-mode-notifications-frequent-clients-1000-opslimit.*"
+                                        ),
+                                        modes=c("notifications-frequent", "no-caching"),
+                                        modes_fills=BASIC_MODES_FILLS,
+                                        modes_labels=c("SwiftCloud with client-side replicas", "reference: server-side replication")
+                                      )
 }
 
 clients_max_throughput_plot <- function(dir, var_name, output_dir = file.path(dir, "comparison"),
