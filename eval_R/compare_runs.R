@@ -664,7 +664,8 @@ cdfs_locality_plot <- function(dir, var_name, files,
   p <- p + coord_cartesian(xlim = c(0, CDFS_RESPONSE_TIME_CUTOFF), ylim = c(0, 1.00))
   p <- p + scale_y_continuous(labels = percent)
   p <- p + THEME + theme(legend.direction='vertical',
-                         panel.margin= unit(0.79, 'lines'), legend.title = element_blank(), legend.key.height=unit(0.8,"line"))
+                         panel.margin= unit(0.79, 'lines'), legend.title = element_blank(), legend.key.height=unit(0.8,"line"),
+                         legend.margin=unit(0, 'lines'))
   #p <- add_title(p, paste(w, m, dd, "DCs", cc, "clients", v, var_name))
   p <- p + scale_linetype_discrete(name = "",
                                    breaks = RESPONSE_TIME_OPERATION_TYPES,
@@ -685,7 +686,7 @@ cdfs_locality_plot <- function(dir, var_name, files,
     }
     return ("High locality workload")
   }
-  permilles$locality <- factor(lapply(permilles$workload, locality), levels=LOCALITY_LEVELS)
+  permilles$locality <- factor(lapply(permilles$workload, locality), levels=LOCALITY_LEVELS, ordered=T)
   locality_ann <- data.frame()
   for (l in unique(permilles$locality)) {
     for (m in unique(permilles$mode)) {
