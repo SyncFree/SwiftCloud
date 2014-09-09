@@ -26,6 +26,11 @@ PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-veryfrequent",
                       "refresh-infrequent-no-pruning-bloated-counters", "no-caching-no-k-stability",
                       "notifications-frequent-no-k-stability")
 MODE_LEVELS <- PURE_MODE_LEVELS
+BASIC_MODES <- c("no-caching", "notifications-veryfrequent", "notifications-frequent", "notifications-infrequent")
+BASIC_MODES_COLORS <- c("no-caching" = "black", "notifications-veryfrequent" = "#E69F00",
+                  "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
+# more color-blindness-friendly colors:  "#56B4E9", "#F0E442", , "#D55E00", "#CC79A7"
+
 
 DCS_LEVELS <- c(1,3,6,9)
 CLIENTS_LEVELS <-c(500,1000,1500,2000,2500)
@@ -276,13 +281,13 @@ var_response_time_plot <- function(dir, var_name, var_label, output_dir = file.p
 }
 
 # If var_label == NA, then load (throughput op/s) is used as a variable
-workloads_throughput_response_time_plot <- function(dir, files, output_dir = file.path(dir, "comparison"), modes, modes_labels,
+workloads_throughput_response_time_plot <- function(dir, files, output_dir = file.path(dir, "comparison"), modes, modes_labels, modes_colors=c(),
                                    lower_quantile=70, file_suffix = "") {
   response_time_lower_quantile <- paste("response_time.q", lower_quantile, sep="")
   stats <- read_runs_params(dir, "opslimit", "ops.csv", files=files, params=c("throughput", "response_time"))
   error_stats <- read_runs_errors(dir, "opslimit", "errors.csv", files=files)
   stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
-  stats <- subset(stats, errors.total < 200)
+  #stats <- subset(stats, errors.total < 200)
   stats$response_time.q95 <- sapply(stats$response_time.q95, function(v) { (max(v, 1))})
   stats[[response_time_lower_quantile]] <- sapply(stats[[response_time_lower_quantile]], function(v) { (max(v, 1))})
   stats <- stats[order(stats$var), ]
@@ -292,7 +297,7 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   stats$fake_low_quantile <- rep("low", nrow(stats))
   stats$fake_high_quantile <- rep("high", nrow(stats))
   
-  p <- ggplot(stats) + THEME + theme(panel.margin= unit(0.79, 'lines'))
+  p <- ggplot(stats) + THEME + theme(panel.margin= unit(0.79, 'lines'), legend.key.height=unit(0.8,"line"))
   p <- p + labs(x="throughput [txn/s]", y = "response time [ms]")
   #p <- p + coord_cartesian(ylim=c(0, 2500))
   p <- p + scale_y_log10(breaks=c(1, 100, 10000), limits=c(1,5000))
@@ -310,10 +315,14 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   p <- p + geom_point(mapping=aes_string(y="response_time.q95",
                                          x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
                                          color="mode", shape="mode"))
-  p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+  if (length(modes_colors) > 0) {
+    p <- p + scale_color_manual(name="System configuration", values=modes_colors, breaks=modes, labels=modes_labels)
+  } else {
+    p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+  }
   p <- p + scale_shape_discrete(name="System configuration",breaks=modes, labels=modes_labels)
-  p <- p + scale_linetype_manual(name = "Response time w.r.t. access locality",
-                                 values = c(2, 1),  guide="legend",
+  p <- p + scale_linetype_manual(name = "Response time w.r.t. access locality potential",
+                                 values = c(3, 1),  guide="legend",
                                  breaks = c("low", "high"),
                                  labels = c(paste(lower_quantile, "th percentile (expected local request)", sep=""), "95th percentile (remote request)"))
   p <- p + facet_grid(workload_distribution ~ workload_name, scales="free_x")
@@ -324,18 +333,49 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
 
 ycsb_workloads_throughput_response_time_plot <-function() {
   workloads_throughput_response_time_plot("~/Dropbox/INRIA/results/scalabilitythroughput/processed/",
-                                          files = c("workloada-mode-notifications-.*frequent-clients-500-opslimit.*",
-                                                    "workloada-mode-no-caching-clients-1000-opslimit.*",
-                                                    "workloada-uniform-mode-notifications-.*frequent-clients-500-opslimit.*",
-                                                    "workloada-uniform-mode-no-caching-clients-1000-opslimit.*",
-                                                    "workloadb-mode-notifications-.*frequent-clients-1000-opslimit.*",
-                                                    "workloadb-mode-no-caching-clients-1000-opslimit.*",
-                                                    "workloadb-uniform-mode-notifications-.*frequent-clients-1000-opslimit.*",
-                                                    "workloadb-uniform-mode-no-caching-clients-1000-opslimit.*"),
+                                          # MANUALLY FILTERED: w.r.t.  *-errors.csv and to reduce overlapping points
+                                          files = c(#"workloada-mode-no-caching-clients-1000-opslimit.*",
+                                                    paste("workloada-mode-no-caching-clients-1000-opslimit",
+                                                          c(1400, 1800, 2200, 2600, 3400, 4000, 4500),sep="-"),
+                                                    #"workloada-mode-notifications-veryfrequent-clients-500-opslimit.*",
+                                                    paste("workloada-mode-notifications-veryfrequent-clients-500-opslimit",
+                                                          c(1400, 1800, 2200, 2600, 3400, 4000),sep="-"),
+                                                    #"workloada-mode-notifications-frequent-clients-500-opslimit.*",
+                                                    paste("workloada-mode-notifications-frequent-clients-500-opslimit",
+                                                          c(1400, 1800, 2200, 2600, 3000, 3400),sep="-"),
+                                                    #"workloada-uniform-mode-no-caching-clients-1000-opslimit.*",
+                                                    paste("workloada-uniform-mode-no-caching-clients-1000-opslimit",
+                                                          c(2000, 2500, 3000, 3500, 4000, 4500),sep="-"),
+                                                    #"workloada-uniform-mode-notifications-frequent-clients-500-opslimit.*",
+                                                    paste("workloada-uniform-mode-notifications-frequent-clients-500-opslimit",
+                                                          c(2000, 2500, 3000, 3500, 4000, 4500, 5000),sep="-"),
+                                                    #"workloada-uniform-mode-notifications-veryfrequent-clients-500-opslimit.*",
+                                                    paste("workloada-uniform-mode-notifications-veryfrequent-clients-500-opslimit",
+                                                          c(2000, 2500, 3000, 3500, 4500, 5000),sep="-"),
+                                                    #"workloadb-mode-no-caching-clients-1000-opslimit.*",
+                                                    paste("workloadb-mode-no-caching-clients-1000-opslimit",
+                                                          c(4000, 6000, 8000, 12000),sep="-"),
+                                                    #"workloadb-mode-notifications-veryfrequent-clients-1000-opslimit.*",
+                                                    paste("workloadb-mode-notifications-veryfrequent-clients-1000-opslimit",
+                                                          c(4000, 6000, 8000, 10000, 12000, 14000, 16000),sep="-"),
+                                                    #"workloadb-mode-notifications-frequent-clients-1000-opslimit.*",
+                                                    paste("workloadb-mode-notifications-frequent-clients-1000-opslimit",
+                                                          c(4000, 6000, 8000, 10000, 12000, 14000, 16000),sep="-"),
+                                                    #"workloadb-uniform-mode-no-caching-clients-1000-opslimit.*",
+                                                    paste("workloadb-uniform-mode-no-caching-clients-1000-opslimit",
+                                                          c(4000, 6000, 8000, 10000, 12000),sep="-"),
+                                                    #"workloadb-uniform-mode-notifications-veryfrequent-clients-1000-opslimit.*",
+                                                    paste("workloadb-uniform-mode-notifications-veryfrequent-clients-1000-opslimit",
+                                                          c(# MISSING EXECUTIONS? 4000, 6000, 8000, 10000,
+                                                            12000, 16000,20000, 24000, 28000),sep="-"),
+                                                    #"workloadb-uniform-mode-notifications-frequent-clients-1000-opslimit.*",
+                                                    paste("workloadb-uniform-mode-notifications-frequent-clients-1000-opslimit",
+                                                          c(4000, 6000, 8000, 12000, 16000, 20000, 24000, 28000),sep="-")),
                                           file_suffix = "YCSB",
-                                          modes=c("no-caching", "notifications-veryfrequent", "notifications-frequent", "notifications-infrequent"),
-                                          modes_labels=c("no client replicas", "client replicas with 1 notification/500ms", 
-                                                         "client replicas with 1 notification/1s", "client replicas with 1 notification/10s"))
+                                          modes=BASIC_MODES,
+                                          modes_colors=BASIC_MODES_COLORS,
+                                          modes_labels=c("no client replicas", "client replicas updated every 500ms", 
+                                                         "client replicas updated every 1s", "client replicas updated every 10s"))
 }
 
 clients_max_throughput_plot <- function(dir, var_name, output_dir = file.path(dir, "comparison"),
