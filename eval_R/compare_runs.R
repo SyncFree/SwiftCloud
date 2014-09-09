@@ -143,15 +143,19 @@ read_runs_params <- function(dir, var_name, suffix, params = c(), workload_patte
   return (read_runs_impl(dir, var_name, suffix, params_processor, workload_pattern, mode_pattern, clients_pattern, dcs_pattern, files))
 }
 
-read_runs_errors <- function(dir, var_name, suffix) {
+read_runs_errors <- function(dir, var_name, suffix, files=c()) {
   errors_processor <- function (type, s) {
     row <- data.frame(type)
+    accOccurrences <- 0
     for (eachCause in s$cause) {
-      row[[paste("errors", eachCause, sep=".")]] <- subset(s, cause == eachCause)$occurences
+      occ <- subset(s, cause == eachCause)$occurences
+      row[[paste("errors", eachCause, sep=".")]] <- occ
+      accOccurrences <- accOccurrences + occ
     }
+    row$errors.total <- accOccurrences
     return (row)
   }
-  return (read_runs_impl(dir, var_name, suffix, errors_processor, ".+", ".+", ".+", ".+", c()))
+  return (read_runs_impl(dir, var_name, suffix, errors_processor, ".+", ".+", ".+", ".+", files))
 }
 
 read_runs_impl <- function(dir, var_name, suffix, processor, workload_pattern, mode_pattern, clients_pattern, dcs_pattern, files) {
@@ -276,6 +280,9 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
                                    lower_quantile=70, file_suffix = "") {
   response_time_lower_quantile <- paste("response_time.q", lower_quantile, sep="")
   stats <- read_runs_params(dir, "opslimit", "ops.csv", files=files, params=c("throughput", "response_time"))
+  error_stats <- read_runs_errors(dir, "opslimit", "errors.csv", files=files)
+  stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
+  stats <- subset(stats, errors.total < 200)
   stats$response_time.q95 <- sapply(stats$response_time.q95, function(v) { (max(v, 1))})
   stats[[response_time_lower_quantile]] <- sapply(stats[[response_time_lower_quantile]], function(v) { (max(v, 1))})
   stats <- stats[order(stats$var), ]
@@ -287,8 +294,8 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   
   p <- ggplot(stats) + THEME + theme(panel.margin= unit(0.79, 'lines'))
   p <- p + labs(x="throughput [txn/s]", y = "response time [ms]")
-  #p <- p + coord_cartesian(ylim=c(0, 10000))
-  p <- p + scale_y_log10(breaks=c(1, 100, 10000), limits=c(1,10000))
+  #p <- p + coord_cartesian(ylim=c(0, 2500))
+  p <- p + scale_y_log10(breaks=c(1, 100, 10000), limits=c(1,5000))
   
   p <- p + geom_path(mapping=aes_string(y=response_time_lower_quantile,
                                         x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
@@ -306,7 +313,7 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
   p <- p + scale_shape_discrete(name="System configuration",breaks=modes, labels=modes_labels)
   p <- p + scale_linetype_manual(name = "Response time w.r.t. access locality",
-                                 values = c("solid", "dashed"),  guide="legend",
+                                 values = c(2, 1),  guide="legend",
                                  breaks = c("low", "high"),
                                  labels = c(paste(lower_quantile, "th percentile (expected local request)", sep=""), "95th percentile (remote request)"))
   p <- p + facet_grid(workload_distribution ~ workload_name, scales="free_x")
