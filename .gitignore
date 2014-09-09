@@ -1,4 +1,4 @@
-bin/
+bin
 swiftcloud*.jar
 org.eclipse.jdt.internal.junit.runner.RemoteTestRunner@*stats.xml
 planetlab-key*
@@ -16,3 +16,4 @@ teste/
 tmp/
 **/Rplots.pdf
 /db
+bin.orig/
