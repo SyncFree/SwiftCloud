@@ -141,7 +141,7 @@ class Tools {
         Parallel.rsh( hosts, cmd, resHandler, true, timeout)
     }
     
-    static void shutdown( List hosts, String pattern, int timeout) {
+    static void shutdown( List hosts, int timeout=300) {
         println "SHUTTING DOWN" + hosts
         AtomicInteger n = new AtomicInteger();
         def cmd = { "sudo shutdown -h now "}
@@ -149,7 +149,7 @@ class Tools {
             def str = n.incrementAndGet() + "/" + hosts.size() + (res == 0 ? " [ OK ]" : " [FAILED]") + " : " + host
             println str
         }
-        Parallel.rsh( hosts, cmd, resHandler, true, timeout, true)
+        Parallel.rsh( hosts, cmd, resHandler, false, timeout, true)
     }
 
 
