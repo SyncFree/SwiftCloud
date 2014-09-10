@@ -539,8 +539,9 @@ clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.
                                    color=mode, size=dcs))
     p <- p + geom_point(data=max_stats,
                        mapping=aes(y=throughput.mean, x=clients, color=mode, shape=mode))
-    p <- p + geom_hline(data=max_no_caching_stats, mapping=aes(yintercept=throughput.mean, color=mode,
-                                                               size=dcs, shape=mode))
+    limits <- data.frame(max_clients=factor(rep(2000, 2)), max_throughput=c(3300, 3600))
+    p <- p + geom_segment(data=limits, mapping=aes(x=max_clients, xend=max_clients, y=max_throughput-200,
+                                                   yend=max_throughput+200), color="gray")
     p <- p + facet_wrap(~workload)
     if (length(modes_colors) > 0) {
       p <- p + scale_color_manual(values=modes_colors, breaks=modes, labels=modes_labels)
