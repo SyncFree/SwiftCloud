@@ -506,12 +506,16 @@ scalabilitythroughput_3dcs_workloads_modes_max_throughput_plot <- function() {
 
 clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.path(dir, "comparison"),
                                         modes, modes_labels, modes_colors=c(),
-                                        lower_quantile_threshold = 10, high_quantile_threshold=5000) {
+                                        lower_quantile_threshold = 10, high_quantile_threshold=5000,
+                                        errors_threshold = 10000,
+                                        show_server_replicas=F) {
   stats <- read_runs_params(dir, var_name, "ops.csv", files=files)
+  error_stats <- read_runs_errors(dir, "opslimit", "errors.csv", files=files)
+  stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
+  stats <- subset(stats, errors.total < errors_threshold)
   stats <- subset(stats, response_time.q95 <= high_quantile_threshold)
   stats <- subset(stats, grepl("no-caching", mode) | response_time.q20 < lower_quantile_threshold)
   stats <- subset(stats, grepl("no-caching", mode) | grepl("locality", workload) | response_time.q70 < lower_quantile_threshold)
-  # TODO threshold on errors?
 
   melted_stats <- melt(stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
   max_stats <- dcast(melted_stats, workload + mode + dcs + clients ~ variable, max, fill=0, subset=.(mode != "no-caching"))
@@ -526,6 +530,10 @@ clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.
     p <- p + coord_cartesian(ylim=c(0, ceiling(max(max_stats$throughput.mean)/5000)*5000))
     #p <- p + scale_x_discrete(breaks=CLIENTS_LEVELS, limits=CLIENTS_LEVELS)
     p <- p + labs(x="#client replicas",y = "max. throughput [txn/s]")
+    if (show_server_replicas) {
+      p <- p + geom_hline(data=max_no_caching_stats, mapping=aes(yintercept=throughput.mean, color=mode,
+                                                                size=dcs, shape=mode, linetype=mode))
+    }
     p <- p + geom_path(data=max_stats,
                        mapping=aes(y=throughput.mean, x=clients, group=interaction(workload,mode,dcs),
                                    color=mode, size=dcs))
@@ -536,16 +544,19 @@ clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.
     p <- p + facet_wrap(~workload)
     if (length(modes_colors) > 0) {
       p <- p + scale_color_manual(values=modes_colors, breaks=modes, labels=modes_labels)
+      if (show_server_replicas) {
+        p <- p + scale_linetype_manual(values=c(2), breaks=modes, labels=modes_labels)
+      }
     } else {
       p <- p + scale_color_discrete(breaks=modes, labels=modes_labels)
     }
     p <- p + scale_shape_discrete(breaks=modes, labels=modes_labels)
     dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-    p <- p + theme(legend.position = c(0.16, 0.598), legend.background=element_rect(fill="white",colour="black"),
-          legend.title=element_blank())
-    p <- p + scale_size_manual(values=c(0.25, 0.75), breaks=c(1, 3), labels=c("1 DC", "3 DCs"))
+    p <- p + theme(legend.position = c(0.16, 0.611), legend.background=element_rect(fill="white",colour="black"),
+          legend.title=element_blank(),  legend.margin =unit(0, "lines"))
+    p <- p + scale_size_manual(values=c(0.3, 0.75), breaks=c(1, 3), labels=c("1 server (DC) replica", "3 server (DC) replicas"))
     ggsave(p, file=paste(paste(file.path(output_dir, "clients-max_throughput"), format_ext, sep="")),
-           width=6.2, height=2.9)
+           width=6.2, height=2.6)
   }
 }
 
