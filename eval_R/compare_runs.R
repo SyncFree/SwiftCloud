@@ -30,7 +30,8 @@ BASIC_MODES <- c("no-caching", "notifications-veryfrequent", "notifications-freq
 BASIC_MODES_COLORS <- c("no-caching" = "black", "notifications-veryfrequent" = "#E69F00",
                   "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
 MODES_COLORS <- c(BASIC_MODES_COLORS, "notifications-frequent-practi"="#D55E00", "notifications-infrequent-practi"="#D55E00",
-                  "notifications-infrequent-practi-no-deltas"="#CC79A7")
+                  "notifications-infrequent-practi-no-deltas"="#CC79A7", "notifications-frequent-no-pruning"="#CC79A7",
+                  "notifications-infrequent-no-pruning"="#CC79A7", "refresh-infrequent-bloated-counters" = "black")
 BASIC_MODES_FILLS <- c("no-caching" = "white", "notifications-veryfrequent" = "#E69F00",
                         "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
 # more color-blindness-friendly colors:  "#56B4E9", "#F0E442", , "#D55E00", "#CC79A7"
@@ -68,10 +69,13 @@ add_cs_log_scale <- function(p, min_value=10**0, max_value=10**6) {
     if (value < 1000000) {
       return (paste(value/1000, "K", sep=""))
     }
-    return (paste(value/1000000, "M", sep=""))
+    if (value < 10**9) {
+      return (paste(value/10**6, "M", sep=""))
+    }
+    return (paste(value/10**9, "G", sep=""))
   }
   labels <- lapply(breaks, labeler)
-  return (p + coord_cartesian(ylim=c(min(breaks), max(breaks))) + scale_y_log10(breaks = breaks, labels=labels, limits=c(min(breaks), max(breaks))))
+  return (p + coord_cartesian(ylim=c(min(breaks), max(breaks))) + scale_y_log10(breaks = breaks, labels=labels))
 }
 
 TOP_DIR <- "~/Dropbox/INRIA/results/"
@@ -1064,7 +1068,6 @@ var_notifications_metadata_plot_impl <- function(dir, var_name, var_label_axis, 
   error_stats <- read_runs_errors(dir, var_name, "errors.csv", files=files)
   stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
   stats <- subset(stats, errors.total < errors_threshold)
-  stats$clients <- as.numeric(levels(stats$clients))[stats$clients]
   stats <- stats[order(stats$var), ]
   stats <- normalize_batch(stats, "BatchUpdatesNotification.meta", NOTIFICATIONS_EXAMPLE_BATCH_SIZE)
   multiple_dcs <- length(unique(stats$dcs)) > 1
@@ -1304,50 +1307,99 @@ TABLES <- c(select_table("swiftsocial"), select_table("YCSB"))
 dc_table <- function(table) {
   return (paste(table, "dc", sep="."))
 }
-var_storage_plot <- function(dir, var_name, var_label, dcs=3, output_dir = file.path(dir, "comparison"),
-                             workload_pattern=".+", modes=c(), modes_labels=c()) {
-  if (length(modes) == 0) {
-    mode_pattern = ".+"
-  } else {
-    mode_pattern = pattern_alternatives(modes, exact_match=TRUE)
+
+var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.path(dir, "comparison"),
+                             modes=c(), modes_labels=c(), modes_colors=c(), errors_threshold=10000,
+                             unstable_behavior_markers=T) {
+  stats <- read_runs_params(dir, var_name, "meta_size.csv", c("idempotenceGuard", dc_table(TABLES)), files=files)
+  error_stats <- read_runs_errors(dir, var_name, "errors.csv", files=files)
+  stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
+  stats <- subset(stats, errors.total < errors_threshold)
+  stats <- stats[order(stats$var), ]
+  
+  #HACK to unify presentation!
+  stats$mode[stats$mode == "refresh-frequent"] <- "refresh-infrequent-bloated-counters"
+
+  p <- ggplot() + THEME + theme(legend.title=element_blank())
+  p <- p + labs(x=var_label,y = "DC storage utilization [b]")
+  stats$extraMetadata <- mapply(function(mode, guard) {
+    if ("notifications-frequent" == mode) {
+      return (guard * IDEMPOTENCE_GUARD_ENTRY_BYTES)
+      #if (!grepl("no-deltas", m)) {
+        # For each client, the DC needs to store a vector indexed by client ids
+        # return ((guard * IDEMPOTENCE_GUARD_ENTRY_BYTES)**2))
+        #mode_stats$extraMetadata <-mode_stats$extraMetadata**2
+      #}
+    } else {
+      return (1)     
+    }
+  }, stats$mode, stats$idempotenceGuard.mean)
+  stats$tableSize <- mapply(function(workload, tableYCSB, tableSwiftSocial) {
+    if (grepl("YCSB", workload)) {
+      return (tableYCSB)
+    }
+    return (tableSwiftSocial)
+  }, stats$workload, stats[[paste(dc_table(select_table("YCSB")), "mean", sep=".")]],
+     stats[[paste(dc_table(select_table("swiftsocial")), "mean", sep=".")]])
+  stats$total <- stats$extraMetadata +stats$tableSize
+  melted <- melt(stats, id.vars=c("workload", "mode", "var"), measure.vars = c("extraMetadata", "total"))
+  
+  # TODO: there is probably a simpler way to do compute limited_mode_var_stats
+  max_var_stats <- dcast(melt(stats, id.vars=c("workload", "mode"), measure.vars = c("var")), workload + mode ~ variable, max, fill=0)
+  limited_mode_var_stats <- subset(max_var_stats, var != max(stats$var))
+  limited_mode_var_stats <- merge(limited_mode_var_stats, stats, by=c("workload", "mode", "var"))
+  limited_mode_var_stats$label <- rep("unstable", nrow(limited_mode_var_stats))
+  
+  
+  p <- p + geom_path(data=melted, mapping=aes(y=value, x=var, color=mode, group=interaction(workload, mode, variable), linetype=variable))
+  p <- p + geom_point(data=melted, mapping=aes(y=value, x=var, color=mode, shape=mode), position=position_dodge(width=60))
+  
+  if (unstable_behavior_markers) {
+    p <- p + geom_segment(data=limited_mode_var_stats,
+                          mapping=aes(x=var+80, xend=var + 80, y=total**0.95, yend=total**1.05), color="black",linestyle=2)
+    p <- p + geom_text(data=limited_mode_var_stats,
+                       mapping=aes(x=var+100, y=total, label=label), size = 2.2, hjust=0)
   }
-  stats <- read_runs_params(dir, var_name, "meta_size.csv", c("idempotenceGuard", dc_table(TABLES)),
-                            workload_pattern = workload_pattern, mode_pattern = mode_pattern, dcs_pattern=dcs)
-  for (w in unique(stats$workload)) {
-    workload_stats <- subset(stats, workload == w)
-    p <- ggplot()
-    p <- add_title(p, w)
-    p <- p + labs(x=var_label,y = "DC replica storage utilization [bytes]")
-    p <- p + THEME
-    p <- p + scale_y_log10()
-    for (m in unique(workload_stats$mode)) {
-      mode_stats <- subset(workload_stats, workload_stats$mode == m)
-      mode_stats <- mode_stats[order(mode_stats$var), ]
-      mode_stats$extraMetadata <- mode_stats$idempotenceGuard.mean*IDEMPOTENCE_GUARD_ENTRY_BYTES
-      if (grepl("practi", m) & !grepl("no-deltas", m)) {
-          # For each client, the DC needs to store a vector indexed by client ids
-          mode_stats$extraMetadata <-mode_stats$extraMetadata**2
+  
+  if (length(modes) > 0) {
+    p <- p + scale_color_manual(name="System configuration", values=modes_colors, breaks=modes, labels=modes_labels)
+    p <- p + scale_shape_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+  }
+  p <- p + scale_linetype_manual(name="Type of data",
+                                   values=c(2, 1),
+                                   breaks=c("total", "extraMetadata"),
+                                   labels=c("complete data and metadata", "idempotence guard only"))
+  p <- add_cs_log_scale(p, 10**3, 10**9)
+  labeller <- function(var, values) {
+    return (lapply(values, function(value) {
+      if (grepl("YCSB", value)) {
+        return ("YCSB objects")
       }
-      mode_stats$total <- mode_stats$extraMetadata + mode_stats[[paste(dc_table(select_table(w)), "mean", sep=".")]]
-      melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"))
-      melted <- subset(melted, variable %in% c("extraMetadata", paste(dc_table(select_table(w)), "mean", sep="."), "total"))
-      p <- p + geom_path(data=melted, mapping=aes_string(y="value", x="var", color="mode", linetype="variable"))
-      p <- p + geom_point(data=melted, mapping=aes_string(y="value", x="var", color="mode", shape="mode"))
-    }
-    if (length(modes) > 0) {
-      p <- p + scale_color_discrete(name="System configuration", breaks=modes, labels=modes_labels)
-      p <- p + scale_shape_discrete(name="System configuration", breaks=modes, labels=modes_labels)
-    }
-    p <- p + scale_linetype_discrete(name="Type of data",
-                                     breaks=c(paste(dc_table(select_table(w)), "mean", sep="."), "extraMetadata", "total"),
-                                     labels=c("Objects data+metadata", "System metadata", "Total"))
-    dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-    ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-storage_dc", format_ext, sep="")), scale=1)
+      if (grepl("Social", value)) {
+        return ("SwiftSocial view counter objects")
+      }
+      return (value)
+    }))
   }
+  p <- p + facet_grid(~workload, labeller = labeller)
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-", "-storage_dc", format_ext, sep="")),
+         width=6.2, height=3.5)
 }
 
 clientfailures_storage_plot <- function() {
-  var_storage_plot(experiment_dir("clientfailures"), "failures", "#unavailable client replicas")
+  var_storage_plot(experiment_dir("clientfailures"), "failures", "#unavailable client replicas",
+                   files=c("workloada-uniform-mode-notifications-frequent-failures-.*",
+                           "workloada-uniform-mode-refresh-frequent-failures-.*",
+                           "workloada-uniform-mode-notifications-frequent-no-pruning-failures-.*",
+                           "workload-social-views-counter-mode-notifications-frequent-failures-.*",
+                           "workload-social-views-counter-mode-notifications-frequent-no-pruning-failures-.*",
+                           "workload-social-views-counter-mode-refresh-infrequent-bloated-counters-failures-.*"
+                           ),
+                   modes=c("notifications-frequent", "notifications-frequent-no-pruning", "refresh-infrequent-bloated-counters"),
+                   modes_labels=c("SwiftCloud log compaction protocol", "stability-based log compaction protocol", "object-level metadata compaction protocol"),
+                   modes_colors=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-frequent-no-pruning"], MODES_COLORS["refresh-infrequent-bloated-counters"]),
+                   errors_threshold=10000)
 }
 
 scalabilityclients_storage_plot <- function() {
@@ -1362,27 +1414,40 @@ scalabilityclientssmalldb_storage_plot <- function() {
 }
 
 DB_SIZE_CHECKPOINT_EXP <- 10000
-var_checkpoint_size_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) {
-  stats <- read_runs_params(dir, var_name, "meta_size.csv", dc_table("views.table"))
-  workload_stats <- subset(stats, workload == "SwiftSocial (page view counters)")
+var_checkpoint_size_plot <- function(dir, var_name, var_label, files, output_dir = file.path(dir, "comparison"),
+                                     modes, modes_colors, modes_labels) {
+  stats <- read_runs_params(dir, var_name, "meta_size.csv", params=dc_table("views.table"), files=files)
+  stats <- stats[order(stats$var), ]
+  stats$counter.checkpoint.mean <- stats$views.table.dc.mean / DB_SIZE_CHECKPOINT_EXP
+
   p <- ggplot()
-  p <- add_title(p, "Counter object checkpoint size (including metadata)")
-  p <- p + labs(x=var_label,y = "counter object checkpoint size [bytes]")
-  p <- p + THEME
-  for (m in unique(workload_stats$mode)) {
-    mode_stats <- subset(workload_stats, workload_stats$mode == m)
-    mode_stats <- mode_stats[order(mode_stats$var), ]
-    mode_stats$counter.checkpoint.mean <- mode_stats$views.table.dc.mean / DB_SIZE_CHECKPOINT_EXP
-    melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"))
-    melted <- subset(melted, variable %in% c("counter.checkpoint.mean",  "views.table.dc.mean"))
-    p <- p + geom_path(data=melted, mapping=aes_string(y="value", x="var", color="mode", linetype="variable"))
-  }
+  p <- p + coord_cartesian(ylim = c(0, 600))
+  p <- add_title(p, "object checkpoint size (including metadata)")
+  p <- p + labs(x=var_label,y ="mean object\n checkpoint size[b]")
+  p <- p + THEME  + theme(legend.title=element_blank(), #plot.margin = unit(c(2, 0, 0, 0), "cm"),
+                          legend.margin=unit(-1.4, units="lines"), legend.key.height=unit(0.6,"line"),
+                          legend.text = element_text(size=6.8))
+                          #legend.direction="horizontal") #, legend.position=c(0.5, 0.2))
+  #melted <- melt(mode_stats, id.vars=c("workload", "mode", "var"))
+  #melted <- subset(melted, variable %in% c("counter.checkpoint.mean"))
+  p <- p + geom_path(data=stats, mapping=aes(y=counter.checkpoint.mean, x=var, color=mode))
+  p <- p + geom_point(data=stats, mapping=aes(y=counter.checkpoint.mean, x=var, color=mode, shape=mode))
+
+  p <- p + scale_color_manual(name="System configuration", values=modes_colors, breaks=modes, labels=modes_labels)
+  p <- p + scale_shape_discrete(name="System configuration", breaks=modes, labels=modes_labels)
+  
   dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-counter-checkpoint-dc", format_ext, sep="")), scale=1)
+  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-counter-checkpoint-dc", format_ext, sep="")),
+         width=3.1, height=1.9)
 }
 
 scalabilityclientssmalldb_checkpoint_size_plot <- function() {
-  var_checkpoint_size_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#client replicas")
+  var_checkpoint_size_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#client replicas",
+                           files=c("workload-social-views-counter-mode-notifications-frequent-clients-.*",
+                                   "workload-social-views-counter-mode-refresh-infrequent-bloated-counters-clients-.*"),
+                           modes=c("notifications-frequent", "refresh-infrequent-bloated-counters"),
+                           modes_labels=c("SwiftCloud protocol", "server-assigned timestamps only/no idempotence"),
+                           modes_colors=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["refresh-infrequent-bloated-counters"]))
 }
 
 clientfailures_checkpoint_size_plot <- function() {
