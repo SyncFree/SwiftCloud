@@ -15,7 +15,7 @@ add_title <- function(plot, title) {
 }
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter", "workloada-uniform-lowlocality", "workloada-lowlocality", "workloadb-uniform-lowlocality", "workloadb-lowlocality", "workload-social-lowlocality", "workload-social-views-counter-lowlocality")
-WORKLOAD_LABELS <- c("YCSB A, uniform", "YCSB A", "YCSB B, uniform", "YCSB B", "SwiftSocial", "SwiftSocial, page view counters", "YCSB A, uniform, low locality", "YCSB A, low locality", "YCSB B, uniform, low locality", "YCSB B, low locality", "SwiftSocial, low locality", "SwiftSocial, page view counters, low locality")
+WORKLOAD_LABELS <- c("YCSB A, uniform", "YCSB A", "YCSB B, uniform", "YCSB B", "SwiftSocial", "SwiftSocial w/view counters", "YCSB A, uniform, low locality", "YCSB A, low locality", "YCSB B, uniform, low locality", "YCSB B, low locality", "SwiftSocial, low locality", "SwiftSocial w/view counters, low locality")
 PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-veryfrequent",
                       "notifications-frequent-no-pruning",  "notifications-frequent-practi",
                       "notifications-frequent-practi-no-deltas", "notifications-frequent-bloated-counters",
@@ -29,6 +29,8 @@ MODE_LEVELS <- PURE_MODE_LEVELS
 BASIC_MODES <- c("no-caching", "notifications-veryfrequent", "notifications-frequent", "notifications-infrequent")
 BASIC_MODES_COLORS <- c("no-caching" = "black", "notifications-veryfrequent" = "#E69F00",
                   "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
+MODES_COLORS <- c(BASIC_MODES_COLORS, "notifications-frequent-practi"="#D55E00", "notifications-infrequent-practi"="#D55E00",
+                  "notifications-infrequent-practi-no-deltas"="#CC79A7")
 BASIC_MODES_FILLS <- c("no-caching" = "white", "notifications-veryfrequent" = "#E69F00",
                         "notifications-frequent" = "#0072B2", "notifications-infrequent" = "#009E73")
 # more color-blindness-friendly colors:  "#56B4E9", "#F0E442", , "#D55E00", "#CC79A7"
@@ -56,7 +58,7 @@ THEME <- THEME + theme(panel.border = element_blank(), plot.background = element
                         strip.background= element_rect(fill = 'white', colour = 'black'))
 
 # computer-scientish log. scale
-cs_log_scale <- function(min_value=10**0, max_value=10**6) {
+add_cs_log_scale <- function(p, min_value=10**0, max_value=10**6) {
   # TODO: we should use log2, but it's a bit more difficult with the newest version of ggplot2
   breaks <- 10**(floor(log10(max(min(min_value, max_value), 1))):ceiling(log10(max(max_value, min_value, 1))))
   labeler <- function(value) {
@@ -69,7 +71,7 @@ cs_log_scale <- function(min_value=10**0, max_value=10**6) {
     return (paste(value/1000000, "M", sep=""))
   }
   labels <- lapply(breaks, labeler)
-  return (scale_y_log10(breaks = breaks, labels=labels, limits=c(min(breaks), max(breaks))))
+  return (p + coord_cartesian(ylim=c(min(breaks), max(breaks))) + scale_y_log10(breaks = breaks, labels=labels, limits=c(min(breaks), max(breaks))))
 }
 
 TOP_DIR <- "~/Dropbox/INRIA/results/"
@@ -507,8 +509,7 @@ scalabilitythroughput_3dcs_workloads_modes_max_throughput_plot <- function() {
 clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.path(dir, "comparison"),
                                         modes, modes_labels, modes_colors=c(),
                                         lower_quantile_threshold = 10, high_quantile_threshold=5000,
-                                        errors_threshold = 10000,
-                                        show_server_replicas=F) {
+                                        errors_threshold = 10000, show_server_replicas=F) {
   stats <- read_runs_params(dir, var_name, "ops.csv", files=files)
   error_stats <- read_runs_errors(dir, "opslimit", "errors.csv", files=files)
   stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
@@ -519,15 +520,27 @@ clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.
 
   melted_stats <- melt(stats, id.vars=c("workload", "mode", "dcs", "clients", "var"), measure.vars=c("throughput.mean"))
   max_stats <- dcast(melted_stats, workload + mode + dcs + clients ~ variable, max, fill=0, subset=.(mode != "no-caching"))
+  max_stats <- transform(max_stats, clients=as.numeric(levels(max_stats$clients)[max_stats$clients]))
+
   max_no_caching_stats <- dcast(melted_stats, workload + mode + dcs ~ variable, max, fill=0, subset=.(mode == "no-caching"))
+
+  # TODO: there is probably a simpler way to do compute limited_clients_throughput_stats.
+  max_any_mode_stats <- dcast(melted_stats, workload + dcs + clients ~ variable, max, fill=0, subset=.(mode != "no-caching"))
+  max_any_mode_stats <- transform(max_any_mode_stats, clients=as.numeric(levels(max_any_mode_stats$clients)[max_any_mode_stats$clients]))
+  max_clients_throughput_stats <- dcast(melt(max_any_mode_stats, id.vars=c("workload", "dcs")), workload + dcs ~ variable, max, fill=500)
+  limited_clients_throughput_stats <- subset(max_clients_throughput_stats, clients != max(max_clients_throughput_stats$clients), select=c(workload,dcs,clients))
+  limited_clients_throughput_stats <- merge(limited_clients_throughput_stats, max_any_mode_stats, by=c("workload", "dcs", "clients"))
+  limited_clients_throughput_stats$label <- rep("unstable", nrow(limited_clients_throughput_stats))
+  
   if (nrow(max_stats) > 0) {
     #     throughput_stats <- transform(throughput_stats, clients=as.numeric(levels(clients))[clients],
     #                                   dcs=as.numeric(levels(dcs))[dcs])
     #     throughput_stats <- throughput_stats[order(throughput_stats$clients), ]
     #     throughput_stats$line_thickness <- rep(0.0001, nrow(throughput_stats))
     p <- ggplot() + THEME + theme(legend.title = element_blank(), legend.box="vertical",
-                                  legend.text = element_text(size=6), legend.key.height=unit(0.8,"line"))
-    p <- p + coord_cartesian(ylim=c(0, ceiling(max(max_stats$throughput.mean)/5000)*5000))
+                                  legend.text = element_text(size=6.3), legend.key.height=unit(0.8,"line"))
+    p <- p + coord_cartesian(ylim=c(0, ceiling(max(max_stats$throughput.mean)/5000)*5000),
+                             xlim=c(350, 2650))
     #p <- p + scale_x_discrete(breaks=CLIENTS_LEVELS, limits=CLIENTS_LEVELS)
     p <- p + labs(x="#client replicas",y = "max. throughput [txn/s]")
     if (show_server_replicas) {
@@ -539,9 +552,13 @@ clients_max_throughput_plot <- function(dir, var_name, files, output_dir = file.
                                    color=mode, size=dcs))
     p <- p + geom_point(data=max_stats,
                        mapping=aes(y=throughput.mean, x=clients, color=mode, shape=mode))
-    limits <- data.frame(max_clients=factor(rep(2000, 2)), max_throughput=c(3300, 3600))
-    p <- p + geom_segment(data=limits, mapping=aes(x=max_clients, xend=max_clients, y=max_throughput-200,
-                                                   yend=max_throughput+200), color="gray")
+    p <- p + geom_segment(data=limited_clients_throughput_stats,
+                          mapping=aes(x=clients+50, xend=clients + 50,
+                                      y=throughput.mean-1000, yend=throughput.mean+1000), color="black",
+                          linestyle=2)
+     p <- p + geom_text(data=limited_clients_throughput_stats,
+                        mapping=aes(x=clients+80, y=throughput.mean, label=label),
+                        size = 2.2, hjust=0)
     p <- p + facet_wrap(~workload)
     if (length(modes_colors) > 0) {
       p <- p + scale_color_manual(values=modes_colors, breaks=modes, labels=modes_labels)
@@ -737,7 +754,7 @@ cdfs_locality_plot <- function(dir, var_name, files,
                                        label="approx. access locality potential"))
     }
   } 
-  p <- p + geom_hline(data=locality_ann, aes(yintercept = expected_locality), color = "gray")
+  p <- p + geom_hline(data=locality_ann, aes(yintercept = expected_locality), color = "gray", alpha=0.75, size=6)
   
   melted <- melt(permilles, id.vars=c("locality", "mode", "dcs", "clients", "var","stat_param"), cols[grepl("response_time_", cols)], na.rm=TRUE)
   melted <- transform(melted, variable = factor(variable, levels= RESPONSE_TIME_OPERATION_TYPES))
@@ -830,7 +847,7 @@ cdf_locality_plot <- function(dir, var_name, file, output_dir = file.path(dir, "
                                        label="approx. access locality potential"))
     }
   } 
-  p <- p + geom_hline(data=locality_ann, aes(yintercept = expected_locality), color = "gray")
+  p <- p + geom_hline(data=locality_ann, aes(yintercept = expected_locality), color = "gray", size=6, alpha=0.75)
   
   melted <- melt(permilles, id.vars=c("locality", "mode", "dcs", "clients", "var","stat_param"), cols[grepl("response_time_", cols)], na.rm=TRUE)
   melted <- transform(melted, variable = factor(variable, levels= RESPONSE_TIME_OPERATION_TYPES))
@@ -1027,51 +1044,88 @@ normalize_batch <- function(stats, message, batch_size, norm="norm2") {
 }
 
 NOTIFICATIONS_EXAMPLE_BATCH_SIZE <- 10
-var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, output_dir = file.path(dir, "comparison"), workload_pattern=".+",
-                                            modes=c(), modes_labels=c()) {
-  if (length(modes) == 0) {
-    mode_pattern = ".+"
-  } else{
-    mode_pattern = pattern_alternatives(modes, exact_match=TRUE)
+var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, files=".+",
+                                            output_dir = file.path(dir, "comparison"),
+                                            modes=c(), modes_labels=c(), modes_colors=c(),
+                                            errors_threshold=4000, unstable_behavior_markers=F) {
+  p <- var_notifications_metadata_plot_impl(dir, var_name, var_label_axis, files, modes,
+                                            modes_labels, modes_colors, errors_threshold, unstable_behavior_markers)
+  p <- p + facet_grid(~workload)
+  #p <- p + theme(legend.position = c(0.5, 0.0))
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-notifications-metadata", format_ext, sep="")),
+         width=6.2, height=2.49)
+}
+
+var_notifications_metadata_plot_impl <- function(dir, var_name, var_label_axis, files=".+",
+                                                 modes, modes_labels, modes_colors,
+                                                 errors_threshold, unstable_behavior_markers) {
+  stats <- read_runs_params(dir, var_name, "meta_size.csv", params=c("BatchUpdatesNotification.meta.indep", "BatchUpdatesNotification.meta.dep.norm2"), files=files)
+  error_stats <- read_runs_errors(dir, var_name, "errors.csv", files=files)
+  stats <- merge(stats, error_stats, by=c("workload", "mode", "dcs", "clients", "var"))
+  stats <- subset(stats, errors.total < errors_threshold)
+  stats$clients <- as.numeric(levels(stats$clients))[stats$clients]
+  stats <- stats[order(stats$var), ]
+  stats <- normalize_batch(stats, "BatchUpdatesNotification.meta", NOTIFICATIONS_EXAMPLE_BATCH_SIZE)
+  multiple_dcs <- length(unique(stats$dcs)) > 1
+  
+  # TODO: there is probably a simpler way to do compute limited_clients_throughput_stats.
+  melted_stats <- melt(stats, id.vars=c("workload", "mode", "dcs"), measure.vars = c("var"))
+  max_var_stats <- dcast(melted_stats, workload + mode + dcs ~ variable, max, fill=0)
+  limited_mode_var_stats <- subset(max_var_stats, var != max(stats$var))
+  limited_mode_var_stats <- merge(limited_mode_var_stats, stats, by=c("workload", "mode", "dcs", "var"))
+  limited_mode_var_stats$label <- rep("unstable", nrow(limited_mode_var_stats))
+  
+  p <- ggplot() + THEME + theme(panel.margin= unit(0.54, 'lines'), legend.key.height=unit(0.8,"line"),
+                                legend.title=element_blank(), legend.margin=unit(0, "lines"))
+  #legend.direction='horizontal', legend.box='horizontal')
+  p <- add_title(p, paste(w, "normalized notifications message metadata"))
+  p <- p + labs(x=var_label_axis, y = "metadata in normalized\nnotification message [b]")
+  min_y <- 10^9
+  max_y <- 1
+  if (multiple_dcs) {
+    p <- p + geom_line(data=stats,
+                       mapping=aes(y=BatchUpdatesNotification.meta.mean.scaled,
+                                   x=var, group=interaction(workload,dcs,mode), color=mode,
+                                   linetype=mode, size=dcs))
+  } else {
+    p <- p + geom_line(data=stats,
+                       mapping=aes(y=BatchUpdatesNotification.meta.mean.scaled,
+                                   x=var, group=interaction(workload,dcs,mode), color=mode,
+                                   linetype=mode))
   }
-  stats <- read_runs_params(dir, var_name, "meta_size.csv", c("BatchUpdatesNotification.meta.indep", "BatchUpdatesNotification.meta.dep.norm2"), workload_pattern=workload_pattern, mode_pattern=mode_pattern)
-  for (w in unique(stats$workload)) {
-    workload_stats <- subset(stats, workload == w)
-    p <- ggplot()
-    p <- add_title(p, paste(w, "normalized notifications message metadata"))
-    p <- p + labs(x=var_label_axis, y = "metadata in notification with 10 updates [bytes]")
-    p <- p + THEME
-    min_y <- 10^9
-    max_y <- 1
-    for (dd in unique(workload_stats$dcs)) {
-      for (m in unique(workload_stats$mode)) {
-        mode_stats <- subset(workload_stats, workload_stats$mode == m & workload_stats$dcs==dd)
-        if (nrow(mode_stats) > 0) {
-          mode_stats <- mode_stats[order(mode_stats$var), ]
-          mode_stats <- normalize_batch(mode_stats, "BatchUpdatesNotification.meta", NOTIFICATIONS_EXAMPLE_BATCH_SIZE)
-          mode_stats$modeDC <- rep(paste(modes_labels[match(m, modes)], " (", dd, " DCs)", sep=""), nrow(mode_stats))
-          p <- p + geom_line(data=mode_stats,
-                             mapping=aes(y=BatchUpdatesNotification.meta.mean.scaled,
-                                         x=var, color=modeDC, linetype=modeDC))
-          p <- p + geom_errorbar(data=mode_stats, position=position_dodge(width = 30),
-                                 mapping=aes(ymax=BatchUpdatesNotification.meta.max.scaled,
-                                             ymin=BatchUpdatesNotification.meta.min.scaled,
-                                             x=var, color=modeDC), width=15)
-          min_y <- min(min_y, na.omit(mode_stats$BatchUpdatesNotification.meta.min.scaled))
-          max_y <- max(max_y, na.omit(mode_stats$BatchUpdatesNotification.meta.max.scaled))
-        }
-      }
-    }
-    #p <- p + scale_y_continuous(limits=c(0, ceiling(max_y/1000)*1000)) #, breaks=c(1, 10, 100, 1000, 10000))
-    p <- p + cs_log_scale(min_y, max_y)
-    if (length(modes) > 0) {
-      p <- p + scale_color_discrete(name="System configuration")
-      # TODO: somehow it does not make it appear.
-      p <- p + scale_linetype_discrete(name="System configuration")
-    }
-    dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-    ggsave(p, file=paste(paste(file.path(output_dir, w), "-", var_name, "-BatchUpdatesNotification-metadata", format_ext, sep="")), scale=1)
+  
+  p <- p + geom_errorbar(data=stats, position=position_dodge(width=2),
+                         mapping=aes(ymax=BatchUpdatesNotification.meta.max.scaled,
+                                     ymin=BatchUpdatesNotification.meta.min.scaled,
+                                     group=interaction(workload,dcs,mode),
+                                     x=var), width=15)
+  
+  if (unstable_behavior_markers) {
+    p <- p + geom_segment(data=limited_mode_var_stats,
+                          mapping=aes(x=var+50, xend=var + 50,
+                                      y=BatchUpdatesNotification.meta.mean.scaled**0.95, yend=BatchUpdatesNotification.meta.mean.scaled**1.05), color="black",
+                          linestyle=2)
+    p <- p + geom_text(data=limited_mode_var_stats,
+                       mapping=aes(x=var+80, y=BatchUpdatesNotification.meta.mean.scaled, label=label),
+                       size = 2.2, hjust=0)
   }
+  min_y <- min(na.omit(stats$BatchUpdatesNotification.meta.min.scaled))
+  max_y <- max(na.omit(stats$BatchUpdatesNotification.meta.max.scaled))
+  #p <- p + scale_y_continuous(limits=c(0, ceiling(max_y/1000)*1000)) #, breaks=c(1, 10, 100, 1000, 10000))
+  p <- add_cs_log_scale(p, min_y, max_y)
+  if (length(modes) > 0) {
+    p <- p + scale_color_manual(name="System configuration", labels=modes_labels, breaks=modes,
+                                values=modes_colors)
+    p <- p + scale_linetype_discrete(name="System configuration", labels=modes_labels, breaks=modes)
+  } else {
+    p <- p + scale_color_discrete(name="System configuration")
+    p <- p + scale_linetype_discrete(name="System configuration")
+  }
+  if (multiple_dcs) {
+    p <- p + scale_size_manual(name="#server (DC) replicas ", values=c(0.3, 0.75), breaks=c(1, 3), labels=c("1 server (DC) replica", "3 server (DC) replicas"))
+  }
+  return (p)
 }
 
 scalabilitythroughput_notifications_metadata_plot <- function() {
@@ -1081,25 +1135,71 @@ scalabilitythroughput_notifications_metadata_plot <- function() {
 MODES_SCALABILITY_CLIENTS <- c("notifications-frequent", "notifications-frequent-practi", "notifications-frequent-practi-no-deltas") # "notifications-infrequent", 
 MODES_LABELS_SCALABILITY_CLIENTS <- c("SwiftCloud","Client-assigned metadata à la PRACTI/Depot", "Client-assigned metadata à la PRACTI/Depot w/o optimization")
 scalabilityclients_notifications_metadata_plot <- function() {
-  var_notifications_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#active client replicas",
-                                  modes=MODES_SCALABILITY_CLIENTS,
-                                  modes_labels=MODES_LABELS_SCALABILITY_CLIENTS)
+  var_notifications_metadata_plot(experiment_dir("scalabilityclients"), "clients", "#client replicas",
+                                  modes=c("notifications-frequent", "notifications-frequent-practi"),
+                                  modes_labels=c("SwiftCloud metadata","Client-assigned metadata à la PRACTI/Depot"),
+                                  modes_color=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-frequent-practi"]))
 }
 
 scalabilityclientssmalldb_notifications_metadata_plot <- function() {
-  var_notifications_metadata_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#active client replicas",
-                                  modes=MODES_SCALABILITY_CLIENTS,
-                                  modes_labels=MODES_LABELS_SCALABILITY_CLIENTS)
+  var_notifications_metadata_plot(experiment_dir("scalabilityclients-smalldb"), "clients", "#client replicas",
+                                  files=c("workloada-uniform-mode-notifications-frequent-clients-.*",
+                                          "workloada-uniform-mode-notifications-frequent-practi-clients-.*",
+                                          "workloada-uniform-mode-notifications-frequent-dcs-1-clients-.*",
+                                          "workloada-uniform-mode-notifications-frequent-practi-dcs-1-clients-.*",
+                                          "workloadb-uniform-mode-notifications-frequent-clients-.*",
+                                          "workloadb-uniform-mode-notifications-frequent-practi-clients-.*",
+                                          "workloadb-uniform-mode-notifications-frequent-dcs-1-clients-.*",
+                                          "workloadb-uniform-mode-notifications-frequent-practi-dcs-1-clients-.*",
+                                          "workload-social-views-counter-mode-notifications-frequent-clients-.*",
+                                          "workload-social-views-counter-mode-notifications-frequent-practi-clients-.*",
+                                          "workload-social-views-counter-mode-notifications-frequent-dcs-1-clients-.*",
+                                          "workload-social-views-counter-mode-notifications-frequent-practi-dcs-1-clients-.*"
+                                  ),
+                                  modes=c("notifications-frequent", "notifications-frequent-practi"),
+                                  modes_labels=c("SwiftCloud metadata","client-assigned metadata à la PRACTI/Depot"),
+                                  modes_color=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-frequent-practi"]))
 }
 
 scalabilitydbsize_notifications_metadata_plot <- function() {
-  var_notifications_metadata_plot(experiment_dir("scalabilitydbsize"), "dbsize", "#objects (~ #active client replicas)")
+  p <- var_notifications_metadata_plot_impl(experiment_dir("scalabilitydbsize"), "dbsize", "#objects in database",
+                                            c(#"workloada-uniform-mode-notifications-frequent-dbsize-.*",
+                                              #"workloadb-uniform-mode-notifications-frequent-dbsize-.*",
+                                              "workload-social-views-counter-mode-notifications-frequent-dbsize-.*"),
+                                            modes=c("notifications-frequent"),
+                                            modes_labels=c("SwiftCloud metadata"),
+                                            modes_color=c(BASIC_MODES_COLORS["notifications-frequent"]),
+                                            errors_threshold=1000, unstable_behavior_markers=F)
+  p <- p + theme(legend.position = "none")
+  output_dir <- file.path(experiment_dir("scalabilitydbsize"), "comparison")
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, "dbsize"), "-notifications-metadata", format_ext, sep="")),
+         width=3.1, height=1.9)
 }
 
 clientfailures_notifications_metadata_plot <- function() {
-  var_notifications_metadata_plot(experiment_dir("clientfailures"), "failures", "#unavailable client replicas",
-                                  modes=c("notifications-frequent", "notifications-frequent-practi"),
-                                  modes_labels=c("SwiftCloud", "Client-assigned metadata à la PRACTI/Depot"))
+  p <- var_notifications_metadata_plot_impl(experiment_dir("clientfailures"), "failures", "#unavailable client replicas",
+                                            files=c("workloada-uniform-mode-notifications-frequent-failures-.*",
+                                                    "workloada-uniform-mode-notifications-infrequent-practi-failures-.*",
+                                                    "workloada-uniform-mode-notifications-infrequent-practi-no-deltas-failures-.*",
+                                                    "workload-social-views-counter-mode-notifications-frequent-failures-.*",
+                                                    # FILTERED MANUALLY w.r.t errorneous behavior
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-0",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-500",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-1000",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-1500",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-no-deltas-failures-.*"
+                                            ), modes=c("notifications-frequent", "notifications-infrequent-practi", "notifications-infrequent-practi-no-deltas"),
+                                            modes_labels=c("SwiftCloud metadata", "client-assigned metadata à la PRACTI/Depot", "client-assigned metadata w/o optimizations"),
+                                            modes_color=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-infrequent-practi"], MODES_COLORS["notifications-infrequent-practi-no-deltas"]),
+                                            errors_threshold=10000, unstable_behavior_markers=T)
+  p <- p + facet_grid(~workload)
+  #p <- pscale_linetype(name="Metadata")
+  #p <- p + theme(legend.direction="horizontal")
+  output_dir <- file.path(experiment_dir("clientfailures"), "comparison")
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, "failures"), "-notifications-metadata", format_ext, sep="")),
+         width=6.2, height=2.69)
 }
 
 COMMIT_EXAMPLE_BATCH_SIZE <- 10
