@@ -1383,7 +1383,7 @@ var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.
   }
   p <- p + facet_grid(~workload, labeller = labeller)
   dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
-  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-", "-storage_dc", format_ext, sep="")),
+  ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-storage_dc", format_ext, sep="")),
          width=6.2, height=3.5)
 }
 
