@@ -15,7 +15,7 @@ add_title <- function(plot, title) {
 }
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter", "workloada-uniform-lowlocality", "workloada-lowlocality", "workloadb-uniform-lowlocality", "workloadb-lowlocality", "workload-social-lowlocality", "workload-social-views-counter-lowlocality")
-WORKLOAD_LABELS <- c("YCSB A, uniform", "YCSB A", "YCSB B, uniform", "YCSB B", "SwiftSocial", "SwiftSocial w/view counters", "YCSB A, uniform, low locality", "YCSB A, low locality", "YCSB B, uniform, low locality", "YCSB B, low locality", "SwiftSocial, low locality", "SwiftSocial w/view counters, low locality")
+WORKLOAD_LABELS <- c("YCSB A, uniform", "YCSB A", "YCSB B, uniform", "YCSB B", "SwiftSocial", "SwiftSocial w/stats", "YCSB A, uniform, low locality", "YCSB A, low locality", "YCSB B, uniform, low locality", "YCSB B, low locality", "SwiftSocial, low locality", "SwiftSocial w/view counters, low locality")
 PURE_MODE_LEVELS <- c("notifications-frequent", "notifications-veryfrequent",
                       "notifications-frequent-no-pruning",  "notifications-frequent-practi",
                       "notifications-frequent-practi-no-deltas", "notifications-frequent-bloated-counters",
@@ -1093,10 +1093,11 @@ var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, files
   p <- var_notifications_metadata_plot_impl(dir, var_name, var_label_axis, files, modes,
                                             modes_labels, modes_colors, errors_threshold, unstable_behavior_markers)
   p <- p + facet_grid(~workload)
-  #p <- p + theme(legend.position = c(0.5, 0.0))
+  p <- p + theme(legend.background = element_blank(), panel.margin=unit(0.6, "line"))
+  p <- p + scale_x_continuous(breaks=c(500, 1500, 2500))
   dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
   ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-notifications-metadata", format_ext, sep="")),
-         width=6.2, height=2.49)
+         width=3.6, height=2.1)
 }
 
 var_notifications_metadata_plot_impl <- function(dir, var_name, var_label_axis, files=".+",
@@ -1118,10 +1119,10 @@ var_notifications_metadata_plot_impl <- function(dir, var_name, var_label_axis, 
   limited_mode_var_stats$label <- rep("unstable", nrow(limited_mode_var_stats))
   
   p <- ggplot() + THEME + theme(panel.margin= unit(0.54, 'lines'), legend.key.height=unit(0.8,"line"),
-                                legend.title=element_blank(), legend.margin=unit(0, "lines"))
+                                legend.title=element_blank(), legend.margin=unit(-2, "lines"))
   #legend.direction='horizontal', legend.box='horizontal')
-  p <- add_title(p, paste(w, "normalized notifications message metadata"))
-  p <- p + labs(x=var_label_axis, y = "metadata in normalized\nnotification message [b]")
+  p <- add_title(p, paste(w, "normalized notifications metadata"))
+  p <- p + labs(x=var_label_axis, y = "notifications metadata [b]")
   min_y <- 10^9
   max_y <- 1
   if (multiple_dcs) {
@@ -1164,7 +1165,7 @@ var_notifications_metadata_plot_impl <- function(dir, var_name, var_label_axis, 
     p <- p + scale_linetype_discrete(name="System configuration")
   }
   if (multiple_dcs) {
-    p <- p + scale_size_manual(name="#server (DC) replicas ", values=c(0.3, 0.75), breaks=c(1, 3), labels=c("1 server (DC) replica", "3 server (DC) replicas"))
+    p <- p + scale_size_manual(name="#server (DC) replicas ", values=c(0.3, 0.75), breaks=c(1, 3), labels=c("1 DC replica", "3 DC replicas"))
   }
   return (p)
 }
@@ -1198,7 +1199,7 @@ scalabilityclientssmalldb_notifications_metadata_plot <- function() {
                                           "workload-social-views-counter-mode-notifications-frequent-practi-dcs-1-clients-.*"
                                   ),
                                   modes=c("notifications-frequent", "notifications-frequent-practi"),
-                                  modes_labels=c("SwiftCloud metadata","client-assigned metadata à la PRACTI/Depot"),
+                                  modes_labels=c("SwiftCloud metadata","client-assigned metadata (Depot*)"),
                                   modes_color=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-frequent-practi"]))
 }
 
