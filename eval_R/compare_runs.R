@@ -344,7 +344,7 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   MAGIC_PERMUTATION <- c(4, 1, 6, 3, 5, 2)
   
   colors <- rep(modes_colors, 2)[MAGIC_PERMUTATION]
-  shapes <- c(15, 16, 17, 15, 16, 17)[MAGIC_PERMUTATION]
+  shapes <- c(15, 16, 17, 0, 1, 2)[MAGIC_PERMUTATION]
   sizes <- c(2, 2, 2, 1, 1, 1)[MAGIC_PERMUTATION]
   linetypes <- c(1, 1, 1, 2, 2, 2)[MAGIC_PERMUTATION]
   p <- p + scale_color_manual(name=name, breaks=breaks, labels=labels, values=colors)
