@@ -1407,7 +1407,7 @@ var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.
         return ("YCSB - all objects")
       }
       if (grepl("Social", value)) {
-        return ("SwiftSocial-  stats counters")
+        return ("SwiftSocial - stats counters")
       }
       return (value)
     }))
@@ -1428,7 +1428,7 @@ clientfailures_storage_plot <- function() {
                            "workload-social-views-counter-mode-refresh-infrequent-bloated-counters-failures-.*"
                            ),
                    modes=c("notifications-frequent", "notifications-frequent-idempotence-guard", "notifications-frequent-no-pruning", "refresh-infrequent-bloated-counters"),
-                   modes_labels=c("SwiftCloud log compaction protocol", "\\-> size of idempotence guard of SwiftCloud", "stability-based log compaction protocol", "object-level metadata compaction protocol"),
+                   modes_labels=c("SwiftCloud log compaction protocol", "\\-> size of idempotence guard in SwiftCloud", "stability-based log compaction protocol", "log compaction protocol with no at-most-once guarantees"),
                    modes_colors=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-frequent-idempotence-guard"],
                                   MODES_COLORS["notifications-frequent-no-pruning"], MODES_COLORS["refresh-infrequent-bloated-counters"]),
                    modes_shapes=c(0, 1, 2, 4),
