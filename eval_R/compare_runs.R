@@ -720,9 +720,9 @@ multi_cdf_plot <- function(dir, var_name, var_label, output_dir = file.path(dir,
   }
 }
 
-OPERATION_TYPES <- c("read", "update", "READ", "FRIEND", "SEE_FRIENDS", "POST", "STATUS")
+OPERATION_TYPES <- c("read", "update", "READ", "SEE_FRIENDS", "POST", "STATUS", "FRIEND")
 RESPONSE_TIME_OPERATION_TYPES <- paste("response_time", OPERATION_TYPES, sep="_")
-OPERATION_TYPES_LABELS <- c("read", "update", "read wall", "add friend", "see friends", "post message", "post status")
+OPERATION_TYPES_LABELS <- c("read", "update", "read wall", "see friends", "post message", "post status", "add friend")
 
 CDFS_RESPONSE_TIME_CUTOFF <- 270
 RTT <- 60
