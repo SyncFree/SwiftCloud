@@ -329,13 +329,13 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
                                          color="modeLow", shape="modeLow", size="modeLow"))
   p <- p + geom_path(mapping=aes_string(y="response_time.q95",
                                         x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
-                                        color="modeHigh", linetype="modeHigh"), size = 0.2)
+                                        color="modeHigh", linetype="modeHigh"), size = 0.15)
   p <- p + geom_point(mapping=aes_string(y="response_time.q95",
                                          x="throughput.mean", group="interaction(workload, mode, dcs, clients)",
                                          color="modeHigh", shape="modeHigh", size="modeHigh"))
   
   # Shared legend
-  name <- "Configuration × response time percentile"
+  name <- "Protocol mode × response time percentile"
   breaks <- c(paste(modes, "low", sep="."), paste(modes, "high", sep="."))
   labels <- c(paste(modes_labels, "70th percentile (exp. local)", sep=", "), paste(modes_labels, "95th percentile (remote)", sep=", "))
   attributes(modes_colors) <- NULL
@@ -401,8 +401,8 @@ ycsb_workloads_throughput_response_time_plot <-function() {
                                           file_suffix = "YCSB",
                                           modes=c("no-caching", "notifications-veryfrequent", "notifications-frequent"),
                                           modes_colors=c(MODES_COLORS["no-caching"], MODES_COLORS["notifications-veryfrequent"], MODES_COLORS["notifications-frequent"]),
-                                          modes_labels=c("server replicas only", "client replicas - high refresh rate", 
-                                                         "client replicas - medium refresh rate"))
+                                          modes_labels=c("server replicas only", "client replicas w/high refresh rate", 
+                                                         "client replicas w/medium refresh rate"))
 }
 
 workloads_modes_max_throughput_plot <- function(dir, var_name, files, output_dir = file.path(dir, "comparison"),
@@ -1245,6 +1245,30 @@ clientfailures_notifications_metadata_plot <- function() {
   ggsave(p, file=paste(paste(file.path(output_dir, "failures"), "-notifications-metadata", format_ext, sep="")),
          width=3.6, height=2.1)
 }
+
+clientfailures_notifications_metadata_plot_only_optimised <- function() {
+  p <- var_notifications_metadata_plot_impl(experiment_dir("clientfailures"), "failures", "#unavailable client replicas",
+                                            files=c("workloada-uniform-mode-notifications-frequent-failures-.*",
+                                                    "workloada-uniform-mode-notifications-infrequent-practi-failures-.*",
+                                                    "workload-social-views-counter-mode-notifications-frequent-failures-.*",
+                                                    # FILTERED MANUALLY w.r.t errorneous behavior
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-0",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-500",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-1000",
+                                                    "workload-social-views-counter-mode-notifications-infrequent-practi-failures-1500"
+                                            ), modes=c("notifications-frequent", "notifications-infrequent-practi"),
+                                            modes_labels=c("SwiftCloud metadata", "client-assigned metadata (Depot*)"),
+                                            modes_color=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-infrequent-practi"]),
+                                            errors_threshold=10000, unstable_behavior_markers=T)
+  p <- p + facet_grid(~workload)
+  #p <- pscale_linetype(name="Metadata")
+  p <- p + theme(legend.background=element_blank(), legend.key.height=unit(0.7, "line"))
+  output_dir <- file.path(experiment_dir("clientfailures"), "comparison")
+  dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
+  ggsave(p, file=paste(paste(file.path(output_dir, "failures"), "-notifications-metadata-only-optimised", format_ext, sep="")),
+         width=3.6, height=2)
+}
+
 
 COMMIT_EXAMPLE_BATCH_SIZE <- 10
 var_commit_metadata_plot <- function(dir, var_name, var_label, output_dir = file.path(dir, "comparison")) {
