@@ -1089,13 +1089,17 @@ normalize_batch <- function(stats, message, batch_size, norm="norm2") {
 }
 
 NOTIFICATIONS_EXAMPLE_BATCH_SIZE <- 10
+MAX_UPDATE_DATA_SIZE <- 120
+MAX_BATCH_DATA_SIZE <- NOTIFICATIONS_EXAMPLE_BATCH_SIZE*MAX_UPDATE_DATA_SIZE
 var_notifications_metadata_plot <- function(dir, var_name, var_label_axis, files=".+",
                                             output_dir = file.path(dir, "comparison"),
                                             modes=c(), modes_labels=c(), modes_colors=c(),
                                             errors_threshold=4000, unstable_behavior_markers=F) {
   p <- var_notifications_metadata_plot_impl(dir, var_name, var_label_axis, files, modes,
                                             modes_labels, modes_colors, errors_threshold, unstable_behavior_markers)
+  
   p <- p + facet_grid(~workload)
+  p <- p + geom_hline(yintercept=MAX_BATCH_DATA_SIZE) + annotate("text", x=1500, y=MAX_BATCH_DATA_SIZE-3*MAX_UPDATE_DATA_SIZE, label="max. notification data", size=1.6)
   p <- p + theme(legend.background = element_blank(), panel.margin=unit(0.6, "line"))
   p <- p + scale_x_continuous(breaks=c(500, 1500, 2500))
   dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
