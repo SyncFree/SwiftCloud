@@ -1442,7 +1442,7 @@ var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.
         return ("YCSB - all objects")
       }
       if (grepl("Social", value)) {
-        return ("SwiftSocial - stats counters")
+        return ("SocialApp - stats counters")
       }
       return (value)
     }))
