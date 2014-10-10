@@ -1417,13 +1417,15 @@ var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.
   
 
   p <- ggplot() + THEME + theme(legend.title=element_blank(), legend.background=element_blank(),
-                                legend.key.height=unit(0.7, "line"), legend.margin=unit(-2.7, "line"))
+                                legend.key.height=unit(0.6, "line"), legend.key.width=unit(0.9, "line"),
+                                legend.margin=unit(-2.7, "line"),
+                                legend.position=c(0.45, 0.6), legend.text = element_text(size=6))
   p <- p + labs(x=var_label,y = "storage occup. [B]")  
 
   p <- p + geom_path(data=melted, mapping=aes(y=value, x=var, color=mode, group=interaction(workload, mode), linetype=mode))
   p <- p + geom_point(data=melted, mapping=aes(y=value, x=var, color=mode, shape=mode), position=position_dodge(width=60), size=1.6)
   
-  if (unstable_behavior_markers) {
+  if (unstable_behavior_markers & nrow(limited_mode_var_stats) > 0) {
     #p <- p + geom_segment(data=limited_mode_var_stats,
     #                      mapping=aes(x=var+80, xend=var + 80, y=total**0.95, yend=total**1.05), color="black",linestyle=2)
     p <- p + geom_text(data=limited_mode_var_stats,
@@ -1435,7 +1437,7 @@ var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.
     p <- p + scale_shape_manual(name="System configuration", values=modes_shapes, breaks=modes, labels=modes_labels)
     p <- p + scale_linetype_discrete(name="System configuration", breaks=modes, labels=modes_labels)
   }
-  p <- add_cs_log_scale(p, 10**3, 10**9)
+  p <- add_cs_log_scale(p, 10**3, 10**8)
   labeller <- function(var, values) {
     return (lapply(values, function(value) {
       if (grepl("YCSB", value)) {
@@ -1450,23 +1452,27 @@ var_storage_plot <- function(dir, var_name, var_label, files, output_dir = file.
   p <- p + facet_grid(~workload, labeller = labeller)
   dir.create(output_dir, recursive=TRUE, showWarnings=FALSE)
   ggsave(p, file=paste(paste(file.path(output_dir, var_name), "-storage_dc", format_ext, sep="")),
-         width=3.6, height=2.2)
+         width=3.6, height=1.7)
 }
 
 clientfailures_storage_plot <- function() {
   var_storage_plot(experiment_dir("clientfailures"), "failures", "#unavailable client replicas",
                    files=c("workloada-uniform-mode-notifications-frequent-failures-.*",
                            "workloada-uniform-mode-refresh-frequent-failures-.*",
-                           "workloada-uniform-mode-notifications-frequent-no-pruning-failures-.*",
+                           #"workloada-uniform-mode-notifications-frequent-no-pruning-failures-.*",
                            "workload-social-views-counter-mode-notifications-frequent-failures-.*",
-                           "workload-social-views-counter-mode-notifications-frequent-no-pruning-failures-.*",
+                           #"workload-social-views-counter-mode-notifications-frequent-no-pruning-failures-.*",
                            "workload-social-views-counter-mode-refresh-infrequent-bloated-counters-failures-.*"
                            ),
-                   modes=c("notifications-frequent", "notifications-frequent-idempotence-guard", "notifications-frequent-no-pruning", "refresh-infrequent-bloated-counters"),
-                   modes_labels=c(SWIFTCLOUD, paste("(", SWIFTCLOUD, "'s at-most-once guard only)", sep=""), "naive pruning approach", "Lean But Unsafe approach w/o at-most-once guarantees"),
+                   modes=c("notifications-frequent", "notifications-frequent-idempotence-guard", #"notifications-frequent-no-pruning",
+                           "refresh-infrequent-bloated-counters"),
+                   modes_labels=c(SWIFTCLOUD, paste("(", SWIFTCLOUD, "'s at-most-once guard only)", sep=""), #"naive pruning approach",
+                                  "Lean But Unsafe approach w/o at-most-once guarantees"),
                    modes_colors=c(BASIC_MODES_COLORS["notifications-frequent"], MODES_COLORS["notifications-frequent-idempotence-guard"],
-                                  MODES_COLORS["notifications-frequent-no-pruning"], MODES_COLORS["refresh-infrequent-bloated-counters"]),
-                   modes_shapes=c(0, 1, 2, 4),
+                                  #MODES_COLORS["notifications-frequent-no-pruning"],
+                                  MODES_COLORS["refresh-infrequent-bloated-counters"]),
+                   modes_shapes=c(0, 1, #2,
+                                  4),
                    errors_threshold=10000)
 }
 
