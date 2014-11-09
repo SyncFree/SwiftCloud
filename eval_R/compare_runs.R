@@ -14,7 +14,7 @@ add_title <- function(plot, title) {
   return (plot)
 }
 
-SWIFTCLOUD <- "Brie" # "SwiftCloud
+SWIFTCLOUD <- "SwiftCloud" # "Brie"
 
 WORKLOAD_LEVELS <- c("workloada-uniform", "workloada", "workloadb-uniform", "workloadb", "workload-social", "workload-social-views-counter", "workloada-uniform-lowlocality", "workloada-lowlocality", "workloadb-uniform-lowlocality", "workloadb-lowlocality", "workload-social-lowlocality", "workload-social-views-counter-lowlocality")
 WORKLOAD_LABELS <- c("YCSB A, uniform", "YCSB A", "YCSB B, uniform", "YCSB B", "SocialApp", "SocialApp w/stats", "YCSB A, uniform, low locality", "YCSB A, low locality", "YCSB B, uniform, low locality", "YCSB B, low locality", "SocialApp, low locality", "SocialApp w/view counters, low locality")
