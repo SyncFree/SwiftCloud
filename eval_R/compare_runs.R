@@ -303,7 +303,7 @@ workloads_throughput_response_time_plot <- function(dir, files, output_dir = fil
   stats[[response_time_lower_quantile]] <- sapply(stats[[response_time_lower_quantile]], function(v) { (max(v, 1))})
   stats <- stats[order(stats$var), ]
   stats$workload_name <- factor(sapply(stats$workload, function(w) {ifelse(grepl("YCSB A", w), "A", "B")}), levels=c("A", "B"), labels=c("YCSB A (50% updates)", "YCSB B (5% updates)"))
-  stats$workload_distribution <- factor(sapply(stats$workload, function(w) {ifelse(grepl("uniform", w), "uniform", "zipfian")}), levels=c("zipfian", "uniform"), labels=c("zipfian distrib.", "uniform distrib."))
+  stats$workload_distribution <- factor(sapply(stats$workload, function(w) {ifelse(grepl("uniform", w), "uniform", "zipfian")}), levels=c("zipfian", "uniform"), labels=c("Zipfian distrib.", "uniform distrib."))
   # anti reshape2-hack (reshape2 is somewhat at odds with throughput.mean)
   QUANTILES_LEVELS <- c("low","high")
   stats$modeLow <- paste(stats$mode, "low", sep=".")
