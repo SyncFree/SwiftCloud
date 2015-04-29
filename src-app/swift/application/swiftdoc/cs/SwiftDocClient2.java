@@ -40,7 +40,6 @@ import sys.net.api.Networking.TransportProvider;
 import sys.net.api.TransportConnection;
 import sys.net.api.rpc.RpcEndpoint;
 import sys.utils.Threading;
-import umontreal.iro.lecuyer.stat.Tally;
 
 /**
  * 
@@ -103,7 +102,7 @@ public class SwiftDocClient2 {
     static TransportConnection pingCon = null;
 
     static void client1Code(final Endpoint server, final Endpoint DC) throws Exception {
-        final Tally dcRTT = new Tally();
+//        final Tally dcRTT = new Tally();
 
         // // Initiate measurement of RTT to central datacenter...
         //
@@ -155,8 +154,10 @@ public class SwiftDocClient2 {
         }
 
         synchronized (results) {
-            System.out.printf("# RTT to %s min: %s max: %s avg: %s std: %s\n", DC, dcRTT.min(), dcRTT.max(),
-                    dcRTT.average(), dcRTT.standardDeviation());
+            // FIXME: replace me with license-compatible Tally stats
+            // System.out.printf("# RTT to %s min: %s max: %s avg: %s std: %s\n",
+            // DC, dcRTT.min(), dcRTT.max(),
+            // dcRTT.average(), dcRTT.standardDeviation());
             for (Long i : results)
                 System.out.printf("%s\n", i);
         }

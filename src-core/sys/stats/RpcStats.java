@@ -41,10 +41,14 @@ public class RpcStats extends XmlExternalizable {
 
     public double T0 = Sys.currentTime();
 
-    private Map<String, BinnedTally> rpcRTT = new HashMap<String, BinnedTally>();
-    private Map<String, BinnedTally> inMsgTraffic = new HashMap<String, BinnedTally>();
-    private Map<String, BinnedTally> outMsgTraffic = new HashMap<String, BinnedTally>();
-    private Map<String, BinnedTally> rpcExecTime = new HashMap<String, BinnedTally>();
+    // private Map<String, BinnedTally> rpcRTT = new HashMap<String,
+    // BinnedTally>();
+    // private Map<String, BinnedTally> inMsgTraffic = new HashMap<String,
+    // BinnedTally>();
+    // private Map<String, BinnedTally> outMsgTraffic = new HashMap<String,
+    // BinnedTally>();
+    // private Map<String, BinnedTally> rpcExecTime = new HashMap<String,
+    // BinnedTally>();
 
     // New Stats.
     private ValueSignalSource rttStats;
@@ -68,52 +72,55 @@ public class RpcStats extends XmlExternalizable {
 
     long total = 0;
 
-    synchronized public void logSentRpcPacket(RpcPacket pkt, Endpoint dst) {
-        try {
-            total += pkt.getSize();
-            String type = pkt.getPayload().getClass().getName();
-            valueFor(outMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
-            outMsgStats.setValue(pkt.getSize());
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
-    }
+//    synchronized public void logSentRpcPacket(RpcPacket pkt, Endpoint dst) {
+//        try {
+//            total += pkt.getSize();
+//            String type = pkt.getPayload().getClass().getName();
+//            valueFor(outMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
+//            outMsgStats.setValue(pkt.getSize());
+//        } catch (Exception x) {
+//            x.printStackTrace();
+//        }
+//    }
 
-    synchronized public void logReceivedRpcPacket(RpcPacket pkt, Endpoint src) {
-        try {
-            String type = pkt.getPayload().getClass().getName();
-            valueFor(inMsgTraffic, type, true).tally(Sys.currentTime(), pkt.getSize());
-            inMsgStats.setValue(pkt.getSize());
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
-    }
-
-    synchronized public void logRpcExecTime(Class<?> cl, double time) {
-        try {
-            valueFor(rpcExecTime, cl.getName(), true).tally(Sys.currentTime(), time);
-            msgProcessingTimeStats.setValue(time);
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
-    }
-
-    synchronized public void logRpcRTT(Endpoint dst, double rtt) {
-        try {
-            valueFor(rpcRTT, dst.toString(), true).tally(Sys.currentTime(), rtt);
-            rttStats.setValue(rtt);
-        } catch (Exception x) {
-            x.printStackTrace();
-        }
-    }
-
-    private synchronized <K> BinnedTally valueFor(Map<K, BinnedTally> map, K key, boolean create) {
-        BinnedTally res = map.get(key);
-        if (res == null && create) {
-            map.put(key, res = new BinnedTally(STATS_BIN_SIZE, ""));
-        }
-        return res;
-    }
+    // synchronized public void logReceivedRpcPacket(RpcPacket pkt, Endpoint
+    // src) {
+    // try {
+    // String type = pkt.getPayload().getClass().getName();
+    // valueFor(inMsgTraffic, type, true).tally(Sys.currentTime(),
+    // pkt.getSize());
+    // inMsgStats.setValue(pkt.getSize());
+    // } catch (Exception x) {
+    // x.printStackTrace();
+    // }
+    // }
+    //
+    // synchronized public void logRpcExecTime(Class<?> cl, double time) {
+    // try {
+    // valueFor(rpcExecTime, cl.getName(), true).tally(Sys.currentTime(), time);
+    // msgProcessingTimeStats.setValue(time);
+    // } catch (Exception x) {
+    // x.printStackTrace();
+    // }
+    // }
+    //
+    // synchronized public void logRpcRTT(Endpoint dst, double rtt) {
+    // try {
+    // valueFor(rpcRTT, dst.toString(), true).tally(Sys.currentTime(), rtt);
+    // rttStats.setValue(rtt);
+    // } catch (Exception x) {
+    // x.printStackTrace();
+    // }
+    // }
+    //
+    // private synchronized <K> BinnedTally valueFor(Map<K, BinnedTally> map, K
+    // key, boolean create) {
+    // BinnedTally res = map.get(key);
+    // if (res == null && create) {
+    // map.put(key, res = new BinnedTally(STATS_BIN_SIZE, ""));
+    // }
+    // return res;
+    // }
 
     static double PT = 0, DL = 0, UL = 0;
     static {

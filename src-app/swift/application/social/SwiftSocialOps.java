@@ -43,7 +43,6 @@ import swift.exceptions.VersionNotFoundException;
 import swift.exceptions.WrongTypeException;
 import swift.utils.SafeLog;
 import swift.utils.SafeLog.ReportType;
-import sys.stats.Tally;
 
 // implements the social network functionality
 // see wsocial_srv.h
@@ -490,8 +489,6 @@ public class SwiftSocialOps {
             res = txn.get(id, create, classOfV, updatesListener);
         return res;
     }
-
-    Tally getLatency = new Tally("GetLatency");
 
     @SuppressWarnings("unchecked")
     <V extends CRDT<V>> V get(TxnHandle txn, CRDTIdentifier id, boolean create, Class<V> classOfT)
