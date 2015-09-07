@@ -1,15 +1,21 @@
 SwiftCloud: a causally-consistent CRDT object database for client-side apps
 
-This repository contains the prototype database SwiftCloud, originally
-described in the Inria tech report "SwiftCloud: Fault-Tolerant
-Geo-Replication Integrated all the Way to the Client Machine" by
-Marek Zawirski, Annette Bieniusa, Valter Balegas, Sérgio Duarte,
-Carlos Baquero, Marc Shapiro, and Nuno Preguiça
-(http://hal.inria.fr/hal-00870225), with an updated description appearing in
-a PhD thesis of Marek Zawirski on "Dependable Eventual Consistency
-with Replicated Data Types"
-(http://pagesperso-systeme.lip6.fr/Marek.Zawirski/papers/thesis.pdf).
-This codebase served in the experiments for the latter.
+This repository contains the prototype database SwiftCloud, described in the
+following publications:
+1. "Write Fast, Read in the Past: Causal Consistency for Client-side
+    Applications"
+     by Marek Zawirski, Nuno Preguiça, Sérgio Duarte, Annette Bieniusa,
+        Valter Balegas, and  Marc Shapiro,
+     to appear in the proceedings of Middleware, 2015, and available in
+     extended version as an Inria technical report
+     (https://hal.inria.fr/hal-01158370v1)
+2. "SwiftCloud: Fault-Tolerant Geo-Replication Integrated all the Way to the
+    Client Machine" (old version, subsumed by 1.)
+     by Marek Zawirski, Annette Bieniusa, Valter Balegas, Sérgio Duarte,
+        Carlos Baquero, Marc Shapiro, and Nuno Preguiça,
+     available as Inria technical report from 2013
+    (http://hal.inria.fr/hal-00870225)
+This codebase served in the experiments for the former publicaiton.
 
 The code is licensed under The Apache License Version 2.0 (LICENSE),
 provided in the spirit of CRAPL license (CRAPL-LICENSE), i.e., it is ugly
