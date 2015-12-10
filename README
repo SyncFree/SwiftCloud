@@ -6,16 +6,16 @@ following publications:
     Applications"
      by Marek Zawirski, Nuno Preguiça, Sérgio Duarte, Annette Bieniusa,
         Valter Balegas, and  Marc Shapiro,
-     to appear in the proceedings of Middleware, 2015, and available in
+     in the proceedings of Middleware, 2015, also available in
      extended version as an Inria technical report
-     (https://hal.inria.fr/hal-01158370v1)
+     (https://hal.inria.fr/hal-01158370)
 2. "SwiftCloud: Fault-Tolerant Geo-Replication Integrated all the Way to the
     Client Machine" (old version, subsumed by 1.)
      by Marek Zawirski, Annette Bieniusa, Valter Balegas, Sérgio Duarte,
         Carlos Baquero, Marc Shapiro, and Nuno Preguiça,
      available as Inria technical report from 2013
     (http://hal.inria.fr/hal-00870225)
-This codebase served in the experiments for the former publicaiton.
+This codebase served in the experiments for the publicaiton 1. 
 
 The code is licensed under The Apache License Version 2.0 (LICENSE),
 provided in the spirit of CRAPL license (CRAPL-LICENSE), i.e., it is ugly
